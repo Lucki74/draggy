@@ -44,7 +44,13 @@ export default function StarNotice({ generating, t }: Props) {
     wasGenerating.current = generating;
   }, [generating, dismissed, count]);
 
-  if (dismissed || generating || count < STAR_AFTER) return null;
+  if (
+    dismissed ||
+    read(SEEN_KEY) === "1" ||
+    generating ||
+    count < STAR_AFTER ||
+    (typeof window !== "undefined" && Boolean((window as unknown as { __DRAGGY_NO_STAR__?: boolean }).__DRAGGY_NO_STAR__))
+  ) return null;
 
   const dismiss = () => {
     write(SEEN_KEY, "1");
@@ -52,7 +58,7 @@ export default function StarNotice({ generating, t }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-rule bg-surface-raised">
+    <div data-star-notice className="flex items-center gap-3 px-4 py-2.5 border-b border-rule bg-surface-raised">
       <Icon name="star" size={16} className="flex-shrink-0 text-text-secondary" />
       <p className="flex-1 min-w-0 text-xs font-medium">{t("starNotice")}</p>
       <a

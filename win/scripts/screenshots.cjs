@@ -371,8 +371,21 @@ async function run() {
   win.setContentSize(WIDTH, HEIGHT);
   win.setPosition(0, 0);
   log("content size", win.getContentSize().join("x"));
+  await win.webContents.insertCSS(`
+    [data-star-notice],
+    div:has(> a[href*="github.com/Lucki74/draggy"]),
+    div:has(> button[aria-label="Dismiss"]) {
+      display: none !important;
+    }
+  `);
   await waitFor(() => inPage(win, () => Boolean(document.querySelector("[data-region=composer] form"))), {
     label: "the chat screen",
+  });
+  await inPage(win, () => {
+    try {
+      localStorage.setItem("draggy_star_notice", "1");
+      window.__DRAGGY_NO_STAR__ = true;
+    } catch {}
   });
   if (LANGUAGE) {
     await inPage(win, (language) => {
@@ -380,8 +393,21 @@ async function run() {
       localStorage.setItem("draggy_settings", JSON.stringify({ ...saved, language }));
     }, LANGUAGE);
     win.webContents.reload();
+    await win.webContents.insertCSS(`
+      [data-star-notice],
+      div:has(> a[href*="github.com/Lucki74/draggy"]),
+      div:has(> button[aria-label="Dismiss"]) {
+        display: none !important;
+      }
+    `);
     await waitFor(() => inPage(win, () => Boolean(document.querySelector("[data-region=composer] form"))), {
       label: "the chat screen in the chosen language",
+    });
+    await inPage(win, () => {
+      try {
+        localStorage.setItem("draggy_star_notice", "1");
+        window.__DRAGGY_NO_STAR__ = true;
+      } catch {}
     });
   }
   const placeholder = await inPage(win, () => document.querySelector("[data-region=composer] form textarea").placeholder);
