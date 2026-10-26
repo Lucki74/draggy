@@ -89,13 +89,24 @@ If Draggy is useful to you, a star on this repository helps other people find it
 
 ```bash
 npm install
-```
-
-```bash
 npm run electron:dev
 ```
 
-This starts Vite and Electron with hot reload. See [Building and architecture](https://draggy.org/wiki/development) for repository layout, [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, and [RELEASING.md](RELEASING.md) for release workflows.
+This starts Vite and Electron with hot reload on Windows.
+
+### macOS (SwiftUI)
+```bash
+macos/scripts/build-core.sh
+xcodegen generate
+xcodebuild -scheme Draggy -configuration Debug
+```
+
+### Linux (GTK 4 & libadwaita)
+```bash
+cargo build --release -p draggy-linux
+```
+
+See [Building and architecture](https://draggy.org/wiki/development) for repository layout, [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, and [RELEASING.md](RELEASING.md) for release workflows.
 
 ## Logging and diagnostics
 

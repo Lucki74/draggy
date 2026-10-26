@@ -87,6 +87,15 @@ impl DraggyWindow {
         window.attach_google();
         window.attach_browser();
         window.attach_skills();
+        window.attach_terminal();
+        window.attach_files();
+        window.attach_search();
+        window.attach_diff();
+        window.attach_stats();
+        window.attach_canvas();
+        window.attach_images();
+        window.attach_talk();
+        window.attach_diagnostics();
         window.stop_servers_on_close();
         window.install_history();
         window.refresh_history();
@@ -165,6 +174,54 @@ impl DraggyWindow {
             }
         });
         self.imp().pages.add_named(&page, Some("models"));
+    }
+
+    fn attach_terminal(&self) {
+        let page = crate::ui::terminal::TerminalPane::build();
+        self.imp().pages.add_named(&page, Some("terminal"));
+    }
+
+    fn attach_files(&self) {
+        let page = crate::ui::explorer::FileExplorerPane::build(".");
+        self.imp().pages.add_named(&page, Some("files"));
+    }
+
+    fn attach_search(&self) {
+        let page = crate::ui::search::SearchView::build(".");
+        self.imp().pages.add_named(&page, Some("search"));
+    }
+
+    fn attach_diff(&self) {
+        let page = crate::ui::diff::DiffPaneView::build(".");
+        self.imp().pages.add_named(&page, Some("diff"));
+    }
+
+    fn attach_stats(&self) {
+        let store = std::rc::Rc::new(crate::services::stats_store::StatsStore::new());
+        let page = crate::ui::stats::StatsPanelView::build(store);
+        self.imp().pages.add_named(&page, Some("stats"));
+    }
+
+    fn attach_canvas(&self) {
+        let store = std::rc::Rc::new(crate::services::canvas_store::CanvasStore::new());
+        let page = crate::ui::canvas::CanvasView::build(store);
+        self.imp().pages.add_named(&page, Some("canvas"));
+    }
+
+    fn attach_images(&self) {
+        let engine = std::rc::Rc::new(crate::services::image_engine::ImageEngine::new());
+        let page = crate::ui::image::ImageGenerationView::build(engine);
+        self.imp().pages.add_named(&page, Some("images"));
+    }
+
+    fn attach_talk(&self) {
+        let page = crate::ui::voice::TalkModeView::build();
+        self.imp().pages.add_named(&page, Some("talk"));
+    }
+
+    fn attach_diagnostics(&self) {
+        let page = crate::ui::diagnostics::DiagnosticsView::build();
+        self.imp().pages.add_named(&page, Some("diagnostics"));
     }
 
     /// Stops the MCP servers and the local engine when the window closes, so no child process outlives the app.
