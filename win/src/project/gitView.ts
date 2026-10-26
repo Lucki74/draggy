@@ -1,4 +1,5 @@
 import type { GitChange, GitStatus } from "../types";
+import { classifyDiffLines, parseDiff } from "../diff/diffParser";
 
 /** How git's output is shown: pure, so the strip and the timeline read a diff and a status the same
  * way, and so both can be tested without a repository. */
@@ -10,31 +11,10 @@ export interface DiffLine {
   text: string;
 }
 
-/** Sorts each line of a unified diff into what it is. */
+/** Sorts each line of a unified diff into what it is. Reads hunks by their counts, the way
+ * `parseDiff` does, so a changed line that reads like a file header is still a change. */
 export function classifyDiff(diff: string): DiffLine[] {
-  const lines = String(diff || "").replace(/\r\n/g, "\n").split("\n");
-  if (lines.at(-1) === "") lines.pop();
-
-  return lines.map((text) => {
-    if (text.startsWith("@@")) return { kind: "hunk", text };
-    if (
-      text.startsWith("diff --git") ||
-      text.startsWith("index ") ||
-      text.startsWith("--- ") ||
-      text.startsWith("+++ ") ||
-      text.startsWith("new file mode") ||
-      text.startsWith("deleted file mode") ||
-      text.startsWith("similarity index") ||
-      text.startsWith("rename from") ||
-      text.startsWith("rename to") ||
-      text.startsWith("Binary files")
-    ) {
-      return { kind: "meta", text };
-    }
-    if (text.startsWith("+")) return { kind: "add", text };
-    if (text.startsWith("-")) return { kind: "remove", text };
-    return { kind: "context", text };
-  });
+  return classifyDiffLines(diff).map(({ kind, text }) => ({ kind, text }));
 }
 
 /** Lines added and removed, the way a pull request counts them. */
@@ -42,9 +22,9 @@ export function diffStats(diff: string): { added: number; removed: number } {
   let added = 0;
   let removed = 0;
 
-  for (const line of classifyDiff(diff)) {
-    if (line.kind === "add") added += 1;
-    if (line.kind === "remove") removed += 1;
+  for (const file of parseDiff(diff)) {
+    added += file.added;
+    removed += file.removed;
   }
 
   return { added, removed };

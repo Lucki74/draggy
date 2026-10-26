@@ -98,6 +98,7 @@ import {
   logRendererEvent,
   logRendererOnce, newCorrelationId, swallowed } from "../logger";
 import { generateId, isBinary, safeJsonParse } from "../utils";
+import { raceAbort } from "./abortRace";
 import type {
   AppSettings,
   ApprovalAnswer,
@@ -341,6 +342,9 @@ const EXHAUSTED_MESSAGE =
   "I apologize, but I reached the maximum number of search steps without finding a definitive final answer.";
 
 const FALLBACK_RESULT_CHARS = 2000;
+
+/** What a tool call answers when the user stops the turn first. */
+const CANCELLED_RESULT = "Tool execution cancelled.";
 
 const ACT_ON_ANNOUNCEMENT =
   "You said what you would do next but did not do it. Make that tool call now, or if you have finished, give your final answer.";
@@ -808,27 +812,26 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     name: string,
     args: Record<string, unknown>,
   ): Promise<string> {
-    if (signal.aborted) return "Tool execution cancelled.";
+    if (signal.aborted) return CANCELLED_RESULT;
     toolCalls[name] = (toolCalls[name] ?? 0) + 1;
 
     const target = targetFromArgs(args);
     const annotations = annotationsFor(name);
-    const verdict = decide({ mode, tool: name, annotations, target, grants });
+    const shell = typeof args.shell === "string" ? args.shell : null;
+    const verdict = decide({ mode, tool: name, annotations, target, grants, shell });
     const kind = annotations.executes ? ("command" as const) : undefined;
     // What "always" would remember, shown on the card so the user knows before choosing.
-    const remembered = grantsFor(name, target, annotations);
+    const remembered = grantsFor(name, target, annotations, shell);
 
     if (verdict.decision === "allow") {
       const toolStart = performance.now();
       logToolCall(name, "start", args, correlationId);
       try {
-        const abortPromise = new Promise<string>((resolve) => {
-          signal.addEventListener("abort", () => resolve("Tool execution cancelled."), { once: true });
-        });
-        const toolOutput = await Promise.race([
+        const toolOutput = await raceAbort(
+          signal,
           runTool(name, args, toolContext, environment),
-          abortPromise,
-        ]);
+          CANCELLED_RESULT,
+        );
         logToolCall(name, "complete", { durationMs: performance.now() - toolStart }, correlationId);
         return toolOutput;
       } catch (err) {
@@ -897,7 +900,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       for (const grant of remembered) host.onGrant?.(grant);
     }
 
-    return runTool(name, args, toolContext, environment);
+    return raceAbort(signal, runTool(name, args, toolContext, environment), CANCELLED_RESULT);
   }
 
   /** One repair per turn for a malformed call: asked again with a JSON schema, so the sampler
@@ -1798,13 +1801,13 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   if (!signal.aborted) host.onPatch(combine("", ""));
 
   if (metrics) {
+    // The window holds the last pass's prompt and its reply. Summed response tokens would count earlier passes twice.
+    const contextTokens = contextCheckpoint?.tokens ?? metrics.promptTokens + metrics.responseTokens;
     metrics = {
       ...metrics,
       gpuPercent: await gpuShareFor(model),
-      breakdown: measureBreakdown(
-        promptParts,
-        metrics.promptTokens + metrics.responseTokens,
-      ),
+      contextTokens,
+      breakdown: measureBreakdown(promptParts, contextTokens),
     };
     host.onMetrics?.(metrics);
     // Counts and timings only: the speed this computer reached feeds the plan's estimate for the model.

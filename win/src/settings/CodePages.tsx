@@ -62,6 +62,20 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
             onChange={(codeWebMode) => onUpdate({ codeWebMode })}
           />
         </Row>
+        <Row label={t("defaultShell")}>
+          <Select
+            label={t("defaultShell")}
+            value={settings.defaultShell}
+            options={[
+              { id: "auto", label: t("shellAuto") },
+              { id: "bash", label: "bash" },
+              { id: "pwsh", label: "PowerShell 7" },
+              { id: "powershell", label: "Windows PowerShell" },
+              { id: "cmd", label: "cmd" },
+            ]}
+            onChange={(defaultShell) => onUpdate({ defaultShell: defaultShell as AppSettings["defaultShell"] })}
+          />
+        </Row>
       </Group>
 
       <Group title={t("defaultPermission")}>

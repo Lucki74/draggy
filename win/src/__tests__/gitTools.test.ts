@@ -63,8 +63,17 @@ afterEach(() => {
 });
 
 describe("when the tools are offered", () => {
-  it("offers both in a project that is a repository", () => {
-    expect(availableTools(REPO).map((tool) => tool.name).sort()).toEqual(["git_diff", "git_status"]);
+  it("offers all of them in a project that is a repository", () => {
+    expect(availableTools(REPO).map((tool) => tool.name).sort()).toEqual([
+      "git_branches",
+      "git_checkout",
+      "git_commit",
+      "git_diff",
+      "git_log",
+      "git_stage",
+      "git_status",
+      "git_unstage",
+    ]);
   });
 
   it("offers neither without a repository, or without a folder", () => {
@@ -78,7 +87,19 @@ describe("when the tools are offered", () => {
   });
 
   it("stays available to a read-only exploration", () => {
-    expect(availableTools({ ...REPO, readOnlyTools: true }).map((tool) => tool.name)).toHaveLength(2);
+    expect(availableTools({ ...REPO, readOnlyTools: true }).map((tool) => tool.name).sort()).toEqual([
+      "git_branches",
+      "git_diff",
+      "git_log",
+      "git_status",
+    ]);
+  });
+
+  it("marks the ones that change the repository as executing, so they wait for approval", () => {
+    for (const name of ["git_stage", "git_unstage", "git_commit", "git_checkout"]) {
+      expect(annotationsFor(name).executes).toBe(true);
+      expect(annotationsFor(name).readOnly).toBe(false);
+    }
   });
 });
 
@@ -119,7 +140,7 @@ describe("git_diff", () => {
 
     const result = await runTool("git_diff", { path: "src/app.ts", staged: true }, context, REPO);
 
-    expect(diff).toHaveBeenCalledWith("project-7", "src/app.ts", true);
+    expect(diff).toHaveBeenCalledWith("project-7", "src/app.ts", true, false);
     expect(result).toContain("+b");
     expect(steps[0]).toMatchObject({ content: "gitReadDiff **src/app.ts**", fileContent: "@@ -1 +1 @@\n-a\n+b\n" });
   });

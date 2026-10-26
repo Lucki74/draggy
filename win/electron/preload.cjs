@@ -173,8 +173,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   git: {
     status: (workspaceId) => ipcRenderer.invoke("git:status", workspaceId),
-    diff: (workspaceId, path, staged) =>
-      ipcRenderer.invoke("git:diff", workspaceId, path, staged),
+    diff: (workspaceId, path, staged, untracked) =>
+      ipcRenderer.invoke("git:diff", workspaceId, path, staged, untracked),
+    log: (workspaceId, limit) => ipcRenderer.invoke("git:log", workspaceId, limit),
+    branches: (workspaceId) => ipcRenderer.invoke("git:branches", workspaceId),
+    stage: (workspaceId, paths) => ipcRenderer.invoke("git:stage", workspaceId, paths),
+    unstage: (workspaceId, paths) => ipcRenderer.invoke("git:unstage", workspaceId, paths),
+    commit: (workspaceId, message) => ipcRenderer.invoke("git:commit", workspaceId, message),
+    checkout: (workspaceId, branch) => ipcRenderer.invoke("git:checkout", workspaceId, branch),
   },
 
   skills: {
@@ -208,6 +214,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
     run: (workspaceId, runId, command, options) =>
       ipcRenderer.invoke("commands:run", workspaceId, runId, command, options),
     cancel: (runId) => ipcRenderer.invoke("commands:cancel", runId),
+    onOutput: (callback) => subscribe("commands:output", callback),
+  },
+
+  shell: {
+    list: () => ipcRenderer.invoke("shell:list"),
+    open: (workspaceId, options) => ipcRenderer.invoke("shell:open", workspaceId, options),
+    write: (id, data) => ipcRenderer.send("shell:write", id, data),
+    resize: (id, cols, rows) => ipcRenderer.invoke("shell:resize", id, cols, rows),
+    close: (id) => ipcRenderer.invoke("shell:close", id),
+    onData: (callback) => subscribe("shell:data", callback),
+    onExit: (callback) => subscribe("shell:exit", callback),
   },
 
   runner: {
@@ -353,6 +370,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     export: (choices) => ipcRenderer.invoke("diagnostics:export", choices),
     crashNotice: () => ipcRenderer.invoke("diagnostics:crash-notice"),
   },
+  exportChat: (request) => ipcRenderer.invoke("chat:export", request),
   logEntry: (entry) => ipcRenderer.send("logs:write", entry),
   logBatch: (entries) => ipcRenderer.send("logs:batch", entries),
 

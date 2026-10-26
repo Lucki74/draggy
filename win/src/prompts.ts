@@ -158,6 +158,7 @@ When done, name the files you changed instead of repeating their contents.`;
 }
 
 export const COMMANDS_PROMPT = `Execute terminal commands in the project folder with run_command using the local shell. Run tests, builds, linting, git, or gh; prefer existing project scripts.
+Environment: Windows. Commands run in bash (Git for Windows) when it is installed and in PowerShell otherwise; the result names the shell that ran. Write POSIX syntax for bash and PowerShell syntax for pwsh, or pass shell to choose.
 Commands cannot receive input while running, so pass flags that avoid prompts and pagers. The user sees commands and may be asked to approve them. Destructive operations (force push, history rewrite, unprompted file deletion) are forbidden. Verify outcomes before reporting success.`;
 
 export const PLAN_PROMPT = `For multi-step work, initialize a checklist via update_plan before starting, updating it as steps complete so the user can track progress. Single questions or one-step tasks require no plan. If the user edits the plan, follow their updated checklist.`;

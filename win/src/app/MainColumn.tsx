@@ -58,7 +58,6 @@ export interface MainColumnProps {
     onEditMessageChat: (mIdx: number, content: string) => void;
     onStopGeneration: () => void;
     onContinueGeneration: () => void;
-    onDismissOutOfContext: () => void;
     onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
     onRevert: (checkpointId: number) => Promise<boolean>;
     onInitProject?: () => void;
@@ -115,7 +114,6 @@ export function MainColumn({
     onEditMessageChat,
     onStopGeneration,
     onContinueGeneration,
-    onDismissOutOfContext,
     onApproval,
     onRevert,
     onInitProject,
@@ -200,7 +198,6 @@ export function MainColumn({
                             onEditMessage={onEditMessageChat}
                             onStopGeneration={onStopGeneration}
                             onContinueGeneration={onContinueGeneration}
-                            onDismissOutOfContext={onDismissOutOfContext}
                             onApproval={onApproval}
                             onRevert={onRevert}
                             onProjectMemory={active.rootPath ? onOpenProjectMemory : undefined}

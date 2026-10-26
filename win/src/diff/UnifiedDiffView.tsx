@@ -1,10 +1,11 @@
 import React from "react";
 import { Icon } from "../ui/icons/Icon";
-import type { DiffLine, ParsedFileDiff } from "./diffParser";
+import { anchorKey, anchorOf, type CommentAnchor, type CommentSide, type DiffLine, type ParsedFileDiff } from "./diffParser";
 
 export interface ReviewComment {
   id: string;
   file: string;
+  side: CommentSide;
   line: number;
   text: string;
 }
@@ -12,12 +13,12 @@ export interface ReviewComment {
 interface UnifiedDiffViewProps {
   fileDiff: ParsedFileDiff;
   comments: ReviewComment[];
-  activeCommentLine: number | null;
+  activeCommentLine: string | null;
   commentDraft: string;
-  onStartComment: (line: number) => void;
+  onStartComment: (anchor: CommentAnchor) => void;
   onCancelComment: () => void;
   onChangeCommentDraft: (text: string) => void;
-  onSaveComment: (line: number) => void;
+  onSaveComment: (anchor: CommentAnchor) => void;
   onDeleteComment: (commentId: string) => void;
   t: (key: string) => string;
 }
@@ -64,11 +65,11 @@ export function UnifiedDiffView({
           </div>
 
           {hunk.lines.map((line, lIdx) => {
-            const lineNum = line.afterLine ?? line.beforeLine ?? lIdx;
+            const anchor = anchorOf(line, lIdx);
             const lineComments = comments.filter(
-              (c) => c.file === filePath && c.line === lineNum,
+              (c) => c.file === filePath && c.side === anchor.side && c.line === anchor.line,
             );
-            const isCommenting = activeCommentLine === lineNum;
+            const isCommenting = activeCommentLine === anchorKey(anchor);
 
             return (
               <React.Fragment key={`${hIdx}-${lIdx}`}>
@@ -99,7 +100,7 @@ export function UnifiedDiffView({
                     <button
                       type="button"
                       data-testid="start-comment"
-                      onClick={() => onStartComment(lineNum)}
+                      onClick={() => onStartComment(anchor)}
                       title={t("addComment")}
                       aria-label={t("addComment")}
                       className="p-1 rounded-xs bg-surface-base border border-rule shadow-xs hover:bg-surface-raised text-text-secondary hover:text-text-primary"
@@ -154,7 +155,7 @@ export function UnifiedDiffView({
                         type="button"
                         data-testid="save-comment"
                         disabled={!commentDraft.trim()}
-                        onClick={() => onSaveComment(lineNum)}
+                        onClick={() => onSaveComment(anchor)}
                         className="px-2.5 py-1 rounded-xs bg-text-primary text-surface-base disabled:opacity-40 text-[11px] font-semibold"
                       >
                         {t("addComment")}

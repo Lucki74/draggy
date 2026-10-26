@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Icon, type IconName } from "../icons/Icon";
 import { IconButton } from "../IconButton";
 import { PaneHeader } from "./PaneHeader";
@@ -17,6 +17,9 @@ export interface DockProps {
   onStartResize?: (e: React.PointerEvent) => void;
   paneTitles?: Partial<Record<PaneId, string>>;
   paneIcons?: Partial<Record<PaneId, IconName>>;
+  /** Kinds of tab the + button can add, such as the shells installed here. The button shows only with these. */
+  newMenu?: Array<{ id: string; label: string }>;
+  onNewPane?: (id: string) => void;
   isOverlay?: boolean;
   className?: string;
 }
@@ -27,7 +30,6 @@ const DEFAULT_PANE_ICONS: Partial<Record<PaneId, IconName>> = {
   files: "folder-simple",
   diff: "git-diff",
   browser: "globe-simple",
-  usage: "chart-bar",
 };
 
 /** Secondary column hosting active implementation plans, diffs, files and canvases. */
@@ -44,10 +46,13 @@ export function Dock({
   onStartResize,
   paneTitles = {},
   paneIcons = {},
+  newMenu = [],
+  onNewPane,
   isOverlay = false,
   className = "",
 }: DockProps) {
   const { panes, active, split } = layout;
+  const [choosing, setChoosing] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -65,7 +70,7 @@ export function Dock({
   if (panes.length === 0 || !active) return null;
 
   const titleOf = (pane: PaneId) => paneTitles[pane] ?? t(pane);
-  const iconOf = (pane: PaneId) => paneIcons[pane] ?? DEFAULT_PANE_ICONS[pane] ?? (pane.startsWith("file:") ? "file-code" : "file");
+  const iconOf = (pane: PaneId) => paneIcons[pane] ?? DEFAULT_PANE_ICONS[pane] ?? (pane.startsWith("file:") ? "file-code" : pane.startsWith("terminal:") ? "terminal-window" : "file");
 
   const handleSplitToggle = () => {
     if (split) {
@@ -184,6 +189,23 @@ export function Dock({
           </div>
 
           <div className="flex items-center gap-0.5 flex-shrink-0">
+            {choosing &&
+              newMenu.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  className="h-6 px-2 rounded-pill text-[12px] text-text-secondary hover:text-text-primary hover:bg-surface-raised"
+                  onClick={() => {
+                    setChoosing(false);
+                    onNewPane?.(entry.id);
+                  }}
+                >
+                  {entry.label}
+                </button>
+              ))}
+            {onNewPane && newMenu.length > 0 && (
+              <IconButton name={choosing ? "x" : "plus"} size="dense" label={t("terminalNew")} onClick={() => setChoosing((open) => !open)} />
+            )}
             {panes.length > 1 && (
               <IconButton
                 name={split ? "arrows-in-simple" : "table"}

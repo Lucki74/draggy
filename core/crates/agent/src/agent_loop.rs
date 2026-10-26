@@ -2169,15 +2169,17 @@ impl<'a> Turn<'a> {
 
         let target = target_from_args(args);
         let annotations = self.ports.tools.annotations(name);
+        let shell = args.get("shell").and_then(|value| value.as_str());
         let verdict = decide(&PermissionQuery {
             mode: self.mode,
             tool: name,
             annotations,
             target: target.as_deref(),
             grants: &self.grants,
+            shell,
         });
         let kind = annotations.executes.then_some("command");
-        let remembered = grants_for(name, target.as_deref(), annotations);
+        let remembered = grants_for(name, target.as_deref(), annotations, shell);
 
         match verdict.decision {
             Decision::Allow => self.execute(name, args),

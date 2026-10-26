@@ -1,9 +1,11 @@
 const path = require("node:path");
-const { execFileHidden } = require("./platform.cjs");
+const { buildEnv, runOnce } = require("./exec.cjs");
+const { findGitExe, findOnPath } = require("./shells.cjs");
 const { log } = require("./logger.cjs");
 
-/** Read-only git: never commits, stages or fetches. Repo config can run programs (fsmonitor,
- * filters, diff tools), so every call disables them and takes no locks. */
+/** Git for the app. Reading never takes locks. Writing is limited to stage, unstage, commit and
+ * switching branch, and never fetches or pushes. Repo config can run programs (fsmonitor, filters,
+ * diff tools, hooks), so every call disables them. */
 
 /** How long one git call may take before it is treated as hung. */
 const GIT_TIMEOUT_MS = 10_000;
@@ -13,6 +15,11 @@ const MAX_DIFF_CHARS = 60_000;
 
 /** How many files one diff names. Past this the command line gets long on Windows. */
 const MAX_DIFF_FILES = 300;
+
+/** How many untracked files a diff reads, and how many commits a log lists. */
+const MAX_UNTRACKED_DIFFS = 20;
+const MAX_LOG_ENTRIES = 200;
+const MAX_COMMIT_MESSAGE_CHARS = 10_000;
 
 /** How many changed files a status lists. */
 const MAX_STATUS_FILES = 500;
@@ -36,35 +43,27 @@ function tailLines(text, count) {
   return String(text || "").split(/\r?\n/).filter(Boolean).slice(-count).join(" | ") || null;
 }
 
-function defaultRun(args, cwd) {
-  return new Promise((resolve) => {
-    execFileHidden(
-      "git",
-      args,
-      {
-        cwd,
-        encoding: "utf8",
-        timeout: GIT_TIMEOUT_MS,
-        maxBuffer: 16 * 1024 * 1024,
-        env: {
-          ...process.env,
-          GIT_TERMINAL_PROMPT: "0",
-          GIT_OPTIONAL_LOCKS: "0",
-        },
-      },
-      (error, stdout, stderr) => {
-        if (error && error.code === "ENOENT") {
-          resolve({ code: -1, stdout: "", stderr: "", missing: true });
-          return;
-        }
+/** git on PATH, or the copy Git for Windows installed when PATH has none. Looked up once. */
+let gitProgram = null;
+function gitBinary() {
+  if (!gitProgram) gitProgram = findOnPath("git") ? "git" : findGitExe() || "git";
+  return gitProgram;
+}
 
-        resolve({
-          code: error ? (typeof error.code === "number" ? error.code : 1) : 0,
-          stdout: String(stdout || ""),
-          stderr: String(stderr || ""),
-        });
-      },
-    );
+function defaultRun(args, cwd) {
+  return runOnce({
+    file: gitBinary(),
+    args,
+    cwd,
+    env: buildEnv({ GIT_OPTIONAL_LOCKS: "0" }),
+    timeoutMs: GIT_TIMEOUT_MS,
+    maxBuffer: 16 * 1024 * 1024,
+  }).then((result) => {
+    if (result.missing) return { code: -1, stdout: "", stderr: "", missing: true };
+
+    // Output cut short is a failure, as it was when execFile reported maxBuffer.
+    const code = result.truncated ? 1 : (result.code ?? 1);
+    return { code, stdout: result.stdout, stderr: result.stderr };
   });
 }
 
@@ -277,7 +276,7 @@ function createGit({ run = defaultRun } = {}) {
 
   /** Working tree or staged diff, for the project or one path already checked by the caller.
    * `allow` drops guarded files by name so a tracked .env never prints. */
-  async function diff(root, { relative = ".", staged = false, allow = () => true } = {}) {
+  async function diff(root, { relative = ".", staged = false, untracked = false, allow = () => true } = {}) {
     if (!(await available())) return { success: false, error: "Git is not installed." };
 
     const prefix = await prefixOf(root);
@@ -308,9 +307,12 @@ function createGit({ run = defaultRun } = {}) {
     const allowed = changed.filter((name) => allow(path.join(root, name)));
     const skipped = changed.length - allowed.length;
 
+    const added = !staged && untracked ? await untrackedDiff(root, relative, allow) : { text: "", files: 0, more: false };
+
     if (allowed.length === 0) {
-      timer.end({ files: 0, skipped });
-      return { success: true, diff: "", truncated: false, staged, files: 0, skipped };
+      timer.end({ files: added.files, skipped });
+      const text = clipDiff(added.text);
+      return { success: true, diff: text, truncated: added.more || text.length < added.text.length, staged, files: added.files, skipped };
     }
 
     const named = allowed.slice(0, MAX_DIFF_FILES);
@@ -321,21 +323,136 @@ function createGit({ run = defaultRun } = {}) {
       return { success: false, error: firstLine(result.stderr) };
     }
 
-    const text = result.stdout;
-    const truncated = text.length > MAX_DIFF_CHARS || named.length < allowed.length;
-    timer.end({ files: named.length, skipped, chars: text.length, truncated });
+    const whole = result.stdout + (result.stdout && added.text && !result.stdout.endsWith("\n") ? "\n" : "") + added.text;
+    const text = clipDiff(whole);
+    const truncated = text.length < whole.length || named.length < allowed.length || added.more;
+    timer.end({ files: named.length + added.files, skipped, chars: whole.length, truncated });
 
     return {
       success: true,
-      diff: text.length > MAX_DIFF_CHARS ? text.slice(0, MAX_DIFF_CHARS) : text,
+      diff: text,
       truncated,
       staged,
-      files: named.length,
+      files: named.length + added.files,
       skipped,
     };
   }
 
-  return { available, status, diff };
+  /** Cuts a diff at the last whole line, so a truncated diff never ends in half a hunk line. */
+  const clipDiff = (text) => {
+    if (text.length <= MAX_DIFF_CHARS) return text;
+    const cut = text.slice(0, MAX_DIFF_CHARS);
+    const end = cut.lastIndexOf("\n");
+    return end > 0 ? cut.slice(0, end + 1) : cut;
+  };
+
+  /** New files as additions. `git diff` does not list files git does not know yet. */
+  async function untrackedDiff(root, relative, allow) {
+    const listed = await git(root, ["ls-files", "--others", "--exclude-standard", "-z", "--", relative || "."]);
+    if (listed.code !== 0) return { text: "", files: 0, more: false };
+
+    const names = listed.stdout.split("\0").filter(Boolean).filter((name) => allow(path.join(root, name)));
+    let text = "";
+    let files = 0;
+    for (const name of names.slice(0, MAX_UNTRACKED_DIFFS)) {
+      // Exit 1 is how --no-index says the two sides differ.
+      const result = await git(root, ["diff", "--no-index", "--no-color", "--no-ext-diff", "--no-textconv", "--", "/dev/null", name]);
+      if (result.code > 1 || !result.stdout) continue;
+      text += result.stdout.endsWith("\n") ? result.stdout : `${result.stdout}\n`;
+      files += 1;
+    }
+    return { text, files, more: names.length > MAX_UNTRACKED_DIFFS };
+  }
+
+  /** The latest commits on the current branch. */
+  async function history(root, { limit = 50 } = {}) {
+    if (!(await available())) return { success: false, error: "Git is not installed." };
+    const count = Math.min(Math.max(Math.trunc(Number(limit)) || 50, 1), MAX_LOG_ENTRIES);
+    const result = await git(root, ["log", `-n${count}`, "--topo-order", "--no-show-signature", "--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s%x1e"]);
+    if (result.code !== 0) {
+      // A repository with no commits yet has no log, which is not an error.
+      if (/does not have any commits/i.test(result.stderr)) return { success: true, commits: [] };
+      return { success: false, error: firstLine(result.stderr) };
+    }
+    const commits = result.stdout
+      .split("\x1e")
+      .map((record) => record.replace(/^\r?\n/, ""))
+      .filter(Boolean)
+      .map((record) => {
+        const [hash, short, author, date, subject] = record.split("\x1f");
+        return { hash, short, author, date, subject };
+      });
+    return { success: true, commits };
+  }
+
+  /** Local branches, the current one marked. */
+  async function branches(root) {
+    if (!(await available())) return { success: false, error: "Git is not installed." };
+    const result = await git(root, ["for-each-ref", "--format=%(HEAD)%1f%(refname:short)%1f%(upstream:short)", "refs/heads"]);
+    if (result.code !== 0) return { success: false, error: firstLine(result.stderr) };
+    const list = result.stdout
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => {
+        const [head, name, upstream] = line.split("\x1f");
+        return { name, current: head === "*", ...(upstream ? { upstream } : {}) };
+      });
+    return { success: true, branches: list };
+  }
+
+  const pathList = (paths) => (Array.isArray(paths) ? paths.map(String).filter(Boolean) : []);
+
+  /** Moves files into the next commit. Paths were checked by the caller. */
+  async function stage(root, paths) {
+    const named = pathList(paths);
+    if (!(await available())) return { success: false, error: "Git is not installed." };
+    if (named.length === 0) return { success: false, error: "No files were named." };
+    const result = await git(root, ["add", "--", ...named]);
+    return result.code === 0 ? { success: true, files: named.length } : { success: false, error: firstLine(result.stderr) };
+  }
+
+  /** Takes files back out of the next commit, leaving the working tree as it is. */
+  async function unstage(root, paths) {
+    const named = pathList(paths);
+    if (!(await available())) return { success: false, error: "Git is not installed." };
+    if (named.length === 0) return { success: false, error: "No files were named." };
+    // A repository with no commits has no HEAD to restore from; rm --cached does the same job.
+    const hasHead = (await git(root, ["rev-parse", "--verify", "-q", "HEAD"])).code === 0;
+    const result = await git(root, hasHead ? ["restore", "--staged", "--", ...named] : ["rm", "--cached", "-r", "-q", "--", ...named]);
+    return result.code === 0 ? { success: true, files: named.length } : { success: false, error: firstLine(result.stderr) };
+  }
+
+  /** Commits what is staged. Hooks stay off: they are programs the repository chose, and the person
+   * asked for a commit, not for whatever a hook does. */
+  async function commit(root, message) {
+    const text = String(message ?? "").trim();
+    if (!text) return { success: false, error: "A commit needs a message." };
+    if (text.length > MAX_COMMIT_MESSAGE_CHARS) return { success: false, error: "The commit message is too long." };
+    if (!(await available())) return { success: false, error: "Git is not installed." };
+
+    const result = await git(root, ["-c", "core.hooksPath=/dev/null", "commit", "--no-verify", "--no-gpg-sign", "-m", text]);
+    if (result.code !== 0) {
+      log.fail("files.git", "commit failed", null, { subcommand: "commit", code: result.code, stderrTail: tailLines(result.stderr, 3) });
+      return { success: false, error: firstLine(result.stderr || result.stdout) };
+    }
+    const head = await git(root, ["rev-parse", "--short", "HEAD"]);
+    return { success: true, hash: head.code === 0 ? head.stdout.trim() : null };
+  }
+
+  /** Switches to an existing local branch. Git itself refuses when uncommitted changes would be lost. */
+  async function checkout(root, branch) {
+    const name = String(branch ?? "").trim();
+    if (!name || name.startsWith("-")) return { success: false, error: "That is not a branch name." };
+    if (!(await available())) return { success: false, error: "Git is not installed." };
+
+    const valid = await git(root, ["check-ref-format", "--branch", name]);
+    if (valid.code !== 0) return { success: false, error: "That is not a branch name." };
+
+    const result = await git(root, ["switch", "--no-guess", name]);
+    return result.code === 0 ? { success: true, branch: name } : { success: false, error: firstLine(result.stderr) };
+  }
+
+  return { available, status, diff, log: history, branches, stage, unstage, commit, checkout };
 }
 
 function firstLine(text) {

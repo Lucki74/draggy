@@ -6,7 +6,7 @@ const { app, BrowserWindow } = require("electron");
 const { prepare, sleep, appWindow, waitFor, inPage, setDark } = require("./capture-profile.cjs");
 
 const OUT = path.resolve(
-  process.env.DRAGGY_SHOTS_OUT || path.join(__dirname, "..", "..", "draggy-website", "assets", "img"),
+  process.env.DRAGGY_SHOTS_OUT || path.join(__dirname, "..", "..", "..", "draggy-website", "assets", "img"),
 );
 const ONLY = (process.env.DRAGGY_SHOTS_ONLY || "").split(",").filter(Boolean);
 const WIDTH = 1280;
@@ -371,8 +371,21 @@ async function run() {
   win.setContentSize(WIDTH, HEIGHT);
   win.setPosition(0, 0);
   log("content size", win.getContentSize().join("x"));
+  await win.webContents.insertCSS(`
+    [data-star-notice],
+    div:has(> a[href*="github.com/Lucki74/draggy"]),
+    div:has(> button[aria-label="Dismiss"]) {
+      display: none !important;
+    }
+  `);
   await waitFor(() => inPage(win, () => Boolean(document.querySelector("[data-region=composer] form"))), {
     label: "the chat screen",
+  });
+  await inPage(win, () => {
+    try {
+      localStorage.setItem("draggy_star_notice", "1");
+      window.__DRAGGY_NO_STAR__ = true;
+    } catch {}
   });
   if (LANGUAGE) {
     await inPage(win, (language) => {
@@ -380,8 +393,21 @@ async function run() {
       localStorage.setItem("draggy_settings", JSON.stringify({ ...saved, language }));
     }, LANGUAGE);
     win.webContents.reload();
+    await win.webContents.insertCSS(`
+      [data-star-notice],
+      div:has(> a[href*="github.com/Lucki74/draggy"]),
+      div:has(> button[aria-label="Dismiss"]) {
+        display: none !important;
+      }
+    `);
     await waitFor(() => inPage(win, () => Boolean(document.querySelector("[data-region=composer] form"))), {
       label: "the chat screen in the chosen language",
+    });
+    await inPage(win, () => {
+      try {
+        localStorage.setItem("draggy_star_notice", "1");
+        window.__DRAGGY_NO_STAR__ = true;
+      } catch {}
     });
   }
   const placeholder = await inPage(win, () => document.querySelector("[data-region=composer] form textarea").placeholder);
@@ -391,7 +417,7 @@ async function run() {
   if (wanted("chat")) await scene("chat", async () => {
     await send(
       win,
-      "my sourdough starter smells like nail polish remover. is it dead or just hungry?",
+      "why does postgresql choose a sequential scan instead of using my b-tree index on user_id?",
     );
     await shoot(win, "app-chat");
   });
@@ -469,9 +495,9 @@ async function run() {
   if (wanted("history")) await scene("history", async () => {
     await openWorkspace(win, "default");
     await click(win, "New chat");
-    await send(win, "is \"per my last email\" rude? writing to my landlord about the deposit");
+    await send(win, "how do i handle backpressure in nodejs readable streams with highWaterMark?");
     await click(win, "New chat");
-    await send(win, "name for a tiny weather app, my brother wants it to sound friendly");
+    await send(win, "write a type guard in typescript for a discriminated union with status error");
     // The sidebar lists the chats and stays open, so there is no history button to press any more.
     await sleep(1200);
     await shoot(win, "app-history");

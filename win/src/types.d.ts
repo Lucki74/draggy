@@ -584,6 +584,8 @@ export interface TurnMetrics {
   contextWindow: number;
   model: string;
   gpuPercent: number | null;
+  /** What the window held when the turn ended: the last pass's prompt and reply. */
+  contextTokens?: number;
   /** What the prompt was spent on, measured on the last pass of the turn. */
   breakdown?: ContextBreakdown;
 }
@@ -673,6 +675,39 @@ export interface GitDiff {
   files?: number;
   /** Changed files left out because they hold credentials. */
   skipped?: number;
+  error?: string;
+}
+
+export interface GitCommit {
+  hash: string;
+  short: string;
+  author: string;
+  date: string;
+  subject: string;
+}
+
+export interface GitLog {
+  success: boolean;
+  commits?: GitCommit[];
+  error?: string;
+}
+
+export interface GitBranch {
+  name: string;
+  current: boolean;
+  upstream?: string;
+}
+
+export interface GitBranches {
+  success: boolean;
+  branches?: GitBranch[];
+  error?: string;
+}
+
+/** What stage, unstage, commit and checkout answer. */
+export interface GitWrite {
+  success: boolean;
+  files?: number;
   error?: string;
 }
 
@@ -1098,6 +1133,8 @@ export interface AppSettings {
   /** The level new code sessions start at. */
   codeDefaultEffort: EffortLevel;
   codeWebMode: "on" | "off";
+  /** The shell run_command uses when the model names none. "auto" is bash from Git for Windows, then PowerShell. */
+  defaultShell: "auto" | "bash" | "pwsh" | "powershell" | "cmd";
   /** What a new project starts at. */
   codePermissionMode: PermissionMode;
   libraryEnabled: boolean;
@@ -1402,7 +1439,14 @@ declare global {
           workspaceId: string,
           path?: string,
           staged?: boolean,
+          untracked?: boolean,
         ) => Promise<GitDiff>;
+        log: (workspaceId: string, limit?: number) => Promise<GitLog>;
+        branches: (workspaceId: string) => Promise<GitBranches>;
+        stage: (workspaceId: string, paths: string[]) => Promise<GitWrite>;
+        unstage: (workspaceId: string, paths: string[]) => Promise<GitWrite>;
+        commit: (workspaceId: string, message: string) => Promise<GitWrite & { hash?: string | null }>;
+        checkout: (workspaceId: string, branch: string) => Promise<GitWrite & { branch?: string }>;
       };
 
       skills: {
@@ -1485,9 +1529,26 @@ declare global {
           workspaceId: string,
           runId: string,
           command: string,
-          options?: { shell?: string; timeoutMs?: number },
+          options?: { shell?: string; defaultShell?: string; timeoutMs?: number },
         ) => Promise<CommandResult>;
         cancel: (runId: string) => Promise<{ success: boolean }>;
+        /** Output of a running command as it arrives. */
+        onOutput: (callback: (event: { runId: string; chunk: string }) => void) => () => void;
+      };
+
+      shell: {
+        /** The shells installed here; PowerShell and pwsh are one entry. */
+        list: () => Promise<{ success: boolean; shells?: string[] }>;
+        /** Opens an interactive shell in the workspace's folder. The id is minted by the main process. */
+        open: (
+          workspaceId: string,
+          options?: { shell?: string; defaultShell?: string; cols?: number; rows?: number },
+        ) => Promise<{ success: boolean; id?: string; shell?: string; notice?: string; unavailable?: boolean; error?: string }>;
+        write: (id: string, data: string) => void;
+        resize: (id: string, cols: number, rows: number) => Promise<{ success: boolean }>;
+        close: (id: string) => Promise<{ success: boolean }>;
+        onData: (callback: (event: { id: string; data: string }) => void) => () => void;
+        onExit: (callback: (event: { id: string; exitCode: number }) => void) => () => void;
       };
 
       runner: {
@@ -1659,6 +1720,11 @@ declare global {
         export: (choices: DiagnosticsChoices) => Promise<{ saved: boolean; file?: string; bytes?: number; files?: number }>;
         crashNotice: () => Promise<{ show: boolean }>;
       };
+      exportChat: (request: {
+        defaultName: string;
+        content: string;
+        ext: "md" | "html";
+      }) => Promise<{ saved: boolean; file?: string; bytes?: number }>;
       logEntry: (entry: LogEntry) => void;
       logBatch: (entries: LogEntry[]) => void;
 

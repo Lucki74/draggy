@@ -25,8 +25,29 @@ describe("choosing the shell", () => {
 
     expect(withPwsh.shell).toBe("pwsh");
     expect(withPwsh.args).toContain("-NonInteractive");
-    expect(withPwsh.args.at(-1)).toMatch(/git status$/);
+    expect(withPwsh.args).toEqual(expect.arrayContaining(["-ExecutionPolicy", "Bypass"]));
+    expect(withPwsh.args.at(-1)).toMatch(/git status\nif \(\$\?\) \{ exit 0 \}.*exit \$LASTEXITCODE/);
     expect(without.shell).toBe("powershell");
+  });
+
+  it("prefers bash from Git for Windows, then the Default shell setting, then PowerShell", () => {
+    const auto = commands.shellInvocation("ls", "default", { platform: "win32", find: found(["bash", "pwsh"]) });
+    const chosen = commands.shellInvocation("ls", "default", {
+      platform: "win32",
+      defaultShell: "pwsh",
+      find: found(["bash", "pwsh"]),
+    });
+    const missing = commands.shellInvocation("ls", "default", {
+      platform: "win32",
+      defaultShell: "bash",
+      find: found(["pwsh"]),
+    });
+
+    expect(auto.shell).toBe("bash");
+    expect(chosen.shell).toBe("pwsh");
+    expect(missing.shell).toBe("pwsh");
+    expect(missing.notice).toMatch(/bash is not installed/);
+    expect(auto.notice).toBeUndefined();
   });
 
   it("runs the user's own shell as a login shell elsewhere", () => {
@@ -42,11 +63,15 @@ describe("choosing the shell", () => {
 
   it("gives bash and sh the command with -c", () => {
     const invocation = commands.shellInvocation("ls -la", "bash", {
-      platform: "linux",
+      platform: "win32",
       find: found(["bash"]),
     });
 
-    expect(invocation).toMatchObject({ shell: "bash", args: ["-c", "ls -la"] });
+    expect(invocation).toMatchObject({
+      shell: "bash",
+      args: ["--noprofile", "--norc", "-c", "ls -la"],
+      env: { MSYS_NO_PATHCONV: "1" },
+    });
   });
 
   it("keeps cmd's quoting as written, and only on Windows", () => {
@@ -148,6 +173,19 @@ describe("running a command", () => {
     expect(result.cancelled).toBe(true);
     expect(result.success).toBe(false);
     expect(commands.cancel("run-1")).toBe(false);
+  }, 30_000);
+
+  it("refuses a second command under an id that is still running, and keeps the first", async () => {
+    const cwd = project();
+    const first = commands.run({ id: "run-dup", cwd, command: 'node -e "setTimeout(() => {}, 60000)"' });
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const second = await commands.run({ id: "run-dup", cwd, command: "node -e \"\"" });
+
+    expect(second).toMatchObject({ success: false });
+    expect(second.error).toMatch(/already running/);
+    expect(commands.cancel("run-dup")).toBe(true);
+    expect((await first).cancelled).toBe(true);
   }, 30_000);
 
   it("refuses to run without a project folder", async () => {
