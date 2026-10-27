@@ -1,8 +1,6 @@
 # Releasing Draggy
 
-Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds
-the Windows installer, then publishes a release with it and the `latest.yml` file that
-`electron-updater` reads inside the app.
+Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds installers for Windows, macOS, and Linux, then publishes a release with the packages and the `latest.yml` file that `electron-updater` reads inside the app.
 
 ## Cutting a build
 
@@ -74,18 +72,13 @@ The script rewrites the tag, the archive names, and their hashes in `electron/sd
 
 colibri is not pinned. `electron/colibriBinary.cjs` installs the newest stable release of `JustVugg/colibri` and checks the archive against that release's `SHA256SUMS.txt`. The Windows Python runtime is pinned (version, URL and SHA-256 in the same file). Before a release, install colibri on a clean profile, load one catalog model, and confirm `electron/colibriProcess.test.js` still matches the gateway's flags and its `/health` fields. A newer colibri that renames either is the usual way this breaks. Keep `NOTICE` current when the set of on-demand downloads changes.
 
-## The website goes with the release
+## Website updates
 
-The site at draggy.org lives in its own repository (`../draggy-website`) and
-describes the released app, so it changes on the day of the release, not before.
-Before running the workflow, check that:
+The site at draggy.org lives in its own repository (`../draggy-website`) and describes the released app, so update it on release day, not before.
 
-- the wiki and site pages describe what the release changed, in all twelve
-  languages;
-- the screenshots show the release's interface, retaken with
-  `scripts/screenshots.cjs` and `scripts/wiki-shots.cjs` after `npm run build`;
-- the privacy policy's date moved if anything the app sends over the network
-  changed, and its table lists every host the app contacts.
+Before running the workflow, make sure:
+- the wiki and site pages reflect what changed, in English, French, Spanish, and Chinese;
+- screenshots match the release interface, generated via `scripts/screenshots.cjs` and `scripts/wiki-shots.cjs` after `npm run build`;
+- the privacy policy date is updated if network behavior changed, listing any new endpoints.
 
-How updates actually behave once installed is in the wiki's
-[Installation](https://draggy.org/wiki/installation) page.
+For details on how updates apply after install, see the wiki's [Installation](https://draggy.org/wiki/installation) page.

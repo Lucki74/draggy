@@ -16,7 +16,7 @@ One repository, three apps and a shared core:
 | `core/` | Shared Rust workspace (engine, providers, tools, documents, MCP, storage). `draggy-core` is exposed to Swift through UniFFI | `cargo test` in `core/` |
 | `shared/fixtures/` | Golden fixtures read by both vitest and cargo | both suites |
 
-Every path below that starts with `src/` or `electron/` is relative to `win/`. Swift cannot be compiled on Windows, so a macOS change is verified only by the macOS CI job. `NATIVE-STATUS.md` lists what the native apps do and what is missing; update it in the same change as the feature.
+Every path below that starts with `src/` or `electron/` is relative to `win/`. Swift cannot be compiled on Windows, so a macOS change is verified only by the macOS CI job.
 
 Windows code must not carry macOS or Linux branches (`win/electron/platformScope.test.js` guards this). A fixture change must keep the TypeScript and Rust sides passing.
 

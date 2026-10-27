@@ -44,22 +44,22 @@ architecture in English, French, Spanish, and Chinese. Start with
 
 ## Features
 
-- Guided first-run setup selects your interface language, theme, and an initial model without starting downloads until confirmed.
-- Run models locally through the built-in llama.cpp engine, with recommendations matched to your hardware.
-- Compact system prompts keep smaller models (1B to 7B parameters) responsive.
-- Sidebar modes keep general chat and project coding workflows in separate histories with independent models.
-- Project tools read, edit, and run terminal commands within a folder, with undoable diff reviews.
-- Four permission modes control tool autonomy: plan, ask, accept edits, and auto.
-- Interactive task lists let you check off, reorder, or edit steps during execution.
-- Web search and sandboxed browsing with ad blocking, plus document creation for docx, pptx, xlsx, and pdf formats.
-- Local document indexing and semantic retrieval over folders you select.
-- Extension support for 107 MCP servers, the official MCP registry, remote servers, and 572 built-in skills.
-- Large Mixture-of-Experts models that do not fit in memory run through a second engine, colibri, which keeps the always-used weights in VRAM and RAM and reads experts from your drive. Expect roughly 0.3 to 3 tokens per second on a good NVMe drive.
-- Voice mode with automatic turn detection, spoken responses, interruption handling, and an optional cloud voice.
-- Replies stream in word by word with a short fade-in.
-- Local image generation with `/image` or a tool call from the model. Stable Diffusion and Z-Image run on your graphics card, and a project gets the file saved in its folder.
-- Optional local OpenAI-compatible API on 127.0.0.1, disabled by default and key protected.
-- Optional third-party providers: connect local servers (Ollama, LM Studio, llama.cpp, vLLM, Lemonade) or hosted APIs (OpenAI, Mistral, DeepSeek, Groq, OpenRouter) with keys stored in the OS keystore.
+- Guided setup for interface language, theme, and hardware-matched models.
+- Local llama.cpp engine running GGUF models on your hardware.
+- Compact system prompts tuned for 1B to 7B models.
+- Separate chat and coding workspaces with independent model selection.
+- File editing, terminal commands, and undoable diff reviews.
+- Four permission modes: plan, ask, accept edits, and auto.
+- Interactive task checklists with real-time step reordering.
+- Sandboxed ad-blocking browser, web search, and document generation.
+- Semantic search and retrieval across local folders.
+- Support for MCP servers and 572 built-in skills.
+- Colibri engine streams large MoE models from disk.
+- Voice chat with turn detection and interruption handling.
+- Real-time streaming replies with text fade-in.
+- Local GPU image generation with Stable Diffusion and Z-Image.
+- Optional token-protected OpenAI-compatible local server.
+- Connect external runtimes or cloud APIs with secured keys.
 
 ## Installing and requirements
 
@@ -89,13 +89,24 @@ If Draggy is useful to you, a star on this repository helps other people find it
 
 ```bash
 npm install
-```
-
-```bash
 npm run electron:dev
 ```
 
-This starts Vite and Electron with hot reload. See [Building and architecture](https://draggy.org/wiki/development) for repository layout, [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, and [RELEASING.md](RELEASING.md) for release workflows.
+This starts Vite and Electron with hot reload on Windows.
+
+### macOS (SwiftUI)
+```bash
+macos/scripts/build-core.sh
+xcodegen generate
+xcodebuild -scheme Draggy -configuration Debug
+```
+
+### Linux (GTK 4 & libadwaita)
+```bash
+cargo build --release -p draggy-linux
+```
+
+See [Building and architecture](https://draggy.org/wiki/development) for repository layout, [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, and [RELEASING.md](RELEASING.md) for release workflows.
 
 ## Logging and diagnostics
 
