@@ -69,7 +69,7 @@ describe("QuestionCard component", () => {
     expect(screen.getByText("What is your preference?")).toBeDefined();
     expect(screen.getByText("Option One")).toBeDefined();
     expect(screen.getByText("First choice")).toBeDefined();
-    expect(screen.getByText("Requires your intervention")).toBeDefined();
+    expect(screen.getByText("Single choice")).toBeDefined();
 
     // Required question should not have skip button
     expect(screen.queryByText("Skip")).toBeNull();

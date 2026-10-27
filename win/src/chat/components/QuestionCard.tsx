@@ -147,12 +147,7 @@ export function QuestionCard({
               <Icon name="check" size={12} />
               {t("question.sessionCompleted")}
             </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-              {t("question.requiresAction")}
-            </span>
-          )}
+          ) : null}
 
           <span className="text-[12px] text-text-tertiary">
             {question.type === "single"
