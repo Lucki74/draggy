@@ -5,6 +5,7 @@ import {
   MAX_LISTED_SKILLS,
   MAX_LOADED_SKILLS,
   describeSkills,
+  loadSingleSkill,
   loadedSkillIds,
   renderInvokedSkill,
   renderLoadedSkills,
@@ -413,5 +414,20 @@ describe("the tool that loads one", () => {
     const result = await runTool("use_skill", { id: "x" }, context, WITH_SKILLS);
 
     expect(result).toMatch(/not available/i);
+  });
+});
+
+describe("loadSingleSkill", () => {
+  it("reads a single skill via electronAPI", async () => {
+    const read = vi.fn(async () => ({
+      success: true,
+      skill: { ...skill("human", "human", "Humanizer"), body: "Human instructions", files: [] },
+    }));
+    vi.stubGlobal("window", { electronAPI: { skills: { read } } });
+
+    const result = await loadSingleSkill("default", "human");
+    expect(read).toHaveBeenCalledWith("default", "human", { enabledOnly: true });
+    expect(result?.success).toBe(true);
+    expect(result?.skill?.body).toBe("Human instructions");
   });
 });

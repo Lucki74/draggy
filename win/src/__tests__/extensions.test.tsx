@@ -153,12 +153,12 @@ describe("the skills list", () => {
     expect(screen.getByText("3 of 4 switched on")).toBeTruthy();
   });
 
-  it("says which side a library skill belongs to", async () => {
+  it("does not show mode tag badges on skills", async () => {
     stubSkills();
     await show();
 
-    expect(screen.getByText("Chat")).toBeTruthy();
-    expect(screen.getByText("Code", { selector: "span" })).toBeTruthy();
+    expect(screen.queryByText("Chat")).toBeNull();
+    expect(screen.queryByText("Code", { selector: "span" })).toBeNull();
   });
 
   it("switches a skill for the whole app when its switch is flipped", async () => {

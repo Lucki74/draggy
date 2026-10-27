@@ -57,6 +57,14 @@ export async function loadSkills(
   return offered;
 }
 
+export async function loadSingleSkill(
+  workspaceId: string,
+  skillId: string,
+): Promise<{ success: boolean; skill?: LoadedSkill } | undefined> {
+  const result = await window.electronAPI?.skills?.read(workspaceId, skillId, { enabledOnly: true });
+  return result;
+}
+
 /** What the model is handed when it asks for one. */
 export function renderSkill(skill: LoadedSkill): string {
   const files =
