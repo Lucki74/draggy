@@ -11,7 +11,6 @@ const TOOL_MODULES = [
   ["files", "registerFileTools"],
   ["plan", "registerPlanTools"],
   ["skills", "registerSkillTools"],
-  ["explore", "registerExploreTools"],
   ["git", "registerGitTools"],
   ["commands", "registerCommandTools"],
 ];

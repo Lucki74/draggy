@@ -31,10 +31,10 @@ impl DraftStore {
     }
 
     pub fn update_active(&self, content: &str) {
-        if let Some(ref id) = *self.active_id.lock().unwrap() {
-            if let Some(d) = self.drafts.lock().unwrap().iter_mut().find(|d| &d.id == id) {
-                d.content = content.to_string();
-            }
+        let active_id = self.active_id.lock().unwrap().clone();
+        let Some(id) = active_id else { return };
+        if let Some(d) = self.drafts.lock().unwrap().iter_mut().find(|d| d.id == id) {
+            d.content = content.to_string();
         }
     }
 }

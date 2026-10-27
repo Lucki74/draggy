@@ -16,7 +16,6 @@ pub mod prompts;
 pub mod repetition;
 pub mod resume;
 pub mod skills;
-pub mod subagent;
 pub mod task_manager;
 pub mod tool_channel;
 

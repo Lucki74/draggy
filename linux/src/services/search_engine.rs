@@ -46,10 +46,8 @@ pub fn search_in_directory<P: AsRef<Path>>(
                 if path.is_dir() {
                     stack.push(path);
                 } else if path.is_file() {
-                    if let Ok(meta) = path.metadata() {
-                        if meta.len() > 1_500_000 {
-                            continue;
-                        }
+                    if path.metadata().is_ok_and(|meta| meta.len() > 1_500_000) {
+                        continue;
                     }
 
                     if let Ok(content) = fs::read_to_string(&path) {

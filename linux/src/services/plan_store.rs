@@ -55,10 +55,14 @@ impl PlanStore {
     }
 
     pub fn update_step_status(&self, step_id: &str, status: StepStatus) {
-        if let Some(ref mut plan) = *self.current_plan.lock().unwrap() {
-            if let Some(step) = plan.steps.iter_mut().find(|s| s.id == step_id) {
-                step.status = status;
-            }
+        if let Some(step) = self
+            .current_plan
+            .lock()
+            .unwrap()
+            .as_mut()
+            .and_then(|plan| plan.steps.iter_mut().find(|s| s.id == step_id))
+        {
+            step.status = status;
         }
     }
 }

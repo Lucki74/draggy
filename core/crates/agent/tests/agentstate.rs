@@ -28,10 +28,6 @@ use draggy_agent::skills::{
     LoadedSkill, loaded_skill_ids, render_invoked_skill, render_loaded_skills, render_skill,
     skill_invocation,
 };
-use draggy_agent::subagent::{
-    EXPLORE_TIMEOUT_MS, ExploreError, ExploreRequest, ExploreRunner, InstalledModel, explore,
-    pick_explore_model,
-};
 use draggy_agent::task_manager::{
     Attachment, ChatSession, Message, TaskManager, Turn, TurnOutcome, TurnResult,
 };
@@ -67,7 +63,6 @@ fn drive(area: &str, input: &Value) -> Value {
         "compaction" => compaction(input),
         "contextBreakdown" => context_breakdown(input),
         "resume" => resume(input),
-        "subagent" => subagent(input),
         "toolChannel" => tool_channel(input),
         "liveTurn" => live_turn(input),
         "taskManager" => task_manager(input),
@@ -283,55 +278,6 @@ fn resume(input: &Value) -> Value {
         )),
         "constants" => json!({"RESUME_BUDGET": RESUME_BUDGET}),
         other => panic!("no resume op {other}"),
-    }
-}
-
-// ---------------------------------------------------------------------------------------------------------------
-// subagent
-// ---------------------------------------------------------------------------------------------------------------
-
-/// A nested turn that answers or fails as the fixture says, without running anything.
-struct FakeExplorer {
-    outcome: Result<String, ExploreError>,
-}
-
-impl ExploreRunner for FakeExplorer {
-    fn run(&mut self, _request: &ExploreRequest, timeout_ms: u64) -> Result<String, ExploreError> {
-        assert_eq!(
-            timeout_ms, EXPLORE_TIMEOUT_MS,
-            "the explorer runs under the two-minute timeout"
-        );
-        self.outcome.clone()
-    }
-}
-
-fn subagent(input: &Value) -> Value {
-    match input["op"].as_str().unwrap_or_default() {
-        "pickExploreModel" => {
-            let installed: Vec<InstalledModel> = typed(&input["installed"], "installed");
-            json!(pick_explore_model(
-                &installed,
-                input["current"].as_str().unwrap_or("")
-            ))
-        }
-        "constants" => json!({"EXPLORE_TIMEOUT_MS": EXPLORE_TIMEOUT_MS}),
-        "explore" => {
-            let outcome = match input["mode"].as_str().unwrap_or_default() {
-                "answer" => Ok(input["text"].as_str().unwrap_or("").to_string()),
-                "error" => Err(ExploreError::Failed(
-                    input["message"].as_str().unwrap_or("").to_string(),
-                )),
-                "timeout" => Err(ExploreError::Timeout),
-                other => panic!("no explore mode {other}"),
-            };
-            let mut runner = FakeExplorer { outcome };
-            json!(explore(
-                &mut runner,
-                input["question"].as_str().unwrap_or(""),
-                "qwen3:8b"
-            ))
-        }
-        other => panic!("no subagent op {other}"),
     }
 }
 
