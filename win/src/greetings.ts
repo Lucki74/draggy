@@ -108,7 +108,6 @@ export const GREETINGS: Record<string, string[]> = {
     "Let's do this together",
     "Need a hand with something?",
     "Let's find the answer",
-    "Ready to explore?",
     "What's the mission?",
     "Let's knock it out",
     "Coffee's hot, let's go",
@@ -268,7 +267,6 @@ export const GREETINGS: Record<string, string[]> = {
     "On fait ça ensemble ?",
     "Besoin d'un coup de main ?",
     "On cherche la réponse ?",
-    "Prêt à explorer ?",
     "Quelle est la mission ?",
     "On termine ça ?",
     "Le café est chaud, allons-y",
@@ -431,7 +429,6 @@ export const GREETINGS: Record<string, string[]> = {
     "¿Lo hacemos juntos?",
     "¿Necesitas una mano?",
     "¿Buscamos la respuesta?",
-    "¿Listo para explorar?",
     "¿Cuál es el encargo?",
     "Terminemos esto",
     "El café está listo, ¡vamos!",
@@ -594,7 +591,6 @@ export const GREETINGS: Record<string, string[]> = {
     "一起来做吧？",
     "需要搭把手吗？",
     "我们去找答案吧？",
-    "准备好探索了吗？",
     "这次的使命是什么？",
     "一鼓作气搞定它",
     "咖啡热好了，开始吧",
@@ -657,7 +653,7 @@ export const GREETINGS: Record<string, string[]> = {
 };
 
 /** How many each language is expected to carry, so none quietly falls behind. */
-export const GREETING_COUNT = 160;
+export const GREETING_COUNT = 159;
 
 const FALLBACK = "en";
 

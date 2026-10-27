@@ -237,7 +237,7 @@ Example: renaming formatDate means search_files for "formatDate", edit the defin
 
 const FULL_PLAN_PROMPT = `The checklist, in more detail: keep each item short and concrete ("Add the settings field", not "Work on settings"), and mark an item done as soon as it is, not all at the end. When the work changes, change the plan too rather than leaving stale items.`;
 
-const FULL_COMMANDS_PROMPT = `Commands, in more detail: explore with read-only commands (git status, git diff, listing files, running the tests) before changing anything. If the user declines a command, that is their answer: do not retry it or reach the same result another way; say what you wanted to do and ask.`;
+const FULL_COMMANDS_PROMPT = `Commands, in more detail: try read-only commands (git status, git diff, listing files, running the tests) before changing anything. If the user declines a command, that is their answer: do not retry it or reach the same result another way; say what you wanted to do and ask.`;
 
 /** What `full` adds, each part only where the compact prompt already has the tools it speaks about. */
 function fullProfileParts(mode: PromptMode, environment: ToolEnvironment): string[] {
