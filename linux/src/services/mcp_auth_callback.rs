@@ -2,14 +2,12 @@ pub struct McpAuthCallback;
 
 impl McpAuthCallback {
     pub fn extract_code(query_str: &str) -> Option<String> {
-        for pair in query_str.split('&') {
+        query_str.split('&').find_map(|pair| {
             let mut parts = pair.split('=');
-            if let (Some(k), Some(v)) = (parts.next(), parts.next()) {
-                if k == "code" {
-                    return Some(v.to_string());
-                }
+            match (parts.next(), parts.next()) {
+                (Some("code"), Some(v)) => Some(v.to_string()),
+                _ => None,
             }
-        }
-        None
+        })
     }
 }
