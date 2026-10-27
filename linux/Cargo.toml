@@ -20,6 +20,10 @@ path = "src/main.rs"
 
 [lints.rust]
 unsafe_code = "forbid"
+dead_code = "allow"
+unused_imports = "allow"
+unused_variables = "allow"
+unused_mut = "allow"
 
 [lints.clippy]
 all = { level = "warn", priority = -1 }
