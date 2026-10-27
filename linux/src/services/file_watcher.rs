@@ -32,13 +32,12 @@ impl SimpleFileWatcher {
 
             while running.load(Ordering::SeqCst) {
                 thread::sleep(Duration::from_millis(800));
-                if let Ok(meta) = std::fs::metadata(&watch_path) {
-                    if let Ok(current_mod) = meta.modified() {
-                        if Some(current_mod) != last_modified {
-                            last_modified = Some(current_mod);
-                            on_change();
-                        }
-                    }
+                let current_mod = std::fs::metadata(&watch_path)
+                    .and_then(|m| m.modified())
+                    .ok();
+                if current_mod.is_some() && current_mod != last_modified {
+                    last_modified = current_mod;
+                    on_change();
                 }
             }
         });

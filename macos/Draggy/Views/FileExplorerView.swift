@@ -56,9 +56,10 @@ public struct FileExplorerView: View {
         }
     }
 
-    @ViewBuilder
-    private func renderItem(_ item: FileTreeItem, depth: Int) -> some View {
-        HStack(spacing: 4) {
+    private func renderItem(_ item: FileTreeItem, depth: Int) -> AnyView {
+        AnyView(
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 4) {
             Spacer().frame(width: CGFloat(depth * 14))
 
             if item.isDirectory {
@@ -131,6 +132,8 @@ public struct FileExplorerView: View {
                 renderItem(child, depth: depth + 1)
             }
         }
+            }
+        )
     }
 
     private func toggleExpand(_ item: FileTreeItem) {

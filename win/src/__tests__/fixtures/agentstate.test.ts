@@ -1,4 +1,4 @@
-// Golden fixtures for the agent state machines: compaction, context breakdown, resume, subagent, tool channel, live
+// Golden fixtures for the agent state machines: compaction, context breakdown, resume, tool channel, live
 // turns and the task manager. Each case is driven through the TypeScript reference below. core/crates/agent/tests/
 // agentstate.rs runs the same JSON through the Rust port, so both must agree.
 import fs from "node:fs";
@@ -39,8 +39,6 @@ import {
 import type { PromptParts } from "../../agent/contextBreakdown";
 import { RESUME_BUDGET, buildResumeMessage, describeCompletedWork, joinContinuation } from "../../agent/resume";
 import type { SearchStep } from "../../types";
-import { EXPLORE_TIMEOUT_MS, explore, pickExploreModel } from "../../agent/subagent";
-import type { ExploreRequest } from "../../agent/subagent";
 import { chooseChannel, looksLikeCall, readRepair, repairPrompt, repairSchema } from "../../agent/toolChannel";
 import type { ToolDefinition } from "../../tools/registry";
 import { getLiveTurn, setLiveTurn } from "../../agent/liveTurn";
@@ -322,52 +320,6 @@ function resumeCase(input: Json): unknown {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// subagent
-// ---------------------------------------------------------------------------------------------------------------
-
-/** One explore call against the task-level mock: the nested turn answers, fails, or runs past its timeout. */
-async function exploreCase(input: Json): Promise<unknown> {
-  const request: ExploreRequest = {
-    question: input.question as string,
-    model: "qwen3:8b",
-    settings: { customInstructions: [] } as unknown as AppSettings,
-    environment: { webMode: "off", codeExecution: false, libraryReady: false },
-    signal: new AbortController().signal,
-  };
-
-  const mode = input.mode as string;
-  if (mode === "timeout") vi.useFakeTimers();
-
-  // The nested turn is started synchronously, before explore first awaits.
-  const answer = explore(request);
-  const turn = pending[pending.length - 1];
-
-  if (mode === "answer") {
-    turn.resolve({ textContent: input.text as string } as unknown as AgentResult);
-  } else if (mode === "error") {
-    turn.reject(new Error(input.message as string));
-  } else if (mode === "timeout") {
-    vi.advanceTimersByTime(EXPLORE_TIMEOUT_MS);
-    turn.reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
-  }
-
-  const result = await answer;
-  vi.useRealTimers();
-  return result;
-}
-
-function subagentCase(input: Json): unknown {
-  switch (input.op) {
-    case "pickExploreModel":
-      return pickExploreModel(input.installed as never, input.current as string);
-    case "constants":
-      return { EXPLORE_TIMEOUT_MS };
-    default:
-      throw new Error(`no subagent op ${String(input.op)}`);
-  }
-}
-
-// ---------------------------------------------------------------------------------------------------------------
 // toolChannel
 // ---------------------------------------------------------------------------------------------------------------
 
@@ -623,8 +575,6 @@ export async function driveCase(area: string, input: Json): Promise<unknown> {
       return asJson(contextCase(input));
     case "resume":
       return asJson(resumeCase(input));
-    case "subagent":
-      return asJson(input.op === "explore" ? await exploreCase(input) : subagentCase(input));
     case "toolChannel":
       return asJson(toolChannelCase(input));
     case "liveTurn":

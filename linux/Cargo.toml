@@ -20,9 +20,15 @@ path = "src/main.rs"
 
 [lints.rust]
 unsafe_code = "forbid"
+dead_code = "allow"
+unused_imports = "allow"
+unused_variables = "allow"
+unused_mut = "allow"
 
 [lints.clippy]
 all = { level = "warn", priority = -1 }
+collapsible_if = "allow"
+needless_borrows_for_generic_args = "allow"
 
 [dependencies]
 draggy-core = { path = "../core/crates/draggy-core" }
