@@ -16,6 +16,7 @@ import { Button, Chip, Icon, Lightbox, Spark } from "../ui";
 import { formatTokenCount } from "../agent/contextBreakdown";
 import { normalizeMath, sanitizeContent } from "../utils";
 import { continuesBody } from "./continuation";
+import { parseQuestions } from "./questionParser";
 import {
   MARKDOWN_COMPONENTS,
   REHYPE_PLUGINS,
@@ -315,7 +316,7 @@ export function AssistantTurn({
             <div key={bodyKey} className={isFailed ? "mb-3" : undefined}>
               {live ? (
                 <StreamingMarkdown
-                  source={normalizeMath(text)}
+                  source={normalizeMath(parseQuestions(text).cleanText)}
                   streaming={isGenerating}
                   animateOnMount={false}
                   components={MARKDOWN_COMPONENTS}
@@ -326,7 +327,7 @@ export function AssistantTurn({
                   rehypePlugins={REHYPE_PLUGINS}
                   components={MARKDOWN_COMPONENTS}
                 >
-                  {normalizeMath(text)}
+                  {normalizeMath(parseQuestions(text).cleanText)}
                 </ReactMarkdown>
               )}
             </div>

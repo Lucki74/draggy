@@ -30,6 +30,8 @@ export interface SidebarProps {
   onRenameChat?: (id: string, newTitle: string) => void;
   onPinChat?: (id: string) => void;
   onExportChat?: (id: string, format: "md" | "html") => void;
+  onToggleAiQuestions?: (id: string) => void;
+  onClearQuestionHistory?: (id: string) => void;
   onViewTalk?: () => void;
   onOpenSettings: (tab: SettingsTab) => void;
   onSelectWorkspace: (id: string) => void;
@@ -78,6 +80,8 @@ export function Sidebar({
   onRenameChat,
   onPinChat,
   onExportChat,
+  onToggleAiQuestions,
+  onClearQuestionHistory,
   onViewTalk,
   onOpenSettings,
   onSelectWorkspace,
@@ -303,6 +307,20 @@ export function Sidebar({
           setNewGroupFor(session.id);
         },
       } as MenuEntry,
+      { type: "separator", id: "sep-questions" },
+      {
+        id: "toggle-ai-questions",
+        label: t("toggleAiQuestions"),
+        icon: <Icon name="chat-circle" size={16} />,
+        checked: !session.aiQuestionsDisabled,
+        onSelect: () => onToggleAiQuestions?.(session.id),
+      },
+      {
+        id: "clear-question-history",
+        label: t("clearQuestionHistory"),
+        icon: <Icon name="arrow-counter-clockwise" size={16} />,
+        onSelect: () => onClearQuestionHistory?.(session.id),
+      },
       { type: "separator", id: "sep" },
       {
         id: "delete",

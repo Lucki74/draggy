@@ -2,6 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { Transcript } from "./chat/Transcript";
+import { QuestionCard } from "./chat/components/QuestionCard";
+import { QuestionSessionBar } from "./chat/components/QuestionSessionBar";
+import { QuestionHistoryCard } from "./chat/components/QuestionHistoryCard";
+import { questionSessionStore } from "./store/questionSession";
+import { processQuestionsFromText } from "./chat/questionParser";
+import type { QuestionSession } from "./chat/questionTypes";
 import { Composer, type WorkContext } from "./chat/Composer";
 import { useChatSession } from "./chat/useChatSession";
 import { useToollessPlan } from "./chat/useToollessPlan";
@@ -222,6 +228,112 @@ export default function ChatScreen({
     [settings.language, chat.id],
   );
 
+  const [activeQuestionSession, setActiveQuestionSession] = useState<QuestionSession | null>(null);
+  const [allQuestionSessions, setAllQuestionSessions] = useState<QuestionSession[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const list = await questionSessionStore.getAllSessions(chat.id);
+      if (!mounted) return;
+      setAllQuestionSessions(list);
+      const active = list.find((s) => s.status === "active") ?? null;
+      setActiveQuestionSession(active);
+    };
+
+    load();
+    const unsub = questionSessionStore.subscribe((s) => {
+      if (s.chatId === chat.id && mounted) {
+        load();
+      }
+    });
+    return () => {
+      mounted = false;
+      unsub();
+    };
+  }, [chat.id]);
+
+  useEffect(() => {
+    if (settings.aiQuestionsEnabled === false || chat.aiQuestionsDisabled) return;
+    const lastMsg = chat.messages[chat.messages.length - 1];
+    if (lastMsg && lastMsg.role === "assistant") {
+      const rawText = lastMsg.textContent ?? lastMsg.content ?? "";
+      if (rawText.includes('"_draggy"')) {
+        processQuestionsFromText(rawText, chat.id, chat.workspaceId);
+      }
+    }
+  }, [chat.messages, chat.id, chat.workspaceId, settings.aiQuestionsEnabled, chat.aiQuestionsDisabled]);
+
+  useEffect(() => {
+    if (!settings.aiQuestionsAutoSkip || !settings.aiQuestionsTimeoutMinutes || !activeQuestionSession) return;
+    const timeoutMs = settings.aiQuestionsTimeoutMinutes * 60 * 1000;
+    const elapsed = Date.now() - activeQuestionSession.startedAt;
+    const remaining = Math.max(0, timeoutMs - elapsed);
+
+    const timer = setTimeout(() => {
+      questionSessionStore.expireSession(activeQuestionSession.id);
+    }, remaining);
+
+    return () => clearTimeout(timer);
+  }, [activeQuestionSession, settings.aiQuestionsAutoSkip, settings.aiQuestionsTimeoutMinutes]);
+
+  const handleAnswerQuestion = useCallback(
+    async (questionId: string, value: string | string[]) => {
+      if (!activeQuestionSession) return;
+      const q = activeQuestionSession.questions.find((item) => item.id === questionId);
+      if (!q) return;
+      await questionSessionStore.submitAnswer(activeQuestionSession.id, {
+        questionId,
+        type: q.type,
+        value,
+        submittedAt: Date.now(),
+      });
+    },
+    [activeQuestionSession],
+  );
+
+  const handleSkipQuestion = useCallback(
+    async (questionId: string) => {
+      if (!activeQuestionSession) return;
+      await questionSessionStore.skipQuestion(activeQuestionSession.id, questionId);
+    },
+    [activeQuestionSession],
+  );
+
+  const handleNavigateQuestion = useCallback(
+    async (index: number) => {
+      if (!activeQuestionSession) return;
+      await questionSessionStore.setCurrentIndex(activeQuestionSession.id, index);
+    },
+    [activeQuestionSession],
+  );
+
+  const handleCompleteQuestionSession = useCallback(async () => {
+    if (!activeQuestionSession) return;
+    const completed = await questionSessionStore.completeSession(activeQuestionSession.id);
+    if (completed.answers.length > 0) {
+      const summaryLines = completed.questions
+        .map((q) => {
+          const ans = completed.answers.find((a) => a.questionId === q.id);
+          if (!ans) return null;
+          let valStr = "";
+          if (Array.isArray(ans.value)) {
+            valStr = ans.value
+              .map((id) => q.options?.find((o) => o.id === id)?.label || id)
+              .join(", ");
+          } else {
+            valStr = q.options?.find((o) => o.id === ans.value)?.label || ans.value;
+          }
+          return `${q.text}: ${valStr}`;
+        })
+        .filter(Boolean);
+
+      if (summaryLines.length > 0) {
+        onSendMessage(summaryLines.join("\n"));
+      }
+    }
+  }, [activeQuestionSession, onSendMessage]);
+
   const isHome = chat.messages.length === 0;
 
   const composer = (
@@ -303,6 +415,10 @@ export default function ChatScreen({
         )}
       </AnimatePresence>
 
+      {activeQuestionSession && (settings.aiQuestionsShowSessionBar ?? true) && (
+        <QuestionSessionBar session={activeQuestionSession} t={t} />
+      )}
+
       {isHome ? (
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center px-4 pb-[10vh]">
           <h1 className="max-w-[720px] mb-6 text-center display-line text-[32px] leading-10 font-semibold tracking-[-0.01em] text-text-primary text-balance">
@@ -325,6 +441,21 @@ export default function ChatScreen({
             copyToClipboard={copyToClipboard}
             t={t}
           />
+          {allQuestionSessions
+            .filter((s) => s.status === "completed" || s.status === "skipped")
+            .map((s) => (
+              <QuestionHistoryCard key={s.id} session={s} t={t} />
+            ))}
+          {activeQuestionSession && (
+            <QuestionCard
+              session={activeQuestionSession}
+              onAnswer={handleAnswerQuestion}
+              onSkip={handleSkipQuestion}
+              onNavigate={handleNavigateQuestion}
+              onComplete={handleCompleteQuestionSession}
+              t={t}
+            />
+          )}
           {composer}
         </>
       )}
