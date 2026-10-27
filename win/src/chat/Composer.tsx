@@ -12,6 +12,7 @@ import { chipSegments, parseSlashArgument } from "./slashCommands";
 import { FILL_EVENT, insertMention, mentionAt, useMentionHits, type Mention } from "./mentions";
 import { isBinary } from "../utils";
 import { draftKeyFor } from "./useChatSession";
+import { ImagePreview } from "../ui/ImagePreview";
 import { Chip, Fuse, Icon, IconButton, Menu, Popover, type MenuEntry } from "../ui";
 import type { ModelInfo } from "../llama";
 import type { ContextWindowView } from "../agent/contextBreakdown";
@@ -638,6 +639,63 @@ export function Composer({
                         <StarNotice generating={chat.isGenerating} t={t} />
                     </div>
 
+                    {(notice || fileErrors.length > 0 || attachedFiles.length > 0) && (
+                        <div className="px-3 pt-2.5 pb-1 flex flex-col gap-1.5">
+                            {/* Image preview cards */}
+                            {attachedFiles.some((file) => file.type.startsWith("image/")) && (
+                                <div className="flex flex-wrap gap-2">
+                                    {attachedFiles
+                                        .filter((file) => file.type.startsWith("image/"))
+                                        .map((file, idx) => (
+                                            <ImagePreview
+                                                key={`img-${idx}`}
+                                                src={file.content}
+                                                alt={file.name}
+                                                onDelete={() => removeFile(attachedFiles.indexOf(file))}
+                                                size="md"
+                                            />
+                                        ))}
+                                </div>
+                            )}
+                            {/* Non-image file chips */}
+                            {(notice ||
+                                fileErrors.length > 0 ||
+                                attachedFiles.some((f) => !f.type.startsWith("image/"))) && (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {notice && (
+                                        <span role="status" className="inline-flex items-center gap-1.5 h-6 px-2 rounded-pill bg-surface-tint text-[12px] text-text-secondary">
+                                            <Icon name="check" size={16} />
+                                            {notice}
+                                        </span>
+                                    )}
+                                    {fileErrors.map((message) => (
+                                        <span
+                                            key={message}
+                                            role="alert"
+                                            className="inline-flex items-center gap-1.5 h-6 px-2 rounded-pill bg-danger/10 text-[12px] text-danger"
+                                        >
+                                            <Icon name="warning-circle" size={16} />
+                                            {message}
+                                        </span>
+                                    ))}
+                                    {attachedFiles
+                                        .filter((file) => !file.type.startsWith("image/"))
+                                        .map((file, idx) => (
+                                            <Chip
+                                                key={`non-img-${idx}`}
+                                                size="dense"
+                                                tabIndex={-1}
+                                                className="max-w-[200px] cursor-default"
+                                                icon={<Icon name="file-text" size={16} />}
+                                                label={file.name}
+                                                onDelete={() => removeFile(attachedFiles.indexOf(file))}
+                                            />
+                                        ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <div className="relative">
                     {chipRanges.length > 0 && (
                         <div
@@ -744,38 +802,6 @@ export function Composer({
                         style={{ minHeight: variant === "home" ? "72px" : "48px", maxHeight: `${MAX_INPUT_HEIGHT}px` }}
                     />
                     </div>
-
-                    {(notice || fileErrors.length > 0 || attachedFiles.length > 0) && (
-                        <div className="px-3 pb-1.5 flex flex-wrap gap-1.5">
-                            {notice && (
-                                <span role="status" className="inline-flex items-center gap-1.5 h-6 px-2 rounded-pill bg-surface-tint text-[12px] text-text-secondary">
-                                    <Icon name="check" size={16} />
-                                    {notice}
-                                </span>
-                            )}
-                            {fileErrors.map((message) => (
-                                <span
-                                    key={message}
-                                    role="alert"
-                                    className="inline-flex items-center gap-1.5 h-6 px-2 rounded-pill bg-danger/10 text-[12px] text-danger"
-                                >
-                                    <Icon name="warning-circle" size={16} />
-                                    {message}
-                                </span>
-                            ))}
-                            {attachedFiles.map((file, idx) => (
-                                <Chip
-                                    key={idx}
-                                    size="dense"
-                                    tabIndex={-1}
-                                    className="max-w-[200px] cursor-default"
-                                    icon={<Icon name={file.type.startsWith("image/") ? "file-image" : "file-text"} size={16} />}
-                                    label={file.name}
-                                    onDelete={() => removeFile(idx)}
-                                />
-                            ))}
-                        </div>
-                    )}
 
                     {/* Below 640px the controls take a second line instead of losing their labels. */}
                     <div className={`flex items-center gap-1 px-2 pb-2 pt-1 min-w-0 ${compactToolbar ? "flex-wrap" : ""}`}>
