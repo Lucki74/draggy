@@ -19,7 +19,7 @@ public final class HardwareMetrics: Sendable {
         var stats = vm_statistics64()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size)
         let hostPort = mach_host_self()
-        let pageSize = vm_kernel_page_size
+        let pageSize = UInt64(getpagesize())
 
         let kerr = withUnsafeMutablePointer(to: &stats) {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
@@ -29,8 +29,8 @@ public final class HardwareMetrics: Sendable {
 
         var memUsed: UInt64 = 0
         if kerr == KERN_SUCCESS {
-            let active = UInt64(stats.active_count) * UInt64(pageSize)
-            let wired = UInt64(stats.wire_count) * UInt64(pageSize)
+            let active = UInt64(stats.active_count) * pageSize
+            let wired = UInt64(stats.wire_count) * pageSize
             memUsed = active + wired
         }
 
