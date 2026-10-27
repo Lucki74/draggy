@@ -24,6 +24,7 @@ unsafe_code = "forbid"
 [lints.clippy]
 all = { level = "warn", priority = -1 }
 collapsible_if = "allow"
+needless_borrows_for_generic_args = "allow"
 
 [dependencies]
 draggy-core = { path = "../core/crates/draggy-core" }
