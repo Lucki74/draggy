@@ -223,6 +223,7 @@ export async function processQuestionsFromText(
   text: string,
   chatId: string,
   workspaceId: string = "default",
+  messageId?: string,
 ): Promise<{ result: ParsedQuestionResult; session?: QuestionSession }> {
   const result = parseQuestions(text);
   if (!result.hasQuestions) {
@@ -235,18 +236,27 @@ export async function processQuestionsFromText(
     const existing = await questionSessionStore.getSession(result.sessionId);
     if (existing) {
       session = existing;
+      if (messageId && !session.messageId) {
+        await questionSessionStore.updateSession(session.id, { messageId });
+      }
     } else {
-      session = await questionSessionStore.createSession(chatId, workspaceId, {
-        parsedSessionId: result.sessionId,
-      });
+      session = await questionSessionStore.createSession(
+        chatId,
+        workspaceId,
+        { parsedSessionId: result.sessionId, messageId },
+        messageId,
+      );
     }
   } else {
     // Check if there is already an active session for this chat
     const active = await questionSessionStore.getActiveSession(chatId);
     if (active) {
       session = active;
+      if (messageId && !session.messageId) {
+        await questionSessionStore.updateSession(session.id, { messageId });
+      }
     } else {
-      session = await questionSessionStore.createSession(chatId, workspaceId);
+      session = await questionSessionStore.createSession(chatId, workspaceId, { messageId }, messageId);
     }
   }
 

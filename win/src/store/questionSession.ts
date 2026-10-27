@@ -144,6 +144,7 @@ class QuestionSessionStore {
     chatId: string,
     workspaceId: string = "default",
     metadata?: Record<string, any>,
+    messageId?: string,
   ): Promise<QuestionSession> {
     await this.ensureInitialized();
     const id = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -151,6 +152,7 @@ class QuestionSessionStore {
       id,
       chatId,
       workspaceId,
+      messageId: messageId ?? metadata?.messageId,
       status: "active",
       questions: [],
       answers: [],
@@ -158,6 +160,15 @@ class QuestionSessionStore {
       startedAt: Date.now(),
       metadata,
     };
+    await this.persist(session);
+    return session;
+  }
+
+  async updateSession(sessionId: string, partial: Partial<QuestionSession>): Promise<QuestionSession> {
+    await this.ensureInitialized();
+    const session = this.cache.get(sessionId);
+    if (!session) throw new Error(`Question session not found: ${sessionId}`);
+    Object.assign(session, partial);
     await this.persist(session);
     return session;
   }

@@ -30,6 +30,7 @@ export interface QuestionSession {
   id: string;
   chatId: string;
   workspaceId: string;
+  messageId?: string;
   status: "active" | "completed" | "expired" | "skipped";
   questions: UserQuestion[];
   answers: UserAnswer[];

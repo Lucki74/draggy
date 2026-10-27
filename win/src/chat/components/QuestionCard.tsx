@@ -213,10 +213,10 @@ export function QuestionCard({
               return (
                 <label
                   key={option.id}
-                  className={`flex items-start gap-3 p-2.5 rounded-md border text-start cursor-pointer transition-colors duration-120 ${
+                  className={`group flex items-start gap-3 p-3 rounded-lg border text-start cursor-pointer transition-all duration-150 ${
                     selected
-                      ? "border-accent bg-accent/10 text-text-primary"
-                      : "border-rule bg-surface-raised/40 hover:bg-surface-raised text-text-primary hover:border-rule-strong"
+                      ? "border-accent/70 bg-accent/10 text-text-primary shadow-[0_0_0_1px_rgba(var(--accent-rgb,59,130,246),0.15)]"
+                      : "border-rule bg-surface-raised/30 hover:bg-surface-raised/70 text-text-primary hover:border-rule-strong"
                   } ${readOnly || isExpired ? "cursor-default opacity-85" : ""}`}
                 >
                   <input
@@ -226,8 +226,18 @@ export function QuestionCard({
                     checked={selected}
                     disabled={readOnly || isExpired}
                     onChange={() => setSingleValue(option.id)}
-                    className="mt-0.5 text-accent focus:ring-accent"
+                    className="sr-only"
                   />
+                  <div
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-all duration-150 ${
+                      selected
+                        ? "border-accent bg-accent/15"
+                        : "border-rule-control bg-surface-base group-hover:border-rule-strong"
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {selected && <span className="w-2 h-2 rounded-full bg-accent" />}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-[13px] font-medium leading-5">{option.label}</div>
                     {option.description && (
@@ -255,10 +265,10 @@ export function QuestionCard({
                 return (
                   <label
                     key={option.id}
-                    className={`flex items-start gap-3 p-2.5 rounded-md border text-start cursor-pointer transition-colors duration-120 ${
+                    className={`group flex items-start gap-3 p-3 rounded-lg border text-start cursor-pointer transition-all duration-150 ${
                       selected
-                        ? "border-accent bg-accent/10 text-text-primary"
-                        : "border-rule bg-surface-raised/40 hover:bg-surface-raised text-text-primary hover:border-rule-strong"
+                        ? "border-accent/70 bg-accent/10 text-text-primary shadow-[0_0_0_1px_rgba(var(--accent-rgb,59,130,246),0.15)]"
+                        : "border-rule bg-surface-raised/30 hover:bg-surface-raised/70 text-text-primary hover:border-rule-strong"
                     } ${readOnly || isExpired ? "cursor-default opacity-85" : ""}`}
                   >
                     <input
@@ -267,8 +277,18 @@ export function QuestionCard({
                       checked={selected}
                       disabled={readOnly || isExpired}
                       onChange={() => toggleMultiOption(option.id)}
-                      className="mt-0.5 rounded text-accent focus:ring-accent"
+                      className="sr-only"
                     />
+                    <div
+                      className={`w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 mt-0.5 transition-all duration-150 ${
+                        selected
+                          ? "border-accent bg-accent text-surface-canvas shadow-xs"
+                          : "border-rule-control bg-surface-base group-hover:border-rule-strong"
+                      }`}
+                      aria-hidden="true"
+                    >
+                      {selected && <Icon name="check" size={11} className="stroke-[3]" />}
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-medium leading-5">{option.label}</div>
                       {option.description && (

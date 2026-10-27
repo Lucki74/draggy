@@ -5,6 +5,8 @@ import InView from "./InView";
 import { JUMP_LIST_MIN_PROMPTS, PromptJumpList } from "./PromptJumpList";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { Button, Icon } from "../ui";
+import { useQuestionSessionContext } from "./questionSessionContext";
+import { QuestionHistoryCard } from "./components/QuestionHistoryCard";
 import type { AppSettings, ApprovalAnswer, ChatSession } from "../types";
 
 export interface TranscriptProps {
@@ -58,6 +60,20 @@ export function Transcript({
   );
   const showJumpList = prompts.length >= JUMP_LIST_MIN_PROMPTS;
   const [currentPrompt, setCurrentPrompt] = useState<string | null>(null);
+
+  const questionCtx = useQuestionSessionContext();
+  const orphanSessions = useMemo(() => {
+    if (!questionCtx) return [];
+    return questionCtx.sessions.filter((s) => {
+      if (s.status === "active") return false;
+      const hasMessage = chat.messages.some((m) => {
+        if (s.messageId === m.id) return true;
+        const text = m.textContent ?? m.content ?? "";
+        return text.includes('"_draggy"') && (text.includes(s.id) || s.questions.some((q) => text.includes(q.id)));
+      });
+      return !hasMessage;
+    });
+  }, [questionCtx, chat.messages]);
 
   const anchors = () =>
     [...(scrollContainerRef.current?.querySelectorAll<HTMLElement>("[data-anchor]") ?? [])];
@@ -237,6 +253,9 @@ export function Transcript({
               />
             </ErrorBoundary>
           </InView>
+        ))}
+        {orphanSessions.map((s) => (
+          <QuestionHistoryCard key={s.id} session={s} t={questionCtx?.t ?? t} />
         ))}
         <div ref={messagesEndRef} />
         <div aria-live="polite" className="sr-only">

@@ -3,8 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { Transcript } from "./chat/Transcript";
 import { QuestionCard } from "./chat/components/QuestionCard";
-import { QuestionSessionBar } from "./chat/components/QuestionSessionBar";
-import { QuestionHistoryCard } from "./chat/components/QuestionHistoryCard";
+import { QuestionSessionContext } from "./chat/questionSessionContext";
 import { questionSessionStore } from "./store/questionSession";
 import { processQuestionsFromText } from "./chat/questionParser";
 import type { QuestionSession } from "./chat/questionTypes";
@@ -259,7 +258,7 @@ export default function ChatScreen({
     if (lastMsg && lastMsg.role === "assistant") {
       const rawText = lastMsg.textContent ?? lastMsg.content ?? "";
       if (rawText.includes('"_draggy"')) {
-        processQuestionsFromText(rawText, chat.id, chat.workspaceId);
+        processQuestionsFromText(rawText, chat.id, chat.workspaceId, lastMsg.id);
       }
     }
   }, [chat.messages, chat.id, chat.workspaceId, settings.aiQuestionsEnabled, chat.aiQuestionsDisabled]);
@@ -335,6 +334,33 @@ export default function ChatScreen({
   }, [activeQuestionSession, onSendMessage]);
 
   const isHome = chat.messages.length === 0;
+
+  const questionContextValue = useMemo(
+    () => ({
+      sessions: allQuestionSessions,
+      activeSession: activeQuestionSession,
+      onAnswer: handleAnswerQuestion,
+      onSkip: handleSkipQuestion,
+      onNavigate: handleNavigateQuestion,
+      onComplete: handleCompleteQuestionSession,
+      t,
+    }),
+    [
+      allQuestionSessions,
+      activeQuestionSession,
+      handleAnswerQuestion,
+      handleSkipQuestion,
+      handleNavigateQuestion,
+      handleCompleteQuestionSession,
+      t,
+    ],
+  );
+
+  const lastMsg = chat.messages[chat.messages.length - 1];
+  const lastMsgHasQuestion =
+    lastMsg &&
+    lastMsg.role === "assistant" &&
+    (lastMsg.textContent ?? lastMsg.content ?? "").includes('"_draggy"');
 
   const composer = (
     <Composer
@@ -415,10 +441,6 @@ export default function ChatScreen({
         )}
       </AnimatePresence>
 
-      {activeQuestionSession && (settings.aiQuestionsShowSessionBar ?? true) && (
-        <QuestionSessionBar session={activeQuestionSession} t={t} />
-      )}
-
       {isHome ? (
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center px-4 pb-[10vh]">
           <h1 className="max-w-[720px] mb-6 text-center display-line text-[32px] leading-10 font-semibold tracking-[-0.01em] text-text-primary text-balance">
@@ -428,25 +450,22 @@ export default function ChatScreen({
         </div>
       ) : (
         <>
-          <Transcript
-            chat={chat}
-            copiedIndex={copiedIndex}
-            settings={settings}
-            onRegenerate={onRegenerate}
-            onResume={onContinueGeneration}
-            onSwitchVersion={onSwitchVersion}
-            onEditMessage={onEditMessage}
-            onApproval={onApproval}
-            onRevert={onRevert}
-            copyToClipboard={copyToClipboard}
-            t={t}
-          />
-          {allQuestionSessions
-            .filter((s) => s.status === "completed" || s.status === "skipped")
-            .map((s) => (
-              <QuestionHistoryCard key={s.id} session={s} t={t} />
-            ))}
-          {activeQuestionSession && (
+          <QuestionSessionContext.Provider value={questionContextValue}>
+            <Transcript
+              chat={chat}
+              copiedIndex={copiedIndex}
+              settings={settings}
+              onRegenerate={onRegenerate}
+              onResume={onContinueGeneration}
+              onSwitchVersion={onSwitchVersion}
+              onEditMessage={onEditMessage}
+              onApproval={onApproval}
+              onRevert={onRevert}
+              copyToClipboard={copyToClipboard}
+              t={t}
+            />
+          </QuestionSessionContext.Provider>
+          {activeQuestionSession && !lastMsgHasQuestion && (
             <QuestionCard
               session={activeQuestionSession}
               onAnswer={handleAnswerQuestion}

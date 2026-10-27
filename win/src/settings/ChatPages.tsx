@@ -138,13 +138,6 @@ export function ChatPreferencesPage({
             label={t("requireAnswerBeforeContinuing")}
           />
         </Row>
-        <Row label={t("showQuestionSessionBar")}>
-          <Toggle
-            checked={settings.aiQuestionsShowSessionBar ?? true}
-            onChange={(aiQuestionsShowSessionBar) => onUpdate({ aiQuestionsShowSessionBar })}
-            label={t("showQuestionSessionBar")}
-          />
-        </Row>
         <Row label={t("autoSkipAfterTimeout")}>
           <Toggle
             checked={settings.aiQuestionsAutoSkip ?? false}
