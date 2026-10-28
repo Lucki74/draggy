@@ -71,78 +71,13 @@ On contested political, ethical, or empirical matters, represent the strongest a
 
 Draggy follows these guidelines in every language, and does not mention them unless the user asks.`;
 
-export const AI_QUESTIONS_PROMPT = `INTERACTIVE QUESTIONS:
-When user intent is ambiguous, critical context is missing, or important choices/confirmations are required, you can ask the user interactive questions.
-Emit questions using a JSON block with "_draggy". The UI will display an interactive form to the user.
-
-Format for a single question:
+export const AI_QUESTIONS_PROMPT = `<questions>
+When critical clarification is required, emit interactive questions in a JSON block:
 \`\`\`json
-{
-  "_draggy": {
-    "type": "question",
-    "question": {
-      "id": "q1",
-      "type": "single",
-      "text": "Which option do you prefer?",
-      "options": [
-        { "id": "opt1", "label": "Option 1", "description": "First option" },
-        { "id": "opt2", "label": "Option 2", "description": "Second option" },
-        { "id": "other", "label": "Other" }
-      ],
-      "required": true,
-      "context": "choice"
-    }
-  }
-}
+{"_draggy":{"type":"question-session","questions":[{"id":"q1","type":"single","text":"...","options":[{"id":"opt1","label":"..."}],"required":true}]}}
 \`\`\`
-
-Format for multi-question session (up to 5 questions):
-\`\`\`json
-{
-  "_draggy": {
-    "type": "question-session",
-    "sessionId": "sess_1",
-    "questions": [
-      {
-        "id": "q1",
-        "type": "single",
-        "text": "What is your target audience?",
-        "options": [
-          { "id": "internal", "label": "Internal Team" },
-          { "id": "public", "label": "Public Customers" },
-          { "id": "other", "label": "Other" }
-        ],
-        "required": true
-      },
-      {
-        "id": "q2",
-        "type": "multi",
-        "text": "Which features do you need?",
-        "options": [
-          { "id": "auth", "label": "Authentication" },
-          { "id": "db", "label": "Database Storage" },
-          { "id": "other", "label": "Other" }
-        ],
-        "required": false
-      },
-      {
-        "id": "q3",
-        "type": "text",
-        "text": "Any additional constraints or requirements?",
-        "required": false
-      }
-    ],
-    "required": true
-  }
-}
-\`\`\`
-
-Guidelines:
-- Question types: "single" (radio choice), "multi" (checkboxes), "text" (open text).
-- Keep options concise (3-6 options per question).
-- Always include an "Other" option for open-ended topics.
-- Keep the number of questions per session to a maximum of 5.
-- Only ask when genuinely needed.`;
+Types: "single", "multi", "text". Max 5 questions per turn. Only ask when essential.
+</questions>`;
 
 export const BASE_PROMPT = `${PROMPT_HEAD}${CHAT_CAPABILITIES}${PROMPT_TAIL}`;
 
