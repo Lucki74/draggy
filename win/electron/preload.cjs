@@ -171,6 +171,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
     clear: () => ipcRenderer.invoke("metrics:clear"),
   },
 
+  pricing: {
+    table: () => ipcRenderer.invoke("pricing:table"),
+    configure: (options) => ipcRenderer.invoke("pricing:configure", options),
+    refresh: () => ipcRenderer.invoke("pricing:refresh"),
+    status: () => ipcRenderer.invoke("pricing:status"),
+    rates: () => ipcRenderer.invoke("pricing:rates"),
+    onUpdated: (callback) => subscribe("pricing-updated", callback),
+  },
+
   git: {
     status: (workspaceId) => ipcRenderer.invoke("git:status", workspaceId),
     diff: (workspaceId, path, staged, untracked) =>

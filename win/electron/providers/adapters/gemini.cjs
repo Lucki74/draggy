@@ -3,6 +3,7 @@
 const { fromResponse } = require("../errors.cjs");
 const { HostedToolError } = require("./openai.cjs");
 const { log } = require("../../logger.cjs");
+const { fromGemini } = require("../usage.cjs");
 
 const LEVELS = new Set(["low", "medium", "high"]);
 const BUDGETS = { medium: 8192, high: 24576 };
@@ -165,7 +166,7 @@ function readChunk(json, sse, turn) {
   }
   if (json.promptFeedback?.blockReason) throw refusal(json.promptFeedback.blockReason);
   const usage = json.usageMetadata;
-  if (usage) turn.usage = { promptTokens: usage.promptTokenCount ?? 0, outputTokens: (usage.candidatesTokenCount ?? 0) + (usage.thoughtsTokenCount ?? 0) };
+  if (usage) turn.usage = fromGemini(usage);
   const candidate = json.candidates?.[0];
   if (!candidate) return;
   for (const part of candidate.content?.parts || []) {
@@ -227,7 +228,7 @@ async function translateStream(stream, sse, { instanceId } = {}) {
   const finish = finishOf(turn);
   const state = stateOf(turn, instanceId);
   if (state) sse.providerState(state);
-  log.debug("providers.gemini", "stream done", { finish, calls: turn.calls.length, ...turn.usage });
+  log.debug("providers.gemini", "stream done", { finish, calls: turn.calls.length, promptTokens: turn.usage.promptTokens, outputTokens: turn.usage.outputTokens });
   sse.finish(finish, turn.usage);
 }
 

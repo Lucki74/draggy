@@ -38,6 +38,8 @@ function finishStartup() {
 const platform = require("./platform.cjs");
 const documents = require("./documents.cjs");
 const storage = require("./storage.cjs");
+const pricing = require("./pricing/table.cjs");
+const pricingRefresh = require("./pricing/refresh.cjs");
 const fsGuard = require("./fsGuard.cjs");
 const gitTools = require("./git.cjs");
 const apiServerTools = require("./apiServer.cjs");
@@ -1294,6 +1296,7 @@ function shutdown() {
   const steps = [
     ["browsers", closeBrowserWindows],
     ["updater", () => updater.dispose()],
+    ["pricing", () => pricingRefresherInstance?.dispose()],
     ["engine-updater", () => engineUpdater.dispose()],
     // Servers and code runs are children of this process and would otherwise
     // be left running after the window is gone.
@@ -3259,6 +3262,42 @@ ipc.handle("metrics:list", wrap("metrics", async (event, since) => ({
 })));
 
 ipc.handle("metrics:clear", wrap("metrics", async () => storage.clearMetrics()));
+
+let priceTableInstance = null;
+const priceTable = () =>
+  (priceTableInstance ??= pricing.createPriceTable({
+    userData: app.getPath("userData"),
+    bundled: pricing.bundledPath({ packaged: app.isPackaged }),
+    log,
+  }));
+
+ipc.handle("pricing:table", wrap("pricing", async () => {
+  const table = priceTable().get();
+  return table ? { success: true, table, origin: priceTable().origin() } : { success: false };
+}));
+
+let pricingRefresherInstance = null;
+const pricingRefresher = () =>
+  (pricingRefresherInstance ??= pricingRefresh.createPricingRefresher({
+    userData: app.getPath("userData"),
+    table: priceTable(),
+    log,
+    onUpdate: (status) => broadcast("pricing-updated", status),
+  }));
+
+// The schedule is the only automatic request; the renderer turns it on from the setting and holds it
+// back during first-run setup. "Update now" is the user asking, so it ignores the setting.
+ipc.handle("pricing:configure", wrap("pricing", async (event, options) => {
+  pricingRefresher().setAutomatic(Boolean(options?.automatic));
+  return { success: true };
+}));
+ipc.handle("pricing:refresh", wrap("pricing", async () => ({
+  success: true,
+  ...(await pricingRefresher().refresh({ force: true })),
+  status: pricingRefresher().status(),
+})));
+ipc.handle("pricing:status", wrap("pricing", async () => ({ success: true, status: pricingRefresher().status() })));
+ipc.handle("pricing:rates", wrap("pricing", async () => ({ success: true, rates: pricingRefresher().rates() })));
 
 ipc.handle("checkpoint:list", wrap("fs", async (event, workspaceId) => ({
   success: true,

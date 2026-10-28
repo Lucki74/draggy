@@ -101,7 +101,7 @@ describe("the ChatGPT account adapter", () => {
       ["delta", { reasoning: "hmm" }],
       ["delta", { content: "Hello" }],
       ["state", { instanceId: "chatgpt", state: expect.objectContaining({ threadId: "t1", consumed: 1 }) }],
-      ["finish", "stop", { promptTokens: 9, outputTokens: 2 }],
+      ["finish", "stop", expect.objectContaining({ promptTokens: 9, outputTokens: 2 })],
     ]);
   });
 

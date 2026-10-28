@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { privateHome } = require("../account/env.cjs");
+const { fromAnthropic } = require("../usage.cjs");
 const { createSupervisor } = require("../account/supervisor.cjs");
 const { createThreads } = require("../account/threads.cjs");
 const { assetFor, ensureClaude, installedBinary, previousBinary } = require("../claude/binary.cjs");
@@ -72,8 +73,7 @@ function effortOf(body) {
 }
 
 function usageOf(usage = {}) {
-  const prompt = (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
-  return { promptTokens: prompt, outputTokens: usage.output_tokens ?? 0 };
+  return fromAnthropic(usage);
 }
 
 /** Unverified without a plan at its limit: the runtime's own words are matched, keeping a reset time when given. */

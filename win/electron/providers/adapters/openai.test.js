@@ -169,7 +169,7 @@ describe("the answer that comes back", () => {
       reasoning: "",
       toolCalls: [],
       finish: "stop",
-      usage: { promptTokens: 2, outputTokens: 1 },
+      usage: expect.objectContaining({ promptTokens: 2, outputTokens: 1 }),
     });
   });
 });

@@ -2,6 +2,7 @@
  * built from a whitelist: Draggy's own fields never leave, and only Draggy's function tools are sent. */
 const { fromResponse } = require("../errors.cjs");
 const { log } = require("../../logger.cjs");
+const { fromOpenAI } = require("../usage.cjs");
 
 const LEVELS = new Set(["low", "medium", "high"]);
 
@@ -90,7 +91,7 @@ async function translateStream(stream, sse) {
       log.fail("providers.openai", "stream error event", null, { code: json.error.code ?? null });
       throw Object.assign(new Error("upstream error"), { failure: fromResponse(json.error.code === 429 ? 429 : 500, json) });
     }
-    if (json.usage) usage = { promptTokens: json.usage.prompt_tokens ?? 0, outputTokens: json.usage.completion_tokens ?? 0 };
+    if (json.usage) usage = fromOpenAI(json.usage);
     const choice = json.choices?.[0];
     if (!choice) return false;
     const delta = choice.delta || {};
@@ -118,7 +119,7 @@ async function translateStream(stream, sse) {
     }
   }
   if (finish === "content_filter") throw Object.assign(new Error("refused"), { failure: { kind: "provider-refused", status: 200, message: "content_filter", providerMessage: "content_filter" } });
-  log.debug("providers.openai", "stream done", { finish: finish ?? null, ...usage });
+  log.debug("providers.openai", "stream done", { finish: finish ?? null, promptTokens: usage.promptTokens, outputTokens: usage.outputTokens });
   sse.finish(finish === "length" ? "length" : finish === "tool_calls" ? "tool_calls" : "stop", usage);
 }
 
@@ -132,7 +133,7 @@ function translateJson(json) {
     reasoning: message.reasoning_content || message.reasoning || "",
     toolCalls: (message.tool_calls || []).map((call) => ({ id: call.id, type: "function", function: { name: call.function?.name || "", arguments: call.function?.arguments ?? "" } })),
     finish: choice.finish_reason === "length" ? "length" : choice.finish_reason === "tool_calls" ? "tool_calls" : "stop",
-    usage: { promptTokens: json.usage?.prompt_tokens ?? 0, outputTokens: json.usage?.completion_tokens ?? 0 },
+    usage: fromOpenAI(json.usage),
   };
 }
 

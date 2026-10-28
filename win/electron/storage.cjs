@@ -315,6 +315,7 @@ function init(userDataPath) {
     ensureColumn("chats", "workspace_id", "TEXT");
     ensureColumn("chats", "plan", "TEXT");
     ensureColumn("workspaces", "grants", "TEXT");
+    for (const [name, definition] of METRIC_COST_COLUMNS) ensureColumn("metrics", name, definition);
     healthy = isUsable(db);
   } catch (error) {
     log.warn("storage", `could not open the database: ${error.message}`);
@@ -472,6 +473,21 @@ function hasLegacyMessageTable() {
 
 /** Adds a column to an existing database, once. Kept out of `migrate()`: a column every version can
  * ignore needs no schema version of its own. */
+/** What a turn cost, beside the old counts. Every column is nullable: a row from before costs were kept has none of
+ * them, and the statistics page prices it from the model name instead of rewriting it here. */
+const METRIC_COST_COLUMNS = [
+  ["provider_id", "TEXT"],
+  ["kind", "TEXT"],
+  ["input_tokens", "INTEGER"],
+  ["cache_read_tokens", "INTEGER"],
+  ["cache_write_tokens", "INTEGER"],
+  ["output_tokens", "INTEGER"],
+  ["reasoning_tokens", "INTEGER"],
+  ["cost_micros", "INTEGER"],
+  ["cost_source", "TEXT"],
+  ["price_updated_at", "TEXT"],
+];
+
 function ensureColumn(table, name, definition) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all();
   if (columns.some((column) => column.name === name)) return false;
@@ -1068,6 +1084,9 @@ const measure = (value) => {
 
 /** Most distinct tools one turn can report, and the longest name kept. */
 const MAX_TOOLS_PER_TURN = 50;
+
+/** `estimated` is a table price on token counts the provider never reported. */
+const COST_SOURCES = new Set(["reported", "table", "estimated", "unknown"]);
 const MAX_TOOL_NAME = 120;
 
 /** One finished turn, for the statistics page. Everything here stays on this machine; the table
@@ -1088,11 +1107,22 @@ function recordMetric(row) {
 
   const firstToken = Number(row.firstTokenMs);
 
+  // A count that was never reported stays null, so "none" and "zero" remain different things.
+  const count = (value) => {
+    const number = Number(value);
+    return value !== null && value !== undefined && Number.isFinite(number) && number >= 0 ? Math.floor(number) : null;
+  };
+  const text = (value, max) => (typeof value === "string" && value ? value.slice(0, max) : null);
+  const kind = row.kind === "billed" || row.kind === "account" || row.kind === "local" ? row.kind : null;
+  const source = COST_SOURCES.has(row.costSource) ? row.costSource : null;
+
   db.prepare(
     `INSERT INTO metrics (
       recorded_at, workspace_id, chat_id, model, prompt_tokens, response_tokens,
-      response_ms, first_token_ms, load_ms, task_ms, loops, tools
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      response_ms, first_token_ms, load_ms, task_ms, loops, tools,
+      provider_id, kind, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens,
+      reasoning_tokens, cost_micros, cost_source, price_updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     Math.floor(measure(row.recordedAt)) || Date.now(),
     row.workspaceId ? String(row.workspaceId) : null,
@@ -1106,6 +1136,16 @@ function recordMetric(row) {
     measure(row.taskMs),
     Math.max(1, Math.floor(measure(row.loops))),
     Object.keys(tools).length > 0 ? JSON.stringify(tools) : null,
+    text(row.providerId, 200),
+    kind,
+    count(row.inputTokens),
+    count(row.cacheReadTokens),
+    count(row.cacheWriteTokens),
+    count(row.outputTokens),
+    count(row.reasoningTokens),
+    count(row.costMicros),
+    source,
+    text(row.priceUpdatedAt, 40),
   );
 
   return { success: true };
@@ -1114,11 +1154,27 @@ function recordMetric(row) {
 /** The most rows one listing returns, newest first. */
 const MAX_METRIC_ROWS = 20_000;
 
+/** The metric keys that cost tracking added, with the column each one is read from. */
+const COST_FIELDS = [
+  ["providerId", "provider_id"],
+  ["kind", "kind"],
+  ["inputTokens", "input_tokens"],
+  ["cacheReadTokens", "cache_read_tokens"],
+  ["cacheWriteTokens", "cache_write_tokens"],
+  ["outputTokens", "output_tokens"],
+  ["reasoningTokens", "reasoning_tokens"],
+  ["costMicros", "cost_micros"],
+  ["costSource", "cost_source"],
+  ["priceUpdatedAt", "price_updated_at"],
+];
+
 function listMetrics(since = 0) {
   const rows = db
     .prepare(
       `SELECT recorded_at, workspace_id, chat_id, model, prompt_tokens, response_tokens,
-              response_ms, first_token_ms, load_ms, task_ms, loops, tools
+              response_ms, first_token_ms, load_ms, task_ms, loops, tools,
+              provider_id, kind, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens,
+              reasoning_tokens, cost_micros, cost_source, price_updated_at
          FROM metrics
         WHERE recorded_at >= ?
         ORDER BY recorded_at DESC
@@ -1134,7 +1190,7 @@ function listMetrics(since = 0) {
       tools = {};
     }
 
-    return {
+    const metric = {
       recordedAt: row.recorded_at,
       workspaceId: row.workspace_id,
       chatId: row.chat_id,
@@ -1148,6 +1204,11 @@ function listMetrics(since = 0) {
       loops: row.loops,
       tools,
     };
+    // A row from before costs were kept has none of these, and reads back without them.
+    for (const [key, column] of COST_FIELDS) {
+      if (row[column] !== null && row[column] !== undefined) metric[key] = row[column];
+    }
+    return metric;
   });
 }
 
