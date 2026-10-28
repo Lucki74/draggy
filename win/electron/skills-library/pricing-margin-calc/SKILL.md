@@ -20,7 +20,7 @@ Give correct margin and markup figures and the price that reaches a target, with
 1. Ask with `ask_user` for unit cost, planned price or target margin, and every deduction between list price and money received: discounts, marketplace or payment fees, shipping paid, returns allowance.
 2. Confirm whether tax is included in the price. Ask for the rate only if the user wants it shown, and say the rate must be checked live with a professional.
 3. Define the terms once in the answer: margin is profit divided by price, markup is profit divided by cost.
-4. Compute with `run_code`: net price received, profit per unit, margin percent and markup percent.
+4. Compute with `run_command`: net price received, profit per unit, margin percent and markup percent.
 5. For a target margin, solve for price: cost divided by one minus the margin, then adjust for percentage fees by dividing again by one minus the fee rate.
 6. Show a small table of prices at several margins, so the user sees the spread.
 7. Show the effect of a discount: the margin at 5, 10 and 20 percent off, and the extra volume needed to hold total profit.

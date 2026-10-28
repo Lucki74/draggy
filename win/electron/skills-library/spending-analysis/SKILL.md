@@ -17,7 +17,7 @@ Describe what the transactions say: where the money went, how it changed over ti
 
 ## Steps
 
-1. Load the file with `read_file`. With `run_code`, print the columns, row count, date range and the first rows. Ask with `ask_user` which columns hold date, description and amount and which sign means spending.
+1. Load the file with `read_file`. With `run_command`, print the columns, row count, date range and the first rows. Ask with `ask_user` which columns hold date, description and amount and which sign means spending.
 2. Clean in the code, not by hand: trim text, parse dates, drop exact duplicate rows only after asking, and keep the original file unchanged.
 3. Remove transfers between the user's own accounts and card payments from the spending view, and say how many rows were removed and their total.
 4. Ask for the user's categories, or group by merchant first and let the user name the groups. Do not invent a category scheme.

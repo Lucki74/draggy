@@ -18,12 +18,12 @@ Produce a subtitle file that viewers can read comfortably and players accept. Cu
 ## Steps
 
 1. Read the file with `read_file`. Identify the format: SRT has a number line and `00:00:01,000 --> 00:00:03,000` with a comma; WebVTT starts with `WEBVTT` and uses a period before milliseconds. Ask with `ask_user` for the target format, language and any platform rule (some platforms publish their own limits; check the platform's help page with `read_url` or `search_web`).
-2. Parse the cues with `run_code` and list problems: overlaps, start after end, negative or missing times, gaps under a few frames, cue numbering gaps, blank cues and encoding issues. Report counts before changing anything.
+2. Parse the cues with `run_command` and list problems: overlaps, start after end, negative or missing times, gaps under a few frames, cue numbering gaps, blank cues and encoding issues. Report counts before changing anything.
 3. Set reading rules with the user, and use common defaults if they have none: at most two lines per cue, about 35 to 42 characters per line, a reading speed near 17 characters per second, a minimum duration around one second and a maximum around six or seven.
 4. Split long cues at natural breaks: sentence ends, then clauses, then before conjunctions. Do not split inside names, numbers with units, or a verb and its particle. Divide the time in proportion to character counts, and keep every cue inside the original span.
 5. Where timing is missing, estimate from audio length and word count, and label the file as estimated. Offer to align it later with a forced-alignment tool the user has.
 6. Fix drift with a constant offset or a linear stretch only if two reference points (first and last spoken line) are known from the user.
-7. Write the result with `create_file`, using the target syntax. Re-parse the new file with `run_code` to confirm zero overlaps and monotonic times.
+7. Write the result with `create_file`, using the target syntax. Re-parse the new file with `run_command` to confirm zero overlaps and monotonic times.
 8. Add speaker or sound labels only if the user asked, in the style of the format such as `[music]` or `<v Name>` for VTT voice tags.
 9. Test the file in the player or platform it is meant for, or ask the user to, and watch two minutes at the start and at the end for drift.
 

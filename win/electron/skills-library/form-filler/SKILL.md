@@ -18,13 +18,13 @@ Fill the form with the facts the user gave and nothing else. A good result has e
 
 ## Steps
 
-1. Examine the form. Use `run_code` or `run_command` to list the fillable fields with name, type and options (text, checkbox, radio group, dropdown). If there are no fields, it is a flat document, and you will need to overlay text at coordinates or fill a Word version instead.
+1. Examine the form. Use `run_command` to list the fillable fields with name, type and options (text, checkbox, radio group, dropdown). If there are no fields, it is a flat document, and you will need to overlay text at coordinates or fill a Word version instead.
 2. Collect the data. Read the file the user provided with `read_file`, or ask with `ask_user`. Record where each value came from.
 3. Map data to fields in a table: field label, field name, value, source. Read the printed label on the page, since internal field names like `Text14` say nothing.
 4. Mark gaps. A field with no supplied value stays blank and is listed. Do not infer a date of birth, income, an ID number, a signature or a declaration answer.
 5. Normalise to what the form expects: date order, phone format, country names from the dropdown list, uppercase if the form says block capitals. Check maximum lengths and comb fields.
 6. Show the mapping table and the gap list with `ask_user`. Ask about yes or no declarations one by one if they were not supplied.
-7. Write the filled copy under a new name with `run_code` or `run_command`, never over the blank original. Set fields by exported value for checkboxes and radios.
+7. Write the filled copy under a new name with `run_command`, never over the blank original. Set fields by exported value for checkboxes and radios.
 8. Verify by reading the fields back from the output and comparing with the table. If possible render a page and look at it for overflowing text.
 9. For a batch of forms, repeat with discipline.
    - Fill the first record, get the user to inspect it, then run the rest.

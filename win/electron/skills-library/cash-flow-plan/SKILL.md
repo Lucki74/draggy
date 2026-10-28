@@ -21,7 +21,7 @@ Show when money is expected to arrive and leave, so the user sees the weeks that
 2. Load any exports with `read_file`: open invoices, bills, payroll, loan payments, subscriptions.
 3. List cash in by expected payment date, not issue date. Ask for each customer's usual delay in paying.
 4. List cash out by due date. Include items that come once a quarter or once a year, and mark which are fixed.
-5. Build the table with `run_code`: opening balance, in, out, closing balance per period. Print the lowest closing balance and the period it falls in.
+5. Build the table with `run_command`: opening balance, in, out, closing balance per period. Print the lowest closing balance and the period it falls in.
 6. Add a cushion line if the user names a minimum balance they want to keep.
 7. Mark the assumptions that carry the most weight, such as one large customer paying on time.
 8. Run a second case in which the biggest receipt arrives one period late, and show the result.

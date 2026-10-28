@@ -19,7 +19,7 @@ Produce a quote the client can read once and understand: what they get, what it 
 
 1. Ask with `ask_user` for the client name, the scope in plain words, the line items with quantity and unit rate, and the currency. Read a brief with `read_file` if one exists.
 2. Ask how the user normally charges: fixed price, time and materials, or per unit. Ask for expenses that pass through at cost.
-3. Compute each line and the subtotal with `run_code`. Show quantity times rate on every line.
+3. Compute each line and the subtotal with `run_command`. Show quantity times rate on every line.
 4. Ask whether tax applies and at what rate. Add it only with a rate the user gives, and note that the rate must be confirmed.
 5. Write the assumptions the price rests on: access, client inputs, number of revisions, timeline.
 6. Write the exclusions: what is not covered, and how extra work would be priced.

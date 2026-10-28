@@ -19,7 +19,7 @@ Give a reader the answer to a few questions in under a minute, from a single she
 ## Steps
 
 1. Ask with `ask_user` who reads it, how often, and the three decisions it should support. List the questions as sentences: "Are we on target this month? Which region is behind?"
-2. Inspect the data with `read_file` or `run_code`: columns, row count, date range and the grain of a row. Confirm that the questions can be answered from it. If they cannot, say what is missing.
+2. Inspect the data with `read_file` or `run_command`: columns, row count, date range and the grain of a row. Confirm that the questions can be answered from it. If they cannot, say what is missing.
 3. Split the workbook into three layers: a `Data` sheet (raw, untouched), a `Calc` sheet (summaries and helper ranges, all formulas), and the `Dashboard` sheet (references to Calc only). Name them so.
 4. Define each KPI exactly: formula, period, comparison. For example "revenue this month versus the same month last year". Write the definition in a small note under the tile. Agree disputed definitions with the user before building.
 5. Build the Calc ranges first with formulas or pivot tables, and test them against a manual sum of the data. Use bounded named ranges or a table so new rows are included.

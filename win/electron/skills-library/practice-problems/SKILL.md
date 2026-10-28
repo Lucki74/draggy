@@ -22,7 +22,7 @@ Give the user problems that build skill: each one tests a named idea, the set cl
 2. **List the skills.** Write 4 to 8 specific sub-skills the topic needs, such as "isolate a variable" or "read a time zone offset". One problem will target each.
 3. **Draft by level.** Order warm-up, standard, harder and stretch. Each level changes one thing, not three: a new number type, one extra step, a changed context.
 4. **Vary the surface.** Change the story, the numbers and the representation so the user cannot pass by pattern matching one template.
-5. **Solve every problem yourself.** For numeric or code problems, compute with `run_code`. Compare to the key. A problem with no unique answer gets reworded or dropped.
+5. **Solve every problem yourself.** For numeric or code problems, compute with `run_command`. Compare to the key. A problem with no unique answer gets reworded or dropped.
 6. **Write the worked answers.** Show the steps and the reason for each, then a short note on the common wrong path.
 7. **Add hints.** For the hardest three, write a one-line hint that does not give the method away.
 8. **Save apart.** Put problems and answers in separate sections or two files with `create_file`, so the answers stay out of sight.

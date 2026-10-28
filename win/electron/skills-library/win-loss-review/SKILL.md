@@ -21,7 +21,7 @@ Find patterns in how deals ended, with enough evidence to act on, and say plainl
 2. Count the deals. If there are fewer than about ten per group, say that any pattern is a hypothesis.
 3. For each deal record: segment, size, source, sales cycle length, competitor, number of buyer contacts, and the stated reason for the outcome.
 4. Separate the stated reason from the observed one. Read notes for signs such as late-arriving decision makers, no champion, or a missing business case.
-5. Use `run_code` to compare groups on the fields you have: cycle length, source, contacts, stage reached. Report differences with the counts.
+5. Use `run_command` to compare groups on the fields you have: cycle length, source, contacts, stage reached. Report differences with the counts.
 6. List the top three patterns for losses and for wins, with the deals that illustrate each.
 7. For each pattern propose a change the team can test, a sign that it worked, and a review date.
 8. List what data to start recording so the next review is better.

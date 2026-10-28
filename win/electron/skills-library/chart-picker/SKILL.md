@@ -20,7 +20,7 @@ Pick the chart that makes the answer to one question easy to see, and specify it
 ## Steps
 
 1. Write the question the chart answers as a sentence. If there are two questions, there are two charts. Use `ask_user` to settle it, along with the audience and the medium (screen, slide, print).
-2. Describe the data: how many variables, which are categories, numbers or time, how many categories, how many points. Use `run_code` to count categories and range if a file is given.
+2. Describe the data: how many variables, which are categories, numbers or time, how many categories, how many points. Use `run_command` to count categories and range if a file is given.
 3. Map the question type to a chart family:
    - Compare values across categories: horizontal bars sorted by value; vertical bars for few categories or time as categories.
    - Change over time: a line for continuous series, bars for discrete periods.
@@ -33,7 +33,7 @@ Pick the chart that makes the answer to one question easy to see, and specify it
 6. Order and label: sort bars by value unless the categories have a natural order, put labels on the data instead of a distant legend, and keep text horizontal where it can be.
 7. Colour with purpose: one colour for the data and one accent for the point, a sequential scale for ordered values, and no rainbow. Check that the chart works in grayscale and for colour-blind readers.
 8. Write the title as the finding, such as "Returns doubled after the March change", and the subtitle as the measure, unit and period. Add the source line.
-9. If asked to produce it, build with `run_code` and save the image with `create_file`, then look at it again for overlaps and clipped labels.
+9. If asked to produce it, build with `run_command` and save the image with `create_file`, then look at it again for overlaps and clipped labels.
 
 ## Gotchas
 

@@ -340,7 +340,7 @@ export default function AppShell({
   const environment: ToolEnvironment = {
     webMode: effectiveSettings.webMode,
     browserActions: effectiveSettings.browserActions !== false,
-    codeExecution: mode === "code" && Boolean(window.electronAPI?.runner),
+    codeExecution: false,
     canRunCommands: mode === "code" && Boolean(window.electronAPI?.commands),
     libraryReady: mode === "chat" && libraryReady && effectiveSettings.libraryEnabled,
     hasFolder: Boolean(active.rootPath),

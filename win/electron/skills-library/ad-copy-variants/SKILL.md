@@ -24,7 +24,7 @@ A set of ads that differ in the idea they test, beyond wording. Each fits the pl
 3. Check the platform's ad policies for the product category. Note restricted claims, personal attributes targeting, health, finance and comparison rules.
 4. List angles worth testing: a pain point, an outcome, a price or offer, social proof the user really has, urgency that is real, a question, a comparison that is allowed. Choose four to six.
 5. Write one variant per angle. Each gets headline, body and call to action in the limits. Keep one idea per ad and one action.
-6. Count characters with `run_code` for every field. Reject any that go over.
+6. Count characters with `run_command` for every field. Reject any that go over.
 7. Check each variant against policy and against the page: the claim must be true and visible after the click, including price and terms.
 8. Label what each variant tests, and the one thing that stays constant so results can be read. For search ads, note the keywords or intent each variant suits.
 9. Suggest negative angles to avoid and an order to roll out. Do not predict click rates; no benchmark is claimed.

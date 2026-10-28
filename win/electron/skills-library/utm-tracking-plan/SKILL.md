@@ -25,7 +25,7 @@ A short convention and a ready link list that make campaign traffic readable in 
 4. Define a controlled vocabulary. List allowed values for source (for example the platform names) and for medium (for example email, social, cpc, referral, affiliate). Map each channel to one pair only. Put it in a table so no one invents new ones.
 5. Define the campaign naming pattern, such as `year-month_topic_goal`, and give two worked examples. Keep content values to describe variants like `hero-a` or `video-short`.
 6. Write the do-not list: never tag internal links on your own site (it resets sessions and attribution in many tools), never tag organic search, and avoid tagging links that already carry another tool's parameters unless the tool supports it.
-7. Build the link sheet with `create_file`. Columns: base URL, source, medium, campaign, content, term, final URL, owner, date, status. Generate final URLs with `run_code` to avoid typos, encoding values correctly. Check that existing query strings in the base URL are preserved.
+7. Build the link sheet with `create_file`. Columns: base URL, source, medium, campaign, content, term, final URL, owner, date, status. Generate final URLs with `run_command` to avoid typos, encoding values correctly. Check that existing query strings in the base URL are preserved.
 8. Test one link: open it, confirm the landing page loads, and check in the analytics real-time view that source, medium and campaign appear as planned.
 9. Document the process: who adds links, where the sheet lives, how new values get approved and how often it is reviewed for stray values.
 10. Plan the report: which view or dashboard groups by campaign and medium, and the check for unexpected values each month.

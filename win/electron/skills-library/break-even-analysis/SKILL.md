@@ -21,7 +21,7 @@ Find the point where revenue equals total cost and show how sensitive that point
 2. Check each input is for the same period and currency. Convert annual figures to the period.
 3. Ask whether any cost is semi-fixed, such as a staffing step at higher volume. Split it into ranges if so.
 4. Compute contribution per unit as price minus variable cost. If it is zero or negative, stop and say there is no break-even at that price.
-5. Compute break-even units as fixed costs divided by contribution per unit, and break-even revenue as units times price. Use `run_code` and round units up.
+5. Compute break-even units as fixed costs divided by contribution per unit, and break-even revenue as units times price. Use `run_command` and round units up.
 6. Build a sensitivity grid: price at minus 10, 0 and plus 10 percent against fixed costs at the same changes.
 7. Compare break-even volume with the volume the user expects, if known, and report the margin of safety as a percentage.
 8. State the time it takes to reach break-even at the user's expected monthly volume.

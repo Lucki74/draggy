@@ -21,7 +21,7 @@ A good audit uses the user's real numbers and checks live price pages, never rem
 ## Steps
 
 1. Ask with `ask_user` for the billing export or a cost explorer view grouped by service, and the period. Do not ask for credentials; ask for a file or pasted table.
-2. Read the data with `read_file` or process a CSV with `run_code`. Group by service, account, region and tag. Show the top five lines and their share.
+2. Read the data with `read_file` or process a CSV with `run_command`. Group by service, account, region and tag. Show the top five lines and their share.
 3. Compare this period to the last to find what grew, and match jumps to dates of deploys or launches.
 4. Scan infrastructure code with `search_files` for instance types, storage sizes, replica counts and NAT or load balancers per environment.
 5. Look for the usual leaks: idle instances, unattached disks and IPs, old snapshots, oversized databases, dev environments running nights and weekends, logs with no retention, cross-region and egress traffic.

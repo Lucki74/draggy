@@ -20,7 +20,7 @@ Tell the user what the series is doing over time and whether a recent move is be
 ## Steps
 
 1. Ask for the metric, its unit, the period of interest and what happened around the change (launch, price, outage). Use `ask_user`. Get the data granularity: daily, weekly or monthly.
-2. Load with `run_code` and build a complete time index. Reindex so missing dates show as missing, not as skipped rows. Check for duplicates per timestamp, mixed time zones and a change in how the metric is measured.
+2. Load with `run_command` and build a complete time index. Reindex so missing dates show as missing, not as skipped rows. Check for duplicates per timestamp, mixed time zones and a change in how the metric is measured.
 3. Plot the raw series at its native resolution and at one coarser level. Look for level shifts, gaps, spikes and changing variance before any modelling.
 4. Find the seasonality. Check day-of-week and month-of-year averages. Use a decomposition into trend, seasonal and remainder (a classical or STL method) with the seasonal period set to match the data (7 for daily data with a weekly cycle, 12 for monthly).
 5. Compare fairly. Use the same period a year earlier for yearly cycles, the same weekday for weekly ones, and equal length windows. Adjust for the number of trading or working days when counts depend on them.

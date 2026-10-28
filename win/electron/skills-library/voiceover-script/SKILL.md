@@ -19,11 +19,11 @@ Create narration that a speaker can record in few takes and that fits the pictur
 
 1. Ask with `ask_user` for the audience, the narrator (the user, a colleague, a voice actor, a text-to-speech tool), the tone, the length of each visual section, and any words that must be said exactly (legal lines, product names).
 2. Read the visuals plan or source with `read_file`. List what the picture already shows, so the voice adds meaning instead of describing the picture.
-3. Draft each section to a time budget. A speaking pace varies, so ask for a sample of the narrator's reading and count words per minute from it with `run_code`; use that for budgets.
+3. Draft each section to a time budget. A speaking pace varies, so ask for a sample of the narrator's reading and count words per minute from it with `run_command`; use that for budgets.
 4. Write for the ear: sentences that fit one breath, plain verbs, contractions, one idea per sentence, numbers rounded or spelled so they are easy to say, no stacked clauses, no jargon the audience does not know.
 5. Mark pronunciation with a respelling for names, acronyms and foreign words, and say whether an acronym is spelled out or read as a word. Mark pauses with a slash or a line break, and emphasis with capital letters used sparingly.
 6. Read the draft aloud in your head and mark any phrase with a tongue-twister run of similar sounds, ending sounds that collide with the next word, or a rhythm that repeats too long.
-7. Time each section against the picture length with `run_code`. If a section runs over, cut words, not speed. If under, let the picture breathe.
+7. Time each section against the picture length with `run_command`. If a section runs over, cut words, not speed. If under, let the picture breathe.
 8. Save with `create_file` as `voiceover.md`, with one block per picture segment and its target duration. If a text-to-speech tool will voice it, test the pronunciation marks in a sample.
 9. Provide a recording note for the session: room, mic distance, a test sentence, and a request to record each section twice with a short gap between them.
 

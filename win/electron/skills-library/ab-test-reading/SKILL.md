@@ -20,7 +20,7 @@ Say what the experiment shows and how sure we can be, in terms a decision-maker 
 ## Steps
 
 1. Collect the facts with `ask_user`: the hypothesis, the primary metric, the planned duration and sample size, the allocation split, the dates, and any peeking or early stopping. Get the raw counts: users and conversions (or sums and variances) per variant.
-2. Check the design before the result. Is the split close to the planned ratio? Compute a sample ratio check with a chi-square test in `run_code`. A mismatch means assignment or logging is broken and the result cannot be trusted.
+2. Check the design before the result. Is the split close to the planned ratio? Compute a sample ratio check with a chi-square test in `run_command`. A mismatch means assignment or logging is broken and the result cannot be trusted.
 3. Check exposure: users counted once, no overlap between variants, the experiment ran for whole weeks if there is a weekly cycle, and no big outside event during the run.
 4. Compute the effect on the primary metric: the absolute difference, the relative lift, and a confidence interval. For rates use a two-proportion test, for means a t-test or bootstrap if the data is skewed.
    - Report the interval together with the p-value.

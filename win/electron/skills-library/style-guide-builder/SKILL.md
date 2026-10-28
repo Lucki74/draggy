@@ -19,7 +19,7 @@ Document the design system that actually shipped, not the one people think they 
 ## Steps
 
 1. Locate the style sources with `list_directory` and `search_files`: theme files, CSS variables, Tailwind config, token JSON, component libraries and global stylesheets. Use `explore` for a large project and ask for the area that matters.
-2. Extract colors. Search for hex, rgb, hsl and named values. Count how often each appears with `run_command` or `run_code`, and separate tokens (defined once, referenced) from raw literals in components.
+2. Extract colors. Search for hex, rgb, hsl and named values. Count how often each appears with `run_command`, and separate tokens (defined once, referenced) from raw literals in components.
 3. Extract type: font families, sizes, weights, line heights. Extract spacing values, border radii, shadows, z-index layers, breakpoints and motion durations the same way.
 4. Group near duplicates (for example `#333` and `#343434`, or 15px and 16px) and propose the one to keep. Do not merge them in code unless asked.
 5. Read three to five core components (button, input, card, modal, nav) with `read_file` and note variants, states and the tokens they use.

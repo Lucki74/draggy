@@ -21,7 +21,7 @@ Package a finished video so the right viewers find it and know what they get. Th
 2. Check the platform's current limits for title length, description length, tag use and chapter rules with `search_web` and `read_url` on the official help pages. Platforms change these, so do not use remembered numbers. Chapters usually need a first timestamp at the start and a minimum count, but confirm.
 3. Write five title options that differ in angle: a plain descriptive one, a benefit, a question, a number-led one and a curiosity one that is still accurate. Put the key phrase early. Mark the one you would pick and say why.
 4. Write the opening two lines of the description as the pitch: what the video covers and who it is for, with the main phrase used naturally. Many viewers see only these lines.
-5. Build chapters from the transcript timestamps. Use `run_code` to verify the list starts at the right time, increases, and uses the format the platform requires. Labels are short and describe content.
+5. Build chapters from the transcript timestamps. Use `run_command` to verify the list starts at the right time, increases, and uses the format the platform requires. Labels are short and describe content.
 6. Add the supporting sections in this order: summary paragraph, chapters, links and sources, about the channel, disclosures. Use only links the user gave or that you verified with `read_url`.
 7. Offer a few tags or hashtags if the platform still uses them, based on the content and not on trending topics unrelated to the video.
 8. Save with `create_file` as `description.md`.

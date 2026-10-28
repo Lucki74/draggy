@@ -27,7 +27,7 @@ For prose scenes, use `scene-writer`. For polishing the talk only, use `dialogue
 6. **Format dialogue.** Character name in capitals above the speech, parentheticals only when the delivery is not obvious, and sparingly. Introduce each character in capitals the first time they appear in action.
 7. **Cut for speech.** Trim dialogue so each line is playable. Use interruptions and silence. Mark pauses with action, not with a row of dots.
 8. **Add transitions only when needed.** CUT TO is rarely required. Use it for a real jump or a match.
-9. **Check page length.** One page runs roughly one minute on screen under standard format. Use `run_code` to count lines or words if a limit exists.
+9. **Check page length.** One page runs roughly one minute on screen under standard format. Use `run_command` to count lines or words if a limit exists.
 10. **Output in the right layout.** If the user needs a file, call `create_file` with plain text using consistent indentation, or Fountain syntax if requested. Say which one.
 11. **Check the scene heads in order.** List the sluglines in sequence and confirm each place and time follows logically and nothing jumps without reason.
 12. **Read the action lines aloud.** Cut any that a viewer could not see or hear on screen, and any longer than four lines.

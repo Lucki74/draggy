@@ -20,12 +20,12 @@ Make a copy that can really restore the folder, stored somewhere that survives t
 ## Steps
 
 1. Confirm the source and the destination with `ask_user`. The destination should be a different drive, a cloud folder or a network location, not a sibling in the same folder. If the user offers the same disk, say it protects against mistakes but not against disk loss.
-2. Measure the source: file count, total size and the largest items, with `run_command` or `run_code`. Check free space at the destination and stop if it is under 1.2 times the size.
+2. Measure the source: file count, total size and the largest items, with `run_command`. Check free space at the destination and stop if it is under 1.2 times the size.
 3. Find exclusions. Look for `node_modules`, build output, caches, virtual environments and temp files. Propose skipping them if they can be rebuilt, and list the rule. Keep anything the user cannot recreate.
 4. Pick the format. A plain copy keeps files browsable and is easy to compare. A zip or tar archive is smaller and one file. Choose by the use: restore speed or storage. Avoid proprietary formats.
 5. Name it `<folder>_YYYY-MM-DD` with the date of the backup. If the name exists, add a time, never overwrite an earlier backup.
 6. Create it with `run_command` (for example zip, tar or a robust copy tool) while no program is writing to the folder. Ask the user to close editors and databases that keep files open.
-7. Write a manifest with `run_code`: relative path, size, modified date and SHA-256 for each file. Save it inside the archive and beside it.
+7. Write a manifest with `run_command`: relative path, size, modified date and SHA-256 for each file. Save it inside the archive and beside it.
 8. Verify. Count and size of the backup match the source minus exclusions. List the archive and compare to the manifest. Restore two files, one small and one large, into a temp folder and compare their hashes.
 9. Set expectations on retention and repeats.
    - Ask how many dated copies to keep, and list which older ones can go once the new one is verified.

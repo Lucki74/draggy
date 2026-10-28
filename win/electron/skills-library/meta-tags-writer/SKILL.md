@@ -32,7 +32,7 @@ A title and description for each page that tells searchers what they will get, u
 
 ## Gotchas
 
-- Counting characters in your head is unreliable. Count with `run_code` when the list is long.
+- Counting characters in your head is unreliable. Count with `run_command` when the list is long.
 - Keyword-stuffed titles read as spam and get rewritten by the search engine anyway.
 - A description copied from the first paragraph wastes the space. Write it to earn the click.
 - Brand name at the front of every title pushes the query out of view. Put the brand last unless it is the query.

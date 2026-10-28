@@ -165,7 +165,7 @@ export function resetTailNotesForTests() {
 const HISTORY_WORK_BUDGET = 800;
 
 /** Steps that hold a result worth remembering; a bare "searching" label says nothing. */
-const HISTORY_WORK_STEPS = new Set<string>(["run_code", "create_file", "image", "results", "library", "reading", "loaded", "scanned"]);
+const HISTORY_WORK_STEPS = new Set<string>(["command", "run_code", "create_file", "image", "results", "library", "reading", "loaded", "scanned"]);
 
 /** `keepThinking` sends a reply's reasoning back with it. With reasoning dropped from history,
  * Laguna wrote none at all; kept, it wrote 400 characters. */

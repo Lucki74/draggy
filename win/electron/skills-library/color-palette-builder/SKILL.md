@@ -21,7 +21,7 @@ Give the user a small palette they can paste into code or a design tool and trus
 1. Ask with `ask_user` for the seed (a hex, a word like "calm", or a reference), the medium (web, print, slides), and whether a dark theme is needed. Print needs CMYK care, so say so early.
 2. Fix the roles before picking hues: background, surface, text, muted text, border, primary action, secondary, success, warning, danger. A role with no color yet is a gap, not a decision.
 3. Pick one primary from the seed. Choose a neutral family with a slight tint of the primary hue rather than pure gray. Add at most one accent. Warning and danger colors come from convention, not from the brand.
-4. Build 9 or 10 steps (50 to 900) for the primary and the neutral. Do it with `run_code` in javascript: convert hex to a perceptual space such as OKLCH, vary lightness in even steps, and keep hue steady with chroma eased at the extremes.
+4. Build 9 or 10 steps (50 to 900) for the primary and the neutral. Do it with `run_command` in javascript: convert hex to a perceptual space such as OKLCH, vary lightness in even steps, and keep hue steady with chroma eased at the extremes.
 5. Test pairs in the same script with the WCAG relative luminance formula. Text on background needs 4.5:1 for body size, 3:1 for large text and UI borders. Check the primary button label against the primary fill, and the muted text against the surface.
 6. Build the dark variant by remapping roles to different steps, not by inverting values. Re-run the contrast checks on it.
 7. If the user wants a file, use `create_file` for `palette.css` (custom properties) or JSON tokens, named by role (`--color-text`), not by hue (`--blue-600`) alone.

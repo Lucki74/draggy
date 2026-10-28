@@ -20,7 +20,7 @@ A list of specific links to add: from which page, to which page, with which anch
 ## Steps
 
 1. Ask with `ask_user` for the site, the pages that matter most (money pages, pillar guides), the CMS and who edits content. Obtain a page list from the sitemap with `read_url`, or from a crawl export or the content folder using `list_directory` and `read_file`.
-2. Build the inventory: URL, title, main topic, page type, publish or update date and current inbound and outbound internal links. Count links with `run_code` or `search_files` when the pages are local files.
+2. Build the inventory: URL, title, main topic, page type, publish or update date and current inbound and outbound internal links. Count links with `run_command` or `search_files` when the pages are local files.
 3. Group pages into topic clusters: one pillar page with supporting pages around it.
 4. Find orphans (no internal links in), weakly linked pages and pages with too many outbound links to be useful.
 5. Choose targets. Prioritize pages that serve the site's goals and are worth ranking. Exclude thin, outdated or duplicate pages: fix or merge those first rather than sending them links.

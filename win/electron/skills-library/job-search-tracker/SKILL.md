@@ -25,7 +25,7 @@ Give the user a small file that answers three questions at a glance: where have 
 6. Save the posting text for each role in a folder next to the tracker, named by company and date, since postings are taken down.
 7. Add the rule for follow-ups: a follow-up date a set number of days after each step, chosen by the user. Show the formula or the filter to find rows that are due.
 8. Build a weekly view: rows with a next-step date this week, sorted by date.
-9. If the user has `run_code` available and wants counts, compute applications by status and by source, and show how many got a reply.
+9. If the user has `run_command` available and wants counts, compute applications by status and by source, and show how many got a reply.
 10. Agree on a weekly ten-minute review: update statuses, clear due items, and add new roles.
 11. Explain how to archive closed rows to a second sheet, so the main list stays short.
 12. Test the tracker with three sample rows and confirm that the due-items filter shows the right ones.

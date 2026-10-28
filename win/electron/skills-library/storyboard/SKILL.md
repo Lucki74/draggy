@@ -21,7 +21,7 @@ Make the visual plan of a video concrete before filming or animating. Each frame
 1. Read the script with `read_file`, or ask with `ask_user` for the idea, the target length, aspect ratio (wide, vertical, square) and style (live action, screen capture, animation). Ask what must be shown versus what can be implied.
 2. Split the script into scenes by location or time, then each scene into beats where the picture must change. A new idea or new information usually needs a new shot.
 3. For every shot give: number, scene, shot size (wide, medium, close-up, insert), camera angle or movement, what happens, dialogue or voiceover line, sound or music note, estimated duration and the transition to the next shot (cut, dissolve, match cut).
-4. Add the time: sum the durations with `run_code` and compare with the target. Trim shots that repeat information, or merge two shots into one wider shot.
+4. Add the time: sum the durations with `run_command` and compare with the target. Trim shots that repeat information, or merge two shots into one wider shot.
 5. Check continuity: screen direction stays consistent between shots, props and clothes stay the same inside a scene, and eyelines match. Note any rule the crew must follow.
 6. Make a rough visual for each frame if the user asks: ASCII thumbnail boxes or a simple SVG per frame created with `create_file`. For stylised frames, use `generate_image` only as a rough reference and label it so.
 7. Mark special requirements: graphics, text on screen, effects, permissions, safety, props.

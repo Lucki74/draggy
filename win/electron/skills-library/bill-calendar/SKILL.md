@@ -21,7 +21,7 @@ Lay every recurring bill on one timeline next to the dates money arrives, so the
 2. Collect the bills: name, amount, due date, frequency, how it is paid, and whether the due date can be changed. Read a statement or list with `read_file` if given.
 3. Include bills that are not monthly: quarterly, yearly, seasonal. Ask what is due in the coming twelve months.
 4. Adjust each date for weekends and holidays. Ask how many days a payment takes to arrive, and plan to pay before the due date.
-5. Place everything on a month view with `run_code` or by hand: per date, the bills due and the money in. Show a running balance by week using the user's opening balance, if given.
+5. Place everything on a month view with `run_command` or by hand: per date, the bills due and the money in. Show a running balance by week using the user's opening balance, if given.
 6. Mark the tight weeks: where bills exceed money in plus the balance.
 7. Propose timing changes that the user can ask for, such as moving a due date closer to payday, where the biller allows it. Tell the user to confirm options on the biller's own page.
 8. Add reminders: list the dates three days before each large bill.

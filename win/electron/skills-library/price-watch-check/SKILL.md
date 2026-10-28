@@ -25,7 +25,7 @@ Report the real price a buyer would see now, with its conditions, and keep a sma
 5. Record the currency, whether tax is included, the shipping cost if shown without logging in, the stock text exactly as written, the delivery estimate, and the seller if a marketplace.
 6. If the price cannot be read without logging in, choosing a region, or entering a postcode, ask the user. Do not enter personal data to see a price.
 7. Append a line to the log with `edit_file` or `create_file`: date and time, page address, variant, price, currency, stock text. Keep the format of any existing log.
-8. Compare with the last entry and state the change in amount and percent, computed with `run_code` when the numbers are not trivial.
+8. Compare with the last entry and state the change in amount and percent, computed with `run_command` when the numbers are not trivial.
 9. If the user wants repeated checks, suggest a schedule they can set up themselves and keep the log format stable so entries stay comparable.
 
 ## Gotchas

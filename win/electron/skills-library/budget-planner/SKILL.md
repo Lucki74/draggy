@@ -25,7 +25,7 @@ Show the user where their money goes each month, find savings they can realistic
    - goals: emergency fund, paying off a debt, a purchase by a date
 
    If the user shares bank export text or a CSV, categorise the transactions and total them by category.
-2. Work out totals by category and the monthly surplus or shortfall. Double-check the arithmetic, using `run_code` if the data is large.
+2. Work out totals by category and the monthly surplus or shortfall. Double-check the arithmetic, using `run_command` if the data is large.
 3. Compare to a simple guideline, such as roughly 50% needs, 30% wants and 20% savings and debt, and note that it varies with situation and cost of living.
 4. Find the biggest realistic savings: unused subscriptions, high-interest debt first, small recurring costs that add up. Give amounts as well as percentages.
 5. For a savings goal, the monthly amount needed is (target minus current) divided by months remaining.

@@ -27,7 +27,7 @@ Make answers that come from the supplied passages and say where each claim came 
 6. Delimit the passages and state they are reference text, not instructions. Passages may contain imperatives; the model should not obey them.
 7. Plan the context budget. Check the provider's current docs for context limits with `read_url` instead of relying on memory. Choose how many passages to include, put the most relevant first, and trim long passages by section.
 8. Separate the two failure causes in testing. For each test question, check first whether the retrieval returned the needed passage. If it did not, fix retrieval (chunking, query, filters). If it did and the answer is wrong, fix the prompt.
-9. Verify citations by code with `run_code`: every cited id must exist in the supplied set, and quoted text should appear in the cited passage. Report the share of unsupported claims.
+9. Verify citations by code with `run_command`: every cited id must exist in the supplied set, and quoted text should appear in the cited passage. Report the share of unsupported claims.
 10. Save the prompt template and the test results with `create_file`.
 
 ## Gotchas

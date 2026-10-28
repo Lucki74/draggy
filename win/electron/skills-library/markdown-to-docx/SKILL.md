@@ -19,12 +19,12 @@ Produce a .docx that looks like a document a person made, with real heading styl
 ## Steps
 
 1. Read the source with `read_file`. Note headings, tables, code blocks, footnotes, images, front matter and any raw HTML. Check heading levels for skips such as `#` followed by `###`.
-2. Check the tools. Run `run_command` with `pandoc --version`. If pandoc is missing, use a docx library through `run_code` and tell the user the mapping will be simpler.
+2. Check the tools. Run `run_command` with `pandoc --version`. If pandoc is missing, use a docx library through `run_command` and tell the user the mapping will be simpler.
 3. Ask with `ask_user` whether there is a reference .docx for styles, the page size (A4 or Letter), and whether to include a table of contents. Without a reference, use the default styles and say so.
 4. Resolve images. List every image path in the source. Relative paths resolve from the Markdown file's folder, so run the conversion from there or pass a resource path. Web images need a download, so ask first.
 5. Convert. With pandoc, pass the reference doc if there is one, and write to a new file next to the source. Convert front matter to title and author fields, not body text.
 6. Fix known weak spots: wide tables (set column widths or landscape), code blocks (monospace style, no smart quotes), and task list checkboxes (convert to symbols).
-7. Verify structure with `run_code`: unzip the docx, count heading paragraphs, tables and images, and compare with the source. Search the text for leftover `**`, `##`, backticks and `](`.
+7. Verify structure with `run_command`: unzip the docx, count heading paragraphs, tables and images, and compare with the source. Search the text for leftover `**`, `##`, backticks and `](`.
 8. If a renderer is available, convert to PDF with `run_command` and look at page one and a table page for overflow.
 9. Polish the document properties.
    - Set title, author and language so spell check and accessibility tools work.

@@ -19,7 +19,7 @@ Turn the idea of a buffer into a number based on the user's own essential spendi
 
 1. Ask with `ask_user` about the household: who depends on the income, how stable the income is, and what could interrupt it. Treat answers as context, not as a score.
 2. List essential monthly costs with the user: housing, utilities, food, transport, insurance, minimum debt payments, childcare. Load a budget with `read_file` if one exists.
-3. Total the essentials with `run_code`. Keep a separate line for costs that arrive once a year.
+3. Total the essentials with `run_command`. Keep a separate line for costs that arrive once a year.
 4. Explain that the target is a number of months of essentials, and that the right number depends on stability, dependants and other support. Ask the user to choose a first milestone, such as one month, and a longer-term range.
 5. Compute the targets for one, three and six months of essentials, as options. Do not state one as the answer.
 6. Ask how much the user can set aside each pay period, and compute the time to each milestone.

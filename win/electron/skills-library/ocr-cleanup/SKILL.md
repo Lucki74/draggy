@@ -20,7 +20,7 @@ Make scanned-document text accurate and readable while staying faithful to what 
 
 1. Identify the source. Ask with `ask_user` for the original scan if it was not provided, and for the document type (letter, invoice, book page, form). The type tells you what vocabulary to expect.
 2. Read the text with `read_file`. Measure the damage: count lines with non-letter symbols, words not in the document's language, and digits sitting inside words.
-3. Fix the safe classes with `run_code`, logging each rule and its count:
+3. Fix the safe classes with `run_command`, logging each rule and its count:
    - Confusable pairs in word context: `rn` and `m`, `cl` and `d`, `l` and `1` and `I`, `0` and `O`, `5` and `S`.
    - Broken ligatures and spacing: `f i`, doubled spaces, space before punctuation.
    - Stray marks from specks and folds: isolated `|`, `~`, `_` on their own line.

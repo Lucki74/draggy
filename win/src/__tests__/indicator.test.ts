@@ -9,7 +9,7 @@ describe("which working mark shows", () => {
     expect(showsTailMark([], true, true)).toBe(true);
     expect(showsTailMark([step("thinking", false, "")], true, true)).toBe(true);
     expect(showsTailMark([step("thinking", false, "idea")], true, true)).toBe(false);
-    expect(showsTailMark([step("run_code", false)], true, true)).toBe(false);
+    expect(showsTailMark([step("command", false)], true, true)).toBe(false);
     expect(showsTailMark([], false, true)).toBe(false);
     expect(showsTailMark([], true, false)).toBe(false);
   });

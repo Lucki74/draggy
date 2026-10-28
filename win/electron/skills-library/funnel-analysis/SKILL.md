@@ -21,7 +21,7 @@ Show how many people move from each step to the next and where the biggest losse
 
 1. List the steps with the user, in order, and map each to an event or a page. Ask with `ask_user` whether the order is strict, whether steps can be skipped, and which window applies (within one session, within seven days). Write the definitions down.
 2. Choose the unit: users, sessions or orders. Funnels by user answer "who converted", funnels by session answer "which visits converted". Do not mix units across steps.
-3. Load the events with `run_code`. Check the event names exist, are not duplicated by retries, and have a user or session ID. Count each step's raw event total as a sanity check.
+3. Load the events with `run_command`. Check the event names exist, are not duplicated by retries, and have a user or session ID. Count each step's raw event total as a sanity check.
 4. For each user, find the first time they hit step one. Then find the first time they reach step two after it, within the window, and so on. Users enter later steps only if they passed earlier ones in order.
 5. Compute for each step: users reaching it, conversion from the previous step, conversion from the start, and median time since the previous step.
 6. Find the largest absolute loss and the largest relative loss. They may be different steps: a 2 percent drop on a huge step can lose more people than a 40 percent drop on a small one.

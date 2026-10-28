@@ -20,7 +20,7 @@ A decision for each page: keep, update, merge, redirect or remove, based on accu
 ## Steps
 
 1. Ask with `ask_user` for the site, the goal (leads, sales, authority), the performance data available (search console and analytics exports for the last 12 months or more) and which pages are off limits. Read exports with `read_file`.
-2. Build the inventory from the sitemap or content folder: URL, title, publish and update dates, topic, page type, word count and internal and external links. Use `run_code` to join it with the exports.
+2. Build the inventory from the sitemap or content folder: URL, title, publish and update dates, topic, page type, word count and internal and external links. Use `run_command` to join it with the exports.
 3. Add performance: impressions, clicks, queries, conversions and trend over time. Compare periods of equal length and mind seasonal topics. Use only the user's data; cite no benchmarks.
 4. Review each page's substance. Open it with `read_url` or `read_file` and check whether facts, prices, screenshots, names and tool versions are still correct. Use `search_web` for facts that change.
 5. Check backlinks and internal links if the user has data. Pages with referring links or steady referrals are assets even with low traffic.

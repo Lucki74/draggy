@@ -18,12 +18,12 @@ Move a table from a document into a tidy CSV or sheet with the right cells in th
 
 ## Steps
 
-1. Locate the tables. For a PDF, run `run_code` or `run_command` to count pages and find the pages with table-like text. For a web page, use `read_url` or `browser_get_text`. For a docx, read the table elements from the XML with `run_code`.
+1. Locate the tables. For a PDF, run `run_command` to count pages and find the pages with table-like text. For a web page, use `read_url` or `browser_get_text`. For a docx, read the table elements from the XML with `run_command`.
 2. Decide the method by file type. Born-digital PDF tables work with a table-aware library or a layout text mode. Scanned PDFs need OCR first, so say so and ask before continuing. HTML and docx tables can be read directly from the structure.
 3. Extract one table first. Print it as rows and look at the header, the first three rows and the last three. Check the column count of every row, since a ragged width means a merge or wrapped cell.
 4. Rebuild the header. Multi-line headers become one name per column joined with a space. Repeated header rows on every page are removed. Subtotal and total rows are tagged, not deleted.
 5. Handle tables that split across pages by appending rows, then check that the join did not duplicate a row at the page break.
-6. Clean values with `run_code`: strip currency symbols and thousands separators into plain numbers, turn `(1,200)` into `-1200` only if the source uses brackets for negatives, and keep leading zeros in codes as text. Record the unit shown in the header.
+6. Clean values with `run_command`: strip currency symbols and thousands separators into plain numbers, turn `(1,200)` into `-1200` only if the source uses brackets for negatives, and keep leading zeros in codes as text. Record the unit shown in the header.
 7. Check against the source: row count equals the printed rows, the column sums match any total row, and five random cells equal the original. Fix, then rerun.
 8. Save each table as its own CSV with `create_file`, named by its caption or page, and list them.
 9. Prepare the data for its next use.

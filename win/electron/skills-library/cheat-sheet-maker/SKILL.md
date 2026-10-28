@@ -25,7 +25,7 @@ Produce a single page that the user would actually reach for. It holds what is h
 5. **Attach conditions.** Each formula or rule carries when it applies, what the symbols mean and units. A bare formula causes wrong use.
 6. **Add one example per cluster.** A very short worked case shows the item in action. Prefer one example that covers several items.
 7. **Group and order.** Group by task ("when asked to find X") rather than by chapter if that is how the user will look things up. Put the most used items top left.
-8. **Check accuracy.** Recompute formulas and numbers with `run_code` where possible. For facts that change, verify with `search_web` and date them.
+8. **Check accuracy.** Recompute formulas and numbers with `run_command` where possible. For facts that change, verify with `search_web` and date them.
 9. **Format to fit.** Use compact tables and short lines. Save with `create_file` as a Markdown file that prints on one page, and say which parts to trim first if it overflows.
 10. **Test it.** Ask the user to answer two sample questions using only the sheet and fix gaps.
 11. **Plan the update.** Note which items to add after the next practice test shows what the user still forgets.

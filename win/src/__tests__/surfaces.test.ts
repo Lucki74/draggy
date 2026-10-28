@@ -41,15 +41,15 @@ describe("the tools each side gets", () => {
     const chat = names(CHAT);
 
     expect(chat).toContain("create_file");
-    for (const tool of ["update_plan", "run_code", "read_file", "edit_file", "write_file"]) {
+    for (const tool of ["update_plan", "read_file", "edit_file", "write_file"]) {
       expect(chat).not.toContain(tool);
     }
   });
 
-  it("lets Code plan, run code and change the project, and not make loose files", () => {
+  it("lets Code plan, change the project, and not make loose files", () => {
     const code = names(CODE);
 
-    for (const tool of ["update_plan", "run_code", "read_file", "edit_file", "write_file"]) {
+    for (const tool of ["update_plan", "read_file", "edit_file", "write_file"]) {
       expect(code).toContain(tool);
     }
     expect(code).not.toContain("create_file");

@@ -19,7 +19,7 @@ Give the user a defensible estimate of months of cash remaining, with ranges and
 
 1. Ask with `ask_user` for the current cash balance as of a stated date, and the source: bank statement or books.
 2. Collect monthly cash in and cash out for at least the last three months with `read_file` or from chat.
-3. Compute gross burn (total cash out) and net burn (cash out minus cash in) per month with `run_code`. Show both.
+3. Compute gross burn (total cash out) and net burn (cash out minus cash in) per month with `run_command`. Show both.
 4. Ask about known changes: planned hires, price changes, contracts ending, one-off payments due, annual bills.
 5. Build three cases: low (burn rises or income falls), base (recent average with known changes) and high (burn falls or income rises). State the numbers changed in each.
 6. Compute months of runway as cash divided by net burn for each case, and the calendar month cash would run out.

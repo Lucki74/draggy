@@ -25,7 +25,7 @@ A visible FAQ section on a page and JSON-LD markup that matches it word for word
 4. Write answers that are direct and factual. Start with the answer, then add the detail. Keep them short enough to scan, with links only where useful. State prices, terms and policies exactly as the business applies them.
 5. Place the FAQ in the visible body of the page. Every question and answer in the markup must appear on the page in the same words.
 6. Build the JSON-LD with `@context` as schema.org, `@type` as FAQPage, and `mainEntity` as a list of Question items, each with a name and an `acceptedAnswer` of type Answer with text. Escape quotes and keep any HTML in answers to the allowed simple tags.
-7. Validate syntax with `run_code` by parsing the JSON, and compare each name and text with the page's visible text. Recommend running the page through the search engine's rich results test and the schema validator after publishing.
+7. Validate syntax with `run_command` by parsing the JSON, and compare each name and text with the page's visible text. Recommend running the page through the search engine's rich results test and the schema validator after publishing.
 8. Insert into the page with `edit_file` only if the user asked, placing the script tag in the head or body.
 9. Avoid duplication: the same FAQ markup on many pages is weak. Each page should hold its own questions.
 10. Note a recheck date, since guidelines and eligibility change.

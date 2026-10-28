@@ -28,7 +28,7 @@ When this code fails at night, the person on call can find the failing case from
 6. Check volume: logs inside tight loops, per-item logs on large batches, and the same failure logged at every layer it passes through. Keep one log at the layer that handles it.
 7. Check format: structured fields where the project uses them, consistent keys, no multi-line text that breaks parsers, timestamps and correlation ids present.
 8. Propose edits as exact before and after lines. Apply with `edit_file` only when the user asks.
-9. Run the code path once with `run_command` or `run_code`, using a failing input, and read the actual log output. Reading the statement is different from reading what it prints.
+9. Run the code path once with `run_command`, using a failing input, and read the actual log output. Reading the statement is different from reading what it prints.
 10. Check how logs are shipped and retained by reading the deployment config with `read_file`, since retention and access decide how sensitive a field can be.
 
 ## Gotchas

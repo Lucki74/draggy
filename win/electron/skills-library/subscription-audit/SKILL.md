@@ -18,7 +18,7 @@ Give the user a clear list of everything that charges them on a schedule, with t
 ## Steps
 
 1. Ask with `ask_user` for the months of statements to scan. Three months catches monthly charges, twelve months also catches annual ones.
-2. Load the files with `read_file`. With `run_code`, print the columns, date range and row count.
+2. Load the files with `read_file`. With `run_command`, print the columns, date range and row count.
 3. Group transactions by merchant text, normalizing case and stripping reference numbers.
 4. Detect recurrence: same merchant and a similar amount at regular gaps (weekly, monthly, quarterly, yearly). List near matches separately, for example a price that changed.
 5. For each recurring item show merchant, amount, frequency, yearly cost, first and last seen. Compute the yearly total for all items.

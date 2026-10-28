@@ -18,7 +18,7 @@ Turn a goal into a monthly amount and a short schedule, then test it against the
 ## Steps
 
 1. Ask with `ask_user` for the goal, the target amount, the date, what is already saved, and how often the user is paid.
-2. Count the number of pay periods until the date with `run_code`, and compute the plain amount needed per period: the remaining sum divided by the periods.
+2. Count the number of pay periods until the date with `run_command`, and compute the plain amount needed per period: the remaining sum divided by the periods.
 3. Ask whether the money will earn interest. If yes, ask for the rate the user has been quoted and use it only as a labelled scenario. Do not assume one. If unsure, plan with zero interest.
 4. Ask for the current monthly surplus, or load the budget with `read_file`. Compare the needed amount with the surplus.
 5. If the plan does not fit, show three options: a later date, a smaller target, or a larger contribution. Compute each.

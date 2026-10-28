@@ -27,7 +27,7 @@ Turn a messy CSV, spreadsheet export or list into data that is ready to use, wit
    6. **Categories:** unify variants ("USA", "U.S.", "United States") with a mapping you show the user.
    7. **Duplicates:** remove exact duplicates. Flag near-duplicates, do not remove them.
    8. **Invalid values:** flag them in a separate `issue` column instead of deleting them.
-3. Do the work in a script so it is repeatable and exact. Write a Python script (standard library `csv` module) and run it with `run_code`, or save it with `write_file` and run it with `run_command`. Write the cleaned result next to the original with `write_file` or from the script. For a small dataset you can clean it directly and show the result in the reply. For a large one, give the script and say how to run it.
+3. Do the work in a script so it is repeatable and exact. Write a Python script (standard library `csv` module) and run it with `run_command`, or save it with `write_file` and run it with `run_command`. Write the cleaned result next to the original with `write_file` or from the script. For a small dataset you can clean it directly and show the result in the reply. For a large one, give the script and say how to run it.
 4. Compare the result with the input: row counts add up against the change log, and no column lost data by accident.
 
 ## Gotchas

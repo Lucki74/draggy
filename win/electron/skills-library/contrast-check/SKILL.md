@@ -19,7 +19,7 @@ Tell the user which color pairs fail and by how much, and give a replacement tha
 
 1. Find the pairs. For a project, `search_files` for color declarations in CSS, tokens or theme files, then `read_file`. Map each text color to the background it really sits on, including overlays and images. Ask with `ask_user` when the background is not clear.
 2. List states for each pair: default, hover, active, focus, disabled, visited links, placeholder text, error text, and dark mode if it exists.
-3. Run `run_code` in javascript: parse hex, rgb or hsl to sRGB, linearise each channel, compute relative luminance, then ratio = (lighter + 0.05) / (darker + 0.05). For semi-transparent colors, composite over the background first.
+3. Run `run_command` in javascript: parse hex, rgb or hsl to sRGB, linearise each channel, compute relative luminance, then ratio = (lighter + 0.05) / (darker + 0.05). For semi-transparent colors, composite over the background first.
 4. Apply the thresholds from the WCAG 2.x text: 4.5:1 for normal text, 3:1 for large text (about 18pt, or 14pt bold) and for UI component boundaries and meaningful graphics. Check the current success criteria with `read_url` on the W3C page if the user needs a citation.
 5. For each failure, find the closest passing color by moving lightness while holding hue and saturation, in small steps. Report the old value, new value and ratio.
 6. If the user asks, apply the changes with `edit_file` and re-run the calculation on the edited values.

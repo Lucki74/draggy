@@ -21,7 +21,7 @@ Give the user a review plan they will actually follow: which items to see on whi
 2. **Count the load.** Number the items and set how many new items fit per day. A review pile grows faster than people expect, so start low.
 3. **Choose a rule.** For a fixed deadline, use expanding gaps that end shortly before it (for example 1, 3, 7, 14 days). For long-term retention, use gaps that multiply after each success. Name the rule in plain words.
 4. **Add difficulty.** Items the user finds hard restart at a short gap. Easy ones jump a step. Ask the user to rate each review as hard, ok or easy.
-5. **Compute the calendar.** Use `run_code` to place each item's reviews by date from the start date. Check the daily load never exceeds the minutes available.
+5. **Compute the calendar.** Use `run_command` to place each item's reviews by date from the start date. Check the daily load never exceeds the minutes available.
 6. **Smooth the peaks.** Where a day is overloaded, move new items to later days. Reviews of old items outrank new material.
 7. **Write the missed-day rule.** After a gap, do the oldest due items first, drop new items for a day, and never try to catch up everything at once.
 8. **Save the plan.** Use `create_file` for a table: date, items due, new items, expected minutes. Offer a CSV the user can open in a spreadsheet.

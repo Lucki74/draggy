@@ -22,7 +22,7 @@ Produce one honest page: what the user owns, what they owe, and the difference o
 3. Collect liabilities: credit cards, loans, mortgage, other debts, bills due. Record balance and rate.
 4. For each value note the source: statement date, an estimate, or a listing price. Mark estimates.
 5. For property and vehicles, ask how the user estimates the value and suggest a conservative figure. Use `search_web` for comparable sales only if the user wants it, and cite the dates.
-6. Compute totals and net worth with `run_code`. Also show liquid assets, which are cash and savings, apart from the rest.
+6. Compute totals and net worth with `run_command`. Also show liquid assets, which are cash and savings, apart from the rest.
 7. If an earlier snapshot exists, show the change per group and say what moved it, such as repaid debt or a revalued asset.
 8. Show the share of net worth held in property, in accounts and in cash, as plain facts.
 9. Save with `create_file` as a table the user can copy forward next time.

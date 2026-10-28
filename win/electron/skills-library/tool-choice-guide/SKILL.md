@@ -23,7 +23,7 @@ Answer each question with the lightest tool that can answer it. That saves time 
 3. For workspace questions, start with `search_files` to find the location by name or text. Then read only the part you need with `read_file` and a line range. Use `list_directory` to learn a folder's shape. Use `explore` when the search is broad and the answer is a conclusion, not a file.
 4. For questions about changes, use `git_status` and `git_diff`, which are exact and cheap.
 5. For web questions, use `search_web` to find candidates and `read_url` for pages that are static. Move to the `browser_*` tools only when the page needs scripts, clicks, a login the user handles, or a visual check.
-6. For questions about behaviour, run it: `run_command` for programs and tests, `run_code` for a quick calculation or a small script. Prefer a read-only command first, and a dry run before a real one.
+6. For questions about behaviour, run it: `run_command` for programs and tests, `run_command` for a quick calculation or a small script. Prefer a read-only command first, and a dry run before a real one.
 7. For answers only the user has (preferences, credentials, approvals), use `ask_user`. Batch the questions and propose defaults.
 8. For edits, use `edit_file` for a targeted change, `write_file` or `create_file` for new content, and `move_file` and `delete_file` only with the user's consent for anything not clearly yours.
 9. Check that the result answers the question. If not, step up to the next heavier tool and note why. Stop climbing once you have evidence.

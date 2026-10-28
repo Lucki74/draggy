@@ -20,7 +20,7 @@ Put competing quotes on one footing so the user can see the real difference in c
 1. Read each quote with `read_file`. List the vendor, date, validity period, currency, and what the quote includes.
 2. Build a scope table with the same rows for every vendor: items, quantities, service levels, delivery times, support, setup fees. Mark gaps as not stated, never as zero.
 3. Ask with `ask_user` for the period that matters (one year, three years) and any volume the user expects to change.
-4. Compute total cost over that period with `run_code`: recurring fees, one-off fees, usage charges at the expected volume, renewal increases if stated.
+4. Compute total cost over that period with `run_command`: recurring fees, one-off fees, usage charges at the expected volume, renewal increases if stated.
 5. Note terms that affect risk: minimum commitment, renewal and notice, price change clauses, liability limits, data or exit arrangements. Quote the wording and cite where it appears.
 6. Ask the user for the criteria and their weights before scoring, then score each vendor. Show the scores next to the raw facts.
 7. Run a check on the weights: change the top weight by a notch and see if the order changes.

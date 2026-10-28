@@ -24,7 +24,7 @@ Give hard tasks a shape that helps a model get them right: the right amount of w
 3. Decide whether to ask for visible working. For multi-step problems, asking the model to work through the steps before giving the final answer often helps. For simple lookups or short answers it adds length without value. Check the provider's current docs with `read_url` for features that provide reasoning modes, since these change.
 4. If you ask for working, put it in a separate, clearly marked place from the final answer, for example a section for steps and a section for the answer, so code or readers can use the answer alone.
 5. Consider splitting into stages when one prompt holds too many jobs. Typical split: extract the facts, then decide, then write. Each stage gets a narrow prompt and a defined input and output.
-6. Put checks between stages. Use code in `run_code` for what code can verify: arithmetic, counts, schema, dates, references. Use a second prompt for judgment checks, with a rubric.
+6. Put checks between stages. Use code in `run_command` for what code can verify: arithmetic, counts, schema, dates, references. Use a second prompt for judgment checks, with a rubric.
 7. Handle failures at a stage. Retry with the error message, fall back to a simpler path, or stop and flag the item. Limit retries.
 8. Do not treat the written reasoning as a faithful trace of why the model answered. It can be wrong or post hoc. Verify the answer against the source or a calculation.
 9. Compare designs on the test cases: single prompt, single prompt with steps, and staged chain. Measure accuracy, cost and time, and pick the simplest design that meets the bar. Record the results.

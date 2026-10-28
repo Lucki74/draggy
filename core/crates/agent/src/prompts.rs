@@ -107,8 +107,6 @@ If the user asks for up-to-date, recent or specific information you do not know,
 
 const LIBRARY_PROMPT: &str = r##"The user indexed local documents in a private library. Call search_library before web search when questions may involve their files, notes, contracts, or code. Base answers on returned passages, citing the source filename. If no relevant documents exist, state so plainly."##;
 
-const CODE_EXECUTION_PROMPT: &str = r##"Run short Python or JavaScript programs via run_code to verify arithmetic, transformations, and non-trivial code execution before answering. Inspect errors, fix issues, and present working code. Programs execute in a 20-second isolated scratch sandbox with no network or filesystem access. Show the working code and mention that you ran it."##;
-
 const COMMANDS_PROMPT: &str = r##"Execute terminal commands in the project folder with run_command using the local shell. Run tests, builds, linting, git, or gh; prefer existing project scripts.
 Environment: Windows. Commands run in bash (Git for Windows) when it is installed and in PowerShell otherwise; the result names the shell that ran. Write POSIX syntax for bash and PowerShell syntax for pwsh, or pass shell to choose.
 Commands cannot receive input while running, so pass flags that avoid prompts and pagers. The user sees commands and may be asked to approve them. Destructive operations (force push, history rewrite, unprompted file deletion) are forbidden. Verify outcomes before reporting success."##;
@@ -154,7 +152,7 @@ const THINKING_LOW: &str = "REASONING EFFORT: LOW (target: under 1,000 reasoning
 
 const THINKING_MEDIUM: &str = "REASONING EFFORT: MEDIUM (target: about 4,000 reasoning tokens). Reason carefully and step by step through the core constraints. Explore viable branches, but stop re-checking once a branch satisfies every constraint, then answer directly.";
 
-const THINKING_HIGH: &str = "REASONING EFFORT: HIGH (target: about 6,000 reasoning tokens). Reason deeply: consider the alternatives, check boundary cases, and verify the conclusion with an independent check before answering. If code execution tools (run_code, run_command) are available, use a short script to verify calculations instead of long mental arithmetic.";
+const THINKING_HIGH: &str = "REASONING EFFORT: HIGH (target: about 6,000 reasoning tokens). Reason deeply: consider the alternatives, check boundary cases, and verify the conclusion with an independent check before answering. If code execution tools (run_command) are available, use a short script to verify calculations instead of long mental arithmetic.";
 
 const THINKING_MAX: &str = "REASONING EFFORT: MAXIMUM (target: use the full reasoning budget). Be exhaustive: enumerate every possibility, re-derive the result by a second independent method, test it against every constraint one by one, and consider alternative readings of the problem. Only answer once two independent derivations agree.";
 
@@ -357,9 +355,6 @@ pub fn build_system_prompt(input: &SystemPromptInput<'_>) -> String {
 
     if environment.library_ready {
         parts.push(LIBRARY_PROMPT.to_string());
-    }
-    if environment.code_execution {
-        parts.push(CODE_EXECUTION_PROMPT.to_string());
     }
 
     // Off means no reasoning, not an unspecified amount: omitting the instruction is not the same as asking.

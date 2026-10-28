@@ -20,14 +20,14 @@ Understand an unfamiliar dataset well enough to ask good questions of it. A good
 ## Steps
 
 1. Ask with `ask_user` what the data is for, where it came from, and the period it covers, unless the user already said. Knowing the source tells you what a row means and what bias to expect.
-2. Load it with `run_code` (Python with pandas if available, otherwise JavaScript). Report the shape, column names, types, and memory size. State the grain: one row per what?
+2. Load it with `run_command` (Python with pandas if available, otherwise JavaScript). Report the shape, column names, types, and memory size. State the grain: one row per what?
 3. Check the basics for each column: count of missing values, number of distinct values, and examples. Flag columns that are constant, that look like IDs, or that mix types.
 4. Summarise the numeric columns: min, quartiles, max, mean and median side by side. A mean far from the median means skew. Summarise categorical columns with the top values and their shares.
 5. Look at dates: range, gaps, rows per period. A missing week or a change in volume often marks a collection change.
 6. Look at relationships: correlations among numeric columns, and group averages by the main categories. Keep to pairs that make sense for the question.
    - Use rank correlation if the data is skewed.
    - List the five strongest relationships and say that they are descriptive.
-7. Make three to five plots with `run_code` and save them: distribution of the main measure, a time trend, and one comparison across groups. Use `create_file` for the images or a short notebook.
+7. Make three to five plots with `run_command` and save them: distribution of the main measure, a time trend, and one comparison across groups. Use `create_file` for the images or a short notebook.
 8. Inspect the extremes: the ten largest and smallest values of the main measure, with their rows. Decide if they are plausible.
 9. Write down what you did not check and the open questions, such as definitions you had to guess.
 10. Propose next steps: the three questions the data seems able to answer, and what extra data would help.

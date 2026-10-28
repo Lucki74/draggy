@@ -23,7 +23,7 @@ Replace a guess with evidence. A spike answers one written question within a fix
 2. Set the time box with the user (a few hours is typical) and a success rule: what result means go, and what means no-go. Write both down before starting.
 3. Read what is known. Use `read_url` and `search_web` for official docs, release notes and known issues, and check the version in use. Use `search_files` and `read_file` for how the project already handles similar things.
 4. Choose the cheapest experiment that can fail. Prefer a small script, a test or a one-file prototype over wiring into the real app. Create it in a scratch folder with `create_file`, outside shipped source.
-5. Run it with `run_command` or `run_code` using realistic input, not toy data. Record exact commands, versions and results as you go, including failures.
+5. Run it with `run_command` using realistic input, not toy data. Record exact commands, versions and results as you go, including failures.
 6. Probe the edges that decide the answer: the largest input, the slowest path, the platform quirks, the auth or licence limits. Measure real figures from your runs instead of quoting claims from marketing pages.
 7. Stop at the time box or at the first decisive result, whichever comes first. If the box ends with the question open, say what is still unknown and what the next experiment would be.
 8. Write up: the question, what was tried, results with evidence, what surprised you, the recommendation, and the effort remaining if it is a go. Save it with `create_file` where the team keeps notes.

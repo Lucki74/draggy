@@ -20,14 +20,14 @@ Give the user an evidence-based statement of how far a dataset can be trusted fo
 ## Steps
 
 1. Ask what the data will be used for and who owns it. Quality is relative to purpose: a missing phone number matters for outreach and not for revenue analysis. Use `ask_user` if the purpose is unstated.
-2. Load the data with `run_code` and record the baseline: rows, columns, date range, source file and modified date. Save the file hash so the audit refers to exactly this version.
+2. Load the data with `run_command` and record the baseline: rows, columns, date range, source file and modified date. Save the file hash so the audit refers to exactly this version.
 3. Write the rules before running them, grouped by dimension, and show them to the user:
    - Completeness: required columns with no blanks, expected row count per period.
    - Validity: types, formats, ranges, allowed codes (an age between 0 and 120, a country code in the list).
    - Uniqueness: keys with no duplicates, no repeated records under another key.
    - Consistency: fields that must agree (end after start, total equals sum of parts, same customer same country).
    - Timeliness: latest date is recent enough, no missing days.
-4. Run each rule with `run_code` and collect the count of failing rows, the percentage and three example rows. Keep the failing row indexes in a file.
+4. Run each rule with `run_command` and collect the count of failing rows, the percentage and three example rows. Keep the failing row indexes in a file.
 5. Cross-check against a control total from outside the file, such as a row count or revenue figure from the source system, if the user has one.
 6. Look for silent problems that pass every rule: a column that is identical on all rows, placeholder values like `N/A`, `0000-00-00` or `9999`, a sudden change in the share of blanks over time.
 7. Rank the failures by impact on the stated purpose: affects the result, affects a segment, cosmetic. Estimate the effect where you can, for example "dropping these rows changes the total by 3 percent".

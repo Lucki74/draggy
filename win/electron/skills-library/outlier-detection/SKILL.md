@@ -20,7 +20,7 @@ Find the few values that do not fit and decide what each one is. A good result s
 ## Steps
 
 1. Ask what the column means, its units and what a plausible range is. Use `ask_user`. A weight of 400 is an error for a person and normal for a vehicle.
-2. Look at the distribution first with `run_code`: a histogram or quantile table (min, 1st, 25th, median, 75th, 99th, max). Note skew, spikes at round numbers and sentinels such as 999.
+2. Look at the distribution first with `run_command`: a histogram or quantile table (min, 1st, 25th, median, 75th, 99th, max). Note skew, spikes at round numbers and sentinels such as 999.
 3. Apply two or more methods and compare:
    - The interquartile rule: flag values outside 1.5 times the IQR beyond the quartiles. Robust to skew.
    - Median absolute deviation: a robust z-score based on the median.

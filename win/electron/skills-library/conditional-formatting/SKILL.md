@@ -20,13 +20,13 @@ Make the rows that need attention visible at a glance, with rules that stay righ
 ## Steps
 
 1. Write each rule as a sentence with the user: "Red fill when the due date is before today and status is not Done." If two rules would give the same colour for different reasons, split or merge them on purpose.
-2. Look at the data with `read_file` or `run_code`: which columns hold the dates, numbers or status, whether they are true dates or text, and the range of rows. A rule on text dates will not fire.
+2. Look at the data with `read_file` or `run_command`: which columns hold the dates, numbers or status, whether they are true dates or text, and the range of rows. A rule on text dates will not fire.
 3. Choose the rule kind. Built-in kinds (greater than, top 10, duplicates, colour scales, data bars, icon sets) fit simple cases. A formula rule fits row highlighting and multi-column logic.
 4. For a formula rule, write the formula as if for the top-left cell of the applied range. Lock the column and free the row for row highlighting, for example `=$E2="Overdue"`. Lock both parts only when every cell should compare against one fixed cell.
 5. Set the applied range to the data body, not whole columns, and to the whole row width for row highlighting. Use a table so new rows inherit the rule.
 6. Order the rules. Put the most important first, set stop-if-true where later rules should not also colour the cell, and test the case where two rules both match.
 7. Choose colours with meaning and contrast. Use at most three fills, keep text readable on them, and pair colour with a second cue such as bold text, a symbol or a status word in the cell. Test in grayscale.
-8. Test with `run_code` against a copy of the data, or by listing five sample rows and what each should look like: a matching row, a non-matching one, a blank, an edge value equal to the target.
+8. Test with `run_command` against a copy of the data, or by listing five sample rows and what each should look like: a matching row, a non-matching one, a blank, an edge value equal to the target.
 9. Add a legend near the top or on a notes area: colour swatch and one-line meaning. List the rules with their ranges in the reply so the next editor can find them.
 10. Clean up and keep the rule set small.
    - Remove rules that no longer apply and merge ones with the same formula and colour.

@@ -38,7 +38,7 @@ Give an ordered list of events where each entry has a date, a one-line descripti
 - A scheduled date is not an event date. Plans, announcements and deadlines are separate from what occurred.
 - Do not fill a gap with a plausible guess. Show the gap.
 - Court and agency records use filing, decision and effective dates. Label which one each line uses.
-- Leap days and year boundaries trip hand arithmetic. Use `run_code` to compute spans between dates.
+- Leap days and year boundaries trip hand arithmetic. Use `run_command` to compute spans between dates.
 
 ## Output
 

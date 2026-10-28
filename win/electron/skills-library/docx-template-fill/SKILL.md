@@ -18,13 +18,13 @@ Generate finished documents from a template and a data source without touching t
 
 ## Steps
 
-1. Read the data with `read_file` or `run_code` (CSV or XLSX). Print the header row and three records. Ask with `ask_user` which column is the filename key if it is not obvious.
-2. Find the placeholders in the template. Unzip the docx with `run_code` and scan `document.xml`, headers, footers and footnotes for the marker pattern. List each unique marker and match it to a column. Report markers with no column and columns with no marker.
+1. Read the data with `read_file` or `run_command` (CSV or XLSX). Print the header row and three records. Ask with `ask_user` which column is the filename key if it is not obvious.
+2. Find the placeholders in the template. Unzip the docx with `run_command` and scan `document.xml`, headers, footers and footnotes for the marker pattern. List each unique marker and match it to a column. Report markers with no column and columns with no marker.
 3. Check split markers. Word often splits `{{name}}` across several runs because of spell check or formatting. Search the paragraph text, not the raw XML, and replace at paragraph level, keeping the formatting of the first run.
 4. Define the formatting rules for values: dates in one format, money with the right decimals and currency, uppercase names if the template expects them. Show two example conversions.
 5. Run a trial with the first record only. Save it, then check the text for remaining markers, and render to PDF if a converter exists, to look at the layout.
 6. Generate all records to an output folder, naming files from the key column with unsafe characters removed. Add a counter if keys repeat.
-7. Verify with `run_code`: the count of outputs equals the count of rows, no marker pattern remains in any file, and a sample of three files contains the right values.
+7. Verify with `run_command`: the count of outputs equals the count of rows, no marker pattern remains in any file, and a sample of three files contains the right values.
 8. Write a log with `create_file`: row number, key, output file, warnings.
 9. Hand back something the user can rerun.
    - Save the replacement script or the marker-to-column map next to the output folder.

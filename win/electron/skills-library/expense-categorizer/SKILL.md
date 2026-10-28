@@ -17,10 +17,10 @@ Turn a raw list of transactions into a categorized file the user can sum and rev
 
 ## Steps
 
-1. Load the file with `read_file`. With `run_code`, print the columns, the date range, the row count and the first ten rows.
+1. Load the file with `read_file`. With `run_command`, print the columns, the date range, the row count and the first ten rows.
 2. Ask with `ask_user` for the category list. If the user has none, propose a short one and get approval before using it.
 3. Ask which columns hold the date, description, amount and any existing tag. Ask whether positive amounts are spending or income.
-4. Build rules from exact merchant strings in the data. Apply them with `run_code` and count how many lines each rule matched.
+4. Build rules from exact merchant strings in the data. Apply them with `run_command` and count how many lines each rule matched.
 5. Mark as needs review any line with a vague description, an amount over a limit the user names, or a merchant that could fit two categories.
 6. Show the unmatched and review lines grouped by merchant, so the user decides once per merchant.
 7. Apply the user's answers and re-run. Check that the sum of all categories equals the sum of the source.
