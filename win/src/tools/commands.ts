@@ -1,4 +1,5 @@
 import { registerTools } from "./registry";
+import { registerTaskTools } from "./tasks";
 import type { ToolSpec } from "./registry";
 import { SHELL_IDS } from "../terminal/shells";
 import { appendAgentBlock, finishAgentBlock, startAgentBlock } from "../terminal/terminalBus";
@@ -14,7 +15,7 @@ const runCommand: ToolSpec = {
   name: "run_command",
   group: "shell",
   description:
-    "Run a command in the project folder, the way a developer types it in a terminal: git, gh, npm, pnpm, cargo, python, tests, builds and linters. Returns what it printed and its exit code. Nothing can be typed into it while it runs, so pass flags that avoid prompts.",
+    "Run a command in the project folder, the way a developer types it in a terminal: git, gh, npm, pnpm, cargo, python, tests, builds and linters. Returns what it printed and its exit code. The folder and environment variables it ends with carry over to the next command. A command that outlasts its time limit keeps running as a background task instead of being stopped. Pass flags that avoid prompts.",
   parameters: {
     command: { type: "string", description: "The command line to run, as it would be typed." },
     shell: {
@@ -24,7 +25,13 @@ const runCommand: ToolSpec = {
     },
     timeout_seconds: {
       type: "integer",
-      description: "Optional. How long it may run before it is stopped, up to 600. Defaults to 120.",
+      description:
+        "Optional. How long it may run before it moves to the background, up to 600. Defaults to 120.",
+    },
+    background: {
+      type: "boolean",
+      description:
+        "Optional. Set true for something that keeps running, like a dev server or a watcher, or that takes long: it starts at once and you read it with task_output.",
     },
   },
   required: ["command"],
@@ -46,6 +53,7 @@ const runCommand: ToolSpec = {
     const command = String(args.command).trim();
     const shell = (SHELL_IDS as readonly string[]).includes(String(args.shell)) ? String(args.shell) : undefined;
     const seconds = Math.min(Math.max(Number(args.timeout_seconds) || 120, 1), MAX_TIMEOUT_SECONDS);
+    const background = args.background === true;
     const stepId = ctx.newId();
     const api = window.electronAPI?.commands;
 
@@ -56,6 +64,7 @@ const runCommand: ToolSpec = {
       isComplete: false,
       fileContent: command,
       language: shell,
+      runId: `${ctx.chatId ?? "turn"}-${stepId}`,
     });
 
     if (!api || !ctx.workspaceId) {
@@ -84,6 +93,8 @@ const runCommand: ToolSpec = {
         shell,
         defaultShell: ctx.settings.defaultShell === "auto" ? undefined : ctx.settings.defaultShell,
         timeoutMs: seconds * 1000,
+        chatId: ctx.chatId,
+        background,
       })
       .finally(() => {
         ctx.signal.removeEventListener("abort", stop);
@@ -99,6 +110,24 @@ const runCommand: ToolSpec = {
       });
       ctx.syncSteps();
       return `TOOL RESULT (run_command): Could not run the command. ${result.error}`;
+    }
+
+    if (result.background || result.detached) {
+      const taskId = result.taskId ?? "";
+      finishAgentBlock(runId, { status: "stopped", shell: result.shell ?? shell });
+      ctx.patchStep(stepId, {
+        isComplete: true,
+        content: `${ctx.t("commandBackground")} \`${command}\``,
+        stdout: result.output ?? "",
+        language: result.shell ?? shell,
+        taskId,
+      });
+      ctx.syncSteps();
+      const first = result.detached
+        ? `The command is still running: it passed its ${seconds} second limit or the user sent it away. It keeps running as background task ${taskId}.`
+        : `Started in the background as task ${taskId}.`;
+      const seen = result.output ? `\n\nOutput so far:\n${result.output}` : "";
+      return `TOOL RESULT (run_command): ${first} Read it with task_output, wait for it with task_wait, end it with task_stop. You are told when it ends.${seen}`;
     }
 
     const output = result.output ?? "";
@@ -128,11 +157,15 @@ const runCommand: ToolSpec = {
     const status = result.timedOut
       ? `The command was still running after ${seconds} seconds and was stopped.`
       : `Exit code ${result.exitCode}.`;
+    const outside = result.outside
+      ? `\nIt ended in ${result.outside}, outside the project, so the next command starts in the project folder.`
+      : "";
 
-    return `TOOL RESULT (run_command): ${status}${result.truncated ? " The middle of the output was cut." : ""}\n\n${output || "(no output)"}`;
+    return `TOOL RESULT (run_command): ${status}${result.truncated ? " The middle of the output was cut." : ""}${outside}\n\n${output || "(no output)"}`;
   },
 };
 
 export function registerCommandTools(): void {
   registerTools([runCommand]);
+  registerTaskTools();
 }
