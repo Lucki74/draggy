@@ -3,6 +3,7 @@ import { isRemote, parseRef, remoteModelInfo } from "./ai/providers";
 import { safeJsonParse } from "./utils";
 import type { PromptProfile } from "./prompts";
 import { newCorrelationId, swallowed } from "./logger";
+import { readTokenUsage, type TokenUsage } from "./stats/tokenUsage";
 
 /** How long the GGUF engine is asked to keep a model resident. The engine itself has no such
  * setting; kept only so callers built around the idea need no changes. */
@@ -38,6 +39,9 @@ export interface GenerationMetrics {
   /** What the window held when the turn ended: the last pass's prompt and reply. */
   contextTokens?: number;
   breakdown?: ContextBreakdown;
+  /** One entry per request the turn made, in order. Each is priced alone because a long prompt can move
+   * a single request into a dearer tier; absent for an engine that reports no split (a local model). */
+  passUsage?: TokenUsage[];
 }
 
 export interface LoadedModel {
@@ -508,8 +512,10 @@ export function readMetrics(
   const loadMs = (Number(chunk.load_duration) || 0) / NS_PER_MS;
   const totalNs = Number(chunk.total_duration) || 0;
   const totalMs = totalNs > 0 ? totalNs / NS_PER_MS : promptMs + responseMs + loadMs;
+  const split = readTokenUsage((chunk.usage as { draggy_usage?: unknown } | undefined)?.draggy_usage);
 
   return {
+    ...(split ? { passUsage: [split] } : {}),
     promptTokens: Number(chunk.prompt_eval_count) || 0,
     responseTokens,
     promptMs,
@@ -546,6 +552,7 @@ export function mergeMetrics(
     contextWindow: Math.max(a.contextWindow, b.contextWindow),
     model: a.model,
     gpuPercent: b.gpuPercent ?? a.gpuPercent,
+    ...(a.passUsage || b.passUsage ? { passUsage: [...(a.passUsage ?? []), ...(b.passUsage ?? [])] } : {}),
   };
 }
 

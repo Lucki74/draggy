@@ -14,6 +14,8 @@ import type {
   QueuedMessage,
 } from "../types";
 import { swallowed } from "../logger";
+import { turnPricer } from "../stats/pricing";
+import { budgetStop } from "../stats/budgetGuard";
 
 interface AgentRunsInput {
   model: string | null;
@@ -97,6 +99,8 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
     recordMetrics: (row) => {
       void window.electronAPI?.metrics?.record(row).catch(swallowed("app", "the main process already logged this call"));
     },
+    priceTurn: (model, metrics) => turnPricer.price(model, metrics),
+    checkBudget: (model) => budgetStop(model, input.settings.budgets),
     t: input.t,
   };
 

@@ -37,8 +37,10 @@ import type {
   PermissionMode,
   QueuedMessage,
   SearchStep,
+  TurnCost,
   TurnMetrics,
 } from "../types";
+import type { GenerationMetrics } from "../llama";
 import { classifyTurnError, editAt, isTransient, modelHistory, promoteShown, retryAt, switchAt } from "./turnHistory";
 import { loadQueues, saveQueue } from "./turnQueue";
 
@@ -76,6 +78,10 @@ export interface TaskHost {
   ) => void;
   /** A finished turn, for the statistics page. Kept on this machine. */
   recordMetrics?: (row: MetricRow) => void;
+  /** Who paid for a finished turn and what it cost, from its token split. */
+  priceTurn?: (model: string, metrics: GenerationMetrics) => Promise<TurnCost>;
+  /** Why a new send through this model must stop, or null to go ahead. Only a paid cloud model can be stopped. */
+  checkBudget?: (model: string) => Promise<string | null>;
   t: (key: string) => string;
 }
 
@@ -189,6 +195,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   let queueSnapshot: Record<string, QueuedMessage[]> = Object.fromEntries(queueMap);
   const queueListeners = new Set<() => void>();
   const lastTurn = new Map<string, string>();
+  /** Chats whose next send may go over budget: the user chose to continue anyway. */
+  const overBudgetOk = new Set<string>();
   /** Chats whose next message waits for another chat's turn to end, oldest first. The model answers
    * one chat at a time. */
   const waitingTurn: string[] = [];
@@ -540,6 +548,15 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         patch({ steps: [] });
       }
 
+      // Retry on a reply the budget stopped is the user's "continue anyway", and holds for that one send.
+      if (overBudgetOk.delete(chatId)) {
+        logRendererEvent("chat", "INFO", "budget overridden", { chatId, model }, correlationId);
+      } else {
+        const stopped = host.checkBudget ? await host.checkBudget(model).catch(swallowed("chat", "an unreadable budget never blocks a send", null)) : null;
+        if (controller.signal.aborted) return;
+        if (stopped) throw new Error(stopped);
+      }
+
       // Timed from here, so a fold the turn waited on is not counted as the turn.
       const startedAt = Date.now();
       // `after` lets `npm run logs:turn` follow a continue or retry back to the turn it came from.
@@ -672,11 +689,14 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
       // A turn the user stopped is not a measurement of anything.
       if (result.metrics && !result.aborted) {
+        const priced = result.metrics.model || model;
+        // A failed lookup costs the turn its price, never its row.
+        const cost = host.priceTurn ? await host.priceTurn(priced, result.metrics).catch(swallowed("chat", "the turn is kept without a price")) : undefined;
         host.recordMetrics?.({
           recordedAt: Date.now(),
           workspaceId: host.getSession(chatId)?.workspaceId ?? host.getWorkspaceId(),
           chatId,
-          model: result.metrics.model || model,
+          model: priced,
           promptTokens: result.metrics.promptTokens,
           responseTokens: result.metrics.responseTokens,
           responseMs: result.metrics.responseMs,
@@ -685,7 +705,9 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           taskMs: Date.now() - startedAt,
           loops: result.loops,
           tools: result.toolCalls ?? {},
+          ...cost,
         });
+        if (cost) patch({ metrics: { ...result.metrics, cost } });
       }
 
       // The closing text can be a fallback the stream never carried, so it is written on every finish.
@@ -1125,6 +1147,9 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   function regenerate(chatId: string, index?: number) {
     const session = host.getSession(chatId);
     if (!session) return;
+
+    const last = session.messages[typeof index === "number" ? index : session.messages.length - 1];
+    if (last?.failed && last.errorKind === "budget") overBudgetOk.add(chatId);
 
     const at = typeof index === "number" && index >= 0 ? index : session.messages.length - 1;
     const before = session.messages.slice(0, at);

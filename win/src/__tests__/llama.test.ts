@@ -143,6 +143,15 @@ describe("merging metrics across tool loops", () => {
     expect(mergeMetrics(first, second)?.timeToFirstTokenMs).toBe(200);
   });
 
+  it("keeps each pass's token split apart so every pass is priced on its own", () => {
+    const split = (input: number, output: number) => ({ input, cacheRead: 0, cacheWrite: 0, output, reasoning: 0, source: "reported" });
+    const a = readMetrics({ eval_count: 1, usage: { draggy_usage: split(500, 100) } }, "m", 8192, null);
+    const b = readMetrics({ eval_count: 1, usage: { draggy_usage: split(900, 300) } }, "m", 8192, null);
+    expect(a?.passUsage).toEqual([split(500, 100)]);
+    expect(mergeMetrics(a, b)?.passUsage).toEqual([split(500, 100), split(900, 300)]);
+    expect(mergeMetrics(first, second)?.passUsage).toBeUndefined();
+  });
+
   it("tolerates a missing side", () => {
     expect(mergeMetrics(null, second)).toBe(second);
     expect(mergeMetrics(first, null)).toBe(first);

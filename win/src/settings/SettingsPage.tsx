@@ -11,6 +11,8 @@ import { ChatPreferencesPage, LibraryPage, TalkPage } from "./ChatPages";
 import { CodePreferencesPage, PermissionsPage, ProjectsPage } from "./CodePages";
 import ApiServerField from "./ApiServerField";
 import StatsPanel from "../stats/StatsPanel";
+import BudgetsGroup from "./BudgetsGroup";
+import PricesGroup from "./PricesGroup";
 import { useTranslator } from "../i18n";
 import { Icon } from "../ui/icons/Icon";
 import { fill } from "../onboarding/text";
@@ -194,7 +196,9 @@ export default function SettingsPage(props: SettingsPageProps) {
 
             {tab === "usage" && (
               <Page title={t("statistics")}>
-                <StatsPanel t={t} />
+                <StatsPanel t={t} referenceModel={settings.referenceModel} />
+                <BudgetsGroup settings={settings} onUpdate={onUpdate} t={t} />
+                <PricesGroup settings={settings} onUpdate={onUpdate} t={t} />
               </Page>
             )}
 

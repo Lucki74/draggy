@@ -43,6 +43,7 @@ const ERROR_KIND_KEYS: Record<Exclude<TurnErrorKind, "unknown">, string> = {
   network: "errorKindNetwork",
   "rate-limit": "errorKindRateLimit",
   context: "errorKindContext",
+  budget: "errorKindBudget",
 };
 
 // Summarizes compacted history tokens so the user knows where earlier context was saved.
@@ -422,7 +423,7 @@ export function AssistantTurn({
                     icon={<Icon name="arrow-clockwise" size={16} />}
                     onClick={() => onRegenerate(idx)}
                   >
-                    {t("regenerateResponse")}
+                    {t(displayMsg.errorKind === "budget" ? "budgetContinue" : "regenerateResponse")}
                   </Button>
                   {hasGeneratedText && onResume && (
                     <Button variant="ghost" size="dense" onClick={onResume}>
