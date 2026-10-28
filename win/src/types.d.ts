@@ -1,4 +1,11 @@
 import type { ProviderState } from "./ai/providers";
+export type {
+  QuestionType,
+  QuestionOption,
+  UserQuestion,
+  UserAnswer,
+  QuestionSession,
+} from "./chat/questionTypes";
 
 /** Drops one listener from a main-process channel, leaving the others alone. */
 export type Unsubscribe = () => void;
@@ -954,6 +961,8 @@ export interface ChatSession {
   pinned?: boolean;
   /** Finished while the user was elsewhere. */
   unread?: boolean;
+  /** Whether interactive AI questions are toggled off for this chat. */
+  aiQuestionsDisabled?: boolean;
   /** How much work the transcript shows. Missing means normal. */
   view?: import("./chat/transcriptView").TranscriptView;
   /** Saved dock panes, active tab and width for this session. */
@@ -1154,6 +1163,12 @@ export interface AppSettings {
   imageModel: string;
   /** The size images are drawn at, as width and height in pixels: "1024x1024". */
   imageResolution: string;
+  aiQuestionsEnabled?: boolean;
+  aiQuestionsRequireAnswer?: boolean;
+  aiQuestionsShowSessionBar?: boolean;
+  aiQuestionsAutoSkip?: boolean;
+  aiQuestionsMaxPerSession?: number;
+  aiQuestionsTimeoutMinutes?: number;
 }
 
 declare global {

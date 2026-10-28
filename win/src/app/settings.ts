@@ -57,6 +57,12 @@ export const defaultSettings: AppSettings = {
   fixedContextSize: null,
   imageModel: "",
   imageResolution: "1024x1024",
+  aiQuestionsEnabled: true,
+  aiQuestionsRequireAnswer: true,
+  aiQuestionsShowSessionBar: true,
+  aiQuestionsAutoSkip: false,
+  aiQuestionsMaxPerSession: 5,
+  aiQuestionsTimeoutMinutes: 0,
 };
 
 export const FONT_SIZES = { sm: "13px", base: "15px", lg: "18px" };

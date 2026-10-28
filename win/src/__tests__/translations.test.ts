@@ -41,7 +41,7 @@ function usedKeys(): Map<string, string> {
  * identifier in the source counts as a possible one. */
 function referencedWords(): Set<string> {
   const words = new Set<string>();
-  const pattern = /["'`]([A-Za-z_][A-Za-z0-9_]*)["'`]/g;
+  const pattern = /["'`]([A-Za-z_][A-Za-z0-9_.]*)["'`]/g;
 
   for (const file of sourceFiles(SOURCE_DIR)) {
     const source = fs.readFileSync(file, "utf8");
