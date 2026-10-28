@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import MessageItem from "./MessageItem";
 import { TranscriptViewContext } from "./transcriptView";
 import InView from "./InView";
@@ -7,6 +7,7 @@ import { ErrorBoundary } from "../ErrorBoundary";
 import { Button, Icon } from "../ui";
 import { useQuestionSessionContext } from "./questionSessionContext";
 import { QuestionHistoryCard } from "./components/QuestionHistoryCard";
+import { ComposerQueueContext } from "./Composer";
 import type { AppSettings, ApprovalAnswer, ChatSession } from "../types";
 
 export interface TranscriptProps {
@@ -60,6 +61,10 @@ export function Transcript({
   );
   const showJumpList = prompts.length >= JUMP_LIST_MIN_PROMPTS;
   const [currentPrompt, setCurrentPrompt] = useState<string | null>(null);
+
+  const queueCtx = useContext(ComposerQueueContext);
+  // Notes the turn has not read yet stay in view as sent, until the turn folds them in.
+  const pendingNotes = queueCtx?.chatId === chat.id && chat.isGenerating ? (queueCtx.pendingSteers ?? []) : [];
 
   const questionCtx = useQuestionSessionContext();
   const orphanSessions = useMemo(() => {
@@ -253,6 +258,16 @@ export function Transcript({
               />
             </ErrorBoundary>
           </InView>
+        ))}
+        {pendingNotes.map((note, index) => (
+          <div key={`${index}:${note}`} className="max-w-[760px] mx-auto flex items-start gap-2 text-[14px] text-text-secondary">
+            <Icon name="user" size={14} className="mt-1 flex-shrink-0" />
+            <span className="min-w-0 whitespace-pre-wrap wrap-anywhere">
+              <span className="text-text-tertiary me-1.5">{t("steerNote")}</span>
+              {note}
+              <span className="text-text-tertiary ms-1.5">{t("steerPending")}</span>
+            </span>
+          </div>
         ))}
         {orphanSessions.map((s) => (
           <QuestionHistoryCard key={s.id} session={s} t={questionCtx?.t ?? t} />

@@ -13,7 +13,8 @@ import { FILL_EVENT, insertMention, mentionAt, useMentionHits, type Mention } fr
 import { isBinary } from "../utils";
 import { draftKeyFor } from "./useChatSession";
 import { ImagePreview } from "../ui/ImagePreview";
-import { Chip, Fuse, Icon, IconButton, Menu, Popover, type MenuEntry } from "../ui";
+import { Chip, Fuse, Icon, IconButton, Kbd, Menu, Popover, type MenuEntry } from "../ui";
+import { QueueCard } from "./QueueCard";
 import type { ModelInfo } from "../llama";
 import type { ContextWindowView } from "../agent/contextBreakdown";
 import type { CompactOutcome } from "../agent/taskManager";
@@ -56,6 +57,8 @@ type OpenMenu = "permission" | "effort" | "model" | null;
 export interface ComposerQueue {
     chatId: string;
     queue: QueuedMessage[];
+    /** Notes the running turn has not read yet; the transcript shows them as sent. */
+    pendingSteers?: string[];
     enqueue: (content: string, attachments?: Attachment[]) => void;
     steer: (content: string) => void;
     sendNow: (content: string, attachments?: Attachment[]) => void;
@@ -365,7 +368,7 @@ export function Composer({
     const handleSubmit = (e?: React.FormEvent) => {
         e?.preventDefault();
         if (chat.isGenerating) {
-            sendWhileGenerating("queue");
+            sendWhileGenerating("steer");
             return;
         }
         if (unavailable && !drawing) return;
@@ -548,75 +551,24 @@ export function Composer({
                 )}
 
                 {queued && queue.length > 0 && (
-                    <div className="mb-2 flex flex-col gap-1.5">
-                        <p className="px-1 text-[12px] text-text-secondary">{t("queuedMessages")} · {queue.length}</p>
-                        {/* A burst of queued messages scrolls here instead of pushing the transcript away. */}
-                        <ul className="flex max-h-[min(30vh,14rem)] flex-col gap-1 overflow-y-auto">
-                            {queue.map((item, index) => (
-                                <li key={item.id} className="flex shrink-0 items-center gap-1 ps-3 pe-1 rounded-lg bg-surface-tint text-[13px] text-text-primary">
-                                    {editing?.id === item.id ? (
-                                        <textarea
-                                            autoFocus
-                                            aria-label={t("edit")}
-                                            value={editing.text}
-                                            rows={1}
-                                            onChange={(e) => setEditing({ id: item.id, text: e.target.value })}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Escape") {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    setEditing(null);
-                                                } else if (e.key === "Enter" && !e.shiftKey) {
-                                                    e.preventDefault();
-                                                    saveEdit();
-                                                }
-                                            }}
-                                            className="min-w-0 flex-1 resize-none bg-transparent py-1 focus:outline-none"
-                                        />
-                                    ) : (
-                                        <span className="min-w-0 flex-1 truncate py-0.5">{item.content}</span>
-                                    )}
-                                    {editing?.id !== item.id && (
-                                        <IconButton
-                                            name="pencil-simple"
-                                            label={t("edit")}
-                                            size="dense"
-                                            onClick={() => setEditing({ id: item.id, text: item.content })}
-                                        />
-                                    )}
-                                    <IconButton
-                                        name="arrow-up"
-                                        label={t("queueMoveUp")}
-                                        size="dense"
-                                        disabled={index === 0}
-                                        onClick={() => queued.moveQueued(item.id, -1)}
-                                    />
-                                    <IconButton
-                                        name="arrow-down"
-                                        label={t("queueMoveDown")}
-                                        size="dense"
-                                        disabled={index === queue.length - 1}
-                                        onClick={() => queued.moveQueued(item.id, 1)}
-                                    />
-                                    <IconButton
-                                        name="skip-forward"
-                                        label={t("queueSendNow")}
-                                        size="dense"
-                                        onClick={() => queued.sendQueuedNow(item.id)}
-                                    />
-                                    <IconButton
-                                        name="x"
-                                        label={t("queueRemove")}
-                                        size="dense"
-                                        onClick={() => queued.removeQueued(item.id)}
-                                    />
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                    <QueueCard
+                        queue={queue}
+                        editing={editing}
+                        setEditing={setEditing}
+                        saveEdit={saveEdit}
+                        onMove={queued.moveQueued}
+                        onSendNow={queued.sendQueuedNow}
+                        onRemove={queued.removeQueued}
+                        onClear={() => queue.forEach((item) => queued.removeQueued(item.id))}
+                        t={t}
+                    />
                 )}
                 {queued && chat.isGenerating && (
-                    <p className="mb-2 px-1 text-[12px] text-text-secondary">{t("queueHint")}</p>
+                    <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[12px] text-text-secondary">
+                        <span className="inline-flex items-center gap-1.5"><Kbd>Enter</Kbd>{t("queueKeyNext")}</span>
+                        <span className="inline-flex items-center gap-1.5"><Kbd>Ctrl+Enter</Kbd>{t("queueKeyQueue")}</span>
+                        <span className="inline-flex items-center gap-1.5"><Kbd>Ctrl+Shift+Enter</Kbd>{t("queueKeyInterrupt")}</span>
+                    </p>
                 )}
 
                 <form
@@ -786,13 +738,13 @@ export function Composer({
                             }
                             if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                                 e.preventDefault();
-                                if (chat.isGenerating) sendWhileGenerating(e.shiftKey ? "now" : "steer");
+                                if (chat.isGenerating) sendWhileGenerating(e.shiftKey ? "now" : "queue");
                                 else handleSubmit();
                                 return;
                             }
                             if (e.key === "Enter" && !e.shiftKey) {
                                 e.preventDefault();
-                                if (chat.isGenerating) sendWhileGenerating("queue");
+                                if (chat.isGenerating) sendWhileGenerating("steer");
                                 else handleSubmit();
                             }
                         }}

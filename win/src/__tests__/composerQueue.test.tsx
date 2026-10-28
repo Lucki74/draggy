@@ -30,24 +30,40 @@ function field(): HTMLTextAreaElement {
 }
 
 describe("Composer while a reply generates", () => {
-  it("Enter queues the text instead of stopping", () => {
+  it("Enter hands the text to the running turn instead of stopping", () => {
     const queue = queueFixture();
     const onSendMessage = vi.fn();
     render(
       <ComposerQueueContext.Provider value={queue}>
-        <ComposerPreview generating onSendMessage={onSendMessage} />
+        <ComposerPreview generating attachedFiles={[]} onSendMessage={onSendMessage} />
       </ComposerQueueContext.Provider>,
     );
 
     fireEvent.change(field(), { target: { value: "next thing" } });
     fireEvent.keyDown(field(), { key: "Enter" });
 
-    expect(queue.enqueue).toHaveBeenCalledWith("next thing", expect.any(Array));
+    expect(queue.steer).toHaveBeenCalledWith("next thing");
+    expect(queue.enqueue).not.toHaveBeenCalled();
     expect(onSendMessage).not.toHaveBeenCalled();
     expect(field().value).toBe("");
   });
 
-  it("Ctrl+Enter with attached files falls back to the queue, since a steer note carries none", () => {
+  it("Ctrl+Enter queues the text for after the turn", () => {
+    const queue = queueFixture();
+    render(
+      <ComposerQueueContext.Provider value={queue}>
+        <ComposerPreview generating attachedFiles={[]} />
+      </ComposerQueueContext.Provider>,
+    );
+
+    fireEvent.change(field(), { target: { value: "later thing" } });
+    fireEvent.keyDown(field(), { key: "Enter", ctrlKey: true });
+
+    expect(queue.enqueue).toHaveBeenCalledWith("later thing", []);
+    expect(queue.steer).not.toHaveBeenCalled();
+  });
+
+  it("Enter with attached files falls back to the queue, since a steer note carries none", () => {
     const queue = queueFixture();
     render(
       <ComposerQueueContext.Provider value={queue}>
@@ -56,7 +72,7 @@ describe("Composer while a reply generates", () => {
     );
 
     fireEvent.change(field(), { target: { value: "look at this" } });
-    fireEvent.keyDown(field(), { key: "Enter", ctrlKey: true });
+    fireEvent.keyDown(field(), { key: "Enter" });
 
     expect(queue.steer).not.toHaveBeenCalled();
     expect(queue.enqueue).toHaveBeenCalledWith("look at this", [{ name: "screenshot.png", type: "image/png" }]);
@@ -77,7 +93,7 @@ describe("Composer while a reply generates", () => {
     expect(queue.enqueue).not.toHaveBeenCalled();
   });
 
-  it("keeps the Stop button and shows the queue hint", () => {
+  it("keeps the Stop button and names the three keys", () => {
     render(
       <ComposerQueueContext.Provider value={queueFixture()}>
         <ComposerPreview generating />
@@ -85,7 +101,9 @@ describe("Composer while a reply generates", () => {
     );
 
     expect(screen.getByRole("button", { name: /^Stop/ })).toBeTruthy();
-    expect(screen.getByText(/Enter to queue/)).toBeTruthy();
+    expect(screen.getByText("Ctrl+Shift+Enter").parentElement?.textContent).toContain("send now");
+    expect(screen.getByText("Ctrl+Enter").parentElement?.textContent).toContain("queue");
+    expect(screen.getByText("Enter").parentElement?.textContent).toContain("next turn");
   });
 
   it("renders each queued message with its controls", () => {
@@ -97,11 +115,55 @@ describe("Composer while a reply generates", () => {
     );
 
     expect(screen.getByText("first note")).toBeTruthy();
-    fireEvent.click(screen.getAllByRole("button", { name: "Move down" })[0]);
-    expect(queue.moveQueued).toHaveBeenCalledWith("a", 1);
     fireEvent.click(screen.getAllByRole("button", { name: "Send now" })[1]);
     expect(queue.sendQueuedNow).toHaveBeenCalledWith("b");
     fireEvent.click(screen.getAllByRole("button", { name: "Remove from queue" })[1]);
+    expect(queue.removeQueued).toHaveBeenCalledWith("b");
+  });
+});
+
+describe("Queue card", () => {
+  it("Alt+ArrowDown on a focused row moves it one place", () => {
+    const queue = queueFixture();
+    render(
+      <ComposerQueueContext.Provider value={queue}>
+        <ComposerPreview generating />
+      </ComposerQueueContext.Provider>,
+    );
+
+    const row = screen.getByText("first note").closest("li") as HTMLElement;
+    fireEvent.keyDown(row, { key: "ArrowDown", altKey: true });
+
+    expect(queue.moveQueued).toHaveBeenCalledWith("a", 1);
+  });
+
+  it("dropping a row on another moves it by the distance between them", () => {
+    const queue = queueFixture();
+    render(
+      <ComposerQueueContext.Provider value={queue}>
+        <ComposerPreview generating />
+      </ComposerQueueContext.Provider>,
+    );
+
+    const first = screen.getByText("first note").closest("li") as HTMLElement;
+    const second = screen.getByText("second note").closest("li") as HTMLElement;
+    fireEvent.dragStart(first);
+    fireEvent.drop(second);
+
+    expect(queue.moveQueued).toHaveBeenCalledWith("a", 1);
+  });
+
+  it("Clear removes every queued message", () => {
+    const queue = queueFixture();
+    render(
+      <ComposerQueueContext.Provider value={queue}>
+        <ComposerPreview generating />
+      </ComposerQueueContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(queue.removeQueued).toHaveBeenCalledWith("a");
     expect(queue.removeQueued).toHaveBeenCalledWith("b");
   });
 });
@@ -152,6 +214,6 @@ describe("Composer queue editing", () => {
     );
 
     expect(screen.queryByText("first note")).toBeNull();
-    expect(screen.queryByText(/Enter to queue/)).toBeNull();
+    expect(screen.queryByText("Ctrl+Enter")).toBeNull();
   });
 });

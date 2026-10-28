@@ -148,6 +148,9 @@ export interface TaskManager {
   sendNow: (chatId: string, content: string, attachments?: Attachment[]) => void;
   queues: () => Record<string, QueuedMessage[]>;
   subscribeQueues: (listener: () => void) => () => void;
+  /** Notes handed to a running turn that its next step has not read yet. */
+  pendingSteers: () => Record<string, string[]>;
+  subscribeSteers: (listener: () => void) => () => void;
 }
 
 /** Which conversation, model and messages a measurement was for, so a turn sending exactly those
@@ -178,6 +181,10 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   const turnMessage = new Map<string, string>();
   /** Notes typed while a turn ran, waiting for its next step. */
   const steers = new Map<string, string[]>();
+  let steerSnapshot: Record<string, string[]> = {};
+  const steerListeners = new Set<() => void>();
+  /** Chats whose message waits behind another chat's turn, with the reply that says so. */
+  const parked = new Map<string, { replyId: string; stepId: string }>();
   const queueMap = new Map<string, QueuedMessage[]>(Object.entries(loadQueues()));
   let queueSnapshot: Record<string, QueuedMessage[]> = Object.fromEntries(queueMap);
   const queueListeners = new Set<() => void>();
@@ -600,7 +607,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         },
         takeSteering: () => {
           const notes = steers.get(chatId) ?? [];
-          steers.delete(chatId);
+          setSteers(chatId, []);
           return live() ? notes : [];
         },
       };
@@ -726,7 +733,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         // Notes the turn ended before reading wait at the front of the queue.
         const unread = steers.get(chatId);
         if (unread && unread.length > 0) {
-          steers.delete(chatId);
+          setSteers(chatId, []);
           setQueue(chatId, [...unread.map((content) => ({ id: generateId(), content })), ...queueOf(chatId)]);
         }
 
@@ -757,6 +764,13 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
   /** Sends the first queued message, if any. */
   function dispatchNext(chatId: string): boolean {
+    const held = parked.get(chatId);
+    if (held) {
+      parked.delete(chatId);
+      releaseParked(chatId, held.replyId);
+      labelParked();
+      return true;
+    }
     const [next, ...rest] = queueOf(chatId);
     if (!next) return false;
     setQueue(chatId, rest);
@@ -766,6 +780,55 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
   function waitForTurn(chatId: string) {
     if (!waitingTurn.includes(chatId)) waitingTurn.push(chatId);
+    labelParked();
+  }
+
+  /** Rewrites each waiting reply with its place in line, which moves as the chats ahead of it go. */
+  function labelParked() {
+    for (const [index, chatId] of waitingTurn.entries()) {
+      const held = parked.get(chatId);
+      if (!held) continue;
+      const content = host
+        .t("messageQueued")
+        .replace("{position}", String(index + 1))
+        .replace("{total}", String(waitingTurn.length));
+      host.updateSession(chatId, (s) => ({
+        ...s,
+        messages: s.messages.map((message) =>
+          message.id === held.replyId
+            ? { ...message, steps: [{ id: held.stepId, type: "loading" as const, content, isComplete: false }] }
+            : message,
+        ),
+      }));
+    }
+  }
+
+  /** Stopping a waiting chat leaves its message sent and its reply stopped, as a stopped turn does. */
+  function cancelParked(chatId: string) {
+    const held = parked.get(chatId);
+    if (!held) return;
+    parked.delete(chatId);
+    const place = waitingTurn.indexOf(chatId);
+    if (place !== -1) waitingTurn.splice(place, 1);
+    host.updateSession(chatId, (s) => ({
+      ...s,
+      messages: s.messages.map((message) =>
+        message.id === held.replyId ? { ...message, stopped: true, steps: [] } : message,
+      ),
+    }));
+    labelParked();
+  }
+
+  /** The chat's turn at last: the waiting reply goes and the stored message runs as a normal turn. */
+  function releaseParked(chatId: string, replyId: string) {
+    const session = host.getSession(chatId);
+    const messages = (session?.messages ?? []).filter((message) => message.id !== replyId);
+    if (!host.getModel()) {
+      host.updateSession(chatId, (s) => ({ ...s, messages, isGenerating: false }));
+      return;
+    }
+    host.updateSession(chatId, (s) => ({ ...s, messages }));
+    void run(chatId, messages, { waitForFold: true });
   }
 
   /** Hands the model to the chat that has waited longest and still has something queued. */
@@ -778,11 +841,47 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   /** A new message from the user. While another chat's turn runs it waits in this chat's queue. */
   function send(chatId: string, content: string, attachments?: Attachment[]) {
     if (host.oneTurnAtATime && runs.size > 0 && !runs.has(chatId)) {
-      setQueue(chatId, [...queueOf(chatId), { id: generateId(), content, attachments }]);
-      waitForTurn(chatId);
+      if (parked.has(chatId) || queueOf(chatId).length > 0) {
+        setQueue(chatId, [...queueOf(chatId), { id: generateId(), content, attachments }]);
+        waitForTurn(chatId);
+      } else {
+        park(chatId, content, attachments);
+      }
       return;
     }
     deliver(chatId, content, attachments);
+  }
+
+  /** Puts the message in its chat at once, with a reply saying it waits, so the chat exists meanwhile. */
+  function park(chatId: string, content: string, attachments?: Attachment[]) {
+    const existing = host.getSession(chatId);
+    const userMessage: Message = { id: generateId(), role: "user", content, attachments };
+    const held = { replyId: generateId(), stepId: generateId() };
+    const reply: Message = { id: held.replyId, role: "assistant", content: "", steps: [] };
+    parked.set(chatId, held);
+
+    if (existing) {
+      host.updateSession(chatId, (s) => ({
+        ...s,
+        isGenerating: true,
+        updatedAt: Date.now(),
+        messages: [...s.messages, userMessage, reply],
+      }));
+    } else {
+      host.addSession({
+        id: chatId,
+        workspaceId: host.getWorkspaceId(),
+        title: content.trim()
+          ? titleFromContent(content, host.t("newDiscussion"))
+          : attachments && attachments.length > 0
+            ? host.t("attachedFiles")
+            : host.t("newDiscussion"),
+        messages: [userMessage, reply],
+        updatedAt: Date.now(),
+        isGenerating: true,
+      });
+    }
+    waitForTurn(chatId);
   }
 
   /** Starts the turn, and the conversation if this is its first message. */
@@ -814,6 +913,17 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     void run(chatId, [...(existing?.messages || []), userMessage], {
       waitForFold: true,
     });
+  }
+
+  /** Every change to the notes goes through here so the transcript can show them while they wait. */
+  function setSteers(chatId: string, notes: string[]) {
+    if (notes.length === 0) {
+      if (!steers.delete(chatId)) return;
+    } else {
+      steers.set(chatId, notes);
+    }
+    steerSnapshot = Object.fromEntries(steers);
+    for (const listener of [...steerListeners]) listener();
   }
 
   function queueOf(chatId: string): QueuedMessage[] {
@@ -873,7 +983,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       enqueue(chatId, content);
       return;
     }
-    steers.set(chatId, [...(steers.get(chatId) ?? []), content]);
+    setSteers(chatId, [...(steers.get(chatId) ?? []), content]);
     logRendererEvent("chat", "INFO", "turn steered", { chatId, chars: content.length });
   }
 
@@ -1163,7 +1273,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     // A turn parked on a question cannot notice the abort until the question is
     // answered, so stopping answers it.
     refuseWaiting(chatId);
-    steers.delete(chatId);
+    setSteers(chatId, []);
+    cancelParked(chatId);
 
     const controller = runs.get(chatId);
     if (controller) {
@@ -1227,6 +1338,13 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     sendQueuedNow,
     steer,
     sendNow,
+    pendingSteers: () => steerSnapshot,
+    subscribeSteers: (listener: () => void) => {
+      steerListeners.add(listener);
+      return () => {
+        steerListeners.delete(listener);
+      };
+    },
     queues: () => queueSnapshot,
     subscribeQueues: (listener: () => void) => {
       queueListeners.add(listener);

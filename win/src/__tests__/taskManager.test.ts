@@ -143,7 +143,7 @@ describe("the task manager", () => {
     expect(sessions.get("chat-1")?.workspaceId).toBe("project-7");
   });
 
-  it("queues a second conversation until the first one's turn ends", async () => {
+  it("holds a second conversation in a chat of its own until the first one's turn ends", async () => {
     const { sessions, host } = createHost();
     const manager = createTaskManager({ ...host, oneTurnAtATime: true });
 
@@ -151,11 +151,13 @@ describe("the task manager", () => {
     manager.send("chat-2", "second");
 
     expect(manager.running()).toEqual(["chat-1"]);
-    expect(manager.queues()["chat-2"]?.map((item) => item.content)).toEqual(["second"]);
+    expect(manager.queues()["chat-2"]).toBeUndefined();
+    expect(sessions.get("chat-2")?.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
 
     pending[pending.length - 1].resolve(finished());
     await vi.waitFor(() => expect(manager.running()).toEqual(["chat-2"]));
     expect(sessions.get("chat-2")?.isGenerating).toBe(true);
+    expect(sessions.get("chat-2")?.messages.filter((m) => m.role === "user")).toHaveLength(1);
   });
 
   it("lets the chat that waited go before the finished chat's own queue", async () => {
@@ -875,5 +877,137 @@ describe("turns that overlap", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("a message sent while another chat holds the turn", () => {
+  beforeEach(() => {
+    pending.length = 0;
+    // A queue saved by an earlier test would send the next message down the queued path.
+    localStorage.clear();
+  });
+
+  function hostWithLabel() {
+    const made = createHost();
+    const host: TaskHost = {
+      ...made.host,
+      oneTurnAtATime: true,
+      t: (key) => (key === "messageQueued" ? "Message queued ({position}/{total})…" : key),
+    };
+    return { sessions: made.sessions, host };
+  }
+
+  function statusOf(session: ChatSession | undefined): string | undefined {
+    const step = session?.messages.at(-1)?.steps?.[0];
+    return step?.type === "loading" ? step.content : undefined;
+  }
+
+  it("creates the chat at once with a queued status that survives looking away", () => {
+    const { sessions, host } = hostWithLabel();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.send("chat-2", "second");
+
+    const parked = sessions.get("chat-2");
+    expect(parked?.isGenerating).toBe(true);
+    expect(parked?.messages[0].content).toBe("second");
+    expect(statusOf(parked)).toBe("Message queued (1/1)…");
+  });
+
+  it("numbers the waiting chats and renumbers them as the line moves", async () => {
+    const { sessions, host } = hostWithLabel();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.send("chat-2", "second");
+    manager.send("chat-3", "third");
+    expect(statusOf(sessions.get("chat-2"))).toBe("Message queued (1/2)…");
+    expect(statusOf(sessions.get("chat-3"))).toBe("Message queued (2/2)…");
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.running()).toEqual(["chat-2"]));
+    expect(statusOf(sessions.get("chat-3"))).toBe("Message queued (1/1)…");
+  });
+
+  it("appends to an existing chat, keeping what it already said", () => {
+    const { sessions, host } = hostWithLabel();
+    const manager = createTaskManager(host);
+    const existing = seed(sessions, "chat-2");
+    sessions.set("chat-2", {
+      ...existing,
+      messages: [
+        { id: "m1", role: "user", content: "earlier" },
+        { id: "m2", role: "assistant", content: "answer" },
+      ],
+    });
+
+    manager.send("chat-1", "first");
+    manager.send("chat-2", "again");
+
+    const messages = sessions.get("chat-2")!.messages;
+    expect(messages.map((m) => m.content).slice(0, 3)).toEqual(["earlier", "answer", "again"]);
+    expect(statusOf(sessions.get("chat-2"))).toBe("Message queued (1/1)…");
+  });
+
+  it("queues a follow-up behind the held message instead of replacing it", async () => {
+    const { sessions, host } = hostWithLabel();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.send("chat-2", "second");
+    manager.send("chat-2", "more");
+
+    expect(manager.queues()["chat-2"].map((item) => item.content)).toEqual(["more"]);
+
+    pending[pending.length - 1].resolve(finished());
+    await vi.waitFor(() => expect(manager.running()).toEqual(["chat-2"]));
+    expect(sessions.get("chat-2")?.messages.filter((m) => m.role === "user")).toHaveLength(1);
+  });
+
+  it("stopping a waiting chat leaves its message sent and its reply stopped", () => {
+    const { sessions, host } = hostWithLabel();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.send("chat-2", "second");
+    manager.stop("chat-2");
+
+    const reply = sessions.get("chat-2")!.messages.at(-1)!;
+    expect(reply.stopped).toBe(true);
+    expect(reply.steps).toEqual([]);
+    expect(manager.running()).toEqual(["chat-1"]);
+  });
+});
+
+describe("notes handed to a running turn", () => {
+  beforeEach(() => {
+    pending.length = 0;
+  });
+
+  it("stay visible until the turn reads them", () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+    const seen = vi.fn();
+    manager.subscribeSteers(seen);
+
+    manager.send("chat-1", "first");
+    manager.steer("chat-1", "use tabs");
+    expect(manager.pendingSteers()["chat-1"]).toEqual(["use tabs"]);
+    expect(seen).toHaveBeenCalled();
+
+    expect(pending[0].host.takeSteering?.()).toEqual(["use tabs"]);
+    expect(manager.pendingSteers()["chat-1"]).toBeUndefined();
+  });
+
+  it("go when the turn is stopped", () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.steer("chat-1", "use tabs");
+    manager.stop("chat-1");
+
+    expect(manager.pendingSteers()["chat-1"]).toBeUndefined();
   });
 });

@@ -614,6 +614,7 @@ export default function AppShell({
     ? {
         chatId: queueChatId,
         queue: runs.queues[queueChatId] ?? [],
+        pendingSteers: runs.pendingSteers[queueChatId] ?? [],
         enqueue: (content, attachments) => runs.enqueue(queueChatId, content, attachments),
         steer: (content) => runs.steer(queueChatId, content),
         sendNow: (content, attachments) => runs.sendNow(queueChatId, content, attachments),

@@ -41,6 +41,7 @@ export function ComposerPreview({
     onSendMessage = noop,
     onImageCommand,
     clearAttachments = noop,
+    attachedFiles = [{ name: "screenshot.png", type: "image/png" }] as unknown as ComposerProps["attachedFiles"],
 }: {
     generating?: boolean;
     variant?: "home" | "dock";
@@ -55,6 +56,7 @@ export function ComposerPreview({
     onSendMessage?: ComposerProps["onSendMessage"];
     onImageCommand?: ComposerProps["onImageCommand"];
     clearAttachments?: () => void;
+    attachedFiles?: ComposerProps["attachedFiles"];
 }) {
     const t = (key: string) => translations[language][key] || translations.en[key] || key;
     const [input, setInput] = useState("");
@@ -68,7 +70,7 @@ export function ComposerPreview({
         settings,
         input,
         setInput,
-        attachedFiles: [{ name: "screenshot.png", type: "image/png" }],
+        attachedFiles,
         fileErrors: [],
         notice: null,
         micState: "idle",
