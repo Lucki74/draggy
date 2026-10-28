@@ -2,6 +2,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Transcript } from "../chat/Transcript";
+import { ComposerQueueContext, type ComposerQueue } from "../chat/Composer";
 import { defaultSettings } from "../app/settings";
 import { translations } from "../translations";
 import type { ChatSession, SearchStep } from "../types";
@@ -123,3 +124,41 @@ describe("scrolling away from the latest turn", () => {
   });
 });
 
+describe("a note added before the next turn", () => {
+  const queueWith = (pendingSteers: string[], chatId = "c1"): ComposerQueue =>
+    ({ chatId, queue: [], pendingSteers }) as unknown as ComposerQueue;
+
+  const renderWith = (queue: ComposerQueue, chat = chatWith([])) =>
+    render(
+      <ComposerQueueContext.Provider value={queue}>
+        <Transcript
+          chat={chat}
+          copiedIndex={null}
+          settings={defaultSettings}
+          onRegenerate={vi.fn()}
+          onSwitchVersion={vi.fn()}
+          onEditMessage={vi.fn()}
+          onApproval={vi.fn()}
+          copyToClipboard={vi.fn()}
+          t={t}
+        />
+      </ComposerQueueContext.Provider>,
+    );
+
+  it("shows in the transcript as sent while the turn runs", () => {
+    renderWith(queueWith(["use tabs"]));
+
+    const note = screen.getByText("use tabs").parentElement!;
+    expect(note.textContent).toContain("You added");
+    expect(note.textContent).toContain("before the next turn");
+  });
+
+  it("stays out of another chat and out of a finished turn", () => {
+    renderWith(queueWith(["use tabs"], "elsewhere"));
+    expect(screen.queryByText("use tabs")).toBeNull();
+    cleanup();
+
+    renderWith(queueWith(["use tabs"]), { ...chatWith([]), isGenerating: false });
+    expect(screen.queryByText("use tabs")).toBeNull();
+  });
+});

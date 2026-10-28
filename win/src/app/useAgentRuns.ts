@@ -64,6 +64,8 @@ export interface AgentRuns {
   stopAll: () => void;
   /** Messages waiting for each conversation's turn to end. */
   queues: Record<string, QueuedMessage[]>;
+  /** Notes each running turn has not read yet. */
+  pendingSteers: Record<string, string[]>;
   enqueue: TaskManager["enqueue"];
   editQueued: TaskManager["editQueued"];
   removeQueued: TaskManager["removeQueued"];
@@ -106,6 +108,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
 
   const running = useSyncExternalStore(manager.subscribe, manager.running);
   const queues = useSyncExternalStore(manager.subscribeQueues, manager.queues);
+  const pendingSteers = useSyncExternalStore(manager.subscribeSteers, manager.pendingSteers);
 
   return useMemo(
     () => ({
@@ -124,6 +127,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
       stop: manager.stop,
       stopAll: manager.stopAll,
       queues,
+      pendingSteers,
       enqueue: manager.enqueue,
       editQueued: manager.editQueued,
       removeQueued: manager.removeQueued,
@@ -132,6 +136,6 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
       steer: manager.steer,
       sendNow: manager.sendNow,
     }),
-    [running, queues, manager],
+    [running, queues, pendingSteers, manager],
   );
 }
