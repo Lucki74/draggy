@@ -2,6 +2,7 @@ import { registerTools } from "./registry";
 import { registerTaskTools } from "./tasks";
 import type { ToolSpec } from "./registry";
 import { SHELL_IDS } from "../terminal/shells";
+import { markForeground, unmarkForeground } from "../tasks/taskStore";
 import { appendAgentBlock, finishAgentBlock, startAgentBlock } from "../terminal/terminalBus";
 
 /** Commands in the project folder, the way a developer uses a terminal: git, gh, package managers,
@@ -78,6 +79,7 @@ const runCommand: ToolSpec = {
     const stop = () => void api.cancel(runId);
     ctx.signal.addEventListener("abort", stop, { once: true });
     startAgentBlock({ id: runId, command, shell });
+    markForeground(runId);
 
     // The pane shows output as it arrives; the step keeps the whole of it when the command ends.
     let live = "";
@@ -98,6 +100,7 @@ const runCommand: ToolSpec = {
       })
       .finally(() => {
         ctx.signal.removeEventListener("abort", stop);
+        unmarkForeground(runId);
         unsubscribe?.();
       });
 
