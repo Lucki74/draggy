@@ -6,13 +6,14 @@ use std::collections::{HashMap, VecDeque};
 use serde_json::{Map, Value, json};
 
 use super::common::{
-    Connection, Decoder, Flow, ListedModel, Stream, arguments_object, count, function_tools,
+    Connection, Decoder, Flow, ListedModel, Stream, arguments_object, function_tools,
     hosted, level_of, non_empty, output_limit, parse_data_url, refusal, text_of, text_or_empty,
     think_of,
 };
 use crate::errors::from_response_value;
 use crate::http::{HttpRequest, Method};
 use crate::js::{self, json_text, to_string, truthy};
+use crate::usage::from_gemini;
 use crate::types::{
     ChatMessage, ChatRequest, CompletedToolCall, Completion, Content, ContentPart, FinishReason,
     ProviderError, ProviderState, StreamEvent, Usage,
@@ -466,11 +467,7 @@ fn read_chunk(
         .get("usageMetadata")
         .filter(|usage| truthy(Some(usage)))
     {
-        turn.usage = Usage {
-            prompt_tokens: count(usage.get("promptTokenCount")),
-            output_tokens: count(usage.get("candidatesTokenCount"))
-                + count(usage.get("thoughtsTokenCount")),
-        };
+        turn.usage = from_gemini(Some(usage));
     }
     let Some(candidate) = json
         .pointer("/candidates/0")

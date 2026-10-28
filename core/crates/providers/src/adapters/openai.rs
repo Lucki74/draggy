@@ -13,6 +13,7 @@ use super::common::{
 use crate::errors::from_response_value;
 use crate::http::{HttpRequest, Method};
 use crate::js::{json_text, to_string, truthy};
+use crate::usage::from_openai;
 use crate::types::{
     ChatMessage, ChatRequest, CompletedToolCall, Completion, FinishReason, ProviderError,
     StreamEvent, Usage,
@@ -210,10 +211,7 @@ impl Decoder for OpenAiDecoder {
             return Err(from_response_value(status, &json, &BTreeMap::new(), 0));
         }
         if let Some(usage) = json.get("usage").filter(|usage| truthy(Some(usage))) {
-            self.usage = Usage {
-                prompt_tokens: count(usage.get("prompt_tokens")),
-                output_tokens: count(usage.get("completion_tokens")),
-            };
+            self.usage = from_openai(Some(usage));
         }
         let Some(choice) = json
             .pointer("/choices/0")
@@ -336,10 +334,7 @@ pub fn translate_json(json: &Value) -> Result<Completion, ProviderError> {
         reasoning,
         tool_calls,
         finish: reason,
-        usage: Usage {
-            prompt_tokens: count(json.pointer("/usage/prompt_tokens")),
-            output_tokens: count(json.pointer("/usage/completion_tokens")),
-        },
+        usage: from_openai(json.get("usage")),
         provider_state: None,
     })
 }

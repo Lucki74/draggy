@@ -1,0 +1,158 @@
+{
+  "area": "cost",
+  "description": "Token usage priced against a rate card, in whole micro-dollars. A rate is dollars per million tokens, so tokens times rate is already micro-dollars",
+  "cases": [
+    {
+      "name": "plain input and output",
+      "input": {
+        "usage": { "input": 1000, "cacheRead": 0, "cacheWrite": 0, "output": 500, "reasoning": 0, "source": "reported" },
+        "price": { "inputPerM": 3, "outputPerM": 15, "cacheReadPerM": 0.3, "cacheWritePerM": 3.75 }
+      },
+      "expected": { "micros": 10500, "source": "table", "parts": { "input": 3000, "cacheRead": 0, "cacheWrite": 0, "output": 7500, "reasoning": 0 } }
+    },
+    {
+      "name": "cache reads cost their own rate",
+      "input": {
+        "usage": { "input": 100, "cacheRead": 10000, "cacheWrite": 0, "output": 200, "reasoning": 0, "source": "reported" },
+        "price": { "inputPerM": 3, "outputPerM": 15, "cacheReadPerM": 0.3, "cacheWritePerM": 3.75 }
+      },
+      "expected": { "micros": 6300, "source": "table", "parts": { "input": 300, "cacheRead": 3000, "cacheWrite": 0, "output": 3000, "reasoning": 0 } }
+    },
+    {
+      "name": "cache writes cost their own rate",
+      "input": {
+        "usage": { "input": 0, "cacheRead": 0, "cacheWrite": 2000, "output": 0, "reasoning": 0, "source": "reported" },
+        "price": { "inputPerM": 3, "outputPerM": 15, "cacheReadPerM": 0.3, "cacheWritePerM": 3.75 }
+      },
+      "expected": { "micros": 7500, "source": "table" }
+    },
+    {
+      "name": "reasoning defaults to the output rate",
+      "input": {
+        "usage": { "input": 0, "cacheRead": 0, "cacheWrite": 0, "output": 100, "reasoning": 400, "source": "reported" },
+        "price": { "inputPerM": 3, "outputPerM": 15 }
+      },
+      "expected": { "micros": 7500, "source": "table" }
+    },
+    {
+      "name": "reasoning uses its own rate when the card has one",
+      "input": {
+        "usage": { "input": 0, "cacheRead": 0, "cacheWrite": 0, "output": 0, "reasoning": 1000, "source": "reported" },
+        "price": { "inputPerM": 1, "outputPerM": 10, "reasoningPerM": 20 }
+      },
+      "expected": { "micros": 20000, "source": "table" }
+    },
+    {
+      "name": "cache rates default to the input rate",
+      "input": {
+        "usage": { "input": 0, "cacheRead": 1000, "cacheWrite": 500, "output": 0, "reasoning": 0, "source": "reported" },
+        "price": { "inputPerM": 2, "outputPerM": 8 }
+      },
+      "expected": { "micros": 3000, "source": "table" }
+    },
+    {
+      "name": "a prompt exactly at the tier edge stays on the base rate",
+      "input": {
+        "usage": { "input": 200000, "cacheRead": 0, "cacheWrite": 0, "output": 1000, "reasoning": 0, "source": "reported" },
+        "price": { "inputPerM": 1.25, "outputPerM": 10, "cacheReadPerM": 0.125, "tiers": [{ "aboveInputTokens": 200000, "inputPerM": 2.5, "outputPerM": 15, "cacheReadPerM": 0.25 }] }
+      },
+      "expected": { "micros": 260000, "source": "table" }
+    },
+    {
+      "name": "one token past the tier edge moves the whole request to the tier rates and a half micro rounds up",
+      "input": {
+        "usage": { "input": 200001, "cacheRead": 0, "cacheWrite": 0, "output": 1000, "reasoning": 0, "source": "reported" },
+        "price": { "inputPerM": 1.25, "outputPerM": 10, "cacheReadPerM": 0.125, "tiers": [{ "aboveInputTokens": 200000, "inputPerM": 2.5, "outputPerM": 15, "cacheReadPerM": 0.25 }] }
+      },
+      "expected": { "micros": 515003, "source": "table" }
+    },
+    {
+      "name": "cached tokens count toward the tier threshold",
+      "input": {
+        "usage": { "input": 60000, "cacheRead": 150000, "cacheWrite": 0, "output": 0, "reasoning": 0, "source": "reported" },
+        "price": { "inputPerM": 1.25, "outputPerM": 10, "cacheReadPerM": 0.125, "tiers": [{ "aboveInputTokens": 200000, "inputPerM": 2.5, "outputPerM": 15, "cacheReadPerM": 0.25 }] }
+      },
+      "expected": { "micros": 187500, "source": "table" }
+    },
+    {
+      "name": "no price and nothing reported is unknown, not free",
+      "input": {
+        "usage": { "input": 1000, "cacheRead": 0, "cacheWrite": 0, "output": 500, "reasoning": 0, "source": "reported" },
+        "price": null
+      },
+      "expected": { "micros": null, "source": "unknown" }
+    },
+    {
+      "name": "the provider's own figure wins over the table",
+      "input": {
+        "usage": { "input": 1000, "cacheRead": 0, "cacheWrite": 0, "output": 500, "reasoning": 0, "source": "reported", "costUsd": 0.0123 },
+        "price": { "inputPerM": 3, "outputPerM": 15 }
+      },
+      "expected": { "micros": 12300, "source": "reported" }
+    },
+    {
+      "name": "a reported figure stands without any price",
+      "input": {
+        "usage": { "input": 1000, "cacheRead": 0, "cacheWrite": 0, "output": 500, "reasoning": 0, "source": "reported", "costUsd": 0.0123 },
+        "price": null
+      },
+      "expected": { "micros": 12300, "source": "reported" }
+    },
+    {
+      "name": "a free model is zero, which is a known price",
+      "input": {
+        "usage": { "input": 1000, "cacheRead": 0, "cacheWrite": 0, "output": 500, "reasoning": 0, "source": "reported" },
+        "price": { "inputPerM": 0, "outputPerM": 0 }
+      },
+      "expected": { "micros": 0, "source": "table" }
+    },
+    {
+      "name": "half a micro-dollar rounds up",
+      "input": {
+        "usage": { "input": 1, "cacheRead": 0, "cacheWrite": 0, "output": 0, "reasoning": 0, "source": "reported" },
+        "price": { "inputPerM": 0.5, "outputPerM": 1 }
+      },
+      "expected": { "micros": 1, "source": "table" }
+    },
+    {
+      "name": "under half a micro-dollar rounds to a known zero",
+      "input": {
+        "usage": { "input": 1, "cacheRead": 0, "cacheWrite": 0, "output": 0, "reasoning": 0, "source": "reported" },
+        "price": { "inputPerM": 0.4, "outputPerM": 1 }
+      },
+      "expected": { "micros": 0, "source": "table" }
+    },
+    {
+      "name": "float noise does not tip the rounding",
+      "input": {
+        "usage": { "input": 3, "cacheRead": 0, "cacheWrite": 0, "output": 0, "reasoning": 0, "source": "reported" },
+        "price": { "inputPerM": 0.15, "outputPerM": 0.6 }
+      },
+      "expected": { "micros": 0, "source": "table" }
+    },
+    {
+      "name": "each pass of a turn is priced on its own tier",
+      "input": {
+        "passes": [
+          { "input": 100000, "cacheRead": 0, "cacheWrite": 0, "output": 100, "reasoning": 0, "source": "reported" },
+          { "input": 250000, "cacheRead": 0, "cacheWrite": 0, "output": 100, "reasoning": 0, "source": "reported" }
+        ],
+        "price": { "inputPerM": 1.25, "outputPerM": 10, "tiers": [{ "aboveInputTokens": 200000, "inputPerM": 2.5, "outputPerM": 15 }] }
+      },
+      "expected": { "micros": 752500, "source": "table" }
+    },
+    {
+      "name": "a turn is unknown when its price is",
+      "input": {
+        "passes": [{ "input": 10, "cacheRead": 0, "cacheWrite": 0, "output": 10, "reasoning": 0, "source": "reported" }],
+        "price": null
+      },
+      "expected": { "micros": null, "source": "unknown" }
+    },
+    {
+      "name": "a turn with no passes is unknown",
+      "input": { "passes": [], "price": { "inputPerM": 1, "outputPerM": 1 } },
+      "expected": { "micros": null, "source": "unknown" }
+    }
+  ]
+}

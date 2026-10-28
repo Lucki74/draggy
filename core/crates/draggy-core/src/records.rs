@@ -7,6 +7,8 @@ use draggy_agent::live_turn::LiveTurn;
 use draggy_agent::permissions::PermissionMode;
 use draggy_agent::resume::SearchStep;
 
+use crate::cost::PassUsageRecord;
+
 /// One entry of the timeline a turn builds: a search, a tool call, a thought, a file.
 #[derive(uniffi::Record, Debug, Clone, PartialEq, Default)]
 pub struct StepRecord {
@@ -51,6 +53,8 @@ pub struct MetricsRecord {
     pub context_window: f64,
     pub model: String,
     pub gpu_percent: Option<f64>,
+    /// The token split of each request the turn made; empty when the engine reported none.
+    pub pass_usage: Vec<PassUsageRecord>,
 }
 
 impl From<&GenerationMetrics> for MetricsRecord {
@@ -67,6 +71,7 @@ impl From<&GenerationMetrics> for MetricsRecord {
             context_window: metrics.context_window,
             model: metrics.model.clone(),
             gpu_percent: metrics.gpu_percent,
+            pass_usage: metrics.pass_usage.iter().map(PassUsageRecord::from).collect(),
         }
     }
 }

@@ -4,6 +4,8 @@ use rusqlite::{Row, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use serde::Deserializer;
+
 use crate::js::{
     de_entries, de_number, de_optional_number, de_optional_text, de_text, key_order, measure,
     now_millis, parse_any, ser_number, ser_optional_number, to_number, utf16_prefix,
@@ -17,15 +19,58 @@ const MAX_MODEL_UNITS: usize = 200;
 /// The most rows one listing returns, newest first.
 const MAX_METRIC_ROWS: i64 = 20_000;
 
+const MAX_TEXT_UNITS: usize = 200;
+const MAX_PRICE_DATE_UNITS: usize = 40;
+
+/// Where a turn's cost came from. `estimated` is a table price on counts the provider never reported.
+const COST_SOURCES: [&str; 4] = ["reported", "table", "estimated", "unknown"];
+const KINDS: [&str; 3] = ["billed", "account", "local"];
+
 const INSERT: &str = "INSERT INTO metrics (
     recorded_at, workspace_id, chat_id, model, prompt_tokens, response_tokens,
-    response_ms, first_token_ms, load_ms, task_ms, loops, tools
-) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)";
+    response_ms, first_token_ms, load_ms, task_ms, loops, tools,
+    provider_id, kind, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens,
+    reasoning_tokens, cost_micros, cost_source, price_updated_at
+) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)";
 
 const SELECT: &str =
     "SELECT recorded_at, workspace_id, chat_id, model, prompt_tokens, response_tokens,
-        response_ms, first_token_ms, load_ms, task_ms, loops, tools
+        response_ms, first_token_ms, load_ms, task_ms, loops, tools,
+        provider_id, kind, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens,
+        reasoning_tokens, cost_micros, cost_source, price_updated_at
    FROM metrics WHERE recorded_at >= ?1 ORDER BY recorded_at DESC LIMIT ?2";
+
+/// The columns cost tracking added, each nullable so a row from before costs were kept stays valid.
+pub(crate) const COST_COLUMNS: [(&str, &str); 10] = [
+    ("provider_id", "TEXT"),
+    ("kind", "TEXT"),
+    ("input_tokens", "INTEGER"),
+    ("cache_read_tokens", "INTEGER"),
+    ("cache_write_tokens", "INTEGER"),
+    ("output_tokens", "INTEGER"),
+    ("reasoning_tokens", "INTEGER"),
+    ("cost_micros", "INTEGER"),
+    ("cost_source", "TEXT"),
+    ("price_updated_at", "TEXT"),
+];
+
+/// A count that was never reported stays none, so "none" and "zero" remain different things.
+fn de_count<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<i64>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Null => None,
+        value => Some(to_number(&value))
+            .filter(|number| number.is_finite() && *number >= 0.0)
+            .map(|number| number.floor() as i64),
+    })
+}
+
+/// Text kept only when it is a non-empty string.
+fn de_plain_text<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::String(text) if !text.is_empty() => Some(text),
+        _ => None,
+    })
+}
 
 /// One finished turn as the window reports it. Each number is read the way JavaScript's `Number` reads it,
 /// and the store keeps only the ones it can trust.
@@ -59,6 +104,26 @@ pub struct MetricInput {
     /// Tool name to call count, in the order the turn reported them.
     #[serde(deserialize_with = "de_entries")]
     pub tools: Map<String, Value>,
+    #[serde(deserialize_with = "de_plain_text")]
+    pub provider_id: Option<String>,
+    #[serde(deserialize_with = "de_plain_text")]
+    pub kind: Option<String>,
+    #[serde(deserialize_with = "de_count")]
+    pub input_tokens: Option<i64>,
+    #[serde(deserialize_with = "de_count")]
+    pub cache_read_tokens: Option<i64>,
+    #[serde(deserialize_with = "de_count")]
+    pub cache_write_tokens: Option<i64>,
+    #[serde(deserialize_with = "de_count")]
+    pub output_tokens: Option<i64>,
+    #[serde(deserialize_with = "de_count")]
+    pub reasoning_tokens: Option<i64>,
+    #[serde(deserialize_with = "de_count")]
+    pub cost_micros: Option<i64>,
+    #[serde(deserialize_with = "de_plain_text")]
+    pub cost_source: Option<String>,
+    #[serde(deserialize_with = "de_plain_text")]
+    pub price_updated_at: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -85,6 +150,27 @@ pub struct Metric {
     pub loops: f64,
     /// The tools column as it was stored, which is an object for every turn this store wrote.
     pub tools: Value,
+    /// A row from before costs were kept has none of these, and reads back without them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_tokens: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_read_tokens: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_write_tokens: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_tokens: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_tokens: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_micros: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub price_updated_at: Option<String>,
 }
 
 impl Storage {
@@ -123,6 +209,10 @@ impl Storage {
             Some(serde_json::to_string(&tools)?)
         };
 
+        let text = |value: &Option<String>, max: usize| value.as_deref().map(|t| utf16_prefix(t, max));
+        let kind = row.kind.as_deref().filter(|k| KINDS.contains(k));
+        let source = row.cost_source.as_deref().filter(|s| COST_SOURCES.contains(s));
+
         self.write("recordMetric", |conn| {
             conn.prepare_cached(INSERT)?.execute(params![
                 recorded_at,
@@ -137,6 +227,16 @@ impl Storage {
                 measure(row.task_ms),
                 measure(row.loops).floor().max(1.0),
                 tools_json,
+                text(&row.provider_id, MAX_TEXT_UNITS),
+                kind,
+                row.input_tokens,
+                row.cache_read_tokens,
+                row.cache_write_tokens,
+                row.output_tokens,
+                row.reasoning_tokens,
+                row.cost_micros,
+                source,
+                text(&row.price_updated_at, MAX_PRICE_DATE_UNITS),
             ])?;
             Ok(())
         })
@@ -184,5 +284,15 @@ fn metric_from_row(row: &Row<'_>) -> rusqlite::Result<Metric> {
         task_ms: row.get(9)?,
         loops: row.get(10)?,
         tools,
+        provider_id: row.get(12)?,
+        kind: row.get(13)?,
+        input_tokens: row.get(14)?,
+        cache_read_tokens: row.get(15)?,
+        cache_write_tokens: row.get(16)?,
+        output_tokens: row.get(17)?,
+        reasoning_tokens: row.get(18)?,
+        cost_micros: row.get(19)?,
+        cost_source: row.get(20)?,
+        price_updated_at: row.get(21)?,
     })
 }

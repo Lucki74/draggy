@@ -1,0 +1,51 @@
+{
+  "area": "providerUsage",
+  "description": "Provider usage payloads mapped to disjoint token buckets plus the legacy prompt and output sums",
+  "cases": [
+    {
+      "name": "anthropic keeps its three input buckets disjoint",
+      "input": { "vendor": "anthropic", "payload": { "input_tokens": 10, "cache_read_input_tokens": 200, "cache_creation_input_tokens": 30, "output_tokens": 50 } },
+      "expected": { "promptTokens": 240, "outputTokens": 50, "tokens": { "input": 10, "cacheRead": 200, "cacheWrite": 30, "output": 50, "reasoning": 0, "source": "reported" } }
+    },
+    {
+      "name": "openai subtracts cached and reasoning from the headline counts",
+      "input": { "vendor": "openai", "payload": { "prompt_tokens": 1000, "completion_tokens": 300, "prompt_tokens_details": { "cached_tokens": 400 }, "completion_tokens_details": { "reasoning_tokens": 120 } } },
+      "expected": { "promptTokens": 1000, "outputTokens": 300, "tokens": { "input": 600, "cacheRead": 400, "cacheWrite": 0, "output": 180, "reasoning": 120, "source": "reported" } }
+    },
+    {
+      "name": "openai with totals only is derived",
+      "input": { "vendor": "openai", "payload": { "prompt_tokens": 9, "completion_tokens": 2 } },
+      "expected": { "promptTokens": 9, "outputTokens": 2, "tokens": { "input": 9, "cacheRead": 0, "cacheWrite": 0, "output": 2, "reasoning": 0, "source": "derived" } }
+    },
+    {
+      "name": "openrouter reads cache writes and the charged cost",
+      "input": { "vendor": "openai", "payload": { "prompt_tokens": 500, "completion_tokens": 100, "prompt_tokens_details": { "cached_tokens": 100, "cache_write_tokens": 50 }, "cost": 0.0123 } },
+      "expected": { "promptTokens": 500, "outputTokens": 100, "tokens": { "input": 350, "cacheRead": 100, "cacheWrite": 50, "output": 100, "reasoning": 0, "source": "reported", "costUsd": 0.0123 } }
+    },
+    {
+      "name": "deepseek cache hits",
+      "input": { "vendor": "openai", "payload": { "prompt_tokens": 100, "completion_tokens": 20, "prompt_cache_hit_tokens": 60 } },
+      "expected": { "promptTokens": 100, "outputTokens": 20, "tokens": { "input": 40, "cacheRead": 60, "cacheWrite": 0, "output": 20, "reasoning": 0, "source": "reported" } }
+    },
+    {
+      "name": "gemini adds thinking on top of the candidates",
+      "input": { "vendor": "gemini", "payload": { "promptTokenCount": 100, "cachedContentTokenCount": 30, "candidatesTokenCount": 40, "thoughtsTokenCount": 25 } },
+      "expected": { "promptTokens": 100, "outputTokens": 65, "tokens": { "input": 70, "cacheRead": 30, "cacheWrite": 0, "output": 40, "reasoning": 25, "source": "reported" } }
+    },
+    {
+      "name": "codex treats cached input and reasoning output as subsets",
+      "input": { "vendor": "codex", "payload": { "inputTokens": 80, "cachedInputTokens": 50, "outputTokens": 30, "reasoningOutputTokens": 10 } },
+      "expected": { "promptTokens": 80, "outputTokens": 30, "tokens": { "input": 30, "cacheRead": 50, "cacheWrite": 0, "output": 20, "reasoning": 10, "source": "reported" } }
+    },
+    {
+      "name": "engines with one prompt and one output count are derived",
+      "input": { "vendor": "totals", "payload": { "prompt": 7, "output": 3 } },
+      "expected": { "promptTokens": 7, "outputTokens": 3, "tokens": { "input": 7, "cacheRead": 0, "cacheWrite": 0, "output": 3, "reasoning": 0, "source": "derived" } }
+    },
+    {
+      "name": "garbage counts become zero",
+      "input": { "vendor": "anthropic", "payload": { "input_tokens": -4, "output_tokens": "x", "cache_read_input_tokens": null } },
+      "expected": { "promptTokens": 0, "outputTokens": 0, "tokens": { "input": 0, "cacheRead": 0, "cacheWrite": 0, "output": 0, "reasoning": 0, "source": "reported" } }
+    }
+  ]
+}

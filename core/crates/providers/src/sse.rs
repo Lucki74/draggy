@@ -74,7 +74,7 @@ impl<C: FnMut() -> u64> SseWriter<C> {
         let output = usage.output_tokens;
         self.send(json!({
             "choices": [{ "index": 0, "delta": {}, "finish_reason": reason_text }],
-            "usage": { "prompt_tokens": prompt, "completion_tokens": output, "total_tokens": prompt + output },
+            "usage": usage_field(&usage),
             "timings": {
                 "prompt_n": prompt,
                 "prompt_ms": first.saturating_sub(self.started_at),
@@ -184,11 +184,26 @@ pub fn completion(
     if !tool_calls.is_empty() {
         message.insert("tool_calls".to_owned(), Value::Array(tool_calls.to_vec()));
     }
-    let total = usage.prompt_tokens + usage.output_tokens;
     json!({
         "choices": [{ "index": 0, "message": message, "finish_reason": finish_text(finish) }],
-        "usage": { "prompt_tokens": usage.prompt_tokens, "completion_tokens": usage.output_tokens, "total_tokens": total },
+        "usage": usage_field(&usage),
     })
+}
+
+/// llama-server's `usage`, plus `draggy_usage`: the cache and reasoning split the app prices. An answer that
+/// reported nothing carries no split, so it is never read as a free reply.
+fn usage_field(usage: &Usage) -> Value {
+    let mut field = json!({
+        "prompt_tokens": usage.prompt_tokens,
+        "completion_tokens": usage.output_tokens,
+        "total_tokens": usage.prompt_tokens + usage.output_tokens,
+    });
+    if let Some(tokens) = usage.tokens.filter(|t| {
+        t.input + t.cache_read + t.cache_write + t.output + t.reasoning > 0
+    }) {
+        field["draggy_usage"] = serde_json::to_value(tokens).unwrap_or(Value::Null);
+    }
+    field
 }
 
 /// The finish reason as llama-server names it.

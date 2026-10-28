@@ -13,7 +13,8 @@ use draggy_providers::adapters::openai::{self, OpenAiDecoder};
 use draggy_providers::http::{ByteStream, HttpClient, HttpRequest, Method, read_text};
 use draggy_providers::types::{
     ChatMessage, ChatRequest as ProviderRequest, Content, ContentPart, FinishReason, FunctionSpec,
-    ImageUrl, Options, StreamEvent, ToolCall as ProviderCall, ToolCallFunction, ToolSpec,
+    ImageUrl, Options, StreamEvent, TokenUsage, ToolCall as ProviderCall, ToolCallFunction,
+    ToolSpec,
 };
 use serde_json::Value;
 
@@ -229,7 +230,7 @@ impl ChunkReader {
                 StreamEvent::Finish { reason, usage } => {
                     chunk.tool_calls = self.completed_calls();
                     chunk.done =
-                        Some(self.counts(reason, usage.prompt_tokens, usage.output_tokens));
+                        Some(self.counts(reason, usage.prompt_tokens, usage.output_tokens, usage.tokens));
                 }
                 StreamEvent::Error { error } => {
                     chunk.error = Some(error.to_string());
@@ -254,7 +255,13 @@ impl ChunkReader {
             .collect()
     }
 
-    fn counts(&self, reason: FinishReason, prompt: u64, output: u64) -> FinalCounts {
+    fn counts(
+        &self,
+        reason: FinishReason,
+        prompt: u64,
+        output: u64,
+        split: Option<TokenUsage>,
+    ) -> FinalCounts {
         let now = Instant::now();
         let first = self.first_token.unwrap_or(now);
         let prompt_ns = first.duration_since(self.started).as_nanos() as f64;
@@ -274,6 +281,7 @@ impl ChunkReader {
             eval_duration_ns: eval_ns,
             load_duration_ns: 0.0,
             total_duration_ns: prompt_ns + eval_ns,
+            usage: split,
         }
     }
 }

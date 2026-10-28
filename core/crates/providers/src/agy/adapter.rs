@@ -8,6 +8,7 @@ use serde_json::Value;
 use super::failure::{google_failure, parse_google_error};
 use crate::claude::adapter::{flatten, text_of};
 use crate::types::{ErrorKind, ProviderError, Usage};
+use crate::usage::from_totals;
 
 pub const PRINT_TIMEOUT: &str = "5m";
 /// The CLI's own timeout plus a minute, for a process that hangs past it.
@@ -132,10 +133,10 @@ pub fn usage_of(usage: Option<&Value>) -> Usage {
             .find_map(|name| usage.and_then(|u| u.get(*name)).and_then(Value::as_u64))
             .unwrap_or(0)
     };
-    Usage {
-        prompt_tokens: read(["input_tokens", "prompt_tokens"]),
-        output_tokens: read(["output_tokens", "completion_tokens"]),
-    }
+    from_totals(
+        read(["input_tokens", "prompt_tokens"]),
+        read(["output_tokens", "completion_tokens"]),
+    )
 }
 
 /// One thing the stream said.
@@ -400,10 +401,7 @@ mod tests {
         );
         assert_eq!(
             usage_of(Some(&json!({"prompt_tokens":3,"completion_tokens":4}))),
-            Usage {
-                prompt_tokens: 3,
-                output_tokens: 4
-            }
+            from_totals(3, 4)
         );
     }
 

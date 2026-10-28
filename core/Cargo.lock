@@ -662,6 +662,7 @@ dependencies = [
 name = "draggy-agent"
 version = "0.1.0"
 dependencies = [
+ "draggy-providers",
  "draggy-testkit",
  "fancy-regex",
  "serde",
@@ -707,6 +708,7 @@ dependencies = [
  "draggy-tools",
  "draggy-web",
  "reqwest",
+ "serde",
  "serde_json",
  "tempfile",
  "thiserror",
