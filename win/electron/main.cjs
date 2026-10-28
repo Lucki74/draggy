@@ -49,9 +49,20 @@ const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
 const runner = require("./runner.cjs");
 const commands = require("./commands.cjs");
+const { createTaskManager } = require("./tasks.cjs");
 const { createShellHost } = require("./shellHost.cjs");
 const { availableShells } = require("./shells.cjs");
 const shellHost = createShellHost();
+
+/** Background tasks, one manager for the app. Logs live in the user data folder and go on quit. */
+let taskManager = null;
+function tasks() {
+  taskManager ||= createTaskManager({
+    logDir: path.join(app.getPath("userData"), "task-logs"),
+    onEvent: (event) => broadcast("tasks:event", event),
+  });
+  return taskManager;
+}
 const { flushWindow, closeLogs } = require("./quitFlush.cjs");
 const updater = require("./updater.cjs");
 const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
@@ -1301,6 +1312,7 @@ function shutdown() {
     ["mcp", () => mcp.stopAll()],
     ["runner", () => runner.stopAll()],
     ["commands", () => commands.stopAll()],
+    ["tasks", () => taskManager?.stopAll()],
     ["terminals", () => shellHost.stopAll()],
     ["llama", () => llamaProcess.stopServerSync()],
     ["colibri", () => {
@@ -3416,13 +3428,26 @@ ipc.handle("library:search", wrap("library", async (event, query, limit, model, 
 ));
 
 // A command runs in the conversation's own project folder, which the main process looks up; the
-// renderer names a workspace and cannot pick a folder.
+// renderer names a workspace and cannot pick a folder. With `background` it starts as a task and
+// returns at once; otherwise it runs in the foreground and can be moved to the background later.
 ipc.handle(
   "commands:run",
   wrap("commands", async (event, workspaceId, runId, command, options) => {
     const root = rootsFor(workspaceId)[0];
     if (!root) {
       return { success: false, error: "Commands run inside a project, and this conversation has none." };
+    }
+    const chatId = String(options?.chatId || workspaceId || "default");
+    if (options?.background) {
+      const started = tasks().start({
+        chatId,
+        cwd: root,
+        command,
+        shell: options?.shell,
+        defaultShell: options?.defaultShell,
+      });
+      if (started.error) return { success: false, error: started.error };
+      return { success: true, background: true, taskId: started.task.id, task: started.task, shell: started.task.shell, ...(started.notice ? { notice: started.notice } : {}) };
     }
     return commands.run({
       id: runId,
@@ -3431,10 +3456,67 @@ ipc.handle(
       shell: options?.shell,
       defaultShell: options?.defaultShell,
       timeoutMs: options?.timeoutMs,
+      chatId,
+      stateKey: chatId,
+      tasks: tasks(),
+      autoDetach: options?.autoDetach !== false,
       onOutput: (chunk) => sendTo(BrowserWindow.fromWebContents(event.sender), "commands:output", { runId, chunk }),
     });
   }),
 );
+
+ipc.handle("commands:detach", wrap("commands", async (event, runId) => commands.detach(String(runId || ""))));
+
+ipc.handle("commands:resetState", wrap("commands", async (event, chatId) => ({
+  success: commands.resetState(String(chatId || "")),
+})));
+
+// Background tasks. Every call names the chat it belongs to; a task is found by its id within that chat.
+ipc.handle("tasks:list", wrap("tasks", async (event, chatId) => ({ success: true, tasks: tasks().list(String(chatId || "")) })));
+ipc.handle("tasks:output", wrap("tasks", async (event, chatId, id, options) => {
+  const result = tasks().output(String(chatId || ""), String(id || ""), options || {});
+  return result.error ? { success: false, error: result.error } : { success: true, ...result };
+}));
+const waits = new Map();
+ipc.handle("tasks:wait", wrap("tasks", async (event, chatId, id, options) => {
+  const controller = new AbortController();
+  const waitId = options?.waitId ? String(options.waitId) : null;
+  if (waitId) waits.set(waitId, controller);
+  try {
+    const result = await tasks().wait(String(chatId || ""), String(id || ""), { ...(options || {}), signal: controller.signal });
+    return result.error ? { success: false, error: result.error } : { success: true, ...result };
+  } finally {
+    if (waitId) waits.delete(waitId);
+  }
+}));
+ipc.handle("tasks:abortWait", wrap("tasks", async (event, waitId) => {
+  const controller = waits.get(String(waitId || ""));
+  controller?.abort();
+  return { success: Boolean(controller) };
+}));
+ipc.handle("tasks:stop", wrap("tasks", async (event, chatId, id) => {
+  const result = tasks().stop(String(chatId || ""), String(id || ""));
+  return result.error ? { success: false, error: result.error } : { success: true, ...result };
+}));
+ipc.handle("tasks:write", wrap("tasks", async (event, chatId, id, data) => {
+  const result = tasks().write(String(chatId || ""), String(id || ""), String(data ?? ""));
+  return result.error ? { success: false, error: result.error } : { success: true, ...result };
+}));
+ipc.on("tasks:input", (event, chatId, id, data) => {
+  tasks().write(String(chatId || ""), String(id || ""), String(data ?? ""));
+});
+ipc.handle("tasks:resize", wrap("tasks", async (event, uid, cols, rows) => ({ success: tasks().resize(String(uid || ""), cols, rows) })));
+ipc.handle("tasks:snapshot", wrap("tasks", async (event, uid) => {
+  const snapshot = tasks().snapshot(String(uid || ""));
+  return snapshot ? { success: true, ...snapshot } : { success: false, error: "That task is gone." };
+}));
+ipc.handle("tasks:takeInbox", wrap("tasks", async (event, chatId) => ({ success: true, items: tasks().takeInbox(String(chatId || "")) })));
+ipc.handle("tasks:hasRunning", wrap("tasks", async (event, chatId) => ({ success: true, running: tasks().hasRunning(String(chatId || "")) })));
+ipc.handle("tasks:forget", wrap("tasks", async (event, chatId) => {
+  tasks().forget(String(chatId || ""));
+  commands.resetState(String(chatId || ""));
+  return { success: true };
+}));
 
 ipc.handle("commands:cancel", wrap("commands", async (event, runId) => ({
   success: commands.cancel(String(runId || "")),
