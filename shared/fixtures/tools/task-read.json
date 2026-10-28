@@ -1,0 +1,159 @@
+{
+  "area": "tools",
+  "description": "The three ways task_output reads a log. Input has op: since (raw, since offset or null) returns {text, next} for the part after the offset; tail (raw, count) returns the last lines; grep (raw, pattern, optional limit) returns matching lines numbered from 1, case-insensitive, or {error} for a bad pattern.",
+  "cases": [
+    {
+      "name": "since zero returns everything",
+      "input": {
+        "op": "since",
+        "raw": "abc",
+        "since": 0
+      },
+      "expected": {
+        "text": "abc",
+        "next": 3
+      }
+    },
+    {
+      "name": "since returns only the new part",
+      "input": {
+        "op": "since",
+        "raw": "abcdef",
+        "since": 3
+      },
+      "expected": {
+        "text": "def",
+        "next": 6
+      }
+    },
+    {
+      "name": "since the end returns nothing",
+      "input": {
+        "op": "since",
+        "raw": "abc",
+        "since": 3
+      },
+      "expected": {
+        "text": "",
+        "next": 3
+      }
+    },
+    {
+      "name": "since past the end is held to the end",
+      "input": {
+        "op": "since",
+        "raw": "abc",
+        "since": 99
+      },
+      "expected": {
+        "text": "",
+        "next": 3
+      }
+    },
+    {
+      "name": "since a negative offset starts at zero",
+      "input": {
+        "op": "since",
+        "raw": "abc",
+        "since": -5
+      },
+      "expected": {
+        "text": "abc",
+        "next": 3
+      }
+    },
+    {
+      "name": "since null starts at zero",
+      "input": {
+        "op": "since",
+        "raw": "abc",
+        "since": null
+      },
+      "expected": {
+        "text": "abc",
+        "next": 3
+      }
+    },
+    {
+      "name": "tail keeps the last lines",
+      "input": {
+        "op": "tail",
+        "raw": "a\nb\nc\nd",
+        "count": 2
+      },
+      "expected": {
+        "text": "c\nd"
+      }
+    },
+    {
+      "name": "tail of a short text is the text",
+      "input": {
+        "op": "tail",
+        "raw": "a\nb",
+        "count": 5
+      },
+      "expected": {
+        "text": "a\nb"
+      }
+    },
+    {
+      "name": "tail floors at one line",
+      "input": {
+        "op": "tail",
+        "raw": "a\nb\nc",
+        "count": 0
+      },
+      "expected": {
+        "text": "c"
+      }
+    },
+    {
+      "name": "grep numbers matching lines",
+      "input": {
+        "op": "grep",
+        "raw": "ok\nError: x\nfine\nerror again",
+        "pattern": "error"
+      },
+      "expected": {
+        "text": "2: Error: x\n4: error again",
+        "matches": 2
+      }
+    },
+    {
+      "name": "grep with no match is empty",
+      "input": {
+        "op": "grep",
+        "raw": "ok\nfine",
+        "pattern": "zzz"
+      },
+      "expected": {
+        "text": "",
+        "matches": 0
+      }
+    },
+    {
+      "name": "grep stops at the limit",
+      "input": {
+        "op": "grep",
+        "raw": "e\ne\ne\ne",
+        "pattern": "e",
+        "limit": 2
+      },
+      "expected": {
+        "text": "1: e\n2: e",
+        "matches": 2
+      }
+    },
+    {
+      "name": "grep rejects a bad pattern",
+      "input": {
+        "op": "grep",
+        "raw": "a",
+        "pattern": "("
+      },
+      "expected": {
+        "error": "That pattern is not a valid regular expression."
+      }
+    }
+  ]
+}

@@ -38,9 +38,10 @@ use crate::observer::{ApprovalHandler, Bridge, TurnObserver};
 use crate::plan;
 use crate::records::{
     ApprovalChoice, ApprovalRecord, ImageRecord, MessageRecord, PlanStepRecord, SessionConfig,
-    TurnOutcome,
+    TaskRecord, TurnOutcome,
 };
 use crate::skills::{self, SkillStore};
+use crate::task_tools::TaskSet;
 use crate::tools::{FileTools, NoTools, definitions};
 use crate::web_tools::{self, WebTools};
 
@@ -193,6 +194,14 @@ pub struct Session {
     mcp: Option<Arc<McpManager>>,
     state: Mutex<State>,
     plan: SharedPlan,
+    /// Background commands. They outlive a turn, so the session keeps them rather than the turn's tools.
+    tasks: TaskSet,
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        self.tasks.shutdown();
+    }
 }
 
 /// The plan the model keeps, `None` until it writes one. Shared with the running turn so a shell can read it while
@@ -315,6 +324,7 @@ impl Session {
             mcp,
             state: Mutex::new(State::default()),
             plan: SharedPlan::default(),
+            tasks: TaskSet::new(),
         }))
     }
 
@@ -479,7 +489,11 @@ impl Session {
             window: self.config.context_tokens.unwrap_or(8192),
         };
         let files: Box<dyn ToolRuntime> = match &self.config.folder {
-            Some(folder) => Box::new(FileTools::new(folder, self.config.allow_commands)),
+            Some(folder) => Box::new(FileTools::new(
+                folder,
+                self.config.allow_commands,
+                self.tasks.clone(),
+            )),
             None => Box::new(NoTools),
         };
         let mut composite = CompositeTools {
@@ -557,6 +571,16 @@ impl Session {
     #[uniffi::constructor(name = "with_mcp")]
     pub fn with_mcp(config: SessionConfig, mcp: Arc<McpManager>) -> Result<Arc<Self>, CoreError> {
         Self::create(config, Some(mcp))
+    }
+
+    /// The background commands of this session, running or ended.
+    pub fn tasks(&self) -> Vec<TaskRecord> {
+        self.tasks.records()
+    }
+
+    /// Stops one of the session's background commands, as the user asked from the shell.
+    pub fn stop_task(&self, id: String) {
+        self.tasks.stop_task(&id);
     }
 
     /// The conversation so far.

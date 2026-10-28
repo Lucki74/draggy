@@ -1,0 +1,56 @@
+{
+  "area": "tools",
+  "description": "cleanOutput, the pass applied to a task's output before the model reads it. Input is the raw text, expected the cleaned text. Color and cursor codes go, a line rewritten with carriage returns keeps its last frame, and three or more identical non-blank lines fold into one with a count.",
+  "cases": [
+    {
+      "name": "plain text is untouched",
+      "input": "hello\nworld\n",
+      "expected": "hello\nworld\n"
+    },
+    {
+      "name": "color codes are removed",
+      "input": "\u001b[31mred\u001b[0m and \u001b[1;32mbold green\u001b[0m\n",
+      "expected": "red and bold green\n"
+    },
+    {
+      "name": "a progress bar keeps its last frame",
+      "input": "download 10%\rdownload 55%\rdownload 100%\ndone\n",
+      "expected": "download 100%\ndone\n"
+    },
+    {
+      "name": "windows line endings become newlines",
+      "input": "one\r\ntwo\r\n",
+      "expected": "one\ntwo\n"
+    },
+    {
+      "name": "a title sequence is removed",
+      "input": "\u001b]0;npm test\u0007running\n",
+      "expected": "running\n"
+    },
+    {
+      "name": "three identical lines fold",
+      "input": "tick\ntick\ntick\nend\n",
+      "expected": "tick (x3)\nend\n"
+    },
+    {
+      "name": "two identical lines stay",
+      "input": "tick\ntick\nend\n",
+      "expected": "tick\ntick\nend\n"
+    },
+    {
+      "name": "blank lines never fold",
+      "input": "a\n\n\n\n\nb\n",
+      "expected": "a\n\n\n\n\nb\n"
+    },
+    {
+      "name": "control characters are dropped",
+      "input": "a\u0000b\u0007c\n",
+      "expected": "abc\n"
+    },
+    {
+      "name": "tabs stay",
+      "input": "col1\tcol2\n",
+      "expected": "col1\tcol2\n"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { forgetChatTasks } from "../tasks/taskStore";
 import type { ChatSession, MessageVersion } from "../types";
 import {
   cancelSessionSave,
@@ -162,6 +163,7 @@ export function useSessions(): SessionStore {
 
   const deleteSession = useCallback((chatId: string) => {
     cancelSessionSave(chatId);
+    forgetChatTasks(chatId);
     setSessions((prev) => prev.filter((s) => s.id !== chatId));
     storageBackend()
       .deleteSession(chatId)
@@ -169,7 +171,10 @@ export function useSessions(): SessionStore {
   }, []);
 
   const clearSessions = useCallback(() => {
-    for (const session of sessionsRef.current) cancelSessionSave(session.id);
+    for (const session of sessionsRef.current) {
+      cancelSessionSave(session.id);
+      forgetChatTasks(session.id);
+    }
     setSessions([]);
     storageBackend()
       .clearSessions()

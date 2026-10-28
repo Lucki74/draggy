@@ -1,4 +1,5 @@
 import { useShellTabs } from "../terminal/useShellTabs";
+import { latestForeground, watchTasks } from "../tasks/taskStore";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildLabel } from "./buildLabel";
 import { ReleaseNotes } from "../updates/ReleaseNotes";
@@ -911,6 +912,22 @@ export default function AppShell({
     window.addEventListener("keydown", handleTerminal);
     return () => window.removeEventListener("keydown", handleTerminal);
   }, [active.rootPath, openShell]);
+
+  // Task events reach the chip and the Tasks tab from the first command on.
+  useEffect(() => watchTasks(), []);
+
+  // Ctrl+Alt+B sends the command the agent is running to the background.
+  useEffect(() => {
+    const handleBackground = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || !e.altKey || e.shiftKey || e.key.toLowerCase() !== "b") return;
+      const runId = latestForeground();
+      if (!runId) return;
+      e.preventDefault();
+      void window.electronAPI?.commands?.detach(runId);
+    };
+    window.addEventListener("keydown", handleBackground);
+    return () => window.removeEventListener("keydown", handleBackground);
+  }, []);
 
   // Ctrl+\ closes the active pane in the dock.
   useEffect(() => {

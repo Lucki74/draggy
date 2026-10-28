@@ -14,6 +14,7 @@ import { compactThreshold } from "./contextBreakdown";
 import { measureTurn, runAgentTurn } from "./agentLoop";
 import type { AgentHost, ContextMeasurement, OutOfContextInfo } from "./agentLoop";
 import { setLiveTurn } from "./liveTurn";
+import { describeEnded } from "../tools/tasks";
 import { autoContinueWindow } from "./autoContinue";
 import { defaultProjectPath, parseImageCommand } from "../images/imageCommand";
 import { applyImageProgress, finishImageStep, runImageJob } from "../images/imageJob";
@@ -157,6 +158,8 @@ export interface TaskManager {
  * can start from it. */
 /** How long a new turn waits for the one it replaced to let go before going ahead anyway. */
 const UNWIND_WAIT_MS = 3000;
+/** How many times in a row a finished background task may start a turn without the user saying anything. */
+const MAX_CONSECUTIVE_WAKES = 3;
 /** Quiet retries of an engine or network failure, before anything was written. */
 const QUIET_RETRIES = 2;
 const RETRY_BACKOFF_MS = 1500;
@@ -202,6 +205,11 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
   const folds = new Map<string, Fold>();
   const listeners = new Set<(running: string[]) => void>();
+
+  /** Turns started by a finished background task since the user last wrote in each chat. */
+  const wakes = new Map<string, number>();
+  /** Chats where the user stopped the turn: a task ending does not start another one behind their back. */
+  const stoppedByUser = new Set<string>();
 
   /** Calls waiting on the user. A turn is parked inside `runAgentTurn` until one of these is
    * answered, so stopping a conversation has to answer them too or the turn never ends. */
@@ -752,7 +760,10 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           } else if (othersWaiting) {
             // Another chat asked first, so this chat's own queue goes behind it.
             if (!failed && queueOf(chatId).length > 0) waitForTurn(chatId);
-          } else if (failed || !dispatchNext(chatId)) void compactChat(chatId, false);
+          } else if (failed || !dispatchNext(chatId)) {
+            void compactChat(chatId, false);
+            if (!failed) void wakeForEnded(chatId);
+          }
         }
         if (runs.size === 0 && othersWaiting) {
           dispatchWaiting();
@@ -840,6 +851,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
   /** A new message from the user. While another chat's turn runs it waits in this chat's queue. */
   function send(chatId: string, content: string, attachments?: Attachment[]) {
+    wakes.delete(chatId);
+    stoppedByUser.delete(chatId);
     if (host.oneTurnAtATime && runs.size > 0 && !runs.has(chatId)) {
       if (parked.has(chatId) || queueOf(chatId).length > 0) {
         setQueue(chatId, [...queueOf(chatId), { id: generateId(), content, attachments }]);
@@ -850,6 +863,33 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       return;
     }
     deliver(chatId, content, attachments);
+  }
+
+  /** A background task ended while nobody was looking: tell the model, in a turn of its own. The
+   * report is taken from the main process only once the turn is certain to start, so nothing is lost. */
+  async function wakeForEnded(chatId: string) {
+    const tasks = typeof window === "undefined" ? undefined : window.electronAPI?.tasks;
+    if (!tasks || !host.getSession(chatId)) return;
+    if (runs.has(chatId) || parked.has(chatId) || folds.has(chatId) || queueOf(chatId).length > 0) return;
+    if (stoppedByUser.has(chatId) || (wakes.get(chatId) ?? 0) >= MAX_CONSECUTIVE_WAKES) return;
+
+    const taken = await tasks.takeInbox(chatId).catch(swallowed("tasks", "the report stays queued for the next turn", null));
+    if (!taken?.items || taken.items.length === 0) return;
+    const note = describeEnded(taken.items);
+
+    // A turn began while the report was on its way: it reads the report as a note instead.
+    if (runs.has(chatId) || host.oneTurnAtATime && runs.size > 0) {
+      setSteers(chatId, [...(steers.get(chatId) ?? []), note]);
+      return;
+    }
+    wakes.set(chatId, (wakes.get(chatId) ?? 0) + 1);
+    deliver(chatId, note);
+  }
+
+  if (typeof window !== "undefined") {
+    window.electronAPI?.tasks?.onEvent?.((event) => {
+      if (event.type === "ended" && event.wake) void wakeForEnded(event.chatId);
+    });
   }
 
   /** Puts the message in its chat at once, with a reply saying it waits, so the chat exists meanwhile. */
@@ -1270,6 +1310,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   function stop(chatId: string) {
+    stoppedByUser.add(chatId);
     // A turn parked on a question cannot notice the abort until the question is
     // answered, so stopping answers it.
     refuseWaiting(chatId);

@@ -143,6 +143,17 @@ impl From<&TurnEvent> for TurnEventRecord {
     }
 }
 
+/// A background command as the shell lists it. `status` is `running`, `exited`, `failed` or `stopped`.
+#[derive(uniffi::Record, Debug, Clone, PartialEq)]
+pub struct TaskRecord {
+    pub id: String,
+    pub command: String,
+    pub status: String,
+    pub exit_code: Option<i32>,
+    pub running_for_ms: u64,
+    pub last_line: String,
+}
+
 /// A message of the conversation as the shell shows it.
 #[derive(uniffi::Record, Debug, Clone, PartialEq)]
 pub struct MessageRecord {

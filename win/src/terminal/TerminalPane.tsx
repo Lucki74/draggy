@@ -1,5 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { agentBlocks, subscribeAgentBlocks } from "./terminalBus";
+import { subscribeTasks, taskSnapshot } from "../tasks/taskStore";
+import { agentBlocks, currentTerminalView, setTerminalView, subscribeAgentBlocks, subscribeTerminalView } from "./terminalBus";
+import TasksView from "./TasksView";
 import { allSessions, fitSession, focusSession, subscribeSessions } from "./terminalSessions";
 
 interface TerminalPaneProps {
@@ -15,6 +17,7 @@ export default function TerminalPane({ sessionId, t }: TerminalPaneProps) {
   const blocks = useSyncExternalStore(subscribeAgentBlocks, agentBlocks);
   const bodyRef = useRef<HTMLDivElement>(null);
   const current = sessions.find((session) => session.id === sessionId) ?? null;
+  const view = useSyncExternalStore(subscribeTerminalView, currentTerminalView);
 
   // The shell's display sits in the body; it moves here when the tab comes forward.
   useEffect(() => {
@@ -23,7 +26,7 @@ export default function TerminalPane({ sessionId, t }: TerminalPaneProps) {
     body.replaceChildren(current.host);
     fitSession(current.id);
     focusSession(current.id);
-  }, [current, current?.view]);
+  }, [current, current?.view, view]);
 
   useEffect(() => {
     const body = bodyRef.current;
@@ -33,10 +36,26 @@ export default function TerminalPane({ sessionId, t }: TerminalPaneProps) {
     return () => observer.disconnect();
   }, [current]);
 
+  const { tasks } = useSyncExternalStore(subscribeTasks, taskSnapshot);
+  const running = tasks.filter((task) => task.status === "running").length;
+  const tabs = (
+    <div className="terminal-view-tabs" role="tablist">
+      <button type="button" role="tab" aria-selected={view === "shell"} className="terminal-view-tab" onClick={() => setTerminalView("shell")}>
+        {t("shellTab")}
+      </button>
+      <button type="button" role="tab" aria-selected={view === "tasks"} className="terminal-view-tab" onClick={() => setTerminalView("tasks")}>
+        {t("tasksTab")}
+        {running > 0 ? ` (${running})` : ""}
+      </button>
+    </div>
+  );
+
   return (
     <div className="terminal-pane">
-      <div ref={bodyRef} className="terminal-body" data-terminal-body />
-      {blocks.length ? (
+      {tabs}
+      {view === "tasks" ? <TasksView t={t} /> : null}
+      <div ref={bodyRef} className="terminal-body" data-terminal-body hidden={view === "tasks"} />
+      {view === "shell" && blocks.length ? (
         <div className="terminal-agent" aria-label={t("terminalAgentCommands")}>
           <p className="terminal-agent-title">{t("terminalAgentCommands")}</p>
           {blocks.map((block) => (

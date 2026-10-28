@@ -13,6 +13,7 @@ struct ChatView: View {
                 updateBanner(update)
             }
             TranscriptView(lines: model.transcript.lines)
+            TaskChip(model: model)
             if let message = model.errorMessage {
                 Text(message)
                     .foregroundStyle(.red)
@@ -24,6 +25,16 @@ struct ChatView: View {
                 PlanStrip(steps: model.plan) { model.clearPlan() }
             }
             composer
+        }
+        .sheet(isPresented: $model.isShowingTasks) { TasksSheet(model: model) }
+        .task { await pollTasks() }
+    }
+
+    /// Reads the background commands about once a second, but only while a turn runs or some exist.
+    private func pollTasks() async {
+        while !Task.isCancelled {
+            if model.isRunning || !model.tasks.isEmpty { model.refreshTasks() }
+            try? await Task.sleep(for: .seconds(1))
         }
     }
 

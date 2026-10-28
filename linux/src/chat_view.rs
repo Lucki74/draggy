@@ -1,14 +1,17 @@
 //! The chat page: the transcript, the composer, and the turn that runs between them.
 
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Duration;
 
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::{gdk, gio, glib};
 
 use crate::state::{AppState, BRAVE_KEY, SERVER_KEY};
+use crate::tasks_view::TasksList;
 use draggy_core::{
     ApprovalChoice, ApprovalRecord, CancelToken, ImageRecord, Session, read_document,
 };
@@ -23,6 +26,10 @@ use draggy_linux::runtime::runtime;
 use draggy_linux::settings::Settings;
 use draggy_linux::speech;
 use draggy_linux::talk;
+use draggy_linux::tasks::{
+    acknowledge_failures, chip_alarm, chip_label, keeps_polling, running_count,
+    unacknowledged_failures, watches_tasks,
+};
 
 type Toast = Rc<dyn Fn(&str)>;
 
@@ -42,6 +49,8 @@ pub struct Live {
     session: Arc<Session>,
     /// The id the conversation is saved under.
     id: String,
+    /// The failed background tasks the person has looked at. The chip stops showing them.
+    acknowledged: HashSet<String>,
 }
 
 mod imp {
@@ -86,6 +95,11 @@ mod imp {
         pub images: RefCell<Vec<ImageRecord>>,
         /// Runs when the saved conversations change, so the sidebar list can refresh.
         pub changed: RefCell<Option<Rc<dyn Fn()>>>,
+        /// The chip at the end of the last reply, for the chat's background tasks.
+        pub tasks_chip: RefCell<Option<gtk::Button>>,
+        /// Refreshes the chip and the open Tasks list once a second, while a task runs or the list is open.
+        pub tasks_timer: RefCell<Option<glib::SourceId>>,
+        pub tasks_list: RefCell<Option<TasksList>>,
     }
 
     #[glib::object_subclass]
@@ -175,6 +189,19 @@ mod imp {
                 glib::Propagation::Proceed
             });
             self.input.add_controller(keys);
+
+            let chip = gtk::Button::builder()
+                .css_classes(["flat", "task-chip"])
+                .halign(gtk::Align::Start)
+                .margin_top(4)
+                .build();
+            let weak = chat.downgrade();
+            chip.connect_clicked(move |_| {
+                if let Some(chat) = weak.upgrade() {
+                    chat.open_tasks();
+                }
+            });
+            *self.tasks_chip.borrow_mut() = Some(chip);
         }
     }
 
@@ -289,6 +316,7 @@ impl DraggyChat {
         *imp.live.borrow_mut() = None;
         *imp.pending.borrow_mut() = None;
         self.refresh_plan();
+        self.refresh_tasks();
     }
 
     fn notify_changed(&self) {
@@ -332,6 +360,7 @@ impl DraggyChat {
         }
         *imp.live.borrow_mut() = None;
         *imp.pending.borrow_mut() = Some(conversation);
+        self.refresh_tasks();
         self.scroll_to_end();
     }
 
@@ -553,6 +582,7 @@ impl DraggyChat {
             settings: settings.clone(),
             session: Arc::clone(&session),
             id,
+            acknowledged: HashSet::new(),
         });
         Some(session)
     }
@@ -585,6 +615,136 @@ impl DraggyChat {
             }
             imp.plan_steps.append(&label);
         }
+    }
+
+    /// Brings the chip and the open Tasks list up to date, and starts or stops the timer that keeps them current.
+    fn refresh_tasks(&self) {
+        let keep = self.update_tasks();
+        self.sync_task_timer(keep);
+    }
+
+    /// Reads the session's tasks into the chip and the open list. Returns whether the timer should keep ticking.
+    fn update_tasks(&self) -> bool {
+        let imp = self.imp();
+        let (tasks, watching, failed) = match imp.live.borrow().as_ref() {
+            Some(live) => {
+                let tasks = live.session.tasks();
+                let failed = unacknowledged_failures(&tasks, &live.acknowledged);
+                let watching = watches_tasks(&live.settings.folder, live.settings.allow_commands);
+                (tasks, watching, failed)
+            }
+            None => (Vec::new(), false, 0),
+        };
+        let running = running_count(&tasks);
+        let label = chip_label(running, failed);
+        self.place_tasks_chip(label.as_deref(), chip_alarm(failed));
+        let list_open = match imp.tasks_list.borrow().as_ref() {
+            Some(list) => {
+                list.refresh(&tasks);
+                true
+            }
+            None => false,
+        };
+        keeps_polling(watching, running, list_open)
+    }
+
+    /// Starts the one-second timer when `keep` is set and it is not running yet, and stops it otherwise.
+    fn sync_task_timer(&self, keep: bool) {
+        let imp = self.imp();
+        if !keep {
+            let timer = imp.tasks_timer.borrow_mut().take();
+            if let Some(timer) = timer {
+                timer.remove();
+            }
+            return;
+        }
+        if imp.tasks_timer.borrow().is_some() {
+            return;
+        }
+        let weak = self.downgrade();
+        let timer = glib::timeout_add_local(Duration::from_secs(1), move || {
+            let Some(chat) = weak.upgrade() else {
+                return glib::ControlFlow::Break;
+            };
+            if chat.update_tasks() {
+                return glib::ControlFlow::Continue;
+            }
+            // The timer ends by returning Break, so its id is cleared here rather than removed later.
+            chat.imp().tasks_timer.borrow_mut().take();
+            glib::ControlFlow::Break
+        });
+        *imp.tasks_timer.borrow_mut() = Some(timer);
+    }
+
+    /// Puts the chip at the end of the last reply, or takes it away while there is nothing to show.
+    fn place_tasks_chip(&self, label: Option<&str>, alarm: bool) {
+        let imp = self.imp();
+        let Some(chip) = imp.tasks_chip.borrow().clone() else {
+            return;
+        };
+        let row = label.and_then(|_| last_assistant_row(&imp.transcript));
+        if let Some(text) = label {
+            chip.set_label(text);
+        }
+        if alarm {
+            chip.add_css_class("error");
+        } else {
+            chip.remove_css_class("error");
+        }
+        let wanted = row.as_ref().map(|row| row.clone().upcast::<gtk::Widget>());
+        if chip.parent() == wanted {
+            return;
+        }
+        if chip.parent().is_some() {
+            chip.unparent();
+        }
+        if let Some(row) = row {
+            row.append(&chip);
+        }
+    }
+
+    /// Opens the Tasks list. Opening it counts the failed tasks as seen, so the chip stops flagging them.
+    fn open_tasks(&self) {
+        let imp = self.imp();
+        if let Some(live) = imp.live.borrow_mut().as_mut() {
+            let tasks = live.session.tasks();
+            acknowledge_failures(&tasks, &mut live.acknowledged);
+        }
+        if imp.tasks_list.borrow().is_none() {
+            let weak = self.downgrade();
+            let on_stop: Rc<dyn Fn(String)> = Rc::new(move |id: String| {
+                if let Some(chat) = weak.upgrade() {
+                    chat.stop_task(id);
+                }
+            });
+            let list = TasksList::new(on_stop);
+            let weak = self.downgrade();
+            list.dialog().connect_closed(move |_| {
+                if let Some(chat) = weak.upgrade() {
+                    let closed = chat.imp().tasks_list.borrow_mut().take();
+                    drop(closed);
+                    chat.refresh_tasks();
+                }
+            });
+            *imp.tasks_list.borrow_mut() = Some(list);
+        }
+        self.refresh_tasks();
+        if let Some(list) = imp.tasks_list.borrow().as_ref() {
+            list.dialog().present(Some(self));
+        }
+    }
+
+    /// Stops a background task. Stopping waits for the process to end, so it runs off the main loop.
+    fn stop_task(&self, id: String) {
+        let session = match self.imp().live.borrow().as_ref() {
+            Some(live) => Arc::clone(&live.session),
+            None => return,
+        };
+        let chat = self.clone();
+        glib::spawn_future_local(async move {
+            let _ = gio::spawn_blocking(move || session.stop_task(id)).await;
+            chat.refresh_tasks();
+        });
     }
 
     /// Reads the finished reply aloud while the speaker button is on.
@@ -671,6 +831,7 @@ impl DraggyChat {
             imp.transcript.append(&row);
             *imp.reply.borrow_mut() = Some(parts);
         }
+        self.refresh_tasks();
         self.set_busy(true);
         self.scroll_to_end();
 
@@ -684,6 +845,7 @@ impl DraggyChat {
                         chat.imp().log.borrow_mut().apply(&events);
                         chat.refresh_reply();
                         chat.refresh_plan();
+                        chat.refresh_tasks();
                     }
                     ChatMessage::Approval { request, reply } => {
                         chat.ask_approval(request, reply);
@@ -692,6 +854,7 @@ impl DraggyChat {
                         chat.imp().log.borrow_mut().finish(result);
                         chat.refresh_reply();
                         chat.refresh_plan();
+                        chat.refresh_tasks();
                         chat.answer_aloud();
                         chat.save_turn();
                         *chat.imp().cancel.borrow_mut() = None;
@@ -749,6 +912,18 @@ impl DraggyChat {
             let _ = reply.send(choice);
         });
     }
+}
+
+/// The row of the last assistant reply in the transcript, if there is one.
+fn last_assistant_row(transcript: &gtk::Box) -> Option<gtk::Box> {
+    let mut child = transcript.last_child();
+    while let Some(widget) = child {
+        if widget.has_css_class("message-assistant") {
+            return widget.downcast::<gtk::Box>().ok();
+        }
+        child = widget.prev_sibling();
+    }
+    None
 }
 
 /// A row for one message, and the labels a reply keeps updating.
