@@ -38,7 +38,7 @@ use crate::observer::{ApprovalHandler, Bridge, TurnObserver};
 use crate::plan;
 use crate::records::{
     ApprovalChoice, ApprovalRecord, ImageRecord, MessageRecord, PlanStepRecord, SessionConfig,
-    TurnOutcome,
+    TaskRecord, TurnOutcome,
 };
 use crate::skills::{self, SkillStore};
 use crate::task_tools::TaskSet;
@@ -571,6 +571,16 @@ impl Session {
     #[uniffi::constructor(name = "with_mcp")]
     pub fn with_mcp(config: SessionConfig, mcp: Arc<McpManager>) -> Result<Arc<Self>, CoreError> {
         Self::create(config, Some(mcp))
+    }
+
+    /// The background commands of this session, running or ended.
+    pub fn tasks(&self) -> Vec<TaskRecord> {
+        self.tasks.records()
+    }
+
+    /// Stops one of the session's background commands, as the user asked from the shell.
+    pub fn stop_task(&self, id: String) {
+        self.tasks.stop_task(&id);
     }
 
     /// The conversation so far.

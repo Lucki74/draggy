@@ -13,10 +13,11 @@ use draggy_agent::resume::SearchStep;
 use draggy_agent::tool_channel::ToolDefinition;
 use draggy_tools::spawn::CancelToken as RunCancel;
 use draggy_tools::tasks::{
-    MAX_WAIT, OutputQuery, TaskError, TaskInfo, TaskManager, describe_ended, describe_task,
+    MAX_WAIT, OutputQuery, Status, TaskError, TaskInfo, TaskManager, describe_ended, describe_task,
 };
 use serde_json::{Value, json};
 
+use crate::records::TaskRecord;
 use crate::tools::definition;
 
 /// A Rust session holds one chat, so every task lives under one name.
@@ -65,6 +66,33 @@ impl TaskSet {
     fn advance(&self, id: &str, to: usize) {
         let mut cursors = self.cursors.lock().unwrap_or_else(PoisonError::into_inner);
         cursors.insert(id.to_owned(), to);
+    }
+
+    /// Every task of the session, for the shell's own list.
+    pub fn records(&self) -> Vec<TaskRecord> {
+        self.manager
+            .list(CHAT)
+            .into_iter()
+            .map(|info| TaskRecord {
+                status: match info.status {
+                    Status::Running => "running",
+                    Status::Exited => "exited",
+                    Status::Failed => "failed",
+                    Status::Stopped => "stopped",
+                }
+                .to_owned(),
+                id: info.id,
+                command: info.command,
+                exit_code: info.exit_code,
+                running_for_ms: u64::try_from(info.running_for.as_millis()).unwrap_or(u64::MAX),
+                last_line: info.last_line,
+            })
+            .collect()
+    }
+
+    /// Stops a task from the shell's list. A task that already ended is left as it is.
+    pub fn stop_task(&self, id: &str) {
+        let _ = self.manager.stop(CHAT, id);
     }
 
     /// What ended since the model last heard, or nothing.
