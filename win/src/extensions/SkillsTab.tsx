@@ -142,8 +142,6 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
 
   return (
     <div className="space-y-3">
-      <p className="text-[13px] leading-5 text-text-secondary">{t("skillsHint")}</p>
-
       <div className="flex flex-wrap items-center gap-2">
         {skills.length > 0 && (
           <>
