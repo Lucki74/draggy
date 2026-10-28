@@ -17,7 +17,9 @@ use std::time::{Duration, Instant};
 use regex::RegexBuilder;
 
 use crate::shell::{HostLookup, ShellError, command_env, shell_invocation};
-use crate::spawn::{CancelToken, StdChild as Child, StdChildStdin as ChildStdin, spawn_task_blocking};
+use crate::spawn::{
+    CancelToken, StdChild as Child, StdChildStdin as ChildStdin, spawn_task_blocking,
+};
 use crate::task_text::{
     MAX_OUTPUT_CHARS, clean_output, clip_with_pointer, grep_lines, slice_since, tail_lines,
 };
@@ -549,10 +551,20 @@ impl TaskManager {
 fn safe_name(chat: &str) -> String {
     let name: String = chat
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
         .take(64)
         .collect();
-    if name.is_empty() { "chat".to_string() } else { name }
+    if name.is_empty() {
+        "chat".to_string()
+    } else {
+        name
+    }
 }
 
 /// Reads a pipe to its end, adding every piece to the task's output and its log.
@@ -639,7 +651,12 @@ fn kill_tree(pid: u32) {
     }
     #[cfg(windows)]
     {
-        let args = ["/pid".to_string(), pid.to_string(), "/T".to_string(), "/F".to_string()];
+        let args = [
+            "/pid".to_string(),
+            pid.to_string(),
+            "/T".to_string(),
+            "/F".to_string(),
+        ];
         let _ = crate::spawn::output_blocking("taskkill", &args);
     }
 }
@@ -693,12 +710,19 @@ mod tests {
     }
 
     fn start(m: &TaskManager, dir: &Path, command: &str) -> TaskInfo {
-        m.start("chat", command, Some(SHELL), dir, None).expect("started")
+        m.start("chat", command, Some(SHELL), dir, None)
+            .expect("started")
     }
 
     fn settle(m: &TaskManager, id: &str) -> WaitResult {
-        m.wait("chat", id, None, Duration::from_secs(10), &CancelToken::new())
-            .expect("wait")
+        m.wait(
+            "chat",
+            id,
+            None,
+            Duration::from_secs(10),
+            &CancelToken::new(),
+        )
+        .expect("wait")
     }
 
     #[test]
@@ -728,9 +752,19 @@ mod tests {
     #[test]
     fn wait_returns_when_the_pattern_shows_up() {
         let (m, dir) = manager();
-        let info = start(&m, dir.path(), "echo starting; sleep 1; echo READY; sleep 30");
+        let info = start(
+            &m,
+            dir.path(),
+            "echo starting; sleep 1; echo READY; sleep 30",
+        );
         let found = m
-            .wait("chat", &info.id, Some("ready"), Duration::from_secs(10), &CancelToken::new())
+            .wait(
+                "chat",
+                &info.id,
+                Some("ready"),
+                Duration::from_secs(10),
+                &CancelToken::new(),
+            )
             .expect("wait");
         assert!(found.matched && found.info.status.is_running());
         let stopped = m.stop("chat", &info.id).expect("stop");
@@ -742,10 +776,19 @@ mod tests {
         let (m, dir) = manager();
         let info = start(&m, dir.path(), "echo one; sleep 0.5; echo two");
         settle(&m, &info.id);
-        let first = m.output("chat", &info.id, &OutputQuery::default()).expect("read");
+        let first = m
+            .output("chat", &info.id, &OutputQuery::default())
+            .expect("read");
         assert!(first.text.contains("one") && first.text.contains("two"));
         let again = m
-            .output("chat", &info.id, &OutputQuery { since: Some(first.next as f64), ..OutputQuery::default() })
+            .output(
+                "chat",
+                &info.id,
+                &OutputQuery {
+                    since: Some(first.next as f64),
+                    ..OutputQuery::default()
+                },
+            )
             .expect("read");
         assert!(again.text.is_empty());
     }
@@ -769,7 +812,10 @@ mod tests {
             m.start("chat", "sleep 30", Some(SHELL), dir.path(), None),
             Err(TaskError::TooMany)
         ));
-        assert!(m.start("other", "sleep 30", Some(SHELL), dir.path(), None).is_ok());
+        assert!(
+            m.start("other", "sleep 30", Some(SHELL), dir.path(), None)
+                .is_ok()
+        );
         assert!(m.list("chat").len() == MAX_RUNNING);
         m.shutdown();
     }

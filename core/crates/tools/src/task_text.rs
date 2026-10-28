@@ -80,7 +80,10 @@ pub struct Clipped {
 }
 
 fn char_slice(text: &str, from: usize, to: usize) -> String {
-    text.chars().skip(from).take(to.saturating_sub(from)).collect()
+    text.chars()
+        .skip(from)
+        .take(to.saturating_sub(from))
+        .collect()
 }
 
 /// The start and the end of a long output, then where the rest lives.
@@ -100,7 +103,9 @@ pub fn clip_with_pointer(text: &str, task_id: Option<&str>) -> Clipped {
         char_slice(text, total - tail, total)
     );
     if let Some(id) = task_id.filter(|id| !id.is_empty()) {
-        body.push_str(&format!("\n\nFull log: task {id}, read it with task_output."));
+        body.push_str(&format!(
+            "\n\nFull log: task {id}, read it with task_output."
+        ));
     }
     Clipped {
         text: body,
@@ -238,7 +243,9 @@ pub fn parse_state(output: &str, marker: &str) -> (String, Option<ShellState>) {
             env.insert(entry[..eq].to_string(), entry[eq + 1..].to_string());
         }
     }
-    let state = cwd.filter(|c| !c.is_empty()).map(|cwd| ShellState { cwd, env });
+    let state = cwd
+        .filter(|c| !c.is_empty())
+        .map(|cwd| ShellState { cwd, env });
     (before, state)
 }
 

@@ -101,12 +101,17 @@ fn diff_of(value: &Value) -> EnvDiff {
 fn state(input: &Value) -> Value {
     match text(input, "op") {
         "supports" => json!({ "supported": supports_state(text(input, "shell")) }),
-        "epilogue" => json!({ "text": state_epilogue(text(input, "shell"), text(input, "marker")) }),
+        "epilogue" => {
+            json!({ "text": state_epilogue(text(input, "shell"), text(input, "marker")) })
+        }
         "diff" => {
             let diff = env_diff(&map(&input["before"]), &map(&input["after"]));
             json!({ "set": diff.set, "unset": diff.unset })
         }
-        "apply" => json!(apply_env_diff(&map(&input["base"]), &diff_of(&input["diff"]))),
+        "apply" => json!(apply_env_diff(
+            &map(&input["base"]),
+            &diff_of(&input["diff"])
+        )),
         "parse" => {
             let (output, state) = parse_state(text(input, "output"), text(input, "marker"));
             let state = state.map(|s| json!({ "cwd": s.cwd, "env": s.env }));

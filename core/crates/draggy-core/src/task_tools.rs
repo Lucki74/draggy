@@ -147,10 +147,7 @@ impl TaskSet {
 
     fn output(&self, id: &str, args: &Value) -> Result<String, TaskError> {
         let tail = args.get("tail").and_then(Value::as_f64);
-        let grep = args
-            .get("grep")
-            .and_then(Value::as_str)
-            .map(str::to_owned);
+        let grep = args.get("grep").and_then(Value::as_str).map(str::to_owned);
         let since = args.get("since").and_then(Value::as_f64);
         // A plain read continues where the last one stopped; a filtered one reads the whole output.
         let unfiltered = tail.is_none() && grep.is_none() && since.is_none();
@@ -204,10 +201,17 @@ impl TaskSet {
 
     fn stop(&self, id: &str) -> Result<String, TaskError> {
         match self.manager.stop(CHAT, id) {
-            Ok(info) => Ok(format!("Task {} is stopped. {}", info.id, describe_task(&info))),
+            Ok(info) => Ok(format!(
+                "Task {} is stopped. {}",
+                info.id,
+                describe_task(&info)
+            )),
             Err(TaskError::NotRunning(_)) => {
                 let info = self.find(id)?;
-                Ok(format!("Task {id} had already ended. {}", describe_task(&info)))
+                Ok(format!(
+                    "Task {id} had already ended. {}",
+                    describe_task(&info)
+                ))
             }
             Err(error) => Err(error),
         }
@@ -244,9 +248,9 @@ impl TaskSet {
                     std::thread::sleep(Duration::from_millis(50));
                 }
             });
-            let result = self
-                .manager
-                .wait(CHAT, id, until, Duration::from_secs_f64(seconds), &halt);
+            let result =
+                self.manager
+                    .wait(CHAT, id, until, Duration::from_secs_f64(seconds), &halt);
             finished.store(true, std::sync::atomic::Ordering::SeqCst);
             result
         })?;
@@ -280,7 +284,9 @@ impl TaskSet {
             return Ok("Give text to type, or a key: enter, tab, space or ctrl+d. This task reads a pipe, so keys that need a terminal are not available.".to_owned());
         };
         self.manager.input(CHAT, id, &data)?;
-        Ok(format!("Sent to task {id}. Read what it printed with task_output."))
+        Ok(format!(
+            "Sent to task {id}. Read what it printed with task_output."
+        ))
     }
 }
 
@@ -401,8 +407,14 @@ mod tests {
 
     #[test]
     fn a_named_key_is_sent_alone() {
-        assert_eq!(input_for(None, Some(" Enter "), true).as_deref(), Some("\n"));
-        assert_eq!(input_for(None, Some("ctrl+d"), true).as_deref(), Some("\u{4}"));
+        assert_eq!(
+            input_for(None, Some(" Enter "), true).as_deref(),
+            Some("\n")
+        );
+        assert_eq!(
+            input_for(None, Some("ctrl+d"), true).as_deref(),
+            Some("\u{4}")
+        );
     }
 
     #[test]

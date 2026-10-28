@@ -454,7 +454,9 @@ impl ToolRuntime for FileTools {
                 open_world: true,
                 ..ToolAnnotations::default()
             },
-            other if self.allow_commands && task_tools::owns(other) => task_tools::annotations(other),
+            other if self.allow_commands && task_tools::owns(other) => {
+                task_tools::annotations(other)
+            }
             _ => ToolAnnotations::default(),
         }
     }

@@ -137,10 +137,7 @@ mod tests {
         assert_eq!(chip_label(0, 0), None);
         assert_eq!(chip_label(2, 0).as_deref(), Some("2 running"));
         assert_eq!(chip_label(0, 1).as_deref(), Some("1 failed"));
-        assert_eq!(
-            chip_label(1, 3).as_deref(),
-            Some("1 running · 3 failed")
-        );
+        assert_eq!(chip_label(1, 3).as_deref(), Some("1 running · 3 failed"));
         assert!(chip_alarm(1));
         assert!(!chip_alarm(0));
     }
