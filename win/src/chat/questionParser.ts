@@ -1,5 +1,4 @@
 import type {
-  QuestionOption,
   QuestionSession,
   QuestionType,
   UserQuestion,
@@ -22,31 +21,33 @@ const VALID_TYPES: Set<QuestionType> = new Set(["single", "multi", "text"]);
  * Validates a single UserQuestion object schema.
  * Returns null if valid, or an error message string if invalid.
  */
-export function validateQuestionSchema(q: any): string | null {
+export function validateQuestionSchema(q: unknown): string | null {
   if (!q || typeof q !== "object") {
     return "Question must be an object";
   }
-  if (!q.id || typeof q.id !== "string" || !q.id.trim()) {
+  const obj = q as Record<string, unknown>;
+  if (!obj.id || typeof obj.id !== "string" || !obj.id.trim()) {
     return "Question missing required 'id'";
   }
-  if (!q.text || typeof q.text !== "string" || !q.text.trim()) {
+  if (!obj.text || typeof obj.text !== "string" || !obj.text.trim()) {
     return "Question missing required 'text'";
   }
-  if (!q.type || !VALID_TYPES.has(q.type)) {
-    return `Invalid question type: ${q.type}. Must be 'single', 'multi', or 'text'`;
+  if (!obj.type || typeof obj.type !== "string" || !VALID_TYPES.has(obj.type as QuestionType)) {
+    return `Invalid question type: ${obj.type}. Must be 'single', 'multi', or 'text'`;
   }
-  if (q.type === "single" || q.type === "multi") {
-    if (!Array.isArray(q.options) || q.options.length === 0) {
-      return `Question of type '${q.type}' must contain at least one option`;
+  if (obj.type === "single" || obj.type === "multi") {
+    if (!Array.isArray(obj.options) || obj.options.length === 0) {
+      return `Question of type '${obj.type}' must contain at least one option`;
     }
-    for (const opt of q.options) {
+    for (const opt of obj.options) {
       if (!opt || typeof opt !== "object") {
         return "Option must be an object";
       }
-      if (!opt.id || typeof opt.id !== "string" || !opt.id.trim()) {
+      const optObj = opt as Record<string, unknown>;
+      if (!optObj.id || typeof optObj.id !== "string" || !optObj.id.trim()) {
         return "Option missing required 'id'";
       }
-      if (!opt.label || typeof opt.label !== "string" || !opt.label.trim()) {
+      if (!optObj.label || typeof optObj.label !== "string" || !optObj.label.trim()) {
         return "Option missing required 'label'";
       }
     }
@@ -130,45 +131,50 @@ export function parseQuestions(text: string): ParsedQuestionResult {
   }
 
   for (const candidate of jsonCandidates) {
-    let parsed: any;
+    let parsed: Record<string, unknown>;
     try {
-      parsed = JSON.parse(candidate.jsonStr);
+      parsed = JSON.parse(candidate.jsonStr) as Record<string, unknown>;
     } catch {
       parseError = "Invalid JSON in _draggy block";
       continue;
     }
 
-    if (!parsed || !parsed._draggy) {
+    if (!parsed || !parsed._draggy || typeof parsed._draggy !== "object") {
       continue;
     }
 
-    const payload = parsed._draggy;
+    const payload = parsed._draggy as Record<string, unknown>;
     if (payload.type === "question") {
       detectedType = "question";
-      const q = payload.question;
+      const q = payload.question as Record<string, unknown>;
       const err = validateQuestionSchema(q);
       if (err) {
         parseError = err;
         continue;
       }
       const userQ: UserQuestion = {
-        id: q.id,
-        type: q.type,
-        text: q.text,
-        options: q.options,
-        minSelections: q.minSelections ?? 0,
-        maxSelections: q.maxSelections ?? (q.options ? q.options.length : undefined),
-        required: q.required ?? true,
-        context: q.context ?? "",
-        createdAt: q.createdAt ?? Date.now(),
-        expiresAt: q.expiresAt,
+        id: String(q.id),
+        type: q.type as QuestionType,
+        text: String(q.text),
+        options: q.options as UserQuestion["options"],
+        minSelections: typeof q.minSelections === "number" ? q.minSelections : 0,
+        maxSelections:
+          typeof q.maxSelections === "number"
+            ? q.maxSelections
+            : Array.isArray(q.options)
+              ? q.options.length
+              : undefined,
+        required: typeof q.required === "boolean" ? q.required : true,
+        context: typeof q.context === "string" ? q.context : "",
+        createdAt: typeof q.createdAt === "number" ? q.createdAt : Date.now(),
+        expiresAt: typeof q.expiresAt === "number" ? q.expiresAt : undefined,
       };
       questions.push(userQ);
       cleanText = cleanText.replace(candidate.rawMatch, "").trim();
     } else if (payload.type === "question-session") {
       detectedType = "question-session";
-      sessionId = payload.sessionId;
-      sessionRequired = payload.required;
+      sessionId = typeof payload.sessionId === "string" ? payload.sessionId : undefined;
+      sessionRequired = typeof payload.required === "boolean" ? payload.required : undefined;
 
       if (!Array.isArray(payload.questions) || payload.questions.length === 0) {
         parseError = "question-session must contain non-empty questions array";
@@ -183,17 +189,33 @@ export function parseQuestions(text: string): ParsedQuestionResult {
           allValid = false;
           break;
         }
+        const qObj = q as Record<string, unknown>;
         questions.push({
-          id: q.id,
-          type: q.type,
-          text: q.text,
-          options: q.options,
-          minSelections: q.minSelections ?? 0,
-          maxSelections: q.maxSelections ?? (q.options ? q.options.length : undefined),
-          required: q.required ?? (sessionRequired ?? true),
-          context: q.context ?? payload.context ?? "",
-          createdAt: q.createdAt ?? Date.now(),
-          expiresAt: q.expiresAt ?? payload.expiresAt,
+          id: String(qObj.id),
+          type: qObj.type as QuestionType,
+          text: String(qObj.text),
+          options: qObj.options as UserQuestion["options"],
+          minSelections: typeof qObj.minSelections === "number" ? qObj.minSelections : 0,
+          maxSelections:
+            typeof qObj.maxSelections === "number"
+              ? qObj.maxSelections
+              : Array.isArray(qObj.options)
+                ? qObj.options.length
+                : undefined,
+          required: typeof qObj.required === "boolean" ? qObj.required : (sessionRequired ?? true),
+          context:
+            typeof qObj.context === "string"
+              ? qObj.context
+              : typeof payload.context === "string"
+                ? payload.context
+                : "",
+          createdAt: typeof qObj.createdAt === "number" ? qObj.createdAt : Date.now(),
+          expiresAt:
+            typeof qObj.expiresAt === "number"
+              ? qObj.expiresAt
+              : typeof payload.expiresAt === "number"
+                ? payload.expiresAt
+                : undefined,
         });
       }
 

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import type { QuestionOption, QuestionSession, UserAnswer, UserQuestion } from "../questionTypes";
+import React, { useMemo, useState } from "react";
+import type { QuestionOption, QuestionSession, UserQuestion } from "../questionTypes";
 import { Button } from "../../ui/Button";
 import { Icon } from "../../ui/icons/Icon";
 
@@ -32,39 +32,39 @@ export function QuestionCard({
     return session.answers.find((a) => a.questionId === question?.id);
   }, [session.answers, question?.id]);
 
-  // Draft answers state
-  const [singleValue, setSingleValue] = useState<string>("");
-  const [multiValue, setMultiValue] = useState<string[]>([]);
-  const [textValue, setTextValue] = useState<string>("");
+  // Draft answers state keyed by question id
+  const [draftSingle, setDraftSingle] = useState<Record<string, string>>({});
+  const [draftMulti, setDraftMulti] = useState<Record<string, string[]>>({});
+  const [draftText, setDraftText] = useState<Record<string, string>>({});
 
-  // Sync draft state when question or existing answer changes
-  useEffect(() => {
-    if (existingAnswer) {
-      if (Array.isArray(existingAnswer.value)) {
-        setMultiValue(existingAnswer.value);
-        setSingleValue("");
-        setTextValue("");
-      } else {
-        setSingleValue(existingAnswer.value);
-        setTextValue(existingAnswer.value);
-        setMultiValue([]);
-      }
-    } else {
-      setSingleValue("");
-      setMultiValue([]);
-      setTextValue("");
-    }
-  }, [existingAnswer, question?.id]);
+  const singleValue =
+    question && question.id in draftSingle
+      ? draftSingle[question.id]
+      : !Array.isArray(existingAnswer?.value)
+        ? (existingAnswer?.value ?? "")
+        : "";
+
+  const multiValue =
+    question && question.id in draftMulti
+      ? draftMulti[question.id]
+      : Array.isArray(existingAnswer?.value)
+        ? existingAnswer.value
+        : [];
+
+  const textValue =
+    question && question.id in draftText
+      ? draftText[question.id]
+      : !Array.isArray(existingAnswer?.value)
+        ? (existingAnswer?.value ?? "")
+        : "";
+
+  const isExpired = session.status === "expired";
+  const isAnswered = Boolean(existingAnswer);
+  const isLastQuestion = currentIndex >= session.questions.length - 1;
 
   if (!question) {
     return null;
   }
-
-  const isExpired =
-    session.status === "expired" ||
-    (Boolean(question.expiresAt) && Date.now() > (question.expiresAt ?? 0));
-  const isAnswered = Boolean(existingAnswer);
-  const isLastQuestion = currentIndex >= session.questions.length - 1;
 
   // Determine button enablement
   let canSubmit = false;
@@ -107,16 +107,29 @@ export function QuestionCard({
     }
   };
 
+  const setSingleValue = (val: string) => {
+    if (!question) return;
+    setDraftSingle((prev) => ({ ...prev, [question.id]: val }));
+  };
+
+  const setTextValue = (val: string) => {
+    if (!question) return;
+    setDraftText((prev) => ({ ...prev, [question.id]: val }));
+  };
+
   const toggleMultiOption = (optId: string) => {
-    if (readOnly || isExpired) return;
-    setMultiValue((prev) => {
-      const max = question.maxSelections ?? (question.options?.length ?? 999);
-      if (prev.includes(optId)) {
-        return prev.filter((id) => id !== optId);
-      }
-      if (prev.length >= max) return prev;
-      return [...prev, optId];
-    });
+    if (readOnly || isExpired || !question) return;
+    const current = multiValue;
+    const max = question.maxSelections ?? (question.options?.length ?? 999);
+    let next: string[];
+    if (current.includes(optId)) {
+      next = current.filter((id) => id !== optId);
+    } else if (current.length >= max) {
+      next = current;
+    } else {
+      next = [...current, optId];
+    }
+    setDraftMulti((prev) => ({ ...prev, [question.id]: next }));
   };
 
   // Progress text: "1 of 4"

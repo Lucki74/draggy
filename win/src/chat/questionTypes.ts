@@ -37,5 +37,5 @@ export interface QuestionSession {
   currentIndex: number; // which question the user is on
   startedAt: number;
   completedAt?: number;
-  metadata?: Record<string, any>; // arbitrary context from the AI
+  metadata?: Record<string, unknown>; // arbitrary context from the AI
 }

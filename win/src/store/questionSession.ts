@@ -1,7 +1,5 @@
 import type {
-  QuestionOption,
   QuestionSession,
-  QuestionType,
   UserAnswer,
   UserQuestion,
 } from "../chat/questionTypes";
@@ -143,7 +141,7 @@ class QuestionSessionStore {
   async createSession(
     chatId: string,
     workspaceId: string = "default",
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
     messageId?: string,
   ): Promise<QuestionSession> {
     await this.ensureInitialized();
@@ -152,7 +150,7 @@ class QuestionSessionStore {
       id,
       chatId,
       workspaceId,
-      messageId: messageId ?? metadata?.messageId,
+      messageId: messageId ?? (typeof metadata?.messageId === "string" ? metadata.messageId : undefined),
       status: "active",
       questions: [],
       answers: [],

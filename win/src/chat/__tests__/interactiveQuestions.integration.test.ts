@@ -111,8 +111,8 @@ Looking forward to your choices.`;
     const chatId1 = "chat_1";
     const chatId2 = "chat_2";
 
-    const s1 = await questionSessionStore.createSession(chatId1);
-    const s2 = await questionSessionStore.createSession(chatId2);
+    await questionSessionStore.createSession(chatId1);
+    await questionSessionStore.createSession(chatId2);
 
     expect(await questionSessionStore.getAllSessions(chatId1)).toHaveLength(1);
     expect(await questionSessionStore.getAllSessions(chatId2)).toHaveLength(1);

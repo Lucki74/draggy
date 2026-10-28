@@ -315,14 +315,9 @@ export default function ChatScreen({
         .map((q) => {
           const ans = completed.answers.find((a) => a.questionId === q.id);
           if (!ans) return null;
-          let valStr = "";
-          if (Array.isArray(ans.value)) {
-            valStr = ans.value
-              .map((id) => q.options?.find((o) => o.id === id)?.label || id)
-              .join(", ");
-          } else {
-            valStr = q.options?.find((o) => o.id === ans.value)?.label || ans.value;
-          }
+          const valStr = Array.isArray(ans.value)
+            ? ans.value.map((id) => q.options?.find((o) => o.id === id)?.label || id).join(", ")
+            : q.options?.find((o) => o.id === ans.value)?.label || ans.value;
           return `${q.text}: ${valStr}`;
         })
         .filter(Boolean);

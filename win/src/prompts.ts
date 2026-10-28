@@ -414,7 +414,7 @@ export function buildSystemPrompt(
     );
   }
 
-  if (Boolean(settings.aiQuestionsEnabled)) {
+  if (settings.aiQuestionsEnabled) {
     parts.push(AI_QUESTIONS_PROMPT);
   }
 
