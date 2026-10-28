@@ -135,6 +135,28 @@ describe("a skill's slash command", () => {
     expect(lastUser(turn)).not.toContain("How to do the code-review job.");
   });
 
+  it("loads the skill even if not previously in loadedSkillIds", async () => {
+    // If the conversation already had 5 other skills pushing history out of MAX_LOADED_SKILLS
+    const previousMessages = Array.from({ length: 5 }, (_, i) => ({
+      id: `u${i + 2}`,
+      role: "assistant" as const,
+      content: `Done ${i}`,
+      steps: [{ id: `s${i}`, type: "skill" as const, content: `Used skill ${i}`, isComplete: true, skill: `other-${i}` }],
+    }));
+    const turn = await prepareTurn(
+      input("/docx packing list", {
+        messages: [
+          ...previousMessages,
+          { id: "u-last", role: "user", content: "/docx packing list" },
+        ],
+      }),
+    );
+
+    expect(read).toHaveBeenCalledWith("default", "docx", { enabledOnly: true });
+    expect(turn.wire[0].content).toContain("How to do the docx job.");
+    expect(turn.invokedSkill).toEqual({ id: "docx", name: "docx" });
+  });
+
   it("keeps the skill loaded when a cut-off reply is continued, without starting it again", async () => {
     const turn = await prepareTurn(
       input("", {

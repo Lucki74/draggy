@@ -25,6 +25,7 @@ import { loadProjectMemory } from "../project/load";
 import {
   MAX_LISTED_SKILLS,
   describeSkills,
+  loadSingleSkill,
   loadSkills,
   loadedSkillIds,
   renderInvokedSkills,
@@ -438,12 +439,32 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       ? skillInvocations(lastMessage.content, skills)
       : null;
 
+  const alreadyLoaded = new Set(loadedSkillIds(messages, skills));
+  const invokedSkillBodies: LoadedSkill[] = [];
+  if (invoked) {
+    for (const skill of invoked.skills) {
+      if (!alreadyLoaded.has(skill.id)) {
+        const loadedResult = await loadSingleSkill(request.workspaceId || "default", skill.id);
+        if (loadedResult?.success && loadedResult.skill) {
+          invokedSkillBodies.push(loadedResult.skill);
+        }
+      }
+    }
+  }
+
   // A skill loaded anywhere in the conversation stays loaded, as its text would if tool results
   // were carried from turn to turn. Switched off since, it is dropped.
   const loadedSkills = await readLoadedSkills(
     request.workspaceId || "default",
     loadedSkillIds(messages, skills),
   );
+
+  for (const body of invokedSkillBodies) {
+    if (!loadedSkills.some((skill) => skill.id === body.id)) {
+      loadedSkills.push(body);
+    }
+  }
+
   const loadedSection = renderLoadedSkills(loadedSkills);
 
   const systemPrompt = [

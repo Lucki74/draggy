@@ -195,20 +195,14 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
               <ExtensionList>
                 {members.map((skill) => {
                   const open = expanded === skill.id;
-                  const side = skill.locked
-                    ? t("skillLocked")
-                    : skill.surface === "chat"
-                      ? t("chatMode")
-                      : skill.surface === "code"
-                        ? t("codeMode")
-                        : undefined;
+                  const tag = skill.locked ? t("skillLocked") : undefined;
 
                   return (
                     <ExtensionRow
                       key={skill.id}
                       leading={<Icon name="book-open" size={18} className="text-text-tertiary" />}
                       name={skill.name}
-                      tag={side}
+                      tag={tag}
                       description={skill.source === "library" ? localDescription(t, "skill", skill.id, skill.description) : skill.description}
                       control={
                         <>
