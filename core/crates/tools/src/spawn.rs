@@ -528,7 +528,7 @@ fn signal_name(_exit: &ExitStatus) -> Option<String> {
     None
 }
 
-pub use std::process::Child as StdChild;
+pub use std::process::{Child as StdChild, ChildStdin as StdChildStdin};
 
 /// Starts a hidden child with piped output and no input, for callers that read it on their own threads.
 pub fn spawn_piped_blocking(
@@ -544,6 +544,36 @@ pub fn spawn_piped_blocking(
         .stderr(Stdio::piped());
     if let Some(cwd) = cwd {
         command.current_dir(cwd);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    command.spawn()
+}
+
+/// Starts a hidden child in its own process group with all three streams piped and exactly `env`, for background
+/// tasks that keep running and take input.
+pub fn spawn_task_blocking(
+    file: &Path,
+    args: &[String],
+    cwd: &Path,
+    env: impl IntoIterator<Item = (OsString, OsString)>,
+) -> io::Result<StdChild> {
+    let mut command = std::process::Command::new(file);
+    command
+        .args(args)
+        .current_dir(cwd)
+        .env_clear()
+        .envs(env)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
     }
     #[cfg(windows)]
     {

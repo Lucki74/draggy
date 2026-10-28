@@ -23,6 +23,7 @@ pub mod plan;
 pub mod records;
 pub mod session;
 pub mod skills;
+pub mod task_tools;
 pub mod tools;
 pub mod update;
 pub mod web;
