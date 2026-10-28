@@ -19,7 +19,7 @@ Turn messy text columns into clean, consistent ones using formulas that stay lin
 
 ## Steps
 
-1. Look at the column with `read_file` or `run_code`. Print 30 sample values chosen from the top, middle and end, plus the shortest and longest. Note the patterns: separators used, case, prefixes, and values that do not follow the pattern.
+1. Look at the column with `read_file` or `run_command`. Print 30 sample values chosen from the top, middle and end, plus the shortest and longest. Note the patterns: separators used, case, prefixes, and values that do not follow the pattern.
 2. Write the target form for three real examples: input, wanted output. Ask with `ask_user` about edge cases that matter, such as names with three parts, titles, or missing values.
 3. Keep the raw column. Put the cleaned result in a new column beside it, and leave the originals until the user has checked the output.
 4. Strip first. TRIM removes extra spaces but not the non-breaking space (character 160), so replace that with a normal space before trimming. CLEAN removes non-printing characters. Apply these two before any splitting.
@@ -27,7 +27,7 @@ Turn messy text columns into clean, consistent ones using formulas that stay lin
 6. Split or extract. If the app has TEXTSPLIT or TEXTBEFORE and TEXTAFTER, use them. Otherwise combine FIND or SEARCH with LEFT, MID and RIGHT, with a fallback for rows missing the separator. Show the formula for the first row and explain each part.
 7. Join with TEXTJOIN to skip blanks, or with `&` plus a separator. Use TEXT to format numbers and dates inside the joined string.
 8. Convert type when needed. Text that looks like a number can be turned with VALUE after removing symbols. Keep leading zeros by leaving the field as text, and format the result column as text before pasting values.
-9. Check with `run_code`: count rows that came out empty, errored or unchanged, list ten that changed, and list every row that did not match the expected pattern. Fix patterns rather than patching single cells.
+9. Check with `run_command`: count rows that came out empty, errored or unchanged, list ten that changed, and list every row that did not match the expected pattern. Fix patterns rather than patching single cells.
 10. When the user is satisfied, copy and paste as values into the final column if the sheet will be shared, and keep the formulas on a work sheet.
 11. Keep the cleanup repeatable.
    - Leave the formulas in a `Clean` sheet that reads from the raw sheet, so a new load refreshes it.

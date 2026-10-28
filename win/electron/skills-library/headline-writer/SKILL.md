@@ -29,7 +29,7 @@ A headline that earns the click and then keeps its promise. A good result gives 
    - Contrast: a surprising finding, only if the text supports it.
    - Plain label: the safe, descriptive version.
 5. Check each option against the text. Every claim in the headline must be in the piece. Remove any option the text cannot back.
-6. Count length with `run_code` if a limit applies, and cut from the end of each option, not the middle.
+6. Count length with `run_command` if a limit applies, and cut from the end of each option, not the middle.
 7. Choose one, and say why in a sentence: it matches the audience's wording, leads with the key words, or is the most accurate.
 8. Offer a subtitle or a preview line if the channel has room for one, with a different job from the headline: detail, not repeat.
 

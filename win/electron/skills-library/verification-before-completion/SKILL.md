@@ -21,7 +21,7 @@ Replace "it should work" with evidence. Every acceptance condition gets a check 
 ## Steps
 
 1. Write the acceptance conditions as a list. Take them from the user's words, the ticket, the plan (`update_plan` if one exists) or `acceptance-criteria` output. If none exist, derive two or three and confirm them with `ask_user`.
-2. For each condition, pick a check that could fail: a test, a command, a script run with `run_code`, a file read with `read_file`, or a browser step with `browser_snapshot`. "I read the code and it looks right" does not count as a check.
+2. For each condition, pick a check that could fail: a test, a command, a script run with `run_command`, a file read with `read_file`, or a browser step with `browser_snapshot`. "I read the code and it looks right" does not count as a check.
 3. Check what changed with `git_status` and `git_diff`. Every changed file should trace to a condition. A change with no condition is either scope creep or a missing condition.
 4. Run the checks with `run_command` after the final edit. Capture the exit code and the lines that show pass or fail, with the summary line as a bonus.
 5. Test the negative side where it matters: feed one bad input, or confirm the old behaviour is gone.

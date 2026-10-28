@@ -20,7 +20,7 @@ Turn a flat table into a summary that answers one stated question. A good pivot 
 ## Steps
 
 1. State the question in one sentence with the user: "What was revenue by product line per quarter?" A pivot without a question becomes a wall of numbers. Use `ask_user` if the question is vague.
-2. Inspect the source with `read_file` or `run_code`. Print the header row, the column types and the row count. Look for blank rows inside the data, merged cells, two-row headers, subtotal rows mixed in, and columns with mixed text and numbers.
+2. Inspect the source with `read_file` or `run_command`. Print the header row, the column types and the row count. Look for blank rows inside the data, merged cells, two-row headers, subtotal rows mixed in, and columns with mixed text and numbers.
 3. Repair the source in a copy or on a cleaned sheet. One header row, one record per row, no gaps, no subtotals, one type per column. Turn the range into a named table so the pivot grows with new rows.
 4. Map the question to fields: what to slice by goes in rows or columns, the number to aggregate goes in values, the scope limits go in filters or slicers. Keep columns to a field with few distinct values.
 5. Choose the aggregation per value field on purpose: sum for amounts, count for records, distinct count for customers, average only with a count beside it. State when a field is text, since text defaults to count.

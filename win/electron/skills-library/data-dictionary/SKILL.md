@@ -20,10 +20,10 @@ Give anyone who picks up the dataset the facts they need to use it correctly wit
 ## Steps
 
 1. Identify the dataset: name, owner, source system, how and when it is produced, the grain (one row per what), the time range and the refresh pattern. Use `ask_user` for what you cannot find in the files, and read any existing README with `read_file`.
-2. Load the data with `run_code` and list every column with its dtype, share of nulls, number of distinct values, min and max or the top values. This is the factual skeleton of the dictionary.
+2. Load the data with `run_command` and list every column with its dtype, share of nulls, number of distinct values, min and max or the top values. This is the factual skeleton of the dictionary.
 3. For each column write the description by looking at the values as well as the name. Show five real examples. Find the unit (currency and whether it includes tax, grams or kilograms, UTC or local time), the precision and the range.
 4. For coded fields (status 1 to 5, country codes, flags) list every code with its meaning. If the meaning is not known, write "unknown" and ask the owner. Do not guess from the label.
-5. Identify the keys: the primary key, the foreign keys and the tables they join to. Check the uniqueness claim with `run_code` before writing it.
+5. Identify the keys: the primary key, the foreign keys and the tables they join to. Check the uniqueness claim with `run_command` before writing it.
 6. Record quirks found in the profile: placeholder values such as 9999, a column filled only after a certain date, a field that changed meaning, duplicated information in two columns, free text with inconsistent spelling.
 7. Mark derived fields and give the formula, and note fields that hold personal or sensitive information, with the handling the owner requires.
 8. Mark the confidence of each entry: confirmed by the owner, observed in the data, or inferred. Collect all the inferred ones in a short list of questions for the owner.

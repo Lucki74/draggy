@@ -20,7 +20,7 @@ Collapse records that describe the same real-world entity into one, without merg
 ## Steps
 
 1. Establish what counts as the same entity with the user. Use `ask_user`. A person with two emails, two branches of one company, two products in different pack sizes: say which should merge.
-2. Profile the sources with `run_code`: row counts, key fields, the share of blanks, and exact duplicates on each candidate key. Note which source is more trustworthy for which field.
+2. Profile the sources with `run_command`: row counts, key fields, the share of blanks, and exact duplicates on each candidate key. Note which source is more trustworthy for which field.
 3. Normalise for matching, in new helper columns and not over the originals: lowercase, strip accents and punctuation, collapse spaces, standardise phone numbers to digits, split email into local part and domain, expand common abbreviations in addresses (St and Street), and remove legal suffixes from company names.
 4. Block to limit comparisons. Compare only records sharing a cheap key such as the first letters of the surname plus the postcode, or the email domain. All-pairs comparison does not scale beyond a few thousand rows.
 5. Score pairs within blocks. Start with exact rules (same normalised email, same phone and surname), then fuzzy ones (a string similarity of names above a threshold combined with the same city or birth date). Record the rule that produced each match.

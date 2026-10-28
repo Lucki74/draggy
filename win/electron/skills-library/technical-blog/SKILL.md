@@ -22,7 +22,7 @@ A developer reads the post and can use the idea. A good result opens on the conc
 1. Clarify with `ask_user`: the reader (level and stack), the one thing they should be able to do or understand afterwards, the length and the publication's tone. Narrow to one problem. If the material holds three, propose three posts.
 2. Gather material with `read_file`: code, notes, the pull request, logs, measurements. Mark what is a measured result and what is the author's impression.
 3. Outline: the problem in a concrete case, why the obvious approach fails, the solution, how it works, trade-offs and limits, what to try next. Open on the case, not on background.
-4. Write the code first. Run every snippet with `run_code` or `run_command`, in a clean directory with the versions you state. Keep each snippet short and runnable, and show full code in one place if the post needs it.
+4. Write the code first. Run every snippet with `run_command`, in a clean directory with the versions you state. Keep each snippet short and runnable, and show full code in one place if the post needs it.
 5. Check version-dependent claims against the source: library behaviour, defaults, deprecations, flags, performance statements. Use `read_url` on the official docs or changelog, and note the version and the date checked. If you cannot verify, say so in the post or cut the claim.
 6. Write the prose around the code. Explain the idea in plain words before the detail, show a failing or naive version when it helps, and say why the fix works. Use "you" for the reader.
 7. Report measurements honestly: what was measured, on what machine or data, how many runs, and the spread. Do not generalise from one run, and do not invent numbers.

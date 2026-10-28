@@ -17,7 +17,7 @@ Report measured structure and the patterns that read as machine text, and nothin
 
 ## Steps
 
-1. Read `metrics.cjs` in the `human` skill and run it with `run_code`, text inside a template literal above the script. If a voice profile or a sample exists, run it on that too.
+1. Read `metrics.cjs` in the `human` skill and run it with `run_command`, text inside a template literal above the script. If a voice profile or a sample exists, run it on that too.
 2. Report the metrics as a short table: value, the sample value if there is one, and which direction reads more machine-like.
 3. List the tell phrases and structural habits found in the text, each with a quote. Use the catalogue in `tells.md` of the `human` skill.
 4. State the limits: heuristics, short texts are noisy, and no detector's result can be predicted from these numbers.

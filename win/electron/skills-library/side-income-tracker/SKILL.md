@@ -24,7 +24,7 @@ Give the user a simple, dated record of what comes in from side work and what it
 5. Write the rule for recording: on the day money arrives, amounts as shown on the payout or statement, and one currency per sheet.
 6. Write a monthly routine: match income lines to the bank or platform statement, check for missing payouts, total income and costs.
 7. Add a split rule for mixed spending, such as a phone plan, and have the user decide the share. Record the reason for the share.
-8. Add a yearly summary with `run_code` formulas or a short script: gross, fees, net, costs by type.
+8. Add a yearly summary with `run_command` formulas or a short script: gross, fees, net, costs by type.
 9. Put a note on top: this is a record; the user should check the current local rules on reporting income and which costs count, using official pages (via `search_web` and `read_url` if they ask) and a professional.
 10. Offer a quarterly check: compare the sheet with statements and note differences.
 11. Explain how to keep invoices or payout reports in one folder with the same date naming.

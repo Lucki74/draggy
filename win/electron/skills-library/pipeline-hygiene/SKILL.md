@@ -17,9 +17,9 @@ Make the pipeline trustworthy by flagging records that distort it. The result is
 
 ## Steps
 
-1. Load the export with `read_file`. Run `run_code` to print the column names, row count and the number of blanks per column.
+1. Load the export with `read_file`. Run `run_command` to print the column names, row count and the number of blanks per column.
 2. Ask with `ask_user` for the normal length of each stage, the definition of each stage, and the rule for a stale deal. Do not assume them.
-3. Compute with `run_code`: days in current stage, days since last activity, and days to close date.
+3. Compute with `run_command`: days in current stage, days since last activity, and days to close date.
 4. Flag these groups: close date in the past, no activity beyond the stale rule, stuck beyond the normal stage length, missing amount or owner or next step, duplicate accounts, and stage that conflicts with notes.
 5. For each flagged deal write one proposed action: update the date, close as lost with a reason, merge, ask the owner, or fill the field.
 6. Count flags by owner and by type, so the user sees where the problem sits.

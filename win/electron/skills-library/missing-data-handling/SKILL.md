@@ -19,7 +19,7 @@ Treat gaps in a way that fits why they happened and that the reader can see. A g
 
 ## Steps
 
-1. Find all the ways missing shows up. Use `run_code` to count true nulls, empty strings, and the frequency of suspicious codes (0, -1, 99, 999, "unknown", "none", 1900-01-01). Convert the placeholders to real nulls and record which were converted.
+1. Find all the ways missing shows up. Use `run_command` to count true nulls, empty strings, and the frequency of suspicious codes (0, -1, 99, 999, "unknown", "none", 1900-01-01). Convert the placeholders to real nulls and record which were converted.
 2. Measure the extent: share missing per column and per row, and the number of rows complete across the columns you need. Sort columns by missing share and look at the pattern in a heat map or table.
 3. Ask why with the owner of the data. Use `ask_user`. Was the value not collected, not applicable, refused, lost in transfer, or a true zero? The answer decides the treatment.
 4. Classify the mechanism as best you can:

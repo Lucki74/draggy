@@ -22,7 +22,7 @@ Leave the reader with a correct, usable understanding of one concept or result, 
 1. Find out what the reader needs it for and how much maths they have. Use `ask_user` for one line on each: the decision they face and their background. If the user pasted a result, read it with `read_file` or from the message and take the numbers from it.
 2. State the concept in one plain sentence without jargon. Check it for accuracy against how the term is really defined. If you are unsure of a detail, look it up with `search_web` or `read_url` on a reliable statistics reference before answering.
 3. Give the intuition with an everyday picture, then tie it to the reader's own numbers. A p-value, for example, is how surprising the data would be if there were no real effect, and not the chance that the effect is real.
-4. Work a small example with actual numbers. Use `run_code` to simulate it if a simulation makes it clearer, such as drawing many samples to show how a sample mean varies, and report the figures you got.
+4. Work a small example with actual numbers. Use `run_command` to simulate it if a simulation makes it clearer, such as drawing many samples to show how a sample mean varies, and report the figures you got.
 5. Say how to read it: what a large or small value means, what range is typical, and how it relates to the size of the sample.
 6. Name the two or three most common misreadings and correct them in one line each.
 7. Give the limit: what the number cannot tell you (cause, importance, future behaviour), and what to look at next to cover the gap.

@@ -24,7 +24,7 @@ Get output a program can read without guessing. The schema is small and unambigu
 4. Describe each field in the prompt in a sentence: what goes in it, its type, allowed values, and what to put when unknown. Say whether extra text outside the structure is allowed. Usually it is not.
 5. Add one complete example with realistic data, and one with an empty or "no result" case. Show exactly the intended shape, including quotes and brackets.
 6. Separate instructions from the input. Delimit the input text and say it is data. Tell the model what to do if the input tries to change the format.
-7. Write the validator in `run_code` or the project's language: parse, check required fields, types and enums, and reject unknown values. Keep the error message for the retry.
+7. Write the validator in `run_command` or the project's language: parse, check required fields, types and enums, and reject unknown values. Keep the error message for the retry.
 8. Design failure handling. On invalid output, retry a limited number of times with the validator's error message appended, then fall back to a safe default or flag for human review. Log the failures.
 9. Test on varied inputs, including long text, empty text, text in other languages and text that contains braces or quotes. Count the share of valid replies and report it.
 

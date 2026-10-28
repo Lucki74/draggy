@@ -21,7 +21,7 @@ Decide between two prompts with evidence. Only one thing differs between version
 1. Ask with `ask_user` for the two prompts, the test cases, the success criteria and the costs that matter: quality, length, speed, price. Check that the cases come from real use and that some are held out from earlier tuning.
 2. Write down the difference between A and B in one line. If more than one thing changed, say which parts matter or plan separate tests. A result with several changes cannot say which one worked.
 3. Fix everything else: same model, same settings, same input order, same date. Record the settings in a file with `create_file`. If sampling is random, plan several runs per case.
-4. Decide the scoring before running. Use the rubric from the test set, with automatic checks in `run_code` for what code can judge and a written scale for the rest. Decide what counts as a meaningful difference up front.
+4. Decide the scoring before running. Use the rubric from the test set, with automatic checks in `run_command` for what code can judge and a written scale for the rest. Decide what counts as a meaningful difference up front.
 5. Run both versions over all cases. Save every output with the case id and version. Mix the order of runs so that drift in conditions does not favour one version.
 6. Hide the version when judging free text. Shuffle outputs into pairs labelled by position and score without knowing which is which, or have a second reader do it.
 7. Score and tabulate: per case, per group of cases, overall. Count wins, ties and losses as well as average scores.

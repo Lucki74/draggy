@@ -23,7 +23,7 @@ Collect a consistent dataset from many pages without silent gaps. The fields are
 3. Build the address list. For a listing, open it with `browser_navigate`, collect the detail links with `browser_get_elements`, and follow pagination until the end, noting the page's own total count. For a list the user gave, read it with `read_file`.
 4. Pilot on three pages of different kinds (a typical one, one with missing fields, the longest). For each, locate the fields using `browser_snapshot` and read them with `browser_get_text`. Write down where each field lives and how to tell when it is absent.
 5. Loop over the rest with a pause between pages of at least a second or two. Keep a progress record in a file with `create_file` so a failure does not lose the work: address, status, values.
-6. For every page, validate the result in `run_code`: required fields present, types right, values within a plausible range, no value copied from the previous page by mistake. Mark failures as `missing` or `error`, never as an empty guess.
+6. For every page, validate the result in `run_command`: required fields present, types right, values within a plausible range, no value copied from the previous page by mistake. Mark failures as `missing` or `error`, never as an empty guess.
 7. Retry failed pages once after a pause. Pages that still fail stay in a separate list with the reason (timeout, blocked, login needed, layout different).
 8. Write the final file as CSV or JSON with `create_file`, with a column for the source address and the time read. Report counts: expected, collected, missing, failed.
 9. Spot check five rows against their live pages, including one from the middle and one from the end, and report any difference found.

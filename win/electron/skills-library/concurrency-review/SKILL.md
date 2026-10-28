@@ -31,7 +31,7 @@ Decide whether a change stays correct when two things run at once or in an unexp
    - Events and callbacks that fire after the owner was disposed.
 5. Check lifecycle: how does the work start, get cancelled and stop on shutdown? What happens to in-flight work, queued items and partially written data?
 6. Check ordering assumptions: does the code assume responses arrive in request order, or that two writes land in the order they were sent?
-7. Try to prove one. With `run_code` or `run_command`, write a small stress test or inject a delay between check and act, and see the invariant break.
+7. Try to prove one. With `run_command`, write a small stress test or inject a delay between check and act, and see the invariant break.
 8. Write the invariant in one sentence for each piece of shared state, such as 'balance never negative' or 'one worker per job'. A review without a stated invariant has nothing to test against.
 9. Check tests for concurrency: do they use real timing sleeps, or controlled schedulers and barriers? Sleeps hide races.
 

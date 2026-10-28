@@ -10,7 +10,7 @@ const LIBRARY = path.resolve(here, "../../electron/skills-library");
 
 export const TOOLS = new Set([
   "ask_user", "create_file", "delete_file", "edit_file", "explore", "generate_image", "git_diff", "git_status",
-  "list_directory", "move_file", "read_file", "read_url", "run_code", "run_command", "search_files",
+  "list_directory", "move_file", "read_file", "read_url", "run_command", "search_files",
   "search_library", "search_web", "update_plan", "use_skill", "write_file",
   "browser_click", "browser_close", "browser_console", "browser_dialog", "browser_drag", "browser_get_elements",
   "browser_get_text", "browser_history", "browser_hover", "browser_navigate", "browser_press_key",
@@ -23,7 +23,7 @@ export const FOREIGN = {
   Read: "read_file", Write: "write_file", Edit: "edit_file", MultiEdit: "edit_file", Bash: "run_command",
   Grep: "search_files", Glob: "search_files", LS: "list_directory", WebFetch: "read_url", WebSearch: "search_web",
   Task: "explore", Agent: "explore", TodoWrite: "update_plan", Skill: "use_skill", AskUserQuestion: "ask_user",
-  NotebookEdit: "edit_file",
+  NotebookEdit: "edit_file", run_code: "run_command",
 };
 
 const ALLOWED_KEYS = new Set(["name", "description", "license", "compatibility", "metadata", "allowed-tools"]);

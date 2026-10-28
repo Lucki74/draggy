@@ -23,7 +23,7 @@ Tell the user whether a number is accurate and whether it means what the claim s
 4. **Find the denominator.** Ask what the number is a share of. "Up 50%" from what, to what? Convert to absolute counts where the source allows.
 5. **Check the sample.** For surveys: sample size, who was asked, how they were chosen, margin of error, question wording. For counts: what was counted, and who is excluded.
 6. **Check the definition and time frame.** Compare the term in the source with the common meaning, and check start and end dates. Note any change of method.
-7. **Recompute.** Use `run_code` for ratios, percentage changes and per-capita rates. Show the arithmetic. Keep percent change and percentage points separate.
+7. **Recompute.** Use `run_command` for ratios, percentage changes and per-capita rates. Show the arithmetic. Keep percent change and percentage points separate.
 8. **Test the inference.** Ask whether other explanations fit the same number: mix of groups, base effects, chance in small samples, reverse direction.
 9. **Verdict.** Accurate and supports the claim; accurate but misleading; inaccurate; or cannot verify. Explain in two sentences.
 10. **Look for the omitted comparison.** Find the figure for the comparison group, earlier period or other region that the claim leaves out.

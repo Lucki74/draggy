@@ -24,7 +24,7 @@ Turn a raw machine transcript into readable text without changing what was said.
 5. Fix mechanics: sentence breaks, capitalisation, punctuation, paragraphs at topic changes. Remove fillers only if the chosen style says so.
 6. Handle numbers, dates and names with care. Change them only when the context makes the correction certain; otherwise keep the original and add a bracketed flag like `[check: 15 or 50?]`.
 7. Mark inaudible or doubtful passages as `[inaudible]` or `[unclear: best guess]` instead of filling the gap with a plausible sentence.
-8. Edit the copy with `edit_file` or write a new one with `create_file`. Compare lengths: a light clean should remove well under a fifth of the words. Check with `run_code` and review any large drop.
+8. Edit the copy with `edit_file` or write a new one with `create_file`. Compare lengths: a light clean should remove well under a fifth of the words. Check with `run_command` and review any large drop.
 9. Spot check five passages against the audio or the original text, chosen at random and including at least one with numbers, and report any difference found.
 
 ## Gotchas

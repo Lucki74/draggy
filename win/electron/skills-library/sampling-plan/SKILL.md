@@ -28,10 +28,10 @@ Choose a way of selecting units and a sample size that can answer the question a
    - Systematic sampling (every kth record) from a list in random order.
    - Convenience samples only as an exploration, labelled as such.
 4. Set the target precision and confidence: for example a margin of error of 5 points at 95 percent confidence. Ask the user for the precision they need, and what decision rides on it.
-5. Compute the size with `run_code`. For a proportion with an unknown rate use the worst case 0.5: n = z squared times p times (1 minus p) divided by e squared, with z about 1.96 for 95 percent. For a mean use the standard deviation from a pilot or earlier data. Apply the finite population correction when the sample is more than about 5 percent of a small population.
+5. Compute the size with `run_command`. For a proportion with an unknown rate use the worst case 0.5: n = z squared times p times (1 minus p) divided by e squared, with z about 1.96 for 95 percent. For a mean use the standard deviation from a pilot or earlier data. Apply the finite population correction when the sample is more than about 5 percent of a small population.
 6. Adjust for losses. Divide by the expected response or valid-record rate, for example 40 percent, to get the number to contact or pull.
 7. Size for the smallest subgroup you must report on. A total of 400 split five ways leaves 80 each and wider margins per group.
-8. Write the selection steps so they can be repeated: a random seed, the sort order of the list, the code or spreadsheet formula used. Use `run_code` to draw the sample and `create_file` to save it.
+8. Write the selection steps so they can be repeated: a random seed, the sort order of the list, the code or spreadsheet formula used. Use `run_command` to draw the sample and `create_file` to save it.
 9. Plan the bias checks: compare the achieved sample with known population shares, follow up on non-responders, and decide in advance whether to weight.
 
 ## Gotchas

@@ -21,7 +21,7 @@ Apply one naming rule to a whole set of files so that every result is predictabl
 
 1. Pin down the rule in one sentence, with one worked example from a real file. Use `ask_user` if the rule has choices: date source (modified, created, or inside the file), counter width, case.
 2. Collect the set. Use `list_directory` and decide whether subfolders are included. Exclude hidden files and anything the rule should not touch, such as `.git` or system files.
-3. Compute the new names with `run_code` without touching the disk. Keep the extension out of the rule unless the user wants it changed. Produce a table: old name, new name, status.
+3. Compute the new names with `run_command` without touching the disk. Keep the extension out of the rule unless the user wants it changed. Produce a table: old name, new name, status.
 4. Check the table for problems: two old names mapping to one new name, a new name that already exists and is not in the set, names over 200 characters, trailing dots or spaces, and reserved Windows names such as `CON` or `NUL`.
 5. Show the first 15 rows, the last 5 and every row with a problem. Use `ask_user` for approval. State the total count.
 6. Write the undo file first with `create_file`: one line per file, `new name -> old name`, or a small script that reverses it.

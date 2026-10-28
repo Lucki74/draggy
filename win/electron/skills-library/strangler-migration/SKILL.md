@@ -23,7 +23,7 @@ Replace an old component one slice at a time while the product keeps running. At
 2. Choose the seam: a single place all callers pass through, such as a facade function, an interface, a route prefix or a proxy. If no seam exists, creating one is the first change and ships alone, forwarding everything to the old code.
 3. Slice the work by something measurable: one route, one customer segment, one feature, one record type. Order slices from low risk and high learning to high risk. Write the order with `update_plan`.
 4. Build the new implementation for the first slice behind the seam. Route by a switch the team controls (flag, config value, percentage), default to the old path.
-5. Prove equivalence before cutting over. Run old and new on the same inputs and compare outputs, using tests, recorded requests or shadow calls whose new result is logged and discarded. Use `run_command` or `run_code` for the comparison script. Decide in writing what differences are acceptable.
+5. Prove equivalence before cutting over. Run old and new on the same inputs and compare outputs, using tests, recorded requests or shadow calls whose new result is logged and discarded. Use `run_command` for the comparison script. Decide in writing what differences are acceptable.
 6. Cut over the slice, watch the agreed signals (errors, latency, mismatches), and keep the switch back to the old path available until the slice has run cleanly for the agreed time.
 7. Repeat for each slice. After each, delete anything that is now unused on the old side, so the old component visibly shrinks.
 8. Set an end date with the user via `ask_user`. When the last slice is done, remove the seam's old branch, the switches, and the old code, and run the full suite.

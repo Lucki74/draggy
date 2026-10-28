@@ -24,7 +24,7 @@ A test plan that can produce a trustworthy answer. It fixes the hypothesis, the 
 3. Change one thing. If two things change, name them as one package and accept that the test cannot say which mattered.
 4. Choose one primary metric tied to the business goal, plus guardrail metrics that must not get worse (refunds, unsubscribes, load time). Define exactly how each is counted.
 5. Get the baseline rate from the user's data. Do not use industry averages as the baseline.
-6. Work out sample size. Use the baseline, the minimum effect worth detecting, a significance level (commonly 5 percent) and power (commonly 80 percent). Compute with `run_code` and show the formula or tool used, and the inputs. If traffic is too small to detect the effect in a reasonable time, say so and suggest a bigger change, a higher-traffic step or a qualitative test instead.
+6. Work out sample size. Use the baseline, the minimum effect worth detecting, a significance level (commonly 5 percent) and power (commonly 80 percent). Compute with `run_command` and show the formula or tool used, and the inputs. If traffic is too small to detect the effect in a reasonable time, say so and suggest a bigger change, a higher-traffic step or a qualitative test instead.
 7. Set the duration. Convert sample size into days at current traffic, and round up to whole weeks so each weekday appears equally. Avoid launch, sale and holiday periods that distort behavior.
 8. Define the split: random assignment, equal shares, stable per visitor, and the same traffic sources for both arms. Plan a check that the split is balanced.
 9. Write the decision rule before launch: run to the planned sample, then read the result once. State what happens if the variant wins, loses or is flat.

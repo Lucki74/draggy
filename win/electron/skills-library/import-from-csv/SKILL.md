@@ -19,12 +19,12 @@ Get CSV data into a sheet exactly as it exists in the file. A good import has th
 
 ## Steps
 
-1. Inspect the raw file before opening it in a spreadsheet. Use `read_file` for the first 20 lines and `run_code` to count lines. Note the delimiter (comma, semicolon, tab, pipe), the quote character, whether there is a header, and any lines above the header.
-2. Detect the encoding. A byte order mark points to UTF-8 with BOM. Accented letters turning into odd pairs of characters means UTF-8 read as a legacy encoding. Check with `run_code` by decoding as UTF-8 and counting replacement characters.
-3. Count fields per line with `run_code`. If some lines have more fields than the header, a quote or delimiter inside a value is not escaped. Print three such lines and decide with the user how to handle them.
+1. Inspect the raw file before opening it in a spreadsheet. Use `read_file` for the first 20 lines and `run_command` to count lines. Note the delimiter (comma, semicolon, tab, pipe), the quote character, whether there is a header, and any lines above the header.
+2. Detect the encoding. A byte order mark points to UTF-8 with BOM. Accented letters turning into odd pairs of characters means UTF-8 read as a legacy encoding. Check with `run_command` by decoding as UTF-8 and counting replacement characters.
+3. Count fields per line with `run_command`. If some lines have more fields than the header, a quote or delimiter inside a value is not escaped. Print three such lines and decide with the user how to handle them.
 4. Decide each column's type before import: text for IDs, codes, phone numbers and anything with leading zeros; numbers for amounts; dates with a stated order, such as year-month-day. Mark the columns that must stay text.
 5. Import through the data import feature (text import, or the data menu import in Sheets), not by double-clicking, so the delimiter, encoding and column types can be set. Give the user those exact settings.
-6. If building a file instead, use `run_code` to read with all columns as strings, convert only the columns decided in step 4, and write the workbook with the types set. Keep the header row as the table header.
+6. If building a file instead, use `run_command` to read with all columns as strings, convert only the columns decided in step 4, and write the workbook with the types set. Keep the header row as the table header.
 7. Reconcile after import: row count equals the line count minus the header, column count matches, and the first, middle and last rows are the same as in the file. Sum one numeric column in the sheet and in the code, and compare.
 8. Check for the classic damage: leading zeros present, no scientific notation in long IDs, dates not swapped (look for a day over 12), and no cells ending up as hash signs from narrow columns.
 9. Save the import settings or the script so the next file with the same layout takes a minute. Tell the user to keep the original CSV as the source of truth.

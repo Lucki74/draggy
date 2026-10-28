@@ -19,7 +19,7 @@ Help the user understand statements they already have: what each line means, how
 
 1. Read the file with `read_file`. Identify the statement type, entity, period end, currency, units (units, thousands, millions) and whether it is audited, reviewed or unaudited.
 2. Ask with `ask_user` for the accounting basis if the document does not state it.
-3. Check the arithmetic with `run_code`: assets equal liabilities plus equity, subtotals add up, net income links across statements.
+3. Check the arithmetic with `run_command`: assets equal liabilities plus equity, subtotals add up, net income links across statements.
 4. Explain each major section in two or three plain sentences, using the statement's own line names.
 5. Compute a few ratios only where the inputs exist: current ratio, gross margin, operating margin, debt to equity, days of receivables. Show the formula next to each.
 6. Compare with the prior period if one is present. Report changes in amount and percent, and the lines that moved most.

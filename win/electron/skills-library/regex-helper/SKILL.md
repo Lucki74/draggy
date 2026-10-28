@@ -27,7 +27,7 @@ Deliver a pattern that matches exactly what the user needs, shown against test s
 5. Name groups when the flavour supports it.
 6. If regex is the wrong tool (nested HTML, full email validation per RFC), say so and suggest a parser or library.
 7. Test:
-   - In Code, run the pattern against the examples with `run_code` (javascript or python, matching the flavour), printing each example, whether it matched and what was captured.
+   - In Code, run the pattern against the examples with `run_command` (javascript or python, matching the flavour), printing each example, whether it matched and what was captured.
    - In Chat, walk through two or three examples by hand.
 
 ## Gotchas

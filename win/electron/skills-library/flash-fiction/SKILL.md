@@ -27,7 +27,7 @@ For longer stories, use `use_skill` with `story-writer`. For prompts to start fr
 6. **Draft long, then cut.** Write 20 to 30 percent over the limit. Cut explanations, adverbs, doubled adjectives, throat-clearing and any line that repeats an image.
 7. **Choose detail with care.** Use two or three exact details that suggest the whole world. Names of things beat adjectives.
 8. **Land the ending.** End on an image, an act or a line of speech that opens meaning. Do not explain the point. Check that the ending is set up earlier.
-9. **Count the words.** Use `run_code` with a short script to count words in the final text, including or excluding the title as the rules say. Do not count by eye.
+9. **Count the words.** Use `run_command` with a short script to count words in the final text, including or excluding the title as the rules say. Do not count by eye.
 10. **Write the title last.** Let it add meaning the text does not give, rather than repeating a line.
 11. **Read it as a stranger.** Check that the reader can tell who is speaking, where they are and what is at stake by the third sentence.
 12. **Offer a trimmed version.** If the user may need a shorter limit later, provide a version with 20 percent fewer words.

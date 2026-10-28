@@ -22,10 +22,10 @@ Produce a size estimate whose inputs can each be traced to a source and whose as
 3. **Find bottom-up inputs.** Gather the count of potential customers (businesses by size, households, users) from census or registry data, and an observed price or spend per customer from public pricing or surveys.
 4. **Grade every input.** Mark each as official statistic, company filing, industry body, analyst report or blog. Prefer the first three.
 5. **Check units.** Convert to one currency and one year. Write the conversion source and date next to it.
-6. **Calculate both ways.** Use `run_code` for the arithmetic: top-down is wider market times the share that fits your definition, bottom-up is customers times spend times adoption. Keep each factor on its own line.
+6. **Calculate both ways.** Use `run_command` for the arithmetic: top-down is wider market times the share that fits your definition, bottom-up is customers times spend times adoption. Keep each factor on its own line.
 7. **Compare the two results.** If they differ by more than about a factor of two, find which assumption drives the gap and say so.
 8. **Report a range.** Give low, base and high, naming the assumption that moves each.
-9. **Run a sensitivity check.** Change each assumption by a quarter up and down with `run_code` and list which one moves the result most.
+9. **Run a sensitivity check.** Change each assumption by a quarter up and down with `run_command` and list which one moves the result most.
 10. **Check against a known case.** Compare the method with a public company's reported revenue in the same segment, as a sanity test.
 
 ## Gotchas

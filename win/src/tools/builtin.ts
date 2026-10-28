@@ -1211,93 +1211,6 @@ const searchLibrary: ToolSpec = {
   },
 };
 
-const RUN_CODE_TIMEOUT_MS = 20000;
-
-const runCode: ToolSpec = {
-  name: "run_code",
-  annotations: {
-    sandboxed: true,
-    readOnly: false,
-    readOnlyHint: false,
-    destructive: false,
-    destructiveHint: false,
-    idempotent: false,
-    idempotentHint: false,
-    openWorld: false,
-    openWorldHint: false,
-  },
-  group: "code",
-  description:
-    "Run a short Python or JavaScript program on this machine and return its output. Use it to check calculations and verify that code you wrote actually works before presenting it.",
-  parameters: {
-    language: { type: "string", description: 'Either "python" or "javascript".' },
-    source: { type: "string", description: "The complete program to run. Print results to stdout." },
-  },
-  required: ["language", "source"],
-  usage:
-    '{"language": "python", "source": "print(2 + 2)"} → runs the program and returns its output',
-  available: (environment) => environment.codeExecution,
-  run: async (args, ctx) => {
-    const language = String(args.language);
-    const source = String(args.source);
-    const stepId = ctx.newId();
-
-    ctx.pushStep({
-      id: stepId,
-      type: "run_code",
-      content: `${ctx.t("runningCode")} (${language})`,
-      isComplete: false,
-      fileContent: source,
-      language,
-    });
-
-    const result = await api()?.runner.run(language, source, RUN_CODE_TIMEOUT_MS);
-
-    if (!result) {
-      ctx.patchStep(stepId, { isComplete: true, type: "error" });
-      ctx.syncSteps();
-      return `TOOL RESULT (run_code): The code runner is unavailable.`;
-    }
-
-    if (result.error && result.exitCode === undefined) {
-      ctx.patchStep(stepId, {
-        isComplete: true,
-        type: "error",
-        content: `${ctx.t("codeFailed")}: ${result.error}`,
-      });
-      ctx.syncSteps();
-      return `TOOL RESULT (run_code): Could not run - ${result.error}`;
-    }
-
-    const output = [
-      result.stdout ? `stdout:\n${result.stdout}` : "",
-      result.stderr ? `stderr:\n${result.stderr}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n");
-
-    ctx.patchStep(stepId, {
-      isComplete: true,
-      content: result.timedOut
-        ? `${ctx.t("codeTimedOut")} (${language})`
-        : result.success
-          ? `${ctx.t("codeRan")} (${language}, ${result.durationMs} ms)`
-          : `${ctx.t("codeFailed")} (${language}, exit ${result.exitCode})`,
-      stdout: result.stdout,
-      stderr: result.stderr,
-    });
-    ctx.syncSteps();
-
-    if (result.timedOut) {
-      return `TOOL RESULT (run_code): The program was still running after ${RUN_CODE_TIMEOUT_MS / 1000} seconds and was stopped.\n\n${output}`;
-    }
-
-    return `TOOL RESULT (run_code): exit code ${result.exitCode}${
-      result.truncated ? " (output truncated)" : ""
-    }\n\n${output || "(the program produced no output)"}`;
-  },
-};
-
 export const BUILTIN_TOOLS: ToolSpec[] = [
   searchLibrary,
   searchWeb,
@@ -1322,7 +1235,6 @@ export const BUILTIN_TOOLS: ToolSpec[] = [
   browserGetText,
   browserClose,
   createFile,
-  runCode,
 ];
 
 export function registerBuiltinTools(): void {

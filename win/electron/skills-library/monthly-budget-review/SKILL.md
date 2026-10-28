@@ -18,7 +18,7 @@ Give the user a calm, factual look at how the month went against their own plan,
 ## Steps
 
 1. Ask with `ask_user` for the budget (categories and amounts) and the month. Load the actual spending with `read_file` or take pasted totals.
-2. With `run_code`, total the actuals by category and print the budget, the actual and the difference for each. Show the sum of all categories next to the sum of the source.
+2. With `run_command`, total the actuals by category and print the budget, the actual and the difference for each. Show the sum of all categories next to the sum of the source.
 3. Mark each gap as fixed (rent), flexible (food) or irregular (car repair, gift). Say which gaps come from a single item.
 4. Ask for the reason behind the three largest gaps. Do not guess the reason.
 5. Check income: was it as expected? Note any income that was late or one-off.

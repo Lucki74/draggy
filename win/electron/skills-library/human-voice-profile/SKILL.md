@@ -18,7 +18,7 @@ Capture how one person writes in a file the other human skills can read, so each
 ## Steps
 
 1. Ask for samples the user wrote with no AI help. Different genres give a better profile: an email, a post, a longer piece.
-2. Read `metrics.cjs` in the `human` skill and run it on each sample with `run_code`. Note the sentence length spread, the share of sentences near the mean, and the paragraph shapes.
+2. Read `metrics.cjs` in the `human` skill and run it on each sample with `run_command`. Note the sentence length spread, the share of sentences near the mean, and the paragraph shapes.
 3. Read the samples for habits the numbers miss: favorite plain verbs, how paragraphs open and end, punctuation (dashes, semicolons, parentheses), contractions, person (I, we, you), humor, and what the writer never does.
 4. Write the profile as plain markdown with these headings: Rhythm, Vocabulary, Punctuation, Openings and endings, Never does, Measured numbers. Quote at most one short phrase per heading from the samples.
 5. Show the profile and ask what is wrong. Save it with `create_file` as `voice-profile.md` in the folder the user picks.

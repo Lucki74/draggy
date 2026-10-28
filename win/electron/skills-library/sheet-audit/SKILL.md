@@ -20,14 +20,14 @@ Find the problems that make a workbook give wrong answers, rank them by how much
 ## Steps
 
 1. Work on a copy. Use `list_directory` to find the file and `run_command` to copy it to a new name. Open nothing in write mode on the original.
-2. Map the workbook with `run_code`: sheet names, visible or hidden state, used range, number of formulas and constants per sheet, defined names, external links, and any macros present. Print it as a short table.
+2. Map the workbook with `run_command`: sheet names, visible or hidden state, used range, number of formulas and constants per sheet, defined names, external links, and any macros present. Print it as a short table.
 3. Trace the flow. Identify the input sheets, the calculation sheets and the outputs. Draw it as a line of text: Inputs to Calc to Summary. Ask the user with `ask_user` what the key outputs are and what they should roughly equal.
 4. Scan for errors. List every cell with an error value (`#REF!`, `#DIV/0!`, `#N/A`, `#VALUE!`, `#NAME?`) and trace each one back to its first cause, since one bad cell spreads down a chain.
 5. Scan for consistency. In each row or column of formulas, find the cells whose formula differs in shape from its neighbours, which is often an overwritten or patched cell. List constants sitting in the middle of formula ranges.
 6. Scan for hardcodes: numbers typed inside formulas such as `*1.2`, rates or dates that should be input cells, and values pasted over formulas.
 7. Scan the structure: ranges in totals that stop short of the last row, SUMs that include their own subtotal rows, merged cells in data, lookups with approximate matching, volatile functions across large ranges, and circular references.
 8. Check the hidden and the external: hidden sheets, rows and columns, named ranges pointing nowhere, links to files on someone's drive, and comments that say "temporary".
-9. Reconcile the outputs: recompute the key totals independently with `run_code` from the raw data and compare. A difference is a finding with a number on it.
+9. Reconcile the outputs: recompute the key totals independently with `run_command` from the raw data and compare. A difference is a finding with a number on it.
 10. Write the report with `create_file`: findings ranked as Wrong results, Fragile, and Tidy. Each gets the sheet, cell, what is wrong, the effect and the fix.
 11. Agree what happens next before leaving the report.
    - Ask the user which findings to fix, and in what order, starting with wrong results.

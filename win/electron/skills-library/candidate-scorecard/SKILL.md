@@ -23,7 +23,7 @@ Make a hiring comparison rest on the same criteria and on written evidence. The 
 4. Build the table with `create_file`: one row per criterion, columns for each candidate's score, the evidence note and the interviewer.
 5. Collect notes from each interviewer separately and ask for scores before the group meets, so one voice does not set the others.
 6. Enter scores with a quote or observed example in the evidence cell. Leave a cell blank when there was no evidence, and do not fill it with a guess.
-7. Compute weighted totals with `run_code` if there are more than a few cells. Show the arithmetic.
+7. Compute weighted totals with `run_command` if there are more than a few cells. Show the arithmetic.
 8. Mark criteria where interviewers differ by two or more points, and list them for discussion.
 9. Review the evidence for traits unrelated to the work, such as accent, school prestige or shared hobbies, and flag them for removal.
 10. Summarize each candidate in three lines: strengths with evidence, concerns with evidence, and open questions for references.

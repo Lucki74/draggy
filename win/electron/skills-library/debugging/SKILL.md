@@ -27,7 +27,7 @@ Find why the code misbehaves and fix that cause, not the place where it finally 
    - Check recent changes with `git_status` and `git_diff`, or `git log -p -5 -- <file>` through `run_command`. Many bugs are in the latest change.
 3. Hypothesise and test.
    - Write down two or three possible causes, most likely first.
-   - Test one at a time with the cheapest check: read a function, add a temporary log line, run a tiny script with `run_code`, or run the test with a narrower input.
+   - Test one at a time with the cheapest check: read a function, add a temporary log line, run a tiny script with `run_command`, or run the test with a narrower input.
    - Let the result eliminate hypotheses. If none fit, gather more evidence rather than inventing a fix.
    - Use `update_plan` for longer investigations so the user can follow.
 4. Fix the cause.

@@ -18,7 +18,7 @@ Help the user see the whole cost and the alternatives so the decision is theirs 
 ## Steps
 
 1. Ask with `ask_user` what the item is, the price, why the user wants it, what happens if they wait, and how they plan to pay (cash, savings, instalments).
-2. Build the full cost with `run_code`: price, taxes and fees the user has been quoted, delivery, accessories, insurance, running costs per year, upkeep, and the expected years of use. Ask for each; leave unknowns marked unknown.
+2. Build the full cost with `run_command`: price, taxes and fees the user has been quoted, delivery, accessories, insurance, running costs per year, upkeep, and the expected years of use. Ask for each; leave unknowns marked unknown.
 3. If paying over time, ask for the stated term, rate and fees from the offer. Compute the total paid and the monthly amount, and compare with paying outright.
 4. Compare with the budget: load it with `read_file` or ask for monthly surplus. State what the purchase displaces.
 5. Ask what would happen to the user's plans if the money were not available next month. This tests the buffer.

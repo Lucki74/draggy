@@ -27,7 +27,7 @@ Turn a pile of model outputs into consistent, explainable scores. Each grade poi
 7. Resist style bias. Do not reward length, confident tone or polish for their own sake. Do not penalise an unusual but correct approach.
 8. Flag uncertainty. Mark items where two readings of the rubric give different grades, where you lack the knowledge to judge, or where the input was ambiguous. Those go to a person.
 9. Re-grade a random sample of about a tenth of the items later without looking at your first grades. Compare, and if agreement is low, tighten the rubric and redo the affected criteria.
-10. Write results to a file with `create_file`, one row per item with the scores, evidence and flags, and compute summary numbers with `run_code`. Report per-criterion averages and the common failure types.
+10. Write results to a file with `create_file`, one row per item with the scores, evidence and flags, and compute summary numbers with `run_command`. Report per-criterion averages and the common failure types.
 
 ## Gotchas
 

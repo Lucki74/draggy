@@ -18,13 +18,13 @@ Give the speaker words they can say naturally, not a script that repeats the sli
 
 ## Steps
 
-1. Read the deck. For a .pptx, extract slide text and any existing notes with `run_code`. For an outline or pasted text, use `read_file`. List slide number, title and body in a table.
+1. Read the deck. For a .pptx, extract slide text and any existing notes with `run_command`. For an outline or pasted text, use `read_file`. List slide number, title and body in a table.
 2. Ask with `ask_user` for the slot length, the audience, the speaker's own style (formal, casual, story-led) and whether the notes should be full sentences or cue bullets. Ask about speaking pace only if the talk is tight.
 3. Allocate time. Divide the total minutes across slides by weight, giving title and divider slides a few seconds and chart or argument slides more. Write the target seconds on each slide.
 4. Write the notes per slide in this order: the point in one spoken sentence, the one thing to add that is not on the slide (an example, a number's meaning, a short story), and the lead-in to the next slide.
 5. Mark cues in square brackets: [pause], [click], [show chart], [ask the room]. Keep them few.
 6. Keep facts true to the source. Where a note needs a statistic or quote that the deck does not hold, write "[add: figure for X]". Never make one up.
-7. Check length. Count words per slide with `run_code` and compare with the time at about 130 words per minute for normal speech. Trim slides that run over their time.
+7. Check length. Count words per slide with `run_command` and compare with the time at about 130 words per minute for normal speech. Trim slides that run over their time.
 8. Deliver the notes as a document with `create_file`, or write them into the pptx notes field if the user asked and the file is backed up first.
 9. Prepare the speaker for the parts that usually go wrong.
    - List two likely questions per major section with a short answer drawn from the deck or source.

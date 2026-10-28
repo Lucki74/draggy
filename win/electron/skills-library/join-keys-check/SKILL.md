@@ -19,7 +19,7 @@ Know what a join will do before it does it. A good check tells the user the rela
 
 ## Steps
 
-1. Name the tables, the key columns on each side, and the join the user intends (left, inner, outer) and why. Use `ask_user` if the purpose is unclear. Read the files with `run_code` and print the shape of each.
+1. Name the tables, the key columns on each side, and the join the user intends (left, inner, outer) and why. Use `ask_user` if the purpose is unclear. Read the files with `run_command` and print the shape of each.
 2. Profile each key column: dtype, number of nulls, number of distinct values, and the number of rows per key. Print the keys with the most rows.
 3. Test uniqueness on each side. If the key is unique on both, the join is one to one. If unique on one side only, it is one to many and the output has the many side's row count. If neither is unique, it is many to many and the rows multiply per key.
 4. Compare the types and formats. Numbers read as text, leading zeros dropped on one side, trailing spaces, mixed case, a prefix on one system, an extra check digit. Print five unmatched keys from each side next to each other.

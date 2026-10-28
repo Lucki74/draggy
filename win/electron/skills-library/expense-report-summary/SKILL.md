@@ -17,11 +17,11 @@ Turn an expense list into a short report a manager can read and approve, with to
 
 ## Steps
 
-1. Load the file with `read_file`. With `run_code`, print the columns, row count, date range and the sum of the amount column. Keep that source total.
+1. Load the file with `read_file`. With `run_command`, print the columns, row count, date range and the sum of the amount column. Keep that source total.
 2. Ask with `ask_user` for the period, the currency, the policy limits the user wants flagged, and who reads the report.
 3. Check the data: dates inside the period, amounts that parse, duplicate rows (same date, vendor and amount), blank categories.
 4. If several currencies appear, ask for the rates and their source and date. Do not look up a rate and apply it silently.
-5. Compute totals by category, by person and by week or month with `run_code`.
+5. Compute totals by category, by person and by week or month with `run_command`.
 6. Flag outliers: amounts over a limit, the top five single expenses, vendors that repeat often, weekend or out-of-period dates.
 7. List rows with no receipt reference, if a column exists.
 8. Reconcile: the sum of every breakdown equals the source total. Print both.

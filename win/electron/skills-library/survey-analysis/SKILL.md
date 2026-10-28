@@ -20,13 +20,13 @@ Say what respondents said, to what extent that speaks for the wider group, and w
 ## Steps
 
 1. Ask about the survey: the target population, how people were invited, how many were invited, the dates, and whether answers are anonymous. Use `ask_user`. This sets the response rate and the bias risks.
-2. Load the export with `run_code`. Read the question text and the coding of each answer (1 to 5 meaning what). Build a small codebook that maps columns to question wording and labels.
+2. Load the export with `run_command`. Read the question text and the coding of each answer (1 to 5 meaning what). Build a small codebook that maps columns to question wording and labels.
 3. Clean without distorting. Remove test responses and duplicates, and flag speeders (finished in a fraction of the median time) and straight-liners (the same answer on a whole grid). Decide on partial responses and state the rule.
 4. Report the base for each question: how many were asked and how many answered. Keep "don't know" and "not applicable" as separate categories.
 5. Summarise single-choice questions as percentages of valid responses. Summarise rating scales as the distribution across points, and give a top-two-box figure (share choosing the top two options) beside the mean if a mean is shown at all.
 6. Compare groups only where each group has enough responses. Use a chi-square test for category differences or a rank-based test for ordinal scales, and give the size of the difference with its interval. Mark groups under about 30 as indicative.
 7. If the respondents differ from the population (for example, too few young people), apply weights based on known population shares, state the variables used, and show weighted and unweighted results side by side.
-8. Analyse open text with a repeatable method: read a random sample of at least 50 answers, propose themes, code every answer (a response can have several), and count. Use `run_code` to apply keyword rules, then check 30 coded answers by hand. Quote two short, anonymised examples per theme.
+8. Analyse open text with a repeatable method: read a random sample of at least 50 answers, propose themes, code every answer (a response can have several), and count. Use `run_command` to apply keyword rules, then check 30 coded answers by hand. Quote two short, anonymised examples per theme.
 9. Look at who did not respond: compare early and late responders, and the profile of respondents with the invited list.
 10. Save tables and charts with `create_file`, with the question wording in each title.
 

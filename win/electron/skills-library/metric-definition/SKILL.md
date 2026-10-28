@@ -30,7 +30,7 @@ Make a metric mean one thing everywhere. A good definition can be turned into a 
    - Grain and slice: what it can be broken down by, and what it cannot.
 4. Write the edge cases and the ruling for each. Examples: a user who is active in two segments, an order refunded after the period ends, an account merged with another, late-arriving events and who is counted when they arrive.
 5. Choose the aggregation rule for rollups. Say whether a total is a ratio of sums or an average of ratios, because they differ when group sizes differ. For distinct counts say that totals across slices do not add up.
-6. Write the computation as pseudo-code or a query with `create_file`. If data is available, use `run_code` to compute it on a sample and check it against a number someone already trusts, and note the gap.
+6. Write the computation as pseudo-code or a query with `create_file`. If data is available, use `run_command` to compute it on a sample and check it against a number someone already trusts, and note the gap.
 7. Check against a known case: pick three entities, calculate by hand from raw rows, and confirm the query counts them as the definition says.
 8. Add metadata: owner, source tables, refresh time, version, date of last change, and a changelog line for any later change. Name related metrics and how they differ.
 9. Share with the main users and collect objections before it becomes the official number.

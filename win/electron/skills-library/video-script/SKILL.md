@@ -24,7 +24,7 @@ Produce a script that sounds natural aloud and tells the editor what to show. Th
 4. List three to six beats. Each beat has a single point, one example or proof, and a line that leads into the next. Cut a beat that does not serve the one thing.
 5. Draft in speech: short sentences, contractions, active verbs, numbers that are easy to say. Read each paragraph aloud in your head and break any sentence you cannot say in one breath.
 6. Add visual cues in a second column or in brackets: on camera, screen capture, b-roll idea, graphic, on-screen text. Mark where a pattern interrupt such as a cut or a new angle helps.
-7. Check length with `run_code`: count words and divide by a speaking rate the user confirms (people differ; ask for a sample of their usual pace). Trim or add to match the target.
+7. Check length with `run_command`: count words and divide by a speaking rate the user confirms (people differ; ask for a sample of their usual pace). Trim or add to match the target.
 8. End with one call to action only, and a closing line that restates the payoff. Save with `create_file` as `script.md`.
 9. Hand the speaker a short delivery note: where to pause, which lines to stress, and which sections can be cut first if the recording runs long.
 

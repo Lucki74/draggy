@@ -23,7 +23,7 @@ Give the person filming a practical list they can work through on the day. Shots
 4. Regroup by location and then by lighting and camera setup, not by story order. Within a setup, shoot wide to tight. Put the hardest or weather-dependent shots first. Note the story order in a column so the editor can restore it.
 5. Add audio: dialogue mic plan, room tone for 30 to 60 seconds at each location, and wild sound for effects. Poor audio is harder to fix than poor picture.
 6. Add the practical column: permits and permissions for locations, release forms for people who appear, music or logos in frame, power, travel time, sunrise and sunset times from a live source such as `search_web`, and a backup plan for weather.
-7. Estimate the time per setup with the user and use `run_code` to total it. Compare with the available hours and mark the shots that drop first if time runs out.
+7. Estimate the time per setup with the user and use `run_command` to total it. Compare with the available hours and mark the shots that drop first if time runs out.
 8. Save with `create_file` as `shot-list.md`, one table, with a tick column.
 9. Run a ten minute gear check the day before: charged batteries, free card space, mic test, lens cleaning and a test clip played back on a laptop.
 

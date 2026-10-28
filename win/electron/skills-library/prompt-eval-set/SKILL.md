@@ -23,7 +23,7 @@ Give the user a repeatable way to say whether a prompt change helped. The set mi
 3. Build the case list in groups: typical inputs in proportion to real use, edge cases (empty, huge, mixed languages, odd formats), cases the model should decline or flag, and adversarial inputs aimed at the prompt's rules. Aim for enough cases per group to see a pattern, and state the size you chose and why.
 4. For each case write: id, input, expected behaviour or reference answer, the failure it targets, and the weight. Where several answers are valid, describe the properties rather than one string.
 5. Write the rubric. Prefer yes or no checks: format valid, required field present, no invented source, correct label, within length. Add a small quality scale only where needed, with anchored descriptions for each level.
-6. Mark checks that code can do (schema validation, regex, exact label match) and implement them with `run_code`. Leave the rest to a person or a model grader.
+6. Mark checks that code can do (schema validation, regex, exact label match) and implement them with `run_command`. Leave the rest to a person or a model grader.
 7. Split the set. Keep a held-out part that is not used when tuning the prompt, and look at it only for the final comparison.
 8. Run the current prompt over the set to get a baseline. Read a sample of failures by hand to confirm the rubric judges what you meant, and fix cases that are unclear.
 9. Save cases and rubric as files with `create_file`, with a version tag, and write down how to rerun them and what changes require adding cases.

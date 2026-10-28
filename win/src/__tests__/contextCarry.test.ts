@@ -32,7 +32,7 @@ const history: Message[] = [
     textContent: "Done, see the file.",
     steps: [
       step({ type: "thinking", content: `I will remember ${FACTS.reasoning}` }),
-      step({ type: "run_code", content: "Code ran", language: "python", stdout: FACTS.output }),
+      step({ type: "command", content: "Code ran", stdout: FACTS.output }),
       step({ type: "create_file", content: "Created **ledger.xlsx**", filename: "ledger.xlsx", filepath: FACTS.file }),
       step({ type: "results", content: "Searched", results: [{ title: "Tides", url: FACTS.page, snippet: "" }] }),
     ],

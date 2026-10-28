@@ -24,7 +24,7 @@ The intended reader understands what is said and knows what to do. A good result
 4. Rewrite sentences: one idea each, subject near the verb, active voice where the actor is known, "you" for the reader when the genre allows, and "must", "may" and "can" used for what they mean. Turn nouns made from verbs back into verbs.
 5. Replace difficult words with common ones only where meaning survives. Keep necessary terms and explain each once, at first use. Do not replace a precise term by a vague phrase.
 6. Use lists for steps and for parallel conditions. Keep tables for data. Define abbreviations on first use or avoid them.
-7. Measure with `run_code`: average sentence length and word length, and a standard readability formula if you write it. Use numbers as a hint, never as the goal. Different languages use different formulas; say which you used.
+7. Measure with `run_command`: average sentence length and word length, and a standard readability formula if you write it. Use numbers as a hint, never as the goal. Different languages use different formulas; say which you used.
 8. Compare with the fact list. Every fact, condition, number and exception must still be present and mean the same. Check negatives and "unless" clauses with particular care.
 9. Read the result as the intended reader would, from the first line. Ask the user to test it on one real reader if the stakes are high. Save with `create_file` if wanted.
 10. Add concrete examples where a rule is abstract: a sample date, an amount, a case that shows the rule at work.

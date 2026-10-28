@@ -22,7 +22,7 @@ Show how the problem is solved so the user can solve the next one. Each step is 
 2. **Identify the type.** Name the kind of problem and the main tool that fits, such as "linear system, use elimination". Say why this tool and not another.
 3. **Plan in one line.** Give the route in plain words before the algebra, so the user sees the shape of the solution.
 4. **Work in small steps.** One operation per line. After each line, write the rule or reason in a few words: "subtract 3 from both sides", "product rule". Do not combine two moves.
-5. **Compute with a tool.** For arithmetic that is long or error-prone, run `run_code` and use the result, instead of working it mentally.
+5. **Compute with a tool.** For arithmetic that is long or error-prone, run `run_command` and use the result, instead of working it mentally.
 6. **Keep track of conditions.** Note restrictions as they appear, such as a denominator that cannot be zero or a squared step that can add false roots.
 7. **State the answer.** Give it with units, in the form the problem asked for (exact or decimal), and rounding only at the end.
 8. **Check independently.** Substitute the answer back into the original statement, or solve by another method, or test the size by a rough estimate. Show the check.

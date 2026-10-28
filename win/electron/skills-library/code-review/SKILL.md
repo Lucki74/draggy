@@ -28,7 +28,7 @@ Find problems that would hurt users or maintainers, not restate the code or impo
    - **Maintainability:** duplication of existing helpers, misleading names, dead code, overly clever logic, comments that lie.
    - **Performance:** only where it plausibly matters, such as loops over large data, repeated I/O, N+1 queries.
 4. For a large or risky change, work through the [checklist](checklist.md) with `use_skill` and file "checklist.md".
-5. Verify each suspected bug by tracing the code path to confirm it can happen. If you can, prove it by running the relevant tests with `run_command`, or a tiny script with `run_code`. Drop findings you cannot substantiate, or mark them clearly as questions.
+5. Verify each suspected bug by tracing the code path to confirm it can happen. If you can, prove it by running the relevant tests with `run_command`, or a tiny script with `run_command`. Drop findings you cannot substantiate, or mark them clearly as questions.
 
 ## Gotchas
 

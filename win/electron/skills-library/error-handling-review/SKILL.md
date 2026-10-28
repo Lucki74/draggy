@@ -30,7 +30,7 @@ For each operation that can fail, know what the caller sees, what the user sees 
 4. Check state on failure: after an error halfway through, is a file partly written, a transaction open, a lock held, a counter incremented? Look for cleanup in `finally` or equivalent.
 5. Check retries: bounded count, backoff, only for errors that can succeed on retry, and safe to repeat (idempotent).
 6. Check messages: does the user-facing text say what to do next, and does the log carry the identifier needed to find the case?
-7. Prove the suspicious ones. Use `run_code` or `run_command` to trigger the failure with a bad input, and observe the result.
+7. Prove the suspicious ones. Use `run_command` to trigger the failure with a bad input, and observe the result.
 8. Write the missing failure tests as a list: input, expected user message, expected log line, expected state afterwards.
 9. Check the process boundary: exit codes, HTTP status codes and top-level handlers that turn an exception into a response.
 

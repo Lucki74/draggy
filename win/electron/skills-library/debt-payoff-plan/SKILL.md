@@ -19,8 +19,8 @@ Show how long each debt takes to clear and how much interest accrues under one o
 
 1. Ask with `ask_user` for each debt: name, balance, annual interest rate as on the statement, and minimum payment. Ask how the rate is compounded if the statement says.
 2. Ask for the total monthly amount the user can put toward all debts, and whether it will stay constant. Confirm the user will not add new charges to the cards.
-3. Check the inputs with `run_code`: that each minimum covers at least the monthly interest. If it does not, say that the balance will not fall on that payment.
-4. Simulate month by month with `run_code`: pay all minimums, then send the extra amount to the target debt. When a debt clears, add its payment to the next target.
+3. Check the inputs with `run_command`: that each minimum covers at least the monthly interest. If it does not, say that the balance will not fall on that payment.
+4. Simulate month by month with `run_command`: pay all minimums, then send the extra amount to the target debt. When a debt clears, add its payment to the next target.
 5. Run two orders: smallest balance first, and highest rate first. Also run the minimums-only baseline.
 6. For each run, report months to debt-free, total interest paid and the month each debt clears.
 7. Show the difference in plain terms, and say that the right order also depends on how motivated the user feels, which a calculation cannot tell.

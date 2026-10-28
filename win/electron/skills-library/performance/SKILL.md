@@ -19,7 +19,7 @@ Make the slow thing measurably faster without making the code worse. Optimising 
 ## Steps
 
 1. Define slow. Establish what is slow, for whom and how slow: a page load, an endpoint, a build, a script, a UI interaction. Get the target ("under 200 ms", "handles 1 million rows") and the realistic input size and environment.
-2. Measure. Reproduce with a repeatable benchmark: time the command with `run_command`, write a small timing script with `run_code` or in the project, or use the project's existing benchmarks. Use a profiler when available: `node --cpu-prof`, Chrome performance tools for front ends (explain how to record, since you cannot operate them), `python -m cProfile -s cumtime`, `go test -bench . -cpuprofile`, `cargo flamegraph`, database EXPLAIN or EXPLAIN ANALYZE. Record baseline numbers, run a few times, and note variance.
+2. Measure. Reproduce with a repeatable benchmark: time the command with `run_command`, write a small timing script with `run_command` or in the project, or use the project's existing benchmarks. Use a profiler when available: `node --cpu-prof`, Chrome performance tools for front ends (explain how to record, since you cannot operate them), `python -m cProfile -s cumtime`, `go test -bench . -cpuprofile`, `cargo flamegraph`, database EXPLAIN or EXPLAIN ANALYZE. Record baseline numbers, run a few times, and note variance.
 3. Find the bottleneck. Check the common causes in this order:
    1. Algorithm: nested loops over large collections (O(n^2)), repeated searches in arrays where a map or set would do, sorting inside loops.
    2. I/O and network: calls inside loops (N+1 queries or requests), missing batching, no caching of repeated work, synchronous file access on hot paths.

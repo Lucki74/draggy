@@ -1,5 +1,5 @@
 // Measures the structure of a prose text. Plain JavaScript, no dependencies.
-// Use: put `const TEXT = `...`;` above this code and run it with run_code, or require() it from a script.
+// Use: put `const TEXT = `...`;` above this code and run it with run_command, or require() it from a script.
 function measure(text) {
   const clean = text.replace(/\r\n/g, "\n").replace(/```[\s\S]*?```/g, " ").trim();
   const paras = clean.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);

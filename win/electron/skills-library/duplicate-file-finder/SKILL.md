@@ -19,7 +19,7 @@ Find files with identical content, group them, and recommend one copy to keep pe
 ## Steps
 
 1. Confirm the folders to scan and what is out of scope. Use `ask_user` if more than one root is involved. Never scan system folders, app install folders or a folder with a `.git` directory.
-2. Group by size first with `run_code`, since files of different sizes cannot match. Drop groups of one. Skip empty files, which all match each other.
+2. Group by size first with `run_command`, since files of different sizes cannot match. Drop groups of one. Skip empty files, which all match each other.
 3. Hash only the remaining candidates with SHA-256, reading in chunks. For very large files, hash the first and last megabyte first, then the full file only for those that still match.
 4. Build groups. For each group list path, size, modified date and folder. Confirm with a full hash, never with name or date alone.
 5. Pick a suggested keeper per group by a stated rule: the copy in the best-organised folder, then the oldest modified date, then the shortest path. Mark the rest as removal candidates.

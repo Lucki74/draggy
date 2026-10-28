@@ -20,7 +20,7 @@ Get the reader to the answer, the confidence in it and the action in under a min
 ## Steps
 
 1. Establish the reader and the decision with `ask_user`: who reads it, what they must decide, how much time they have, and how technical they are. Ask for the original question if it is not stated in the material.
-2. Read the material with `read_file` or `run_code`, and list every number you may use. Recompute any figure you are unsure about. Do not use a number that cannot be traced to the analysis output.
+2. Read the material with `read_file` or `run_command`, and list every number you may use. Recompute any figure you are unsure about. Do not use a number that cannot be traced to the analysis output.
 3. Write the answer in one or two sentences: the finding with its size and the recommended action. If the data does not answer the question, the finding is that, and what would answer it.
 4. Choose the three to five supporting points that carry the argument, in order of importance. Each point is a full sentence with its number, its comparison and its base: "Repeat orders fell from 31 percent to 24 percent among 4,200 customers acquired in March (down from 5,100 in February)". Cut the rest to an appendix.
 5. Add one chart or table per point only if it shows something the sentence cannot. Title each chart with its finding. Save visuals with `create_file` and refer to them in the text.

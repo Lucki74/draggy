@@ -21,7 +21,7 @@ Quantify how an outcome varies with a few predictors and explain what the model 
 
 1. State the question and the outcome. Use `ask_user` if unclear. A continuous outcome fits linear regression, a yes or no outcome fits logistic regression, and a count may need a count model.
 2. Choose the predictors from reasoning about the problem, not from what correlates. Decide which are of interest and which are controls. Note any that are consequences of the outcome and must be left out.
-3. Load and prepare the data with `run_code`: handle missing values with a stated rule, encode categories as dummies with a named reference level, and keep units readable (years not days if that helps). Log transform a positive, skewed outcome if the relationship is multiplicative.
+3. Load and prepare the data with `run_command`: handle missing values with a stated rule, encode categories as dummies with a named reference level, and keep units readable (years not days if that helps). Log transform a positive, skewed outcome if the relationship is multiplicative.
 4. Look before fitting: scatter plots of outcome against each predictor, and correlations among predictors. Two predictors correlated above about 0.8 make coefficients unstable.
 5. Fit the model with a statistics library (statsmodels in Python gives intervals and tests). Save the formula and the sample size actually used after dropping rows.
 6. Check diagnostics: residuals against fitted values for curvature and spread, a normal quantile plot for heavy tails, and influential points with Cook's distance or leverage. For logistic regression check calibration and separation.

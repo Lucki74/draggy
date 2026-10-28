@@ -17,11 +17,11 @@ Show the user where unpaid money sits by age and customer, and what to do about 
 
 ## Steps
 
-1. Load the list with `read_file`. With `run_code`, print the columns, the number of rows and the total open amount. Keep that total.
+1. Load the list with `read_file`. With `run_command`, print the columns, the number of rows and the total open amount. Keep that total.
 2. Ask with `ask_user` for the as-of date, the standard payment terms, and any customers with special terms.
 3. Compute each invoice's days overdue from the due date, not the issue date. If the file only has issue dates, apply the terms and state it.
 4. Group into buckets: not yet due, 1 to 30, 31 to 60, 61 to 90, over 90 days overdue. Let the user change the bucket edges.
-5. Total by bucket and by customer with `run_code`. Show each bucket's share of the total.
+5. Total by bucket and by customer with `run_command`. Show each bucket's share of the total.
 6. Check for partial payments, credit notes and disputes. Exclude disputed items from the chase list and list them separately.
 7. Rank customers by amount overdue times age, and mention any with repeated late payment.
 8. Write an action per bucket: a courtesy message, a firm reminder, a phone call, a review of further sales to that customer.

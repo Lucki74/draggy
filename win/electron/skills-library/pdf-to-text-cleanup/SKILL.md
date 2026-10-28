@@ -20,10 +20,10 @@ Turn raw extracted PDF text into readable prose or structured text that matches 
 
 ## Steps
 
-1. Get the text. If the user gave a file, use `run_command` with a PDF text tool that keeps layout order (such as `pdftotext -layout` if it is installed), or `run_code` with a PDF library. Check what is available first. Save the raw output next to the clean one so nothing is lost.
+1. Get the text. If the user gave a file, use `run_command` with a PDF text tool that keeps layout order (such as `pdftotext -layout` if it is installed), or `run_command` with a PDF library. Check what is available first. Save the raw output next to the clean one so nothing is lost.
 2. Check that a text layer exists. If the output is empty or garbage characters, stop and switch to the OCR skill.
 3. Sample three pages with `read_file`: one from the start, one from the middle, one near the end. Note the page furniture lines, the column count, the hyphenation style and any odd glyphs.
-4. Remove furniture with `run_code`: lines that repeat on most pages (title, author, chapter name) and bare page numbers. Match whole lines and print the candidates before deleting.
+4. Remove furniture with `run_command`: lines that repeat on most pages (title, author, chapter name) and bare page numbers. Match whole lines and print the candidates before deleting.
 5. Fix columns. If the text reads across columns, re-extract with a column-aware mode or by cropping regions, instead of patching afterwards.
 6. Join lines into paragraphs: a line break inside a sentence becomes a space, a blank line or an indent after a full stop starts a new paragraph. Rejoin words split by a trailing hyphen only when the joined form is a real word, checked against other uses in the text.
 7. Normalise ligatures (`ﬁ`, `ﬂ`), curly quotes if the user wants plain text, and non-breaking spaces. Leave numbers, units and code blocks alone.

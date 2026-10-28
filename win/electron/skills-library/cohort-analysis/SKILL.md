@@ -20,7 +20,7 @@ Show how groups that started at different times behave as they age, so that real
 ## Steps
 
 1. Define three things with the user, in writing. Use `ask_user`. The cohort rule (first purchase month, signup week), the activity event that counts as retained (any login, a purchase), and the period size (day, week, month).
-2. Load the event data with `run_code`. Needed columns: a user ID, an event timestamp, and the start date or the event that defines it. Check that each user has exactly one start, and that timestamps share one time zone.
+2. Load the event data with `run_command`. Needed columns: a user ID, an event timestamp, and the start date or the event that defines it. Check that each user has exactly one start, and that timestamps share one time zone.
 3. Assign each user to a cohort by the period of their start. Compute each event's age as the number of periods since the cohort start, not the calendar period.
 4. Build the matrix: rows are cohorts, columns are ages (0, 1, 2, ...). Cell value is the number of users active at that age, divided by the cohort size for a retention rate. For revenue, sum revenue per cohort and age, then divide by cohort size.
 5. Mask cells that are not complete yet. The most recent cohort has not reached later ages, and the current period is partial. Leave those cells blank, never zero.

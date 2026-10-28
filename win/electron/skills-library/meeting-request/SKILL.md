@@ -23,7 +23,7 @@ For a first message to a stranger, use `cold-outreach`. For turning down someone
 2. **Test the need.** If the purpose is one question or a status check, suggest an email or chat first and say why. Keep the meeting if the user still wants it.
 3. **Write the subject.** Include the purpose and the length, such as "Budget review, 30 min, week of the 14th". Use real dates only from the user.
 4. **Open with the purpose.** First sentence: what the meeting is for and what should be decided or produced.
-5. **Offer two or three slots.** Write each with weekday, date, time and zone abbreviation. Check weekday and date pairs against a calendar with `run_code` if there is any doubt. Offer an invitation link only if the user has one.
+5. **Offer two or three slots.** Write each with weekday, date, time and zone abbreviation. Check weekday and date pairs against a calendar with `run_command` if there is any doubt. Offer an invitation link only if the user has one.
 6. **State the length.** Fifteen minutes is easier to accept than "a quick chat". Match the agenda to the time.
 7. **Add the prep.** One line on any document to read or data to bring, with a link or attachment note.
 8. **Name the attendees.** If others should join, say who and why. Ask the guest to forward if someone else is better placed.

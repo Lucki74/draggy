@@ -20,7 +20,7 @@ Produce a clear per-unit or per-customer picture: revenue, variable cost, contri
 1. Ask with `ask_user` what the unit is: an order, a subscriber, a client, a job. Fix the definition before computing.
 2. Collect inputs with `read_file` or from chat: price after discounts, variable costs per unit (materials, fees, shipping, support), and the period covered.
 3. Separate variable costs from fixed ones. Anything that does not change per unit stays out of the contribution calculation.
-4. Compute contribution per unit and as a percentage of price with `run_code`.
+4. Compute contribution per unit and as a percentage of price with `run_command`.
 5. For customers who buy repeatedly, ask for purchase frequency and how long customers stay, from the user's records. State the sample size.
 6. Add acquisition cost per customer if the user has it, and compare contribution over the customer's life to that cost.
 7. Test sensitivity: show the result when price falls 10 percent and when the largest variable cost rises 10 percent.

@@ -19,14 +19,14 @@ Hit the length limit and keep what the reader needs. A good result is at or unde
 ## Steps
 
 1. Pin down the target. Ask with `ask_user` if missing: the unit (words, characters with or without spaces, lines), whether it is a hard cap, and where it is counted (a form field may count differently from a word processor).
-2. Measure the original with `run_code`: a few lines that count words (split on whitespace) or characters. Do this again at the end. Do not count by eye.
+2. Measure the original with `run_command`: a few lines that count words (split on whitespace) or characters. Do this again at the end. Do not count by eye.
 3. Identify what the reader must keep: the main claim, the decision or action requested, the facts that carry the claim, names and numbers. Mark them.
 4. Cut in layers, stopping when the target is met:
    - Layer 1, filler: throat-clearing openers, stacked hedges, repeated points, "in order to", "the fact that", restated conclusions.
    - Layer 2, wording: phrases to words, nominalisations to verbs, doubled adjectives.
    - Layer 3, content: examples beyond the best one, background the reader already has, secondary points. Remove the least important first.
 5. Rewrite instead of deleting when a cut breaks the flow. A paragraph made of leftover sentences reads badly; recompose it.
-6. Re-measure with `run_code`. If still over, go to the next layer. If you overshoot by a lot, restore the best item removed.
+6. Re-measure with `run_command`. If still over, go to the next layer. If you overshoot by a lot, restore the best item removed.
 7. Check the result reads as a whole: the opening still sets context, the end still lands, no pronoun lost its referent.
 8. Write to the file with `edit_file` if the text lives in one, otherwise return it in chat.
 9. Keep the original: if the user edits a file, say where the full version stays so a cut can be undone.

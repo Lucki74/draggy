@@ -22,7 +22,7 @@ Not for code, data, front matter or link targets. Leave those exactly as they ar
 1. **Get a voice sample.** Ask for 300 words or more that the user wrote themselves, with no AI help. Look at sentence length (short and long), punctuation habits, favorite plain verbs, how paragraphs open and end, and what they never do. No sample: continue, and say once that the result carries the model's default voice.
 2. **Get the facts.** Rewriting keeps every fact, number, name and quote from the source. Writing new text uses only what the user supplied. If a detail is missing, ask for it or leave a visible gap. Never invent one to add life.
 3. **Measure the starting point.** Read the bundled file `metrics.cjs` through this skill.
-   Run it with `run_code`, language javascript: put `const TEXT = \`...\`;` above the script body, with the text inside the template literal. Measure the voice sample the same way. The sample sets the targets. A universal norm does not exist.
+   Run it with `run_command`, language javascript: put `const TEXT = \`...\`;` above the script body, with the text inside the template literal. Measure the voice sample the same way. The sample sets the targets. A universal norm does not exist.
 4. **Write or rewrite under structural rules.**
    - Vary sentence length the way the sample does. Put a short sentence next to a long one. Let a one-line paragraph stand when it lands a point.
    - Vary paragraph shape. Not every paragraph is claim, support, takeaway.

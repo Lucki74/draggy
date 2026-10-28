@@ -24,7 +24,7 @@ Show the real cost of each option over the period that matters to the user, chec
 5. Add running costs over the period of use: subscription, consumables, energy, insurance and servicing.
 6. Add the terms: warranty length, return window, who pays for a return, and cancellation rules for plans.
 7. Check that the options match on the must-have features. Mark those that do not, and do not rank them with the others.
-8. Compute the total cost over the period with `run_code` if the sums are long, and show the arithmetic.
+8. Compute the total cost over the period with `run_command` if the sums are long, and show the arithmetic.
 9. Check for introductory prices that rise later, and show the cost after the offer ends.
 10. Read a few independent reviews for reliability, noting source and date. Treat them as a signal and mention small sample sizes.
 11. Make a table sorted by total cost, with a note on the best value and the cheapest, if they differ.

@@ -25,7 +25,7 @@ Estimate what a trip will cost from live prices, set a daily target for the days
 6. Find the current exchange rate from a live source and note the date. Show amounts in both currencies, and add a margin for card fees and cash exchange.
 7. Include costs before and after the trip, such as airport transfers at home, pet care and lost income.
 8. Add a reserve of about a tenth for surprises, and say that the user may change the figure.
-9. Compute the totals and per-day target with `run_code` if sums are long. Show the arithmetic.
+9. Compute the totals and per-day target with `run_command` if sums are long. Show the arithmetic.
 10. Build the tracking sheet with `create_file`: date, category, amount in local and home currency, payment method and a note.
 11. Define the check: compare actual against the daily target each evening, and carry the surplus or deficit forward.
 12. If the total exceeds the limit, list the cuts by effect: dates, lodging, route, and activities.

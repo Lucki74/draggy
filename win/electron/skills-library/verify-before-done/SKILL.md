@@ -20,7 +20,7 @@ Say "done" only when something observed supports it. The checks come from what t
 
 1. Write the acceptance conditions from the request as short statements that can be observed: "the test named X passes", "the file opens in the target program", "the page shows the new label", "no other test newly fails".
 2. Add the regression condition. Whatever worked before should still work, so name the existing tests, builds or flows that sit near the change.
-3. Pick a way to observe each condition. Prefer running the real thing: the test command or the program through `run_command`, a script via `run_code`, or the page via the browser tools. Reading the code is weaker evidence.
+3. Pick a way to observe each condition. Prefer running the real thing: the test command or the program through `run_command`, a script via `run_command`, or the page via the browser tools. Reading the code is weaker evidence.
 4. Run the narrow check first, such as the single test or the single command. Then run the wider set. Use quiet output flags so results are short, but keep failure text.
 5. Read the output. Count passes and failures yourself instead of trusting a summary line, and look for skipped tests or warnings that matter.
 6. Try one unhappy path: empty input, a missing file, a wrong argument. A change that only works on the happy path is half done.

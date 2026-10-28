@@ -104,7 +104,7 @@ const MEDIUM_THINKING_PROMPT =
   "REASONING EFFORT: MEDIUM (target: about 4,000 reasoning tokens). Reason carefully and step by step through the core constraints. Explore viable branches, but stop re-checking once a branch satisfies every constraint, then answer directly.";
 
 const HIGH_THINKING_PROMPT =
-  "REASONING EFFORT: HIGH (target: about 6,000 reasoning tokens). Reason deeply: consider the alternatives, check boundary cases, and verify the conclusion with an independent check before answering. If code execution tools (run_code, run_command) are available, use a short script to verify calculations instead of long mental arithmetic.";
+  "REASONING EFFORT: HIGH (target: about 6,000 reasoning tokens). Reason deeply: consider the alternatives, check boundary cases, and verify the conclusion with an independent check before answering. If code execution tools (run_command) are available, use a short script to verify calculations instead of long mental arithmetic.";
 
 const MAX_THINKING_PROMPT =
   "REASONING EFFORT: MAXIMUM (target: use the full reasoning budget). Be exhaustive: enumerate every possibility, re-derive the result by a second independent method, test it against every constraint one by one, and consider alternative readings of the problem. Only answer once two independent derivations agree.";
@@ -147,8 +147,6 @@ To read the page structure instead, browser_snapshot lists headings, controls an
 If the user asks for up-to-date, recent or specific information you do not know, use search_web first, then read_url on the most relevant results. Do not answer until you have enough information.`;
 
 export const LIBRARY_PROMPT = `The user indexed local documents in a private library. Call search_library before web search when questions may involve their files, notes, contracts, or code. Base answers on returned passages, citing the source filename. If no relevant documents exist, state so plainly.`;
-
-export const CODE_EXECUTION_PROMPT = `Run short Python or JavaScript programs via run_code to verify arithmetic, transformations, and non-trivial code execution before answering. Inspect errors, fix issues, and present working code. Programs execute in a 20-second isolated scratch sandbox with no network or filesystem access. Show the working code and mention that you ran it.`;
 
 /** What the model is told when there is a folder. The path is included, because a model that
  * guesses where it is gets refused by the guard. */
@@ -324,7 +322,6 @@ export function buildSystemPrompt(
   }
 
   if (environment.libraryReady) parts.push(LIBRARY_PROMPT);
-  if (environment.codeExecution) parts.push(CODE_EXECUTION_PROMPT);
 
   // Fast mode means no reasoning, not an unspecified amount. Omitting the
   // instruction is not the same as asking, and the silence gets filled.

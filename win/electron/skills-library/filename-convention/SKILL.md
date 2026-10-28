@@ -25,7 +25,7 @@ Agree a rule people will follow, that sorts correctly, tells you what a file is 
 5. Decide versioning. Use `v01`, `v02` for drafts, and one word for the end state, or rely on the system's history if the files live in a cloud drive that keeps versions. Ban `final`, `final2` and `latest`.
 6. Set limits: names under about 60 characters, and a short list of allowed document type words, such as `invoice`, `minutes`, `report`.
 7. Write the rule card with `create_file`: pattern, field list, three good examples built from the user's real files, and three bad ones with the fix.
-8. Test the rule on the 30 sampled names with `run_code`. Report how many already fit and how many need changes, and what the common breaks are. Adjust the rule if most files break the same part.
+8. Test the rule on the 30 sampled names with `run_command`. Report how many already fit and how many need changes, and what the common breaks are. Adjust the rule if most files break the same part.
 9. Plan the rollout so the rule is used.
    - Put the card where people already work, such as the root of the shared drive.
    - Start applying it to new files only, and rename old files in a separate, agreed pass.

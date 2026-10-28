@@ -20,7 +20,7 @@ Give a forecast the user can plan with, together with a range and a record of ho
 ## Steps
 
 1. Ask what is being forecast, over what horizon, at what granularity and for what decision. Use `ask_user`. A forecast of weekly staffing needs different accuracy than a yearly budget.
-2. Load the history with `run_code`. Build a complete time index, fix gaps, and note changes in definition or one-off events such as promotions, closures or outages. Decide whether to adjust them or mark them as known events.
+2. Load the history with `run_command`. Build a complete time index, fix gaps, and note changes in definition or one-off events such as promotions, closures or outages. Decide whether to adjust them or mark them as known events.
 3. Plot the history and describe it: level, trend, seasonality, and any regime change. If the history is short (under two full seasonal cycles), say that seasonal estimates are weak.
 4. Build baselines first, because they are hard to beat:
    - Naive: the next value equals the last value.

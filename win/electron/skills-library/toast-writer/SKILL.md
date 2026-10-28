@@ -27,7 +27,7 @@ For longer speeches, use `use_skill` with `speech-writer`. For jokes, add `joke-
 6. **Add light humor if it fits.** One or two gentle lines at the speaker's own expense or about harmless quirks. Use `use_skill` with `joke-and-humor-writer` for more.
 7. **Include the other person at weddings.** Mention both partners, a sentence about what they bring out in each other, and no stories about past relationships.
 8. **Write the ending.** A wish in one sentence and a cue: "Please raise your glasses to Maya and Tom." End on the names.
-9. **Time it.** Use `run_code` to count words, then divide by about 130 to estimate minutes. Cut to fit.
+9. **Time it.** Use `run_command` to count words, then divide by about 130 to estimate minutes. Cut to fit.
 10. **Make a speaking card.** Offer a version in short lines with marked pauses for the speaker to hold.
 11. **Check the guest list sensitivities.** Ask about divorced parents, absent family, recent losses or rivalries that the toast should avoid.
 12. **Confirm the order of speakers.** If others speak before or after, ask what they will cover so stories do not repeat.

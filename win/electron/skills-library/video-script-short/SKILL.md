@@ -25,7 +25,7 @@ A script that fits the time, opens fast, makes one point and can be spoken natur
 4. Write the opening line, the first sentence the viewer hears or reads. It should name the problem, the result or the surprise within the first second or two. No intro, no greeting, no channel name first.
 5. Plan beats: hook, setup in one line, the point with one example or demonstration, the payoff, the closing action. Give each beat a timestamp range.
 6. Write the spoken words in short, plain sentences. Read them aloud in your head, and cut words that trip the tongue.
-7. Check length. Count words with `run_code` and compare with the speaker's own pace. If the user does not know it, assume about 2.5 words per second as a rough guide and ask them to time a read-through. Trim until the total fits with a margin.
+7. Check length. Count words with `run_command` and compare with the speaker's own pace. If the user does not know it, assume about 2.5 words per second as a rough guide and ask them to time a read-through. Trim until the total fits with a margin.
 8. Add visuals and on-screen text for each beat: what is shown, what text appears, where captions sit so interface elements do not cover them. Most viewers watch without sound, so the text must carry the point.
 9. Write the closing action: one request, such as follow, comment a word, or open a link. Make it specific and relevant.
 10. Add a shot list and prop list, plus a suggested caption and a cover frame idea.

@@ -22,7 +22,7 @@ Show how a decision or a shock plays out under a small number of clearly defined
 3. List the assumptions that drive the results and rank them by how uncertain they are and how much they move the result.
 4. Choose the two or three drivers to vary. Do not vary everything at once.
 5. Define the three cases in words first: what is true in the best case, the base case and the worst case. Give each driver a number in each case, and ask the user to approve them.
-6. Build the model with `run_code`, one function that takes the assumptions and returns the key results. Run it for each case.
+6. Build the model with `run_command`, one function that takes the assumptions and returns the key results. Run it for each case.
 7. Show a table of the cases side by side, and the change from base for each result.
 8. Run a one-driver-at-a-time test to show which assumption moves the result the most.
 9. Define early signs the user can watch to learn which case is happening, and a date to re-run.

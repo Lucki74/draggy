@@ -19,11 +19,11 @@ Produce new PDF files with exactly the pages the user wants in the order they wa
 
 ## Steps
 
-1. Inventory the inputs with `list_directory`. For each PDF get the page count and whether it is encrypted, using `run_code` with a PDF library or `run_command` with a PDF tool that is installed. Check availability before assuming one.
+1. Inventory the inputs with `list_directory`. For each PDF get the page count and whether it is encrypted, using `run_command` with a PDF library or `run_command` with a PDF tool that is installed. Check availability before assuming one.
 2. Resolve encryption. A file with an open password needs it from the user via `ask_user`. Do not try to break protection.
 3. Write the page map as a plain table: output file, source file, source pages, rotation. Use the PDF's real page index, counted from the first sheet, not the number printed on the page. Show the map and the expected page count of each output.
 4. Get approval with `ask_user`, especially for the order and for any pages dropped.
-5. Create the outputs in a new folder or with a new name, such as `name_merged.pdf` or `name_part1.pdf`. Never save over a source. Use `run_code` or `run_command` to do the operation.
+5. Create the outputs in a new folder or with a new name, such as `name_merged.pdf` or `name_part1.pdf`. Never save over a source. Use `run_command` to do the operation.
 6. Verify each output: page count equals the plan, first and last page match the source pages by text sample, and the file opens. Check file size against the sum of the inputs.
 7. For splits by chapter, find boundaries from the outline or the table of contents rather than guessing, and show the chosen boundaries before cutting.
 8. Report the output paths and sizes. Offer to compress only if the size is a problem, and say that compression may lower image quality.

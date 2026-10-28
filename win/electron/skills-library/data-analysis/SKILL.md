@@ -18,7 +18,7 @@ Answer the user's question from their data with numbers that were computed, not 
 ## Steps
 
 1. Understand the data. Use `read_file` on the file and establish what each column means, its type and units, and what one row represents. Find the question the user wants answered. If it is open ("what do you see?"), look for totals, trends over time, differences between groups, outliers and missing data. Note the size, the date range and obvious quality problems: missing values, duplicates, inconsistent spellings ("NY", "New York"), numbers stored as text, mixed units.
-2. Compute exactly. Write a short program and run it with `run_code` (Python with only the standard library, such as `csv` and `statistics`, unless a package is known to be installed), or save a script and run it with `run_command`. Print the results you will report. If programs cannot run, compute step by step in your reasoning and show the working for key figures. For large datasets, say that exact results need a program or a spreadsheet, and give the formulas.
+2. Compute exactly. Write a short program and run it with `run_command` (Python with only the standard library, such as `csv` and `statistics`, unless a package is known to be installed), or save a script and run it with `run_command`. Print the results you will report. If programs cannot run, compute step by step in your reasoning and show the working for key figures. For large datasets, say that exact results need a program or a spreadsheet, and give the formulas.
 3. Analyse:
    - Describe with counts, sums, means and medians (medians for skewed data such as prices or incomes), minimum and maximum.
    - Compare groups with both absolute and relative differences.

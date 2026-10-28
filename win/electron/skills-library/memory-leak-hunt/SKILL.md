@@ -23,7 +23,7 @@ For slow code without growth, use `use_skill` with `performance`.
 ## Steps
 
 1. **Define the workload.** Pick one action that should return to the same state: open and close a view, handle a request, run a job. Ask with `ask_user` if it is unclear.
-2. **Measure a baseline.** Record memory after startup and a forced collection when the runtime allows it. For Node use `run_code` or a script via `run_command` that prints heap usage; for a browser page use `browser_console` to read the memory estimate if the page exposes it. Check the runtime docs with `read_url` for the right flag or API.
+2. **Measure a baseline.** Record memory after startup and a forced collection when the runtime allows it. For Node use `run_command` or a script via `run_command` that prints heap usage; for a browser page use `browser_console` to read the memory estimate if the page exposes it. Check the runtime docs with `read_url` for the right flag or API.
 3. **Repeat and compare.** Run the action 20 to 50 times, force a collection, measure again. Do it three rounds. Steady growth per round is a leak; one jump and then a plateau is a cache or warm-up.
 4. **Narrow the area.** Disable parts of the workload one at a time, with measurements each time, until growth stops.
 5. **Find the retainer.** Take two heap snapshots, before and after the loop, and compare object counts by class. Follow one leaked object to its path from a root. Use `search_files` for the suspect type in the source.

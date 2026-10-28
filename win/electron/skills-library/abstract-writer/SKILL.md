@@ -29,7 +29,7 @@ A reader who sees only the abstract learns what was asked, how, what was found a
 4. Draft in the order above, present tense for what the paper does and claims, past tense for what was done and found, unless the venue's convention differs. Give the numbers that carry the result, not all of them.
 5. Cut anything that is not in the source. Do not add a claim of significance the authors did not make. Do not add citations unless the venue's abstracts allow them.
 6. Define an abbreviation only if it is used again, and avoid ones the field does not know. Do not refer to "this paper shows" more than once.
-7. Count words with `run_code` against the limit. Trim background first, then method detail; keep results.
+7. Count words with `run_command` against the limit. Trim background first, then method detail; keep results.
 8. Check every number and name against the source line by line. If the source gives a figure in two places and they differ, flag it for the author.
 9. If keywords are required, choose terms a searcher would use that appear in the text, not new ones.
 

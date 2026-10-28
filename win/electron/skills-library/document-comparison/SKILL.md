@@ -14,15 +14,15 @@ Tell the reader what actually changed between two documents so they can review t
 - Two drafts, two contract-free business documents, two reports or two exports of the same text.
 - The user received a revised file with no tracked changes and wants a change list.
 - For code diffs, use `git_diff` or `use_skill` with `code-review`.
-- For checking two data tables rather than text, use `run_code` with a keyed comparison.
+- For checking two data tables rather than text, use `run_command` with a keyed comparison.
 
 ## Steps
 
 1. Identify the pair. Use `list_directory` if names are ambiguous and `ask_user` to confirm which is the older base and which is the newer. Check modified dates as a hint, not a proof.
-2. Convert both to comparable plain text. For docx or pdf, extract with `run_code` or `run_command`, keeping headings, list items and table cells on separate lines. Save both texts so the comparison can be rerun.
+2. Convert both to comparable plain text. For docx or pdf, extract with `run_command`, keeping headings, list items and table cells on separate lines. Save both texts so the comparison can be rerun.
 3. Normalise noise that is not content: whitespace runs, smart versus straight quotes, soft hyphens, page numbers, repeated headers, and automatic date or field values. Tell the user what you normalised.
 4. Align by structure first. Split on headings and compare section by section, matching sections by title, so that an inserted chapter does not shift everything after it.
-5. Diff inside each matched section at sentence level with `run_code` (a sequence matcher gives insert, delete and replace blocks). Then look for moved text: a deleted block that appears elsewhere almost unchanged is a move.
+5. Diff inside each matched section at sentence level with `run_command` (a sequence matcher gives insert, delete and replace blocks). Then look for moved text: a deleted block that appears elsewhere almost unchanged is a move.
 6. Classify each change: wording, number or date, added content, removed content, moved, structure, formatting only. Rank changes that touch numbers, names, dates, amounts and obligations first, because they carry the most risk.
 7. Read ten of the reported changes back in the source files to make sure the diff is right.
 8. Write the report with `create_file` if it is long: summary on top, then changes by section with the old text and new text in short quotes.

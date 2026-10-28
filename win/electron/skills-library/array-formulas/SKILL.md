@@ -20,13 +20,13 @@ Replace a block of copied-down helper formulas with one formula that returns the
 ## Steps
 
 1. Confirm the application and version with `ask_user`. Dynamic arrays (spilling results) exist in current Excel for Microsoft 365 and in Google Sheets, with different function sets. Older Excel needs control-shift-enter array formulas, and LibreOffice has its own support. Check the live documentation with `search_web` or `read_url` when the version matters.
-2. Look at the data with `read_file` or `run_code`: the ranges, header row, types and size. State the result the user wants: a list, a single number or a matrix, and which order.
+2. Look at the data with `read_file` or `run_command`: the ranges, header row, types and size. State the result the user wants: a list, a single number or a matrix, and which order.
 3. Write the target in words. For example "all rows where region is West and amount is over 1000, sorted by date, newest first".
 4. Build from the inside out and show each layer. First the condition: `(Region="West")*(Amount>1000)`. Then FILTER over it with a not-found argument, then SORT around that. Name ranges or use table columns to keep formulas readable.
 5. For counting and summing with multiple conditions, compare SUMPRODUCT with SUMIFS/COUNTIFS. Use the IFS family when conditions are plain equalities, and SUMPRODUCT when conditions need arithmetic or OR logic.
 6. For unique values use UNIQUE, and for counts per unique value pair it with COUNTIFS against the spill using the spill reference operator. Sort the result if the user wants a ranking.
 7. Check the spill area. The cells below and to the right must be empty. State where the result lands and what sits next to it, and warn that other formulas should refer to the spill with the spill operator, not a fixed range.
-8. Test with `run_code` on the user's data or on a small table with known answers. Report the row count the formula returns against the count expected, including a case with zero matches.
+8. Test with `run_command` on the user's data or on a small table with known answers. Report the row count the formula returns against the count expected, including a case with zero matches.
 9. Give the fallback for older versions: a helper column with a flag and a running number, plus INDEX/SMALL or a pivot. Offer it only if the user needs the sheet to open elsewhere.
 10. Keep the result usable downstream.
    - Name the spill range or reference its top cell with the spill operator in other formulas.

@@ -23,7 +23,7 @@ Produce one pack a reader can open and follow in agenda order, with the latest v
 3. Detect version problems. Group files by stem (`budget_v2`, `budget_final`, `budget_final2`) and show the candidates with dates. Ask the user which is current for each group. Never pick by the word "final".
 4. Convert non-PDF files to PDF with `run_command` if a converter is installed (check first). Tell the user about files you could not convert and ask what to do.
 5. Order the files by agenda number. Put the cover, agenda and previous minutes first. Add separator pages or bookmarks per item if the user wants them.
-6. Create the index: item number, title, start page. Compute start pages from the page counts of each converted file, plus the cover and index pages themselves. Build the pack with `run_code` or `run_command` and write it under a new name.
+6. Create the index: item number, title, start page. Compute start pages from the page counts of each converted file, plus the cover and index pages themselves. Build the pack with `run_command` and write it under a new name.
 7. Verify. Page count equals the sum of parts. Open three item start pages by text sample and compare with the index. Check the file size, since email limits are often 10 to 25 MB. Compress only with the user's consent.
 8. List what is in and what is missing, and keep the checklist beside the pack for the next cycle.
 9. Prepare for the next cycle and for late changes.
