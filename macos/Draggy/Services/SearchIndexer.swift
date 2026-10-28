@@ -15,7 +15,7 @@ public final class SearchIndexer: Sendable {
                 return []
             }
 
-            for case let url as URL in enumerator {
+            while let url = enumerator.nextObject() as? URL {
                 if let vals = try? url.resourceValues(forKeys: [.isRegularFileKey]),
                    vals.isRegularFile == true {
                     indexedFiles.append(url.path)

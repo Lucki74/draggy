@@ -4,7 +4,6 @@ import { registerBuiltinTools } from "../tools/builtin";
 import { registerFileTools } from "../tools/files";
 import { registerPlanTools } from "../tools/plan";
 import { registerSkillTools } from "../tools/skills";
-import { registerExploreTools } from "../tools/explore";
 import { registerGitTools } from "../tools/git";
 import { registerCommandTools } from "../tools/commands";
 import { registerImageTools } from "../tools/image";
@@ -16,15 +15,14 @@ describe("Tool annotations quality and directory compliance", () => {
     registerFileTools();
     registerPlanTools();
     registerSkillTools();
-    registerExploreTools();
     registerGitTools();
     registerCommandTools();
     registerImageTools();
   });
 
-  it("registers all 45 tools", () => {
+  it("registers all 44 tools", () => {
     const tools = allTools();
-    expect(tools.length).toBe(45);
+    expect(tools.length).toBe(44);
   });
 
   it("declares all four hints as explicit booleans on every tool", () => {

@@ -12,11 +12,9 @@ impl TtsService {
     }
 
     pub fn speak(&self, text: &str, provider: Option<&str>) {
-        if let Some(p) = provider {
-            if self.consent.has_consent(p) {
-                // Cloud TTS dispatch
-                return;
-            }
+        if provider.is_some_and(|p| self.consent.has_consent(p)) {
+            // Cloud TTS dispatch
+            return;
         }
         NeuralVoice::speak(text);
     }

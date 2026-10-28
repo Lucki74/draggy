@@ -3,7 +3,6 @@ import { buildSystemPrompt } from "../prompts";
 import { promptProfileFor } from "../ai/providers";
 import { registerBuiltinTools } from "../tools/builtin";
 import { registerCommandTools } from "../tools/commands";
-import { registerExploreTools } from "../tools/explore";
 import { registerFileTools } from "../tools/files";
 import { registerGitTools } from "../tools/git";
 import { registerPlanTools } from "../tools/plan";
@@ -48,7 +47,6 @@ beforeAll(() => {
   registerFileTools();
   registerPlanTools();
   registerSkillTools();
-  registerExploreTools();
   registerGitTools();
   registerCommandTools();
 });

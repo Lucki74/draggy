@@ -9,8 +9,6 @@ export type Language = (typeof languages)[number]["code"];
 
 export const translations: Record<string, Record<string, string>> = {
   en: {
-    exploring: "Looking up",
-    explored: "Looked up",
     extensionServers: "Servers",
     extensionRemote: "Remote",
     extensionSkills: "Skills",
@@ -1139,8 +1137,6 @@ export const translations: Record<string, Record<string, string>> = {
     questionHistoryCleared: "Question history cleared",
 },
   fr: {
-    exploring: "Recherche de",
-    explored: "Trouvé",
     extensionServers: "Serveurs",
     extensionRemote: "À distance",
     extensionSkills: "Compétences",
@@ -2269,8 +2265,6 @@ export const translations: Record<string, Record<string, string>> = {
     questionHistoryCleared: "Historique des questions effacé",
 },
   es: {
-    exploring: "Buscando",
-    explored: "Encontrado",
     extensionServers: "Servidores",
     extensionRemote: "Remoto",
     extensionSkills: "Habilidades",
@@ -3399,8 +3393,6 @@ export const translations: Record<string, Record<string, string>> = {
     questionHistoryCleared: "Historial de preguntas borrado",
 },
   zh: {
-    exploring: "正在查找",
-    explored: "已查到",
     extensionServers: "服务器",
     extensionRemote: "远程",
     extensionSkills: "技能",
