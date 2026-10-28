@@ -34,7 +34,7 @@ describe("a split model in the installed list", () => {
     };
 
     render(
-      <ModelsPage manager={manager} settings={defaultSettings} chatModel="" onUpdate={vi.fn()} onSelectChatModel={vi.fn()} t={t} />,
+      <ModelsPage manager={manager} settings={defaultSettings} chatModel="" onUpdate={vi.fn()} t={t} />,
     );
 
     expect(screen.getByText("Qwen3-Coder-Next")).toBeTruthy();
@@ -74,7 +74,7 @@ describe("a split model in the installed list", () => {
     };
 
     render(
-      <ModelsPage manager={manager} settings={defaultSettings} chatModel="" onUpdate={vi.fn()} onSelectChatModel={vi.fn()} t={t} />,
+      <ModelsPage manager={manager} settings={defaultSettings} chatModel="" onUpdate={vi.fn()} t={t} />,
     );
 
     expect(screen.getByText("gemma-4-E4B-it")).toBeTruthy();
