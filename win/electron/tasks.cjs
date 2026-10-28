@@ -283,7 +283,7 @@ function createTaskManager({
 
     const total = task.total;
     let body;
-    let note = "";
+    let note;
     if (options.grep) {
       const { raw, note: gone } = rawFrom(task, 0);
       const found = text.grepLines(text.cleanOutput(raw), String(options.grep));
