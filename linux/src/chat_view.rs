@@ -669,8 +669,8 @@ impl DraggyChat {
             if chat.update_tasks() {
                 return glib::ControlFlow::Continue;
             }
-            // The timer ends by returning Break, so its id is dropped here rather than removed later.
-            drop(chat.imp().tasks_timer.borrow_mut().take());
+            // The timer ends by returning Break, so its id is cleared here rather than removed later.
+            chat.imp().tasks_timer.borrow_mut().take();
             glib::ControlFlow::Break
         });
         *imp.tasks_timer.borrow_mut() = Some(timer);

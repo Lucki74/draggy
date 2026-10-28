@@ -118,12 +118,13 @@ describe("running a command", () => {
   afterEach(() => {
     commands.stopAll();
     // A command handed to the task manager can hold its folder for a moment after it is killed.
-    if (folder) fs.rmSync(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    try {
+      if (folder) fs.rmSync(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    } catch {
+      // The temp folder is not under test, and Windows keeps it locked a little longer than the process.
+    }
     folder = null;
   });
-
-  // Git Bash may print a warning of its own before the answer, so read the last line only.
-  const lastLine = (output) => output.trim().split(/\r?\n/).pop().trim();
 
   const project = () => {
     folder = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-commands-"));
@@ -210,12 +211,19 @@ describe("carrying state to the next command", () => {
   afterEach(() => {
     commands.stopAll();
     // A command handed to the task manager can hold its folder for a moment after it is killed.
-    if (folder) fs.rmSync(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    try {
+      if (folder) fs.rmSync(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    } catch {
+      // The temp folder is not under test, and Windows keeps it locked a little longer than the process.
+    }
     folder = null;
   });
 
   // Git Bash may print a warning of its own before the answer, so read the last line only.
   const lastLine = (output) => output.trim().split(/\r?\n/).pop().trim();
+
+  // Short 8.3 names and long names are the same folder; compare what the disk says.
+  const real = (value) => fs.realpathSync.native(value).toLowerCase();
 
   const project = () => {
     folder = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "draggy-state-")));
@@ -236,7 +244,7 @@ describe("carrying state to the next command", () => {
 
     expect(first.success).toBe(true);
     expect(first.output).not.toMatch(/DG[0-9a-f]{12}/);
-    expect(commands.fromShellPath(lastLine(second.output)).toLowerCase()).toContain(path.join(cwd, "sub").toLowerCase());
+    expect(real(commands.fromShellPath(lastLine(second.output)))).toBe(real(path.join(cwd, "sub")));
   }, 60_000);
 
   it("keeps an exported variable, and forgets it after a reset", async () => {
@@ -272,7 +280,7 @@ describe("carrying state to the next command", () => {
     const next = await commands.run({ cwd, command: where, shell, stateKey });
 
     expect(left.outside).toBeTruthy();
-    expect(commands.fromShellPath(lastLine(next.output)).toLowerCase()).toBe(cwd.toLowerCase());
+    expect(real(commands.fromShellPath(lastLine(next.output)))).toBe(real(cwd));
   }, 60_000);
 
   it("hands a running command to the task manager at its time limit", async () => {

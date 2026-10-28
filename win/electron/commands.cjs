@@ -51,8 +51,17 @@ function fromShellPath(value, platform = process.platform) {
   return `${drive[1].toUpperCase()}:\\${(drive[2] || "").replace(/\//g, "\\")}`;
 }
 
+/** The real path, so a short 8.3 name and its long form compare as the same folder. */
+function realPath(value) {
+  try {
+    return fs.realpathSync.native(value);
+  } catch {
+    return path.resolve(value);
+  }
+}
+
 function insideRoot(root, folder) {
-  const relative = path.relative(path.resolve(root), path.resolve(folder));
+  const relative = path.relative(realPath(root), realPath(folder));
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
