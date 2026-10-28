@@ -49,3 +49,9 @@ window {
   border-radius: 8px;
   padding: 4px 4px 8px 12px;
 }
+
+.task-chip {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
