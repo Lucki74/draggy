@@ -14,6 +14,7 @@ import { EmberCaret } from "../signature/EmberCaret";
 import { Fuse } from "../signature/Fuse";
 import { Icon } from "../icons/Icon";
 import { ComposerPreview } from "./ComposerPreview";
+import { QueueComposer, QueueTranscript } from "./QueuePreview";
 import { LongTranscriptPreview, TranscriptPreview } from "./TranscriptPreview";
 import { SidebarPreview } from "./SidebarPreview";
 import { DockPreview } from "./DockPreview";
@@ -115,7 +116,7 @@ export default function ComponentGallery() {
   return (
     <div
       data-theme={theme}
-      className={`min-h-screen p-8 transition-colors ${
+      className={`h-screen overflow-y-auto p-8 transition-colors ${
         theme === "dark" ? "dark " : ""
       }bg-surface-canvas text-text-primary`}
     >
@@ -326,6 +327,31 @@ export default function ComponentGallery() {
           </div>
           <div className="rounded-lg bg-surface-canvas pt-4" data-gallery="composer-no-model">
             <ComposerPreview model="" />
+          </div>
+        </section>
+
+        <section className="space-y-3" data-gallery="queue">
+          <h2 className="text-sm font-semibold text-text-secondary">Queue</h2>
+          <div className="rounded-lg bg-surface-canvas pt-4" data-shot="queue-card">
+            <QueueComposer />
+          </div>
+          <div className="rounded-lg bg-surface-canvas pt-4" data-shot="queue-keys">
+            <QueueComposer initial={[]} />
+          </div>
+          <div className="rounded-lg bg-surface-canvas pt-4" data-shot="queue-one">
+            <QueueComposer initial={[{ id: "a", content: "Also add a test for the empty case" }]} />
+          </div>
+          <div className="rounded-lg bg-surface-canvas pt-4" data-shot="queue-fr">
+            <QueueComposer language="fr" />
+          </div>
+          <div className="rounded-lg bg-surface-canvas" data-shot="t-pending">
+            <QueueTranscript kind="pending" />
+          </div>
+          <div className="rounded-lg bg-surface-canvas" data-shot="t-landed">
+            <QueueTranscript kind="landed" />
+          </div>
+          <div className="rounded-lg bg-surface-canvas" data-shot="t-parked">
+            <QueueTranscript kind="parked" />
           </div>
         </section>
 
