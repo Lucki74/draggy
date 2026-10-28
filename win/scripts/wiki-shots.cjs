@@ -7,7 +7,7 @@ const { execFileSync } = require("node:child_process");
 const { app, BrowserWindow } = require("electron");
 
 const OUT = path.resolve(
-  process.env.DRAGGY_SHOTS_OUT || path.join(__dirname, "..", "..", "draggy-website", "assets", "img"),
+  process.env.DRAGGY_SHOTS_OUT || path.join(__dirname, "..", "..", "..", "draggy-website", "assets", "img"),
 );
 const WIDTH = 1280;
 const HEIGHT = 800;
