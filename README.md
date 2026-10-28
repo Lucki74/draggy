@@ -51,9 +51,11 @@ architecture in English, French, Spanish, and Chinese. Start with
 - File editing, terminal commands, and undoable diff reviews.
 - Four permission modes: plan, ask, accept edits, and auto.
 - Interactive task checklists with real-time step reordering.
+- Interactive question cards for single-choice, multiple-choice, and text clarifications.
+- Thumbnail preview cards for image attachments in the composer.
 - Sandboxed ad-blocking browser, web search, and document generation.
 - Semantic search and retrieval across local folders.
-- Support for MCP servers and 572 built-in skills.
+- Support for MCP servers and 572 built-in skills across chat and code.
 - Colibri engine streams large MoE models from disk.
 - Voice chat with turn detection and interruption handling.
 - Real-time streaming replies with text fade-in.
