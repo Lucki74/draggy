@@ -55,7 +55,6 @@ async function renderWith(models: ReturnType<typeof model>[]) {
       settings={defaultSettings}
       chatModel=""
       onUpdate={vi.fn()}
-      onSelectChatModel={vi.fn()}
       t={t}
     />,
   );
@@ -154,7 +153,6 @@ describe("removing an installed model", () => {
         settings={defaultSettings}
         chatModel=""
         onUpdate={vi.fn()}
-        onSelectChatModel={vi.fn()}
         t={t}
       />,
     );

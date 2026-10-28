@@ -183,7 +183,6 @@ export default function SettingsPage(props: SettingsPageProps) {
                 settings={settings}
                 chatModel={props.chatModel}
                 onUpdate={onUpdate}
-                onSelectChatModel={props.onSelectChatModel}
                 t={t}
               />
             )}
