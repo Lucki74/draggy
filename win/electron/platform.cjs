@@ -6,14 +6,22 @@ const { log } = require("./logger.cjs");
 
 const IS_WINDOWS = process.platform === "win32";
 
+/** An executable name or path is data, never a command line: refuse empty values and control characters. */
+function assertPlainExecutable(file) {
+  const valid = typeof file === "string" && file.length > 0 && [...file].every((ch) => ch.charCodeAt(0) > 31);
+  if (!valid) throw new TypeError("Refusing to start a process from an invalid executable path");
+}
+
 /** Every child process, console window hidden and never through a shell. A GUI app starting a console
  * program otherwise flashes a new window; one call site means it cannot be forgotten. */
 function spawnHidden(file, args, options = {}) {
+  assertPlainExecutable(file);
   return trackChild(spawn(file, args, { ...options, shell: false, windowsHide: true }), file, args, options);
 }
 
 /** The same guarantees for the one-shot calls. */
 function execFileHidden(file, args, options, callback) {
+  assertPlainExecutable(file);
   return execFile(file, args, { ...options, shell: false, windowsHide: true }, typeof callback === "function" ? trackExec(file, args, options, callback) : callback);
 }
 
