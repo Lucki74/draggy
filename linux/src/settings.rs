@@ -113,7 +113,9 @@ impl Settings {
             // The Google login is priced as the vendor's own API list.
             return CostTarget {
                 kind: CostKind::Account,
-                provider: price_provider_of_vendor("google").unwrap_or_default().to_owned(),
+                provider: price_provider_of_vendor("google")
+                    .unwrap_or_default()
+                    .to_owned(),
                 model: agy.model.clone(),
             };
         }

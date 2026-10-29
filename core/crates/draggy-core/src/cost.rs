@@ -228,15 +228,25 @@ fn rates_for(price: &PriceEntry, prompt_tokens: f64) -> Rates {
             tier = Some(candidate);
         }
     }
-    let pick = |field: fn(&PriceTier) -> Option<f64>, base: f64| tier.and_then(field).unwrap_or(base);
+    let pick =
+        |field: fn(&PriceTier) -> Option<f64>, base: f64| tier.and_then(field).unwrap_or(base);
     let input = pick(|t| t.input_per_m, price.input_per_m);
     let output = pick(|t| t.output_per_m, price.output_per_m);
     Rates {
         input,
         output,
-        cache_read: pick(|t| t.cache_read_per_m, price.cache_read_per_m.unwrap_or(input)),
-        cache_write: pick(|t| t.cache_write_per_m, price.cache_write_per_m.unwrap_or(input)),
-        reasoning: pick(|t| t.reasoning_per_m, price.reasoning_per_m.unwrap_or(output)),
+        cache_read: pick(
+            |t| t.cache_read_per_m,
+            price.cache_read_per_m.unwrap_or(input),
+        ),
+        cache_write: pick(
+            |t| t.cache_write_per_m,
+            price.cache_write_per_m.unwrap_or(input),
+        ),
+        reasoning: pick(
+            |t| t.reasoning_per_m,
+            price.reasoning_per_m.unwrap_or(output),
+        ),
     }
 }
 
@@ -461,7 +471,10 @@ mod tests {
         let table = bundled_table().expect("the shipped table parses");
         let exact = price_passes("anthropic", "claude-sonnet-4-5", &[pass(1000, 500, false)]);
         assert_eq!(exact.source, "table");
-        assert_eq!(exact.price_updated_at.as_deref(), Some(table.generated_at.as_str()));
+        assert_eq!(
+            exact.price_updated_at.as_deref(),
+            Some(table.generated_at.as_str())
+        );
         assert!(exact.micros.is_some_and(|micros| micros > 0));
 
         let guessed = price_passes("anthropic", "claude-sonnet-4-5", &[pass(1000, 500, true)]);

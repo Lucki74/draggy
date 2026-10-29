@@ -40,7 +40,8 @@ pub fn from_anthropic(u: Option<&Value>) -> Usage {
 /// `cache_write_tokens` and the amount it charged in `cost`.
 pub fn from_openai(u: Option<&Value>) -> Usage {
     let details = get(u, "prompt_tokens_details");
-    let cache_read = count(some(details, "cached_tokens").or_else(|| get(u, "prompt_cache_hit_tokens")));
+    let cache_read =
+        count(some(details, "cached_tokens").or_else(|| get(u, "prompt_cache_hit_tokens")));
     let cache_write = count(get(details, "cache_write_tokens"));
     let reasoning = count(get(get(u, "completion_tokens_details"), "reasoning_tokens"));
     let prompt = count(get(u, "prompt_tokens"));
@@ -54,8 +55,14 @@ pub fn from_openai(u: Option<&Value>) -> Usage {
         cache_write,
         output: completion.saturating_sub(reasoning),
         reasoning,
-        source: if split { UsageSource::Reported } else { UsageSource::Derived },
-        cost_usd: get(u, "cost").and_then(Value::as_f64).filter(|c| c.is_finite() && *c >= 0.0),
+        source: if split {
+            UsageSource::Reported
+        } else {
+            UsageSource::Derived
+        },
+        cost_usd: get(u, "cost")
+            .and_then(Value::as_f64)
+            .filter(|c| c.is_finite() && *c >= 0.0),
     })
 }
 
@@ -86,7 +93,12 @@ pub fn from_codex(last: Option<&Value>) -> Usage {
 
 /// Engines that report one prompt count and one output count (Ollama, agy).
 pub fn from_totals(prompt: u64, output: u64) -> Usage {
-    usage_of(TokenUsage { input: prompt, output, source: UsageSource::Derived, ..TokenUsage::default() })
+    usage_of(TokenUsage {
+        input: prompt,
+        output,
+        source: UsageSource::Derived,
+        ..TokenUsage::default()
+    })
 }
 
 /// Adds one pass to a running total; a missing side counts as nothing.
@@ -125,7 +137,10 @@ mod tests {
         let usage = from_openai(Some(&json!({"prompt_tokens": 9, "completion_tokens": 2})));
         let tokens = usage.tokens.unwrap();
         assert_eq!((usage.prompt_tokens, usage.output_tokens), (9, 2));
-        assert_eq!((tokens.input, tokens.output, tokens.source), (9, 2, UsageSource::Derived));
+        assert_eq!(
+            (tokens.input, tokens.output, tokens.source),
+            (9, 2, UsageSource::Derived)
+        );
     }
 
     #[test]

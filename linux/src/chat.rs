@@ -208,7 +208,10 @@ pub fn cost_label(cost: &TurnCost) -> Option<CostLabel> {
         lines.push("Estimated from the token totals".to_owned());
     }
     if let Some(date) = &cost.price_updated_at {
-        lines.push(format!("Prices as of {}", date.get(..10).unwrap_or(date.as_str())));
+        lines.push(format!(
+            "Prices as of {}",
+            date.get(..10).unwrap_or(date.as_str())
+        ));
     }
     Some(CostLabel {
         text,
@@ -634,9 +637,11 @@ mod tests {
 
     #[test]
     fn an_estimate_and_an_account_login_are_marked() {
-        let estimated = cost_label(&priced(CostKind::Billed, Some(1_500_000), "estimated")).expect("a figure");
+        let estimated =
+            cost_label(&priced(CostKind::Billed, Some(1_500_000), "estimated")).expect("a figure");
         assert_eq!(estimated.text, "~$1.50");
-        let account = cost_label(&priced(CostKind::Account, Some(1_500_000), "table")).expect("a figure");
+        let account =
+            cost_label(&priced(CostKind::Account, Some(1_500_000), "table")).expect("a figure");
         assert_eq!(account.text, "~$1.50 API-equivalent");
         assert!(account.title.contains("Not billed"));
     }

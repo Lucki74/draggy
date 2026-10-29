@@ -221,7 +221,11 @@ impl AgyStream {
                 None => {
                     let usage = usage_of(result.get("usage").or_else(|| result.get("stats")));
                     ModelChunk {
-                        done: Some(self.counts(usage.prompt_tokens, usage.output_tokens, usage.tokens)),
+                        done: Some(self.counts(
+                            usage.prompt_tokens,
+                            usage.output_tokens,
+                            usage.tokens,
+                        )),
                         ..ModelChunk::default()
                     }
                 }

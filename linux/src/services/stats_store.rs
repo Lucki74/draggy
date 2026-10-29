@@ -244,13 +244,10 @@ pub fn summarize(rows: &[Metric], now_ms: f64) -> CostSummary {
             }
             Some("account") => summary.plan_value_micros += micros.unwrap_or(0),
             _ => {
-                summary.saved_micros += price_passes(
-                    REFERENCE_PROVIDER,
-                    REFERENCE_MODEL,
-                    &[row_pass(row)],
-                )
-                .micros
-                .unwrap_or(0);
+                summary.saved_micros +=
+                    price_passes(REFERENCE_PROVIDER, REFERENCE_MODEL, &[row_pass(row)])
+                        .micros
+                        .unwrap_or(0);
             }
         }
         if unpriced {
@@ -260,7 +257,13 @@ pub fn summarize(rows: &[Metric], now_ms: f64) -> CostSummary {
             .provider_id
             .clone()
             .filter(|id| !id.is_empty())
-            .unwrap_or_else(|| if kind == Some("local") { "Local".into() } else { "Not set".into() });
+            .unwrap_or_else(|| {
+                if kind == Some("local") {
+                    "Local".into()
+                } else {
+                    "Not set".into()
+                }
+            });
         let model = if row.model.is_empty() {
             "Unknown".to_owned()
         } else {

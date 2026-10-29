@@ -12,11 +12,11 @@ use super::common::{
 use crate::errors::from_response_value;
 use crate::http::{HttpRequest, Method};
 use crate::js::{self, json_text, truthy};
-use crate::usage::from_totals;
 use crate::types::{
     ChatMessage, ChatRequest, CompletedToolCall, Completion, Content, ContentPart, ErrorKind,
     FinishReason, ProviderError, StreamEvent, ToolSpec, Usage,
 };
+use crate::usage::from_totals;
 
 /// The request for one chat turn of the given model. Ollama takes no key, so none is sent.
 pub fn build_request(req: &ChatRequest, conn: &Connection, model_id: &str) -> HttpRequest {
@@ -166,7 +166,10 @@ fn strip_data_prefix(url: &str) -> String {
 }
 
 fn usage_of(json: &Value) -> Usage {
-    from_totals(count(json.get("prompt_eval_count")), count(json.get("eval_count")))
+    from_totals(
+        count(json.get("prompt_eval_count")),
+        count(json.get("eval_count")),
+    )
 }
 
 /// The line decoder for Ollama. A line that is not JSON ends the answer, as the reference throws on it.

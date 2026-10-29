@@ -6,9 +6,8 @@ use std::collections::{HashMap, VecDeque};
 use serde_json::{Map, Value, json};
 
 use super::common::{
-    Connection, Decoder, Flow, ListedModel, Stream, arguments_object, function_tools,
-    hosted, level_of, non_empty, output_limit, parse_data_url, refusal, text_of, text_or_empty,
-    think_of,
+    Connection, Decoder, Flow, ListedModel, Stream, arguments_object, function_tools, hosted,
+    level_of, non_empty, output_limit, parse_data_url, refusal, text_of, text_or_empty, think_of,
 };
 use crate::catalog::capabilities_for;
 use crate::errors::from_response_value;

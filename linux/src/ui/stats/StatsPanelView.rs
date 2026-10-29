@@ -54,7 +54,9 @@ fn fill(content: &gtk::Box, store: &StatsStore) {
     content.append(&heading("Cost"));
     match store.cost_summary() {
         Some(summary) => cost_section(content, &summary),
-        None => content.append(&note("Costs are not kept: the local database did not open.")),
+        None => content.append(&note(
+            "Costs are not kept: the local database did not open.",
+        )),
     }
 }
 
@@ -62,12 +64,18 @@ fn fill(content: &gtk::Box, store: &StatsStore) {
 fn cost_section(content: &gtk::Box, summary: &CostSummary) {
     let estimated = summary.estimated;
     content.append(&card_row(&[
-        ("Spent on the API", format_money(summary.spent_micros, estimated)),
+        (
+            "Spent on the API",
+            format_money(summary.spent_micros, estimated),
+        ),
         (
             "Account logins, API-equivalent",
             format_money(summary.plan_value_micros, estimated),
         ),
-        ("Saved on local models", format_money(summary.saved_micros, estimated)),
+        (
+            "Saved on local models",
+            format_money(summary.saved_micros, estimated),
+        ),
         ("Unpriced replies", summary.unpriced.to_string()),
     ]));
     content.append(&build_cost_chart(&summary.days, estimated));
@@ -100,7 +108,11 @@ fn share_group(title: &str, shares: &[Share], estimated: bool) -> adw::Preferenc
         group.add(&adw::ActionRow::builder().title("No replies yet").build());
     }
     for share in shares {
-        let noun = if share.replies == 1 { "reply" } else { "replies" };
+        let noun = if share.replies == 1 {
+            "reply"
+        } else {
+            "replies"
+        };
         let unpriced = if share.unpriced > 0 {
             format!(" · {} unpriced", share.unpriced)
         } else {

@@ -229,8 +229,12 @@ impl ChunkReader {
                 StreamEvent::ProviderState { .. } => {}
                 StreamEvent::Finish { reason, usage } => {
                     chunk.tool_calls = self.completed_calls();
-                    chunk.done =
-                        Some(self.counts(reason, usage.prompt_tokens, usage.output_tokens, usage.tokens));
+                    chunk.done = Some(self.counts(
+                        reason,
+                        usage.prompt_tokens,
+                        usage.output_tokens,
+                        usage.tokens,
+                    ));
                 }
                 StreamEvent::Error { error } => {
                     chunk.error = Some(error.to_string());

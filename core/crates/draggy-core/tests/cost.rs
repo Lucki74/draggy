@@ -9,7 +9,8 @@ fn fixture() -> Value {
         env!("CARGO_MANIFEST_DIR"),
         "/../../../shared/fixtures/cost/cost.json"
     );
-    serde_json::from_str(&std::fs::read_to_string(path).expect("fixture file")).expect("fixture json")
+    serde_json::from_str(&std::fs::read_to_string(path).expect("fixture file"))
+        .expect("fixture json")
 }
 
 #[test]

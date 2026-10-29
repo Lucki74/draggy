@@ -209,9 +209,13 @@ impl Storage {
             Some(serde_json::to_string(&tools)?)
         };
 
-        let text = |value: &Option<String>, max: usize| value.as_deref().map(|t| utf16_prefix(t, max));
+        let text =
+            |value: &Option<String>, max: usize| value.as_deref().map(|t| utf16_prefix(t, max));
         let kind = row.kind.as_deref().filter(|k| KINDS.contains(k));
-        let source = row.cost_source.as_deref().filter(|s| COST_SOURCES.contains(s));
+        let source = row
+            .cost_source
+            .as_deref()
+            .filter(|s| COST_SOURCES.contains(s));
 
         self.write("recordMetric", |conn| {
             conn.prepare_cached(INSERT)?.execute(params![

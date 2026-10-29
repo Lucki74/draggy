@@ -13,11 +13,11 @@ use super::common::{
 use crate::errors::from_response_value;
 use crate::http::{HttpRequest, Method};
 use crate::js::{json_text, to_string, truthy};
-use crate::usage::from_openai;
 use crate::types::{
     ChatMessage, ChatRequest, CompletedToolCall, Completion, FinishReason, ProviderError,
     StreamEvent, Usage,
 };
+use crate::usage::from_openai;
 
 /// The request for one chat turn of the given model.
 pub fn build_request(req: &ChatRequest, conn: &Connection, model_id: &str) -> HttpRequest {

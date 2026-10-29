@@ -71,7 +71,11 @@ impl From<&GenerationMetrics> for MetricsRecord {
             context_window: metrics.context_window,
             model: metrics.model.clone(),
             gpu_percent: metrics.gpu_percent,
-            pass_usage: metrics.pass_usage.iter().map(PassUsageRecord::from).collect(),
+            pass_usage: metrics
+                .pass_usage
+                .iter()
+                .map(PassUsageRecord::from)
+                .collect(),
         }
     }
 }

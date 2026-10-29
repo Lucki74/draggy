@@ -19,10 +19,10 @@ use draggy_providers::models::{AccountRuntime, ListError, ModelLister};
 use draggy_providers::registry::{AddArgs, InstanceConnection, Keystore, KvStore, Patch, Registry};
 use draggy_providers::remote_catalog::{PUBLIC_KEY, merge, verified};
 use draggy_providers::sse::{Delta, SseWriter, completion};
-use draggy_providers::usage::{from_anthropic, from_codex, from_gemini, from_openai, from_totals};
 use draggy_providers::types::{
     ChatRequest, FinishReason, ProviderError, ProviderState, StreamEvent, Usage,
 };
+use draggy_providers::usage::{from_anthropic, from_codex, from_gemini, from_openai, from_totals};
 use draggy_testkit::{cases, files};
 use serde_json::{Map, Value, json};
 

@@ -198,9 +198,10 @@ fn usage_field(usage: &Usage) -> Value {
         "completion_tokens": usage.output_tokens,
         "total_tokens": usage.prompt_tokens + usage.output_tokens,
     });
-    if let Some(tokens) = usage.tokens.filter(|t| {
-        t.input + t.cache_read + t.cache_write + t.output + t.reasoning > 0
-    }) {
+    if let Some(tokens) = usage
+        .tokens
+        .filter(|t| t.input + t.cache_read + t.cache_write + t.output + t.reasoning > 0)
+    {
         field["draggy_usage"] = serde_json::to_value(tokens).unwrap_or(Value::Null);
     }
     field

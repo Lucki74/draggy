@@ -885,8 +885,15 @@ impl DraggyChat {
         };
         let target = settings.cost_target();
         let cost = stats_store::price_turn(&target, metrics);
-        if let Some(storage) = self.imp().state.borrow().as_ref().and_then(|state| state.storage()) {
-            let workspace = Some(settings.folder.trim().to_owned()).filter(|folder| !folder.is_empty());
+        if let Some(storage) = self
+            .imp()
+            .state
+            .borrow()
+            .as_ref()
+            .and_then(|state| state.storage())
+        {
+            let workspace =
+                Some(settings.folder.trim().to_owned()).filter(|folder| !folder.is_empty());
             let row = stats_store::turn_metric(
                 &target,
                 &cost,
@@ -1027,7 +1034,9 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
     }
     parts.meta.set_visible(!meta.is_empty());
     parts.meta.set_text(&meta.join(" · "));
-    parts.meta.set_tooltip_text(cost.as_ref().map(|cost| cost.title.as_str()));
+    parts
+        .meta
+        .set_tooltip_text(cost.as_ref().map(|cost| cost.title.as_str()));
 }
 
 /// Replaces the body with the text drawn for its role: plain for the user, Markdown blocks for the assistant.
