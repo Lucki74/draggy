@@ -212,7 +212,6 @@ pub fn turn_metric(
         } else {
             None
         },
-        ..MetricInput::default()
     }
 }
 
