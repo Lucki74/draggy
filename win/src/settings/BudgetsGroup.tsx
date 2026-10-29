@@ -91,8 +91,8 @@ export default function BudgetsGroup({ settings, onUpdate, t }: BudgetsGroupProp
   const save = (patch: Partial<typeof budgets>) => onUpdate({ budgets: { ...budgets, ...patch } });
 
   return (
-    <Group title={t("budgetTitle")} description={t("budgetHint")}>
-      <Row label={t("budgetEnable")} description={t("budgetEnableHint")}>
+    <Group title={t("budgetTitle")}>
+      <Row label={t("budgetEnable")}>
         <Toggle checked={budgets.enabled} onChange={(enabled) => save({ enabled })} label={t("budgetEnable")} />
       </Row>
       {budgets.enabled && (
