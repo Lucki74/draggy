@@ -197,7 +197,9 @@ impl DraggyWindow {
     }
 
     fn attach_stats(&self) {
-        let store = std::rc::Rc::new(crate::services::stats_store::StatsStore::new());
+        let store = std::rc::Rc::new(crate::services::stats_store::StatsStore::new(
+            self.imp().state.storage(),
+        ));
         let page = crate::ui::stats::StatsPanelView::build(store);
         self.imp().pages.add_named(&page, Some("stats"));
     }

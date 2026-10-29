@@ -1,7 +1,10 @@
 //! What the user typed in the settings: where the model server is, which model, which folder. Held in memory only.
 //! The API key is not part of this value; it lives in the Secret Service (see `secrets`).
 
+use draggy_core::cost::{CostKind, price_provider_of_vendor};
 use draggy_core::{AgyConfigRecord, PermissionModeRecord, SessionConfig, WebConfigRecord};
+
+use crate::services::stats_store::CostTarget;
 
 /// The values the settings page edits.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -103,6 +106,64 @@ impl Settings {
             skills_dir: crate::models::skills_dir().map(|dir| dir.to_string_lossy().into_owned()),
         })
     }
+
+    /// Who pays for a reply through these settings, and the price-table entry that prices it.
+    pub fn cost_target(&self) -> CostTarget {
+        if let Some(agy) = &self.agy {
+            // The Google login is priced as the vendor's own API list.
+            return CostTarget {
+                kind: CostKind::Account,
+                provider: price_provider_of_vendor("google").unwrap_or_default().to_owned(),
+                model: agy.model.clone(),
+            };
+        }
+        let server = self.server_url.trim().trim_end_matches('/');
+        let model = self.model.trim().to_owned();
+        if is_loopback(server) {
+            return CostTarget {
+                kind: CostKind::Local,
+                provider: String::new(),
+                model,
+            };
+        }
+        CostTarget {
+            kind: CostKind::Billed,
+            provider: provider_of_host(server).to_owned(),
+            model,
+        }
+    }
+}
+
+/// The host of a web address, without the scheme, port or path. An IPv6 host comes without its brackets.
+fn host_of(url: &str) -> &str {
+    let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    match authority.strip_prefix('[') {
+        Some(inner) => inner.split(']').next().unwrap_or(""),
+        None => authority.split(':').next().unwrap_or(""),
+    }
+}
+
+/// Whether the server runs on this machine, where the built-in engine listens. Such a reply costs nothing.
+fn is_loopback(url: &str) -> bool {
+    matches!(host_of(url), "127.0.0.1" | "localhost" | "::1")
+}
+
+/// The price-table provider of a vendor's own API host. Any other server has none, so its replies are not priced.
+fn provider_of_host(url: &str) -> &'static str {
+    match host_of(url) {
+        "api.openai.com" => "openai",
+        "api.anthropic.com" => "anthropic",
+        "generativelanguage.googleapis.com" => "gemini",
+        "api.x.ai" => "xai",
+        "api.deepseek.com" => "deepseek",
+        "api.mistral.ai" => "mistral",
+        "api.groq.com" => "groq",
+        "api.together.xyz" => "together",
+        "api.fireworks.ai" => "fireworks",
+        "openrouter.ai" => "openrouter",
+        _ => "",
+    }
 }
 
 #[cfg(test)]
@@ -175,5 +236,37 @@ mod tests {
         assert_eq!(web.searxng_url, "http://127.0.0.1:8888");
         assert_eq!(web.brave_api_key, "k");
         assert_eq!(on.web_config(None).expect("web").brave_api_key, "");
+    }
+
+    #[test]
+    fn the_cost_target_follows_the_server_and_the_login() {
+        let local = filled().cost_target();
+        assert_eq!(local.kind, CostKind::Local);
+        let cloud = Settings {
+            server_url: "https://api.openai.com/v1".into(),
+            ..filled()
+        }
+        .cost_target();
+        assert_eq!(cloud.kind, CostKind::Billed);
+        assert_eq!(cloud.provider, "openai");
+        assert_eq!(cloud.model, "qwen");
+        let custom = Settings {
+            server_url: "http://192.168.1.5:8000/v1".into(),
+            ..filled()
+        }
+        .cost_target();
+        assert_eq!(custom.kind, CostKind::Billed);
+        assert!(custom.provider.is_empty());
+        let account = Settings {
+            agy: Some(AgyConfigRecord {
+                binary: String::new(),
+                model: "gemini-2.5-pro".into(),
+                work_dir: String::new(),
+            }),
+            ..filled()
+        }
+        .cost_target();
+        assert_eq!(account.kind, CostKind::Account);
+        assert_eq!(account.provider, "gemini");
     }
 }

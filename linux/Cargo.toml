@@ -32,6 +32,7 @@ needless_borrows_for_generic_args = "allow"
 
 [dependencies]
 draggy-core = { path = "../core/crates/draggy-core" }
+draggy-storage = { path = "../core/crates/storage" }
 gtk = { package = "gtk4", version = "0.11", features = ["v4_14"] }
 adw = { package = "libadwaita", version = "0.9", features = ["v1_5"] }
 async-channel = "2"
