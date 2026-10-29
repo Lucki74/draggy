@@ -76,6 +76,7 @@ const connectivity = require("./connectivity.cjs");
 const { createGateway } = require("./providers/gateway.cjs");
 const { createRegistry } = require("./providers/registry.cjs");
 const { createModels } = require("./providers/models.cjs");
+const { createAutoRefresh } = require("./providers/autoRefresh.cjs");
 const { createDiscovery } = require("./providers/discovery.cjs");
 const { createRemoteCatalog } = require("./providers/remoteCatalog.cjs");
 const { createProviderHandlers } = require("./providers/ipc.cjs");
@@ -844,6 +845,7 @@ let onboardingPlan = "done";
 let providers = null;
 let codexAccounts = null;
 let claudeAccounts = null;
+let providerAutoRefresh = null;
 let agyAccounts = null;
 let searchKey = null;
 
@@ -1218,10 +1220,19 @@ app.whenReady().then(() => {
     },
   });
   const accounts = { codex: codexAccounts, claude: claudeAccounts, agy: agyAccounts };
+  const models = createModels({ registry: providers, accounts });
+  providerAutoRefresh?.stop();
+  providerAutoRefresh = createAutoRefresh({
+    registry: providers,
+    models,
+    accounts,
+    notify: (channel, payload) => mainWindow && !mainWindow.isDestroyed() && sendTo(mainWindow, channel, payload),
+  });
+  providerAutoRefresh.start();
   const providerHandlers = createProviderHandlers({
     registry: providers,
     keystore: () => secrets.available(),
-    models: createModels({ registry: providers, accounts }),
+    models,
     accounts,
     openExternal: (url) => shell.openExternal(url),
     notify: (channel, payload) => mainWindow && !mainWindow.isDestroyed() && sendTo(mainWindow, channel, payload),
@@ -1357,10 +1368,12 @@ function shutdown() {
 }
 
 let quitting = false;
+app.on("browser-window-focus", () => providerAutoRefresh?.focused());
 
 app.on("before-quit", (event) => {
   if (quitting) return;
   quitting = true;
+  providerAutoRefresh?.stop();
   event.preventDefault();
   const quit = lifecycle.createTimeline("quit", { now: () => performance.now(), startedAt: performance.now(), scope: "quit" });
   const timed = (label, work) => Promise.resolve(work).finally(() => quit.mark(label));

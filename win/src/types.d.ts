@@ -1912,6 +1912,7 @@ declare global {
         /** Never downloads the runtime: one not installed yet answers signed out. */
         accountStatus: (id: string) => Promise<ProviderResult<{ status: AccountStatus }>>;
         onAccountProgress: (callback: (progress: AccountProgress) => void) => Unsubscribe;
+        onModelsChanged: (callback: (change: { id: string; added: string[] }) => void) => Unsubscribe;
       };
 
       appInfo: () => Promise<AppInfo>;

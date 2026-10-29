@@ -20,7 +20,12 @@ pub const PUBLIC_KEY: &str = "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA0t8tmR
 const DAY_MS: u64 = 86_400_000;
 const TIMEOUT_MS: u64 = 15_000;
 /// What the file may change on a provider Draggy already ships.
-const TUNABLE: [&str; 3] = ["capabilityPatterns", "defaultModels", "quirks"];
+const TUNABLE: [&str; 4] = [
+    "capabilityPatterns",
+    "noisePatterns",
+    "defaultModels",
+    "quirks",
+];
 /// What must match, so a signed file still cannot send a key or a conversation somewhere new.
 const FIXED: [&str; 4] = ["kind", "protocol", "baseUrl", "auth"];
 const KEY_PROTOCOLS: [&str; 3] = ["openai", "anthropic", "gemini"];

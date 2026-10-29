@@ -41,6 +41,9 @@ pub struct CatalogEntry {
     pub sign_in_hosts: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capability_patterns: Option<Vec<CapabilityPattern>>,
+    /// Extra ids kept out of the auto-pinned menu, on top of `NOISE`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub noise_patterns: Option<Vec<String>>,
     #[serde(default)]
     pub default_models: Vec<String>,
     /// Protocol switches the adapters read: the output limit's name, thinking and template flags.
@@ -173,6 +176,16 @@ pub fn problem_with(entry: &Value) -> Option<String> {
         return Some("no baseUrl".to_owned());
     }
     for pattern in map
+        .get("noisePatterns")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        if compile(&to_string(pattern)).is_none() {
+            return Some("bad noise pattern".to_owned());
+        }
+    }
+    for pattern in map
         .get("capabilityPatterns")
         .and_then(Value::as_array)
         .into_iter()
@@ -223,8 +236,30 @@ pub fn capabilities_for(entry: Option<&CatalogEntry>, model_id: &str) -> Capabil
         .unwrap_or_default()
 }
 
+/// Ids that are not chat models. Shared with `autoPin.cjs`, which skips them when a listing adds models.
+pub const NOISE: [&str; 5] = [
+    "(^|[-_/.:])(embed|embedding|embeddings|embedqa)([-_.:]|$)",
+    "moderation|guard",
+    "(^|[-_/.])(tts|whisper|transcribe|speech|stt)([-_.]|$)",
+    "image|dall-e|imagen|veo|sora|lyria|diffusion",
+    "audio|realtime|rerank",
+];
+
+/// The shared noise list followed by the entry's own `noisePatterns`.
+pub fn noise_patterns(entry: Option<&CatalogEntry>) -> Vec<String> {
+    NOISE
+        .iter()
+        .map(|pattern| (*pattern).to_owned())
+        .chain(
+            entry
+                .and_then(|e| e.noise_patterns.clone())
+                .unwrap_or_default(),
+        )
+        .collect()
+}
+
 /// A JavaScript pattern compiled case-insensitively. Lookaround and backreferences work, as they do in JavaScript.
-fn compile(source: &str) -> Option<Regex> {
+pub(crate) fn compile(source: &str) -> Option<Regex> {
     Regex::new(&format!("(?i){source}")).ok()
 }
 

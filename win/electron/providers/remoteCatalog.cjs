@@ -10,7 +10,7 @@ const DAY = 24 * 60 * 60 * 1000;
 const PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA0t8tmRLchjHxbg6zg+3q+VMdvhw1nZVbOi8O8AOaciU=\n-----END PUBLIC KEY-----\n";
 
 // What the file may change on a provider Draggy already ships.
-const TUNABLE = ["capabilityPatterns", "defaultModels", "quirks"];
+const TUNABLE = ["capabilityPatterns", "noisePatterns", "defaultModels", "quirks"];
 // What must match, so a signed file still cannot send a key or a conversation somewhere new.
 const FIXED = ["kind", "protocol", "baseUrl", "auth"];
 const KEY_PROTOCOLS = new Set(["openai", "anthropic", "gemini"]);

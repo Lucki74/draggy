@@ -491,6 +491,14 @@ mod tests {
     }
 
     #[test]
+    fn a_zero_token_turn_with_no_price_is_unknown_not_free() {
+        // A listed model with no table entry must not read as a priced zero.
+        let cost = price_passes("anthropic", "no-such-model", &[pass(0, 0, false)]);
+        assert_eq!(cost.micros, None);
+        assert_eq!(cost.source, "unknown");
+    }
+
+    #[test]
     fn a_provider_figure_stands_without_a_price() {
         let mut billed = pass(10, 10, false);
         billed.cost_usd = Some(0.000_123);
