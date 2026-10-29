@@ -72,12 +72,12 @@ function createModels({ registry, accounts = {}, fetchImpl = globalThis.fetch, n
     return response.json();
   }
 
-  async function fetchListing(connection) {
+  async function fetchListing(connection, refresh) {
     const { entry } = connection;
     if (entry?.kind === "account") {
       const runtime = accounts[entry.protocol];
       if (!runtime) throw Object.assign(new Error("no runtime"), { failure: { kind: "account-runtime-unavailable", message: `${entry.name} is not available here.` } });
-      return runtime.models(connection.instance.id);
+      return runtime.models(connection.instance.id, { refresh });
     }
     if (entry?.protocol === "ollama") {
       const tags = await request(connection, ADAPTERS.ollama.modelsRequest(connection));
@@ -124,7 +124,7 @@ function createModels({ registry, accounts = {}, fetchImpl = globalThis.fetch, n
       log.debug("providers.models", "listing cache miss", { instanceId, refresh });
       const startedAt = now();
       try {
-        listed = await fetchListing(connection);
+        listed = await fetchListing(connection, refresh);
       } catch (error) {
         log.warn("providers.models", "listing failed", { instanceId, kind: error?.failure?.kind, status: error?.failure?.status });
         cache.set(instanceId, { stamp, at: now(), error });

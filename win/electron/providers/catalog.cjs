@@ -267,6 +267,13 @@ function problemWith(entry) {
     if (entry.kind === "cloud" && url.protocol !== "https:") return "cloud baseUrl is not https";
     if (entry.kind === "local" && url.hostname !== "127.0.0.1") return "local baseUrl is not loopback";
   } else if (entry.id !== "custom" && entry.kind !== "account") return "no baseUrl";
+  for (const match of entry.noisePatterns || []) {
+    try {
+      new RegExp(match, "i");
+    } catch {
+      return "bad noise pattern";
+    }
+  }
   for (const pattern of entry.capabilityPatterns || []) {
     try {
       new RegExp(pattern.match, "i");
@@ -299,12 +306,24 @@ function find(id) {
   return active.find((entry) => entry.id === id) || null;
 }
 
-/** Tools, vision and thinking for a model by the first pattern its id matches. */
+// Ids that are not chat models; providers.json may add more per entry through `noisePatterns`.
+const NOISE = ["(^|[-_/.:])(embed|embedding|embeddings|embedqa)([-_.:]|$)", "moderation|guard", "(^|[-_/.])(tts|whisper|transcribe|speech|stt)([-_.]|$)", "image|dall-e|imagen|veo|sora|lyria|diffusion", "audio|realtime|rerank"];
+
+function noisePatterns(entry) {
+  return [...NOISE, ...(entry?.noisePatterns || [])];
+}
+
+const FAMILIES = ["claude-", "gpt-", "gemini-"];
+
+/** Tools, vision and thinking for a model by the first pattern its id matches; a new name in a known
+ * family falls back to what the family's own pattern grants. */
 function capabilitiesFor(entry, modelId) {
-  const pattern = (entry?.capabilityPatterns || []).find((p) => new RegExp(p.match, "i").test(modelId));
+  const patterns = entry?.capabilityPatterns || [];
+  const family = FAMILIES.find((stem) => String(modelId).toLowerCase().startsWith(stem));
+  const pattern = patterns.find((p) => new RegExp(p.match, "i").test(modelId)) || (family && patterns.find((p) => p.match && new RegExp(p.match, "i").test(family)));
   return pattern
     ? { capabilities: [...pattern.capabilities], contextLength: pattern.contextLength ?? null, maxOutputTokens: pattern.maxOutputTokens ?? null }
     : { capabilities: [], contextLength: null, maxOutputTokens: null };
 }
 
-module.exports = { catalog, bundledCatalog, useCatalog, find, capabilitiesFor, problemWith };
+module.exports = { catalog, bundledCatalog, useCatalog, find, capabilitiesFor, noisePatterns, problemWith };

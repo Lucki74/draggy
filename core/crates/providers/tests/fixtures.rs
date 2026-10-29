@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use draggy_providers::adapters::common::{Connection, ListedModel, Stream};
 use draggy_providers::adapters::{anthropic, gemini, ollama, openai};
+use draggy_providers::autopin::plan_pins;
 use draggy_providers::catalog::{Catalog, CatalogEntry, capabilities_for, problem_with};
 use draggy_providers::discovery::{Discovery, ports};
 use draggy_providers::errors::{
@@ -846,9 +847,40 @@ fn usage_case(input: &Value) -> Value {
     })
 }
 
+fn autopin_case(input: &Value) -> Value {
+    let entry: CatalogEntry = serde_json::from_value(json!({
+        "id": "fixture",
+        "name": "Fixture",
+        "kind": "cloud",
+        "protocol": "openai",
+        "auth": "bearer",
+        "noisePatterns": input["noisePatterns"].clone(),
+    }))
+    .expect("a fixture entry reads");
+    let list = |value: &Value| -> Option<Vec<String>> {
+        value.as_array().map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect()
+        })
+    };
+    let listed = list(&input["listed"]).unwrap_or_default();
+    let pinned = list(&input["pinned"]).unwrap_or_default();
+    let seen = list(&input["seen"]);
+    let plan = plan_pins(Some(&entry), &listed, &pinned, seen.as_deref());
+    json!({
+        "seenModels": plan.seen_models,
+        "pinnedModels": plan.pinned_models,
+        "added": plan.added,
+    })
+}
+
 /// Runs one case of the named fixture file through the port.
 fn run(area: &str, input: &Value) -> Value {
     match area {
+        "autopin" => autopin_case(input),
         "sse" => sse_case(input),
         "errors" => errors_case(input),
         "catalog" => catalog_case(input),

@@ -385,6 +385,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     accountSignOut: (id) => ipcRenderer.invoke("providers:account-sign-out", id),
     accountStatus: (id) => ipcRenderer.invoke("providers:account-status", id),
     onAccountProgress: (callback) => subscribe("providers:account-progress", callback),
+    onModelsChanged: (callback) => subscribe("providers:models-changed", callback),
   },
 
   appInfo: () => ipcRenderer.invoke("app:version"),

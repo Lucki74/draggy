@@ -9,11 +9,14 @@ use tracing::{debug, info, warn};
 
 use crate::adapters::common::ListedModel;
 use crate::adapters::{anthropic, gemini, ollama, openai};
+use crate::autopin::{PinPlan, plan_pins};
 use crate::catalog::{CatalogEntry, capabilities_for};
 use crate::errors::{from_network, from_response_text};
 use crate::http::{HttpClient, HttpRequest, Method};
 use crate::js::{count_or_none, truthy};
-use crate::registry::{Instance, InstanceConnection, ModelOverride};
+use crate::registry::{
+    Instance, InstanceConnection, Keystore, KvStore, ModelOverride, Patch, Registry,
+};
 use crate::types::{ErrorKind, ProviderError};
 
 pub const FLAGS: [&str; 3] = ["tools", "vision", "thinking"];
@@ -106,6 +109,43 @@ impl<H: HttpClient> ModelLister<H> {
             }
             None => self.cache.clear(),
         }
+    }
+
+    /// A forced listing of an enabled instance, then the auto-pin plan written through the registry. A refusal or a
+    /// switched-off instance writes nothing, so the menu keeps what it had.
+    pub fn refresh_auto_pins<K: KvStore, S: Keystore>(
+        &mut self,
+        registry: &mut Registry<K, S>,
+        instance_id: &str,
+        now: u64,
+    ) -> Option<PinPlan> {
+        let conn = registry.connection_for(instance_id)?;
+        if !conn.instance.enabled {
+            return None;
+        }
+        let listed: Vec<String> = self
+            .list(&*registry, instance_id, true, now)
+            .ok()?
+            .into_iter()
+            .map(|model| model.id)
+            .collect();
+        let plan = plan_pins(
+            conn.entry.as_ref(),
+            &listed,
+            &conn.instance.pinned_models,
+            conn.instance.seen_models.as_deref(),
+        );
+        registry
+            .update(
+                instance_id,
+                Patch {
+                    pinned_models: Some(plan.pinned_models.clone()),
+                    seen_models: Some(plan.seen_models.clone()),
+                    ..Patch::default()
+                },
+            )
+            .ok()?;
+        Some(plan)
     }
 
     /// Every model the instance lists, from the cache when it is recent enough unless `refresh` asks again.

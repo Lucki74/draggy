@@ -198,4 +198,20 @@ describe("the adapter", () => {
     await adapter.signOut();
     expect(await adapter.status()).toEqual({ signedIn: false });
   });
+
+  it("asks agy again on a refresh and keeps the list otherwise", async () => {
+    let asked = 0;
+    const exec = (binary, args, options, callback) => {
+      if (args[0] === "models") asked += 1;
+      execFake({ models: "gemini-3-pro  Gemini\n" })(binary, args, options, callback);
+    };
+    const adapter = make({ spawn: fakeSpawn({ stdout: lines([INIT, SUCCESS]) }).spawn, exec });
+    await adapter.signIn("x");
+    await adapter.models();
+    await adapter.models();
+    expect(asked).toBe(1);
+    await adapter.models("x", { refresh: true });
+    expect(asked).toBe(2);
+  });
+
 });

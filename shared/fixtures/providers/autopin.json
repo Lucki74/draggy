@@ -1,0 +1,249 @@
+{
+  "area": "autoPin",
+  "description": "Which newly listed models join the menu unasked",
+  "cases": [
+    {
+      "name": "first look seeds and pins nothing",
+      "input": {
+        "listed": [
+          "a",
+          "b"
+        ],
+        "pinned": [
+          "a"
+        ],
+        "seen": null,
+        "noisePatterns": []
+      },
+      "expected": {
+        "seenModels": [
+          "a",
+          "b"
+        ],
+        "pinnedModels": [
+          "a"
+        ],
+        "added": []
+      }
+    },
+    {
+      "name": "new id is pinned",
+      "input": {
+        "listed": [
+          "gpt-5",
+          "gpt-6"
+        ],
+        "pinned": [
+          "gpt-5"
+        ],
+        "seen": [
+          "gpt-5"
+        ],
+        "noisePatterns": []
+      },
+      "expected": {
+        "seenModels": [
+          "gpt-5",
+          "gpt-6"
+        ],
+        "pinnedModels": [
+          "gpt-5",
+          "gpt-6"
+        ],
+        "added": [
+          "gpt-6"
+        ]
+      }
+    },
+    {
+      "name": "unticked id stays off",
+      "input": {
+        "listed": [
+          "gpt-5",
+          "gpt-4"
+        ],
+        "pinned": [
+          "gpt-5"
+        ],
+        "seen": [
+          "gpt-5",
+          "gpt-4"
+        ],
+        "noisePatterns": []
+      },
+      "expected": {
+        "seenModels": [
+          "gpt-5",
+          "gpt-4"
+        ],
+        "pinnedModels": [
+          "gpt-5"
+        ],
+        "added": []
+      }
+    },
+    {
+      "name": "embeddings and tts are skipped",
+      "input": {
+        "listed": [
+          "text-embedding-4",
+          "gpt-5-tts",
+          "gpt-image-2",
+          "gpt-5-realtime",
+          "omni-moderation-2",
+          "gpt-6"
+        ],
+        "pinned": [],
+        "seen": [],
+        "noisePatterns": []
+      },
+      "expected": {
+        "seenModels": [
+          "text-embedding-4",
+          "gpt-5-tts",
+          "gpt-image-2",
+          "gpt-5-realtime",
+          "omni-moderation-2",
+          "gpt-6"
+        ],
+        "pinnedModels": [
+          "gpt-6"
+        ],
+        "added": [
+          "gpt-6"
+        ]
+      }
+    },
+    {
+      "name": "dated snapshot of a pinned model is skipped",
+      "input": {
+        "listed": [
+          "claude-x-5",
+          "claude-x-5-20260101"
+        ],
+        "pinned": [
+          "claude-x-5"
+        ],
+        "seen": [
+          "claude-x-5"
+        ],
+        "noisePatterns": []
+      },
+      "expected": {
+        "seenModels": [
+          "claude-x-5",
+          "claude-x-5-20260101"
+        ],
+        "pinnedModels": [
+          "claude-x-5"
+        ],
+        "added": []
+      }
+    },
+    {
+      "name": "dated snapshot of an unpinned model is kept",
+      "input": {
+        "listed": [
+          "model-a-2026-01-01"
+        ],
+        "pinned": [],
+        "seen": [],
+        "noisePatterns": []
+      },
+      "expected": {
+        "seenModels": [
+          "model-a-2026-01-01"
+        ],
+        "pinnedModels": [
+          "model-a-2026-01-01"
+        ],
+        "added": [
+          "model-a-2026-01-01"
+        ]
+      }
+    },
+    {
+      "name": "cap of three per refresh and the rest are marked seen",
+      "input": {
+        "listed": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5"
+        ],
+        "pinned": [],
+        "seen": [],
+        "noisePatterns": []
+      },
+      "expected": {
+        "seenModels": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5"
+        ],
+        "pinnedModels": [
+          "m1",
+          "m2",
+          "m3"
+        ],
+        "added": [
+          "m1",
+          "m2",
+          "m3"
+        ]
+      }
+    },
+    {
+      "name": "extra provider patterns extend the noise list",
+      "input": {
+        "listed": [
+          "fancy-chat",
+          "fancy-vec"
+        ],
+        "pinned": [],
+        "seen": [],
+        "noisePatterns": [
+          "vec$"
+        ]
+      },
+      "expected": {
+        "seenModels": [
+          "fancy-chat",
+          "fancy-vec"
+        ],
+        "pinnedModels": [
+          "fancy-chat"
+        ],
+        "added": [
+          "fancy-chat"
+        ]
+      }
+    },
+    {
+      "name": "duplicates in a listing count once",
+      "input": {
+        "listed": [
+          "n",
+          "n"
+        ],
+        "pinned": [],
+        "seen": [],
+        "noisePatterns": []
+      },
+      "expected": {
+        "seenModels": [
+          "n"
+        ],
+        "pinnedModels": [
+          "n"
+        ],
+        "added": [
+          "n"
+        ]
+      }
+    }
+  ]
+}
