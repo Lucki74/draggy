@@ -98,7 +98,12 @@ function checkImageRequest(raw) {
     } else if (init.kind === "project") {
       const target = String(init.path || "").trim();
       if (!target) return { ok: false, reason: "init-path-missing", error: "The starting image needs a path" };
-      request.init = { kind: "project", workspaceId: String(init.workspaceId || "default"), path: target };
+      request.init = { kind: "project", workspaceId: String(init.workspaceId || "default"), path: target, optional: Boolean(init.optional) };
+    } else if (init.kind === "created") {
+      const target = String(init.path || "").trim();
+      if (!target) return { ok: false, reason: "init-path-missing", error: "The starting image needs a path" };
+      // A picture from the output folder; when it has gone the job draws from the text alone.
+      request.init = { kind: "created", path: target, optional: true };
     } else {
       return { ok: false, reason: "unknown-init", error: "Unknown starting image" };
     }

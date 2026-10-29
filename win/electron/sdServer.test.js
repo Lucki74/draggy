@@ -457,3 +457,27 @@ describe("memory plan", () => {
     expect(sdServer.planMemory({ needGB: 3, unified: true, freeRamGB: 8 })).toBe("gpu");
   });
 });
+
+describe("reference pictures", () => {
+  const picture = "data:image/png;base64,AAAA";
+
+  it("starts from the picture for an img2img model", () => {
+    const clamped = sdServer.clampRequest({ prompt: "x", initImage: picture, strength: 0.35 }, undefined, undefined, "img2img");
+    const body = sdServer.buildJobBody(clamped);
+    expect(body.init_image).toBe(picture);
+    expect(body.ref_images).toBeUndefined();
+    expect(body.strength).toBe(0.35);
+  });
+
+  it("shows an edit model the picture as a reference", () => {
+    const body = sdServer.buildJobBody(sdServer.clampRequest({ prompt: "x", initImage: picture }, undefined, undefined, "edit"));
+    expect(body.ref_images).toEqual([picture]);
+    expect(body.init_image).toBeUndefined();
+  });
+
+  it("drops the picture for a model with no reference mode", () => {
+    const clamped = sdServer.clampRequest({ prompt: "x", initImage: picture }, undefined, undefined, null);
+    expect(clamped.initImage).toBeNull();
+    expect(clamped.referenceDropped).toBe(true);
+  });
+});

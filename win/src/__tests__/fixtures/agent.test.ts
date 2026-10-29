@@ -36,6 +36,8 @@ import { VOICE_SEARCH_MARKER, buildProjectPrompt, buildSystemPrompt, buildVoiceP
 import type { PromptMode } from "../../prompts";
 import type { ProjectMemory } from "../../project/memory";
 import { promptProfileFor } from "../../ai/providers";
+import { imageIndex, referenceStrength } from "../../images/imageTracker";
+import type { TrackedImage } from "../../images/imageTracker";
 import {
   allowedEfforts,
   clampEffort,
@@ -274,8 +276,21 @@ function runEffort(input: Fixture): unknown {
   }
 }
 
+function runImageReference(input: Fixture): unknown {
+  switch (input.op) {
+    case "index":
+      return imageIndex(input.images as TrackedImage[]);
+    case "strength":
+      return referenceStrength(input.hasReference as boolean, (input.explicit as number | null) ?? undefined) ?? null;
+    default:
+      throw new Error(`unknown imageReference op ${input.op}`);
+  }
+}
+
 function run(file: string, input: Fixture): unknown {
   switch (file) {
+    case "imageReference":
+      return runImageReference(input);
     case "effort":
       return runEffort(input);
     case "toolParsing":

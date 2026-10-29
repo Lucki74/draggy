@@ -397,3 +397,59 @@ describe("/image in a conversation", () => {
     expect(sessions.get("chat-9")?.messages.at(-1)?.content).toBe("imageCommandBadFlag");
   });
 });
+
+describe("view_image", () => {
+  it("is offered only to a chat model that can read pictures", () => {
+    expect(availableTools({ ...CHAT, vision: true }).map((tool) => tool.name)).toEqual(["generate_image", "view_image"]);
+    expect(availableTools({ ...CHAT, vision: false }).map((tool) => tool.name)).toEqual(["generate_image"]);
+  });
+});
+
+describe("reference_image", () => {
+  const tracked = [{ id: "img_1", origin: "generated" as const, messageId: "m", label: "a red fox", path: "C:/data/created_files/fox.png", location: "created" as const }];
+
+  it("starts from a tracked picture at the low default strength and numbers the new one", async () => {
+    const sd = installSd();
+    const { context } = harness();
+    context.images = tracked;
+    const running = runTool("generate_image", { prompt: "a red fox with a hat", reference_image: "img_1" }, context, CHAT);
+    await tick();
+    expect(sd.requests[0].init).toEqual({ kind: "created", path: "C:/data/created_files/fox.png" });
+    expect(sd.requests[0].strength).toBe(0.35);
+    sd.finish({ success: true, path: "C:/data/created_files/fox-hat.png", filename: "fox-hat.png" });
+    expect(await running).toContain("as img_2");
+    expect(context.images).toHaveLength(2);
+  });
+
+  it("lets the model raise the strength", async () => {
+    const sd = installSd();
+    const { context } = harness();
+    context.images = tracked;
+    const running = runTool("generate_image", { prompt: "x", reference_image: "img_1", strength: 0.6 }, context, CHAT);
+    await tick();
+    expect(sd.requests[0].strength).toBe(0.6);
+    sd.finish({ success: true, path: "C:/a.png", filename: "a.png" });
+    await running;
+  });
+
+  it("refuses an unknown ID without drawing", async () => {
+    const sd = installSd();
+    const { context } = harness();
+    context.images = tracked;
+    const reply = await runTool("generate_image", { prompt: "x", reference_image: "img_9" }, context, CHAT);
+    expect(reply).toContain("no picture img_9");
+    expect(reply).toContain("img_1");
+    expect(sd.requests).toHaveLength(0);
+  });
+
+  it("tells the model and the card when the reference was dropped", async () => {
+    const sd = installSd();
+    const { context, steps } = harness();
+    context.images = tracked;
+    const running = runTool("generate_image", { prompt: "x", reference_image: "img_1" }, context, CHAT);
+    await tick();
+    sd.finish({ success: true, path: "C:/a.png", filename: "a.png", referenceDropped: true });
+    expect(await running).toContain("was not used");
+    expect(steps[0].image?.referenceDropped).toBe(true);
+  });
+});

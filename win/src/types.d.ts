@@ -511,6 +511,10 @@ export interface ImageStepInfo {
   finishedAt?: number;
   /** Already in the reader's language, with a link to the article on it when there is one. */
   error?: string;
+  /** The tracked picture this one started from, such as img_2. */
+  reference?: string;
+  /** The reference was asked for but the picture was drawn from the text alone. */
+  referenceDropped?: boolean;
 }
 
 export interface ImageModelFile {
@@ -588,7 +592,10 @@ export interface ImageRequest {
   fitModel?: boolean;
   lora?: string[];
   model?: string;
-  init?: { kind: "attachment"; dataUrl: string } | { kind: "project"; workspaceId: string; path: string };
+  init?:
+    | { kind: "attachment"; dataUrl: string }
+    | { kind: "project"; workspaceId: string; path: string; optional?: boolean }
+    | { kind: "created"; path: string };
   destination?:
     | { kind: "chat" }
     | { kind: "project"; workspaceId: string; path: string; chatId?: string; overwrite?: boolean };
@@ -604,6 +611,10 @@ export interface ImageResult {
   model?: string;
   checkpointId?: number;
   created?: boolean;
+  /** The starting picture shaped this one. */
+  referenceUsed?: boolean;
+  /** A starting picture was given but the model cannot use one or the file had gone, so only the text was drawn. */
+  referenceDropped?: boolean;
   code?: string;
   error?: string;
   params?: Record<string, string>;

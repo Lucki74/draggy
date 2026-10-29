@@ -67,6 +67,7 @@ export function finishImageStep(
       height: result.height,
       seed: result.seed,
       model: result.model,
+      referenceDropped: result.referenceDropped || undefined,
       queuePosition: undefined,
       error: undefined,
       finishedAt,

@@ -1,3 +1,4 @@
+import { DEFAULT_REFERENCE_STRENGTH } from "../images/imageTracker";
 import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, growContext, nextContextSize, windowCeiling } from "../llama";
 
 import { isRemote } from "../ai/providers";
@@ -1136,7 +1137,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       height: parsed.height,
       steps: parsed.steps,
       seed: parsed.seed,
-      strength: parsed.strength,
+      // Only a picture the user attached steers the image, and it keeps its subject unless they ask for more.
+      strength: parsed.strength ?? (init?.kind === "attachment" ? DEFAULT_REFERENCE_STRENGTH : undefined),
       hires: parsed.hires,
       lora: parsed.lora,
       init,
