@@ -3,6 +3,7 @@
 const { fromResponse } = require("../errors.cjs");
 const { log } = require("../../logger.cjs");
 const offload = require("../offloadPlan.cjs");
+const { fromTotals } = require("../usage.cjs");
 
 function buildRequest(body, { baseUrl, headers }, modelId) {
   const payload = { model: String(modelId), messages: toMessages(body.messages || []), stream: Boolean(body.stream) };
@@ -61,7 +62,7 @@ function toMessages(messages) {
 }
 
 function usageOf(json) {
-  return { promptTokens: json.prompt_eval_count ?? 0, outputTokens: json.eval_count ?? 0 };
+  return fromTotals(json.prompt_eval_count, json.eval_count);
 }
 
 async function translateStream(stream, sse) {

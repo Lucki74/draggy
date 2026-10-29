@@ -126,7 +126,7 @@ describe("the Claude account adapter", () => {
       ["delta", { reasoning: "hmm" }],
       ["delta", { content: "Hello" }],
       ["state", { instanceId: "claude", state: expect.objectContaining({ sessionId: "id1", consumed: 1, at: "a1" }) }],
-      ["finish", "stop", { promptTokens: 9, outputTokens: 2 }],
+      ["finish", "stop", expect.objectContaining({ promptTokens: 9, outputTokens: 2 })],
     ]);
   });
 
@@ -165,7 +165,7 @@ describe("the Claude account adapter", () => {
     say(proc, "It says file a.");
     succeed(proc);
     await second.done;
-    expect(second.sse.events.at(-1)).toEqual(["finish", "stop", { promptTokens: 9, outputTokens: 2 }]);
+    expect(second.sse.events.at(-1)).toEqual(["finish", "stop", expect.objectContaining({ promptTokens: 9, outputTokens: 2 })]);
     expect(proc.sent).toHaveLength(1);
   });
 

@@ -5,6 +5,20 @@ const { log } = require("../logger.cjs");
 
 const encoder = new TextEncoder();
 
+const COUNTED = ["input", "cacheRead", "cacheWrite", "output", "reasoning"];
+
+/** llama-server's `usage`, plus `draggy_usage`: the cache and reasoning split the renderer prices.
+ * An answer that reported nothing carries no split, so it is never read as a free reply. */
+function usageField(promptTokens, outputTokens, tokens) {
+  const counted = tokens && COUNTED.some((key) => tokens[key] > 0);
+  return {
+    prompt_tokens: promptTokens,
+    completion_tokens: outputTokens,
+    total_tokens: promptTokens + outputTokens,
+    ...(counted ? { draggy_usage: tokens } : {}),
+  };
+}
+
 /** `meta` is who the request was for ({cid, provider, model, host}); it only labels the one summary line. */
 function createSse(controller, { now = () => Date.now(), meta = {} } = {}) {
   const startedAt = now();
@@ -70,7 +84,7 @@ function createSse(controller, { now = () => Date.now(), meta = {} } = {}) {
       const outputTokens = usage.outputTokens ?? 0;
       send({
         choices: [{ index: 0, delta: {}, finish_reason: reason || "stop" }],
-        usage: { prompt_tokens: promptTokens, completion_tokens: outputTokens, total_tokens: promptTokens + outputTokens },
+        usage: usageField(promptTokens, outputTokens, usage.tokens),
         timings: { prompt_n: promptTokens, prompt_ms: firstAt - startedAt, predicted_n: outputTokens, predicted_ms: end - firstAt },
       });
     },
@@ -114,7 +128,7 @@ function completion({ content = "", reasoning = "", toolCalls = [], finish = "st
   const outputTokens = usage.outputTokens ?? 0;
   return {
     choices: [{ index: 0, message, finish_reason: finish }],
-    usage: { prompt_tokens: promptTokens, completion_tokens: outputTokens, total_tokens: promptTokens + outputTokens },
+    usage: usageField(promptTokens, outputTokens, usage.tokens),
   };
 }
 

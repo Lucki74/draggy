@@ -1,4 +1,5 @@
 import type { Message, MessageVersion, TurnErrorKind } from "../types";
+import { BUDGET_ERROR_PREFIX } from "../stats/budget";
 
 /** Versions and branches of a conversation. A message's own fields are its newest version; older
  * ones sit in `versions`, each holding the conversation that followed it in `tail`. */
@@ -173,6 +174,7 @@ export function modelHistory(messages: Message[]): Message[] {
 
 /** Sorts a turn's error into what can be done about it. */
 export function classifyTurnError(text: string): TurnErrorKind {
+  if (text.startsWith(BUDGET_ERROR_PREFIX)) return "budget";
   if (/out of memory|failed to allocate|cudaMalloc|OutOfDeviceMemory|OutOfHostMemory/i.test(text)) return "memory";
   if (/context size|context length|context window|too many tokens|maximum context/i.test(text)) return "context";
   if (/\b429\b|rate.?limit|too many requests|overloaded|\b529\b/i.test(text)) return "rate-limit";

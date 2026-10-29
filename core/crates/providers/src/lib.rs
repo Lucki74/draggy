@@ -20,3 +20,4 @@ pub mod remote_catalog;
 pub mod rpc;
 pub mod sse;
 pub mod types;
+pub mod usage;

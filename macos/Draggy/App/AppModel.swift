@@ -108,6 +108,8 @@ final class AppModel {
     let mcp = McpModel(manager: try? McpManager(nodePath: nil, extensionsDir: nil))
     let browser = BrowserModel()
     let agy = AgyModel()
+    /// What this session's replies cost, shown on the Stats page. Kept in memory only.
+    let stats = StatsStore()
     private var session: Session?
     /// The plan the model keeps for this conversation.
     private(set) var plan: [PlanStepRecord] = []
@@ -299,6 +301,11 @@ final class AppModel {
         )
     }
 
+    /// The project folder's name, which the Stats page files each reply under.
+    var workspaceName: String {
+        folderPath.isEmpty ? String(localized: "No workspace") : URL(fileURLWithPath: folderPath).lastPathComponent
+    }
+
     func newConversation() {
         guard !isRunning else { return }
         session = nil
@@ -429,12 +436,23 @@ final class AppModel {
             if let speed = update.speed { self.transcript.setSpeed(speed) }
             self.plan = self.session?.plan() ?? []
         }
+        // Where this reply goes is fixed now, so a settings change during the turn does not re-price it.
+        let usesAccount = agyEnabled && agy.config(model: agyModel) != nil
+        let route = TurnPricer.route(usesAccount: usesAccount, baseURL: baseURL)
+        let configuredModel = usesAccount ? agyModel : modelName
+        let workspace = workspaceName
 
         do {
             let session = try currentSession()
             let outcome = try await session.sendWithImages(
                 text: text, images: images, observer: sink, approvals: broker, cancel: token)
             transcript.finishReply(outcome.textContent)
+            if let metrics = outcome.metrics {
+                let turn = TurnPricer.record(
+                    metrics: metrics, route: route, configuredModel: configuredModel, workspace: workspace)
+                stats.record(turn)
+                transcript.setCost(TurnCostLabel(turn))
+            }
             lastReply = outcome.textContent
             if speakReplies, talkPhase == .off { speaker.speak(outcome.textContent) }
             transcript.setSteps(outcome.steps.map(transcriptStep))

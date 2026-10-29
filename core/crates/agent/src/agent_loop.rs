@@ -3,6 +3,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
+use draggy_providers::types::TokenUsage;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::{debug, warn};
@@ -171,6 +172,10 @@ pub struct GenerationMetrics {
     pub model: String,
     pub gpu_percent: Option<f64>,
     pub breakdown: Option<ContextBreakdown>,
+    /// One entry per request the turn made, in order. Each is priced alone because a long prompt can move a single
+    /// request into a dearer tier; empty for an engine that reports no split (a local model).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pass_usage: Vec<TokenUsage>,
 }
 
 /// The counts a finished generation reports. Durations are in nanoseconds, as the engine sends them.
@@ -183,6 +188,8 @@ pub struct FinalCounts {
     pub eval_duration_ns: f64,
     pub load_duration_ns: f64,
     pub total_duration_ns: f64,
+    /// The cache and reasoning split, from a provider that reports one.
+    pub usage: Option<TokenUsage>,
 }
 
 /// `readMetrics`: the figures of one generation, or none when the engine reported nothing.
@@ -209,6 +216,7 @@ pub fn read_metrics(
         model: model.to_string(),
         gpu_percent: None,
         breakdown: None,
+        pass_usage: counts.usage.into_iter().collect(),
     })
 }
 
@@ -241,6 +249,7 @@ pub fn merge_metrics(
         model: a.model.clone(),
         gpu_percent: b.gpu_percent.or(a.gpu_percent),
         breakdown: None,
+        pass_usage: a.pass_usage.iter().chain(&b.pass_usage).copied().collect(),
     })
 }
 
@@ -1997,6 +2006,7 @@ impl<'a> Turn<'a> {
                 model: self.model.clone(),
                 gpu_percent: None,
                 breakdown: None,
+                pass_usage: Vec::new(),
             };
             self.metrics = merge_metrics(self.metrics.take(), Some(passed));
             self.emit_live(0, None, false);

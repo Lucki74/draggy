@@ -772,6 +772,7 @@ dependencies = [
 name = "draggy-agent"
 version = "0.1.0"
 dependencies = [
+ "draggy-providers",
  "fancy-regex",
  "serde",
  "serde_json",
@@ -813,6 +814,7 @@ dependencies = [
  "draggy-tools",
  "draggy-web",
  "reqwest",
+ "serde",
  "serde_json",
  "thiserror",
  "tokio",
@@ -869,6 +871,7 @@ version = "0.1.0"
 dependencies = [
  "async-channel",
  "draggy-core",
+ "draggy-storage",
  "glib-build-tools",
  "gtk4",
  "libadwaita",

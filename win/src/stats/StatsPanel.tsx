@@ -7,13 +7,20 @@ import { Field, Stat } from "../settings/Controls";
 import { formatTokenCount } from "../agent/contextBreakdown";
 import { formatDuration, sinceFor, summarize } from "./summary";
 import type { StatsRange } from "./summary";
-import type { MetricRow } from "../types";
+import CostSection from "./CostSection";
+import { swallowed } from "../logger";
+import { summarizeCost } from "./costSummary";
+import { legacyPricer, parseReference, referencePricer } from "./pricing";
+import type { PriceTable } from "./cost";
+import type { MetricRow, ProviderInstance } from "../types";
 
 interface StatsPanelProps {
   t: (key: string) => string;
   /** Narrows the figures to one chat, as the Usage pane does. `null` is a pane with no chat open.
    * Left out, the panel covers every chat and offers a range and a way to clear. */
   chatId?: string | null;
+  /** The `provider/model` that local replies are priced against for "saved". */
+  referenceModel?: string;
 }
 
 const RANGES: { id: StatsRange; label: string }[] = [
@@ -39,11 +46,11 @@ function Bar({ value, max, strong }: { value: number; max: number; strong: boole
 
 /** How the user's models have done: speed by model, tool use, time per task. From turns kept
  * locally, shown nowhere else, and clearable. */
-export default function StatsPanel({ t, chatId }: StatsPanelProps) {
+export default function StatsPanel({ t, chatId, referenceModel }: StatsPanelProps) {
   const scoped = chatId !== undefined;
   const [chosenRange, setRange] = useState<StatsRange>("30d");
   const range = scoped ? "all" : chosenRange;
-  const [loaded, setLoaded] = useState<{ key: string; rows: MetricRow[] } | null>(null);
+  const [loaded, setLoaded] = useState<{ key: string; rows: MetricRow[]; since: number; at: number } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [revision, setRevision] = useState(0);
 
@@ -54,14 +61,17 @@ export default function StatsPanel({ t, chatId }: StatsPanelProps) {
     if (!api) return;
 
     let current = true;
+    // The window is fixed when the rows are asked for, so the charts and the rows describe the same span.
+    const at = Date.now();
+    const since = sinceFor(range, at);
 
     api
-      .list(sinceFor(range))
+      .list(since)
       .then((result) => {
-        if (current) setLoaded({ key, rows: result?.rows ?? [] });
+        if (current) setLoaded({ key, rows: result?.rows ?? [], since, at });
       })
       .catch(() => {
-        if (current) setLoaded({ key, rows: [] });
+        if (current) setLoaded({ key, rows: [], since, at });
       });
 
     return () => {
@@ -76,6 +86,36 @@ export default function StatsPanel({ t, chatId }: StatsPanelProps) {
   }, [loaded, key, scoped, chatId]);
   const summary = useMemo(() => (rows ? summarize(rows) : null), [rows]);
 
+  const [prices, setPrices] = useState<{ table: PriceTable | null; instances: ProviderInstance[] } | null>(null);
+  useEffect(() => {
+    let current = true;
+    const load = () =>
+      Promise.all([
+        window.electronAPI?.pricing?.table().catch(swallowed("stats", "old rows show without an estimate", null)),
+        window.electronAPI?.providers?.list?.().catch(() => []),
+      ]).then(([answer, instances]) => {
+        if (current) setPrices({ table: answer?.success ? (answer.table ?? null) : null, instances: instances ?? [] });
+      });
+    void load();
+    // New prices re-price the old rows that were estimated from the model name.
+    const stop = window.electronAPI?.pricing?.onUpdated?.(() => void load());
+    return () => {
+      current = false;
+      if (typeof stop === "function") stop();
+    };
+  }, []);
+
+  const cost = useMemo(
+    () =>
+      rows && prices
+        ? summarizeCost(rows, {
+            priceLegacy: legacyPricer(prices.table, prices.instances),
+            priceReference: referencePricer(prices.table, parseReference(referenceModel)),
+          })
+        : null,
+    [rows, prices, referenceModel],
+  );
+
   const clear = async () => {
     setConfirming(false);
     await api?.clear();
@@ -86,6 +126,8 @@ export default function StatsPanel({ t, chatId }: StatsPanelProps) {
 
   const busiestBucket = summary ? Math.max(1, ...summary.tasks.buckets.map((bucket) => bucket.count)) : 1;
   const busiestTool = summary?.tools[0]?.calls ?? 1;
+  const windowStart = loaded?.since ?? 0;
+  const windowEnd = loaded?.at ?? 0;
 
   return (
     <div className="space-y-8">
@@ -116,6 +158,15 @@ export default function StatsPanel({ t, chatId }: StatsPanelProps) {
             />
             <Stat label={t("statsMedianTask")} value={formatDuration(summary.tasks.medianMs)} />
           </div>
+
+          {cost && (
+            <CostSection
+              t={t}
+              cost={cost}
+              from={range === "all" ? (summary.firstAt ?? windowEnd) : windowStart}
+              to={windowEnd}
+            />
+          )}
 
           <Field label={t("statsByModel")}>
             <div className="overflow-x-auto rounded-md shadow-[0_0_0_1px_var(--rule-strong)]">

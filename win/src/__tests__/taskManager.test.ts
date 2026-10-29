@@ -666,6 +666,92 @@ describe("recording a finished turn for the statistics page", () => {
     expect(recorded[0].taskMs).toBeGreaterThanOrEqual(0);
   });
 
+  it("adds what the turn cost to the recorded row", async () => {
+    const { sessions, host } = createHost();
+    const recorded: MetricRow[] = [];
+    host.recordMetrics = (row) => recorded.push(row);
+    host.priceTurn = async () => ({ providerId: "openai", kind: "billed", costMicros: 10_500, costSource: "table" });
+    seed(sessions, "a");
+
+    const manager = createTaskManager(host);
+    manager.send("a", "hello");
+    await Promise.resolve();
+
+    pending[0].resolve(measured());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]).toMatchObject({ chatId: "a", providerId: "openai", kind: "billed", costMicros: 10_500, costSource: "table" });
+  });
+
+  it("still records the turn when pricing it fails", async () => {
+    const { sessions, host } = createHost();
+    const recorded: MetricRow[] = [];
+    host.recordMetrics = (row) => recorded.push(row);
+    host.priceTurn = () => Promise.reject(new Error("no table"));
+    seed(sessions, "a");
+
+    const manager = createTaskManager(host);
+    manager.send("a", "hello");
+    await Promise.resolve();
+
+    pending[0].resolve(measured());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0].costMicros).toBeUndefined();
+  });
+
+  it("stops a send the budget refuses before the model is called", async () => {
+    const { sessions, host } = createHost();
+    host.checkBudget = async () => "Budget reached: $10.00 of $10.00 daily limit spent.";
+    seed(sessions, "a");
+
+    const manager = createTaskManager(host);
+    manager.send("a", "hello");
+    await vi.waitFor(() => expect(sessions.get("a")?.isGenerating).toBe(false));
+
+    const reply = sessions.get("a")?.messages.at(-1);
+    expect(pending).toHaveLength(0);
+    expect(reply).toMatchObject({ role: "assistant", failed: true, errorKind: "budget" });
+    expect(reply?.error).toContain("Budget reached");
+  });
+
+  it("lets Retry carry on over budget once, then asks again", async () => {
+    const { sessions, host } = createHost();
+    let checks = 0;
+    host.checkBudget = async () => {
+      checks++;
+      return "Budget reached: $10.00 of $10.00 daily limit spent.";
+    };
+    seed(sessions, "a");
+
+    const manager = createTaskManager(host);
+    manager.send("a", "hello");
+    await vi.waitFor(() => expect(sessions.get("a")?.isGenerating).toBe(false));
+    expect(checks).toBe(1);
+
+    manager.regenerate("a");
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+    expect(checks).toBe(1);
+
+    pending[0].resolve(finished());
+    await vi.waitFor(() => expect(sessions.get("a")?.isGenerating).toBe(false));
+
+    manager.send("a", "again");
+    await vi.waitFor(() => expect(checks).toBe(2));
+  });
+
+  it("goes ahead when the budget check itself fails", async () => {
+    const { sessions, host } = createHost();
+    host.checkBudget = () => Promise.reject(new Error("no metrics"));
+    seed(sessions, "a");
+
+    const manager = createTaskManager(host);
+    manager.send("a", "hello");
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+  });
+
   it("creates one correlation id per turn and hands it to the agent", async () => {
     const { sessions, host } = createHost();
     seed(sessions, "a");

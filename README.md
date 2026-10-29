@@ -28,7 +28,9 @@ running open models on your own computer.
 
 It runs weights locally using an embedded `llama.cpp` engine with GGUF weights
 from Hugging Face. There is no account, no telemetry, and no network traffic
-unless you request it. Available as an Electron application on Windows, a native
+unless you request it. The one exception is the price refresh behind the cost
+counters, which fetches public price lists and exchange rates and can be turned
+off in Settings. Available as an Electron application on Windows, a native
 SwiftUI app on macOS, and a native GTK 4 app on Linux.
 
 Compared with LM Studio, Jan or Ollama, the difference is the coding agent: it

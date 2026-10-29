@@ -174,6 +174,9 @@ fn open_existing(db_path: &Path) -> Result<Opened, StorageError> {
     migrate::ensure_column(&conn, "chats", "workspace_id", "TEXT")?;
     migrate::ensure_column(&conn, "chats", "plan", "TEXT")?;
     migrate::ensure_column(&conn, "workspaces", "grants", "TEXT")?;
+    for (name, definition) in metrics::COST_COLUMNS {
+        migrate::ensure_column(&conn, "metrics", name, definition)?;
+    }
     let usable = recovery::is_usable(&conn);
     Ok(Opened {
         conn,

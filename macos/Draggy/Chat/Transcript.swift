@@ -23,6 +23,8 @@ struct Transcript: Equatable {
         var steps: [Step] = []
         /// Tokens per second of the reply, once the core reports it.
         var speed: Double?
+        /// What the reply cost, once it is priced. Not saved with the conversation.
+        var cost: TurnCostLabel?
     }
 
     private(set) var lines: [Line] = []
@@ -82,6 +84,11 @@ struct Transcript: Equatable {
     mutating func setSpeed(_ speed: Double) {
         guard let last = openReply else { return }
         lines[last].speed = speed
+    }
+
+    mutating func setCost(_ cost: TurnCostLabel?) {
+        guard let last = openReply else { return }
+        lines[last].cost = cost
     }
 
     /// The final text wins over the last streamed one, unless the turn produced none.

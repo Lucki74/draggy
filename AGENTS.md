@@ -22,7 +22,7 @@ Windows code must not carry macOS or Linux branches (`win/electron/platformScope
 
 ## What Draggy is
 
-A local-first Electron desktop assistant running an embedded native GGUF engine (`llama-server`) with open models from Hugging Face. Mixture-of-Experts models too big for memory run on a second engine, colibri. Pictures come from stable-diffusion.cpp's `sd-server`. No account, no telemetry, and nothing leaves the machine without explicit user action. Any change weakening those guarantees is unacceptable.
+A local-first Electron desktop assistant running an embedded native GGUF engine (`llama-server`) with open models from Hugging Face. Mixture-of-Experts models too big for memory run on a second engine, colibri. Pictures come from stable-diffusion.cpp's `sd-server`. No account, no telemetry, and nothing leaves the machine without explicit user action, with one standing exception: the price refresh described under Network below. Any change weakening those guarantees is unacceptable.
 
 Electron main process in `electron/` (CommonJS, `.cjs`), React renderer in `src/` (TypeScript). `electron/main.cjs` is the application entry point.
 
@@ -67,6 +67,10 @@ A preload subscription channel can have multiple listeners. The `subscribe` call
 Four languages remain in parity: English (`en`), French (`fr`), Spanish (`es`), and Chinese (`zh`). `src/__tests__/translations.test.ts` enforces identical key sets across all four. Do not use machine translation; each table maintains its own register.
 
 Outbound HTTP requests on behalf of models must pass through `electron/urlPolicy.cjs`. Only `http:` and `https:` schemes are permitted, and private network addresses are blocked.
+
+### Network
+
+The cost display keeps its rate card current with `electron/pricing/refresh.cjs`. It is on by default, the user can switch it off in Settings and on the first-run Preferences step, and it stays unscheduled until the user has chosen. It sends GET requests only, to three fixed URLs (the LiteLLM price list on raw.githubusercontent.com, the OpenRouter model list, and api.frankfurter.dev for exchange rates), with no body, no cookies and nothing taken from a chat. A failed or implausible download never replaces the bundled snapshot at `shared/pricing/prices.json`. Do not add hosts, methods or payloads to this path, and do not reuse it for anything else.
 
 Diagnostics protect privacy through dual-file logging and hashing. Operational logs write to `app.log`, while verbose traces write to `debug.log`. Sensitive text payloads are SHA-256 hashed and truncated before disk write. Stream chunks are recorded by token length only to prevent dictionary reconstruction (`src/__tests__/logger.test.ts`).
 

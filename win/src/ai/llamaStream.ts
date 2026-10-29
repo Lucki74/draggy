@@ -1,5 +1,6 @@
 import { safeJsonParse } from "../utils";
 import type { GenerationMetrics } from "../llama";
+import { readTokenUsage } from "../stats/tokenUsage";
 import type { EngineResult } from "./engineErrors";
 import { scopeToTarget } from "./providers";
 import type { DraggyRef, ProviderState } from "./providers";
@@ -222,6 +223,8 @@ export interface SseRawPayload {
     prompt_tokens?: number;
     completion_tokens?: number;
     total_tokens?: number;
+    /** Cache and reasoning split from a provider that reports one; see stats/tokenUsage.ts. */
+    draggy_usage?: unknown;
   };
   timings?: {
     prompt_n?: number;
@@ -257,7 +260,10 @@ export function readLlamaMetrics(
 
   if (responseTokens === 0 && promptTokens === 0) return null;
 
+  const split = readTokenUsage(usage?.draggy_usage);
+
   return {
+    ...(split ? { passUsage: [split] } : {}),
     promptTokens,
     responseTokens,
     promptMs,

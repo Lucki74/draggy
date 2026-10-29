@@ -1,4 +1,5 @@
 import type { ProviderState } from "./ai/providers";
+import type { PriceTable } from "./stats/cost";
 export type {
   QuestionType,
   QuestionOption,
@@ -644,7 +645,26 @@ export interface TurnMetrics {
   contextTokens?: number;
   /** What the prompt was spent on, measured on the last pass of the turn. */
   breakdown?: ContextBreakdown;
+  /** One entry per request the turn made, so a long prompt that moved one request into a dearer tier prices right. */
+  passUsage?: import("./stats/tokenUsage").TokenUsage[];
+  /** Who answered, who pays and what it came to. Absent on replies from before costs were kept. */
+  cost?: TurnCost;
 }
+
+/** The part of a recorded turn that is about money. */
+export type TurnCost = Pick<
+  MetricRow,
+  | "providerId"
+  | "kind"
+  | "inputTokens"
+  | "cacheReadTokens"
+  | "cacheWriteTokens"
+  | "outputTokens"
+  | "reasoningTokens"
+  | "costMicros"
+  | "costSource"
+  | "priceUpdatedAt"
+>;
 
 export interface ApiServerStatus {
   success: boolean;
@@ -686,6 +706,21 @@ export interface MetricRow {
   taskMs: number;
   loops: number;
   tools: Record<string, number>;
+  /** Which provider instance answered; absent for the built-in engine and for rows from before costs were kept. */
+  providerId?: string | null;
+  /** Who pays for the turn. Absent on old rows, which the statistics page prices from the model name. */
+  kind?: "billed" | "account" | "local" | null;
+  /** The token split, summed over the turn's passes. Null where the engine reported no split. */
+  inputTokens?: number | null;
+  cacheReadTokens?: number | null;
+  cacheWriteTokens?: number | null;
+  outputTokens?: number | null;
+  reasoningTokens?: number | null;
+  /** Whole micro-dollars, or null when no price was known. Never 0 for "unknown". */
+  costMicros?: number | null;
+  costSource?: "reported" | "table" | "estimated" | "unknown" | null;
+  /** The price table's `generatedAt` the figure was worked out from. */
+  priceUpdatedAt?: string | null;
 }
 
 export type GitChangeKind =
@@ -798,7 +833,7 @@ export interface MessageVersion {
 }
 
 /** Why a turn failed, which decides what the failure offers. */
-export type TurnErrorKind = "engine" | "memory" | "network" | "rate-limit" | "context" | "unknown";
+export type TurnErrorKind = "engine" | "memory" | "network" | "rate-limit" | "context" | "budget" | "unknown";
 
 /** A message written while a turn ran, sent when it ends. */
 export interface QueuedMessage {
@@ -1142,6 +1177,40 @@ export type Language = "en" | "fr" | "es" | "zh";
 /** How hard a model reasons. Off sends no reasoning; each level above it asks for more. */
 export type EffortLevel = "off" | "low" | "medium" | "high" | "max";
 
+/** A daily and a monthly cap in micro-dollars; null leaves that period unlimited. */
+export interface BudgetLimits {
+  dailyMicros: number | null;
+  monthlyMicros: number | null;
+}
+
+/** Caps on what billed replies may cost. Reaching one stops new cloud sends until the user continues anyway. */
+export interface BudgetSettings {
+  enabled: boolean;
+  global: BudgetLimits;
+  /** Per provider instance id. */
+  providers: Record<string, BudgetLimits>;
+}
+
+/** Where the price table and the exchange rates stand, as the main process last saw them. */
+export interface PricingStatus {
+  origin: "live" | "bundled" | "none";
+  pricesGeneratedAt: string | null;
+  priceCount: number;
+  ratesDate: string | null;
+  pricesAt: number | null;
+  pricesError: string | null;
+  ratesAt: number | null;
+  ratesError: string | null;
+}
+
+/** Units of each currency for one US dollar. */
+export interface ExchangeRates {
+  base: "USD";
+  date: string;
+  fetchedAt: number;
+  rates: Record<string, number>;
+}
+
 export interface AppSettings {
   /** "system" follows the operating system, and is what a new install starts on. */
   theme: "light" | "dark" | "system";
@@ -1218,6 +1287,13 @@ export interface AppSettings {
   aiQuestionsAutoSkip?: boolean;
   aiQuestionsMaxPerSession?: number;
   aiQuestionsTimeoutMinutes?: number;
+  budgets?: BudgetSettings;
+  /** Fetch fresh prices and exchange rates in the background. */
+  priceRefresh?: boolean;
+  /** ISO code the costs are shown in. They are stored in US dollars either way. */
+  displayCurrency?: string;
+  /** The model a local reply is priced against for "saved", as `provider/model`. */
+  referenceModel?: string;
 }
 
 declare global {
@@ -1494,6 +1570,24 @@ declare global {
         /** Turns recorded since a time, newest first. */
         list: (since?: number) => Promise<{ success: boolean; rows?: MetricRow[] }>;
         clear: () => Promise<{ success: boolean; removed?: number }>;
+      };
+
+      pricing: {
+        /** The rate card replies are priced from: a refreshed copy when there is one, else the snapshot that ships. */
+        table: () => Promise<{ success: boolean; table?: PriceTable; origin?: "live" | "bundled" }>;
+        /** Turns the background refresh on or off. Off sends nothing on its own. */
+        configure: (options: { automatic: boolean }) => Promise<{ success: boolean }>;
+        /** The user asked for fresh prices and rates now. */
+        refresh: () => Promise<{
+          success: boolean;
+          prices?: { ok: boolean; error?: string };
+          rates?: { ok: boolean; error?: string };
+          status?: PricingStatus;
+        }>;
+        status: () => Promise<{ success: boolean; status?: PricingStatus }>;
+        /** Units of each currency per US dollar, or null before the first download. */
+        rates: () => Promise<{ success: boolean; rates?: ExchangeRates | null }>;
+        onUpdated: (callback: (status: PricingStatus) => void) => () => void;
       };
 
       git: {
