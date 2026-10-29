@@ -1406,7 +1406,6 @@ export default function AppShell({
               width={currentDockLayout.width}
               workspaceId={active.id}
               rootPath={active.rootPath}
-              onNewShell={(shell) => void openShell(shell)}
               gitStatus={gitStatus}
               t={t}
               onStartResize={startResizeRightPane}
