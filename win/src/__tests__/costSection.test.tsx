@@ -58,7 +58,7 @@ describe("the cost section of the statistics", () => {
     show([row({ kind: "account", providerId: "claude", costMicros: 3_000_000 })]);
     expect(screen.getAllByText("Plan value").length).toBeTruthy();
     expect(screen.getAllByText("~$3.00").length).toBeGreaterThan(0);
-    expect(screen.getByText(/Nothing was billed/)).toBeTruthy();
+    expect(screen.queryByText(/Nothing was billed/)).toBeNull();
   });
 
   it("shows local savings against the reference model", () => {
