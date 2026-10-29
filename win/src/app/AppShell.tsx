@@ -32,7 +32,6 @@ import type { ToolEnvironment } from "../tools/registry";
 import { syncMcpTools } from "../tools/mcp";
 import type { McpServerState } from "../tools/mcp";
 import { useSessions } from "./useSessions";
-import { questionSessionStore } from "../store/questionSession";
 import { useAgentRuns } from "./useAgentRuns";
 import { useUpdateDialog } from "./useUpdateDialog";
 import { ACTIVE_WORKSPACE_KEY, useWorkspaces } from "./useWorkspaces";
@@ -1330,13 +1329,6 @@ export default function AppShell({
             window.electronAPI
               ?.exportChat({ defaultName: transcriptFilename(session, format, now), content, ext: format })
               ?.catch((error: unknown) => logSwallow("chat", error, "the export was not saved"));
-          }}
-          onToggleAiQuestions={(id) => {
-            store.updateSession(id, (s) => ({ ...s, aiQuestionsDisabled: !s.aiQuestionsDisabled }));
-          }}
-          onClearQuestionHistory={async (id) => {
-            await questionSessionStore.clearSessions(id);
-            setViewToast(t("questionHistoryCleared"));
           }}
           onViewTalk={() => {
             setSelectedChatId(generateId());

@@ -1185,9 +1185,6 @@ export const translations: Record<string, Record<string, string>> = {
     autoSkipAfterTimeout: "Auto-skip after timeout",
     maxQuestionsPerSession: "Max questions per session",
     questionTimeoutMinutes: "Question timeout (minutes)",
-    toggleAiQuestions: "Toggle AI Questions",
-    clearQuestionHistory: "Clear Question History",
-    questionHistoryCleared: "Question history cleared",
 },
   fr: {
     extensionServers: "Serveurs",
@@ -2366,9 +2363,6 @@ export const translations: Record<string, Record<string, string>> = {
     autoSkipAfterTimeout: "Passer automatiquement après expiration",
     maxQuestionsPerSession: "Nombre max de questions par session",
     questionTimeoutMinutes: "Délai d'expiration (minutes)",
-    toggleAiQuestions: "Activer/désactiver les questions IA",
-    clearQuestionHistory: "Effacer l'historique des questions",
-    questionHistoryCleared: "Historique des questions effacé",
 },
   es: {
     extensionServers: "Servidores",
@@ -3547,9 +3541,6 @@ export const translations: Record<string, Record<string, string>> = {
     autoSkipAfterTimeout: "Omitir automáticamente tras tiempo de espera",
     maxQuestionsPerSession: "Máximo de preguntas por sesión",
     questionTimeoutMinutes: "Tiempo de espera (minutos)",
-    toggleAiQuestions: "Alternar preguntas de IA",
-    clearQuestionHistory: "Borrar historial de preguntas",
-    questionHistoryCleared: "Historial de preguntas borrado",
 },
   zh: {
     extensionServers: "服务器",
@@ -4728,8 +4719,5 @@ export const translations: Record<string, Record<string, string>> = {
     autoSkipAfterTimeout: "超时后自动跳过",
     maxQuestionsPerSession: "每次会话最大问题数",
     questionTimeoutMinutes: "提问超时时间（分钟）",
-    toggleAiQuestions: "切换 AI 提问",
-    clearQuestionHistory: "清除提问历史",
-    questionHistoryCleared: "提问历史已清除",
 }
 };
