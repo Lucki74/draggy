@@ -72,8 +72,8 @@ export default function PricesGroup({ settings, onUpdate, t }: PricesGroupProps)
     : "";
 
   return (
-    <Group title={t("priceTitle")} description={t("priceHint")}>
-      <Row label={t("priceAuto")} description={t("priceAutoHint")}>
+    <Group title={t("priceTitle")}>
+      <Row label={t("priceAuto")}>
         <Toggle checked={settings.priceRefresh !== false} onChange={(priceRefresh) => onUpdate({ priceRefresh })} label={t("priceAuto")} />
       </Row>
       <Row
@@ -93,7 +93,7 @@ export default function PricesGroup({ settings, onUpdate, t }: PricesGroupProps)
           {t(busy ? "priceUpdating" : "priceUpdateNow")}
         </Button>
       </Row>
-      <Row label={t("priceCurrency")} description={t("priceCurrencyHint")}>
+      <Row label={t("priceCurrency")}>
         <Select
           label={t("priceCurrency")}
           value={settings.displayCurrency ?? "USD"}
@@ -101,7 +101,7 @@ export default function PricesGroup({ settings, onUpdate, t }: PricesGroupProps)
           onChange={(displayCurrency) => onUpdate({ displayCurrency })}
         />
       </Row>
-      <Row label={t("priceReference")} description={t("priceReferenceHint")}>
+      <Row label={t("priceReference")}>
         <Select
           label={t("priceReference")}
           value={reference}

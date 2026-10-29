@@ -134,11 +134,7 @@ export default function CostSection({ t, cost, from, to, locale }: CostSectionPr
       />
 
       {(cost.estimated || cost.accountMicros > 0 || cost.savedMicros > 0) && (
-        <p className="max-w-[60ch] text-[12px] leading-5 text-text-tertiary">
-          {t("costEstimateNote")}
-          {cost.accountMicros > 0 ? ` ${t("costPlanValueHint")}` : ""}
-          {cost.savedMicros > 0 ? ` ${t("costSavedHint")}` : ""}
-        </p>
+        <p className="max-w-[60ch] text-[12px] leading-5 text-text-tertiary">{t("costEstimateNote")}</p>
       )}
     </div>
   );
