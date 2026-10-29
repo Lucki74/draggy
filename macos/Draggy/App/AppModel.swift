@@ -129,6 +129,11 @@ final class AppModel {
     func report(_ message: String?) { errorMessage = message }
     /// The tool call that is waiting for the user's answer.
     private(set) var pendingApproval: ApprovalRecord?
+    /// The background commands of the conversation, read from the core while the chat polls.
+    private(set) var tasks: [TaskRecord] = []
+    /// Failed tasks whose list was opened, so the chip stops counting them.
+    private(set) var seenFailures: Set<String> = []
+    var isShowingTasks = false
 
     var draft = ""
     /// Pictures waiting to go with the next message.
@@ -305,6 +310,8 @@ final class AppModel {
         guard !isRunning else { return }
         session = nil
         plan = []
+        tasks = []
+        seenFailures = []
         transcript = Transcript()
         currentID = UUID()
         errorMessage = nil
@@ -314,6 +321,8 @@ final class AppModel {
     func open(_ id: UUID) {
         guard !isRunning, id != currentID else { return }
         session = nil
+        tasks = []
+        seenFailures = []
         currentID = id
         transcript = Transcript(restoring: library.load(id))
         errorMessage = nil
@@ -378,6 +387,23 @@ final class AppModel {
     func clearPlan() {
         session?.clearPlan()
         plan = []
+    }
+
+    /// Reads the session's background commands. The list is replaced only when something changed.
+    func refreshTasks() {
+        let latest = session?.tasks() ?? []
+        if latest != tasks { tasks = latest }
+    }
+
+    func stopTask(_ id: String) {
+        session?.stopTask(id: id)
+        refreshTasks()
+    }
+
+    /// Opening the list marks the failures seen, so the chip stops counting them.
+    func showTasks() {
+        seenFailures.formUnion(tasks.filter { $0.status == "failed" }.map(\.id))
+        isShowingTasks = true
     }
 
     func answerApproval(_ choice: ApprovalChoice) {

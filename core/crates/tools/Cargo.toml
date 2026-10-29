@@ -20,6 +20,7 @@ base64 = "0.22"
 unicode-normalization = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "time", "sync", "fs"] }
 icu_collator = { version = "2", features = ["compiled_data"] }
+regex = "1"
 
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.30", features = ["signal", "process"] }

@@ -91,7 +91,7 @@ export function ChatPreferencesPage({
             onChange={(defaultEffort) => onUpdate({ defaultEffort, effort: defaultEffort })}
           />
         </Row>
-        <Row label={t("newChatStart")} description={t("newChatStartHint")}>
+        <Row label={t("newChatStart")}>
           <Segmented
             label={t("newChatStart")}
             value={settings.newChatStart}

@@ -101,7 +101,38 @@ export function shellForLanguage(language: string): ShellId | undefined {
   }
 }
 
+export type PaneView = "shell" | "tasks";
+
+let terminalView: PaneView = "shell";
+const viewListeners = new Set<() => void>();
+const showTasksListeners = new Set<() => void>();
+
+export const currentTerminalView = () => terminalView;
+
+export function setTerminalView(view: PaneView): void {
+  if (view === terminalView) return;
+  terminalView = view;
+  for (const listener of viewListeners) listener();
+}
+
+export const subscribeTerminalView = (listener: () => void) => {
+  viewListeners.add(listener);
+  return () => void viewListeners.delete(listener);
+};
+
+/** Asks for the terminal pane to open on its Tasks tab, as the "N running" chip does. */
+export function requestShowTasks(): void {
+  setTerminalView("tasks");
+  for (const listener of showTasksListeners) listener();
+}
+
+export const onShowTasks = (listener: () => void) => {
+  showTasksListeners.add(listener);
+  return () => void showTasksListeners.delete(listener);
+};
+
 export function resetTerminalBus(): void {
   pending = null;
   blocks = [];
+  terminalView = "shell";
 }

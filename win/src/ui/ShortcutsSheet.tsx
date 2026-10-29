@@ -52,6 +52,7 @@ export function ShortcutsSheet({ open, onClose, t }: ShortcutsSheetProps) {
         { label: t("browser"), keys: [`${mod}+Shift+B`] },
         { label: t("plan"), keys: [`${mod}+Shift+L`] },
         { label: t("terminal"), keys: [`${mod}+Shift+T`] },
+        { label: t("sendToBackground"), keys: [`${mod}+Alt+B`] },
         { label: t("closePane"), keys: [`${mod}+\\`] },
         { label: t("talk"), keys: [`${mod}+Shift+Space`] },
       ],

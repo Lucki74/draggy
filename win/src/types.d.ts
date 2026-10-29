@@ -230,7 +230,52 @@ export interface CommandResult {
   truncated?: boolean;
   durationMs?: number;
   shell?: string;
+  /** Set when the command was moved to the background and is still running as this task. */
+  detached?: boolean;
+  background?: boolean;
+  taskId?: string;
+  task?: BackgroundTask;
+  /** The folder the command ended in, when that is outside the project and was not followed. */
+  outside?: string;
+  notice?: string;
 }
+
+export type BackgroundTaskStatus = "running" | "exited" | "failed" | "stopped";
+
+export interface BackgroundTask {
+  /** `chatId/tN`, unique across chats. */
+  uid: string;
+  /** `tN`, the id the model uses within its chat. */
+  id: string;
+  chatId: string;
+  command: string;
+  shell: string;
+  mode: "pty" | "pipe" | "adopted";
+  status: BackgroundTaskStatus;
+  exitCode: number | null;
+  signal: string | null;
+  startedAt: number;
+  endedAt: number | null;
+  /** True while the task runs on a terminal the user or the model can type into. */
+  canInput: boolean;
+  lastLine: string;
+  error: string | null;
+}
+
+export interface TaskInboxItem {
+  uid: string;
+  id: string;
+  command: string;
+  status: BackgroundTaskStatus;
+  exitCode: number | null;
+  durationMs: number;
+  tail: string;
+}
+
+export type TaskEvent =
+  | { type: "started"; chatId: string; task: BackgroundTask }
+  | { type: "output"; chatId: string; uid: string; chunk: string }
+  | { type: "ended"; chatId: string; task: BackgroundTask; wake: boolean };
 
 export interface RunnerProbe {
   success: boolean;
@@ -407,6 +452,10 @@ export interface SearchStep {
   language?: string;
   stdout?: string;
   stderr?: string;
+  /** On a "command" step: the id the main process knows the run by, which lets it be sent to the background. */
+  runId?: string;
+  /** On a "command" step: the background task it became or started as. */
+  taskId?: string;
   /** On an "edit_file" step: what to hand a revert, and what changed. */
   checkpointId?: number;
   before?: string;
@@ -1638,11 +1687,51 @@ declare global {
           workspaceId: string,
           runId: string,
           command: string,
-          options?: { shell?: string; defaultShell?: string; timeoutMs?: number },
+          options?: {
+            shell?: string;
+            defaultShell?: string;
+            timeoutMs?: number;
+            /** The chat the command belongs to: its folder, environment and tasks carry over. */
+            chatId?: string;
+            /** Start it as a background task and return at once. */
+            background?: boolean;
+            /** Move it to the background at the time limit instead of stopping it. Default true. */
+            autoDetach?: boolean;
+          },
         ) => Promise<CommandResult>;
         cancel: (runId: string) => Promise<{ success: boolean }>;
+        /** Moves a running foreground command to the background. */
+        detach: (runId: string) => Promise<{ success: boolean; taskId?: string; error?: string }>;
+        /** Forgets the folder and environment a chat's commands built up. */
+        resetState: (chatId: string) => Promise<{ success: boolean }>;
         /** Output of a running command as it arrives. */
         onOutput: (callback: (event: { runId: string; chunk: string }) => void) => () => void;
+      };
+
+      tasks: {
+        list: (chatId: string) => Promise<{ success: boolean; tasks?: BackgroundTask[] }>;
+        output: (
+          chatId: string,
+          id: string,
+          options?: { since?: number; tail?: number; grep?: string; max_chars?: number },
+        ) => Promise<{ success: boolean; error?: string; task?: BackgroundTask; output?: string; truncated?: boolean; next?: number }>;
+        wait: (
+          chatId: string,
+          id: string,
+          options?: { seconds?: number; until?: string; waitId?: string },
+        ) => Promise<{ success: boolean; error?: string; reason?: "ended" | "matched" | "timeout" | "aborted"; task?: BackgroundTask }>;
+        abortWait: (waitId: string) => Promise<{ success: boolean }>;
+        stop: (chatId: string, id: string) => Promise<{ success: boolean; error?: string; task?: BackgroundTask; alreadyEnded?: boolean }>;
+        write: (chatId: string, id: string, data: string) => Promise<{ success: boolean; error?: string; task?: BackgroundTask }>;
+        /** Keystrokes from the user's terminal view. No reply. */
+        input: (chatId: string, id: string, data: string) => void;
+        resize: (uid: string, cols: number, rows: number) => Promise<{ success: boolean }>;
+        snapshot: (uid: string) => Promise<{ success: boolean; error?: string; task?: BackgroundTask; data?: string }>;
+        /** Tasks that ended since the model last looked; each is returned once. */
+        takeInbox: (chatId: string) => Promise<{ success: boolean; items?: TaskInboxItem[] }>;
+        hasRunning: (chatId: string) => Promise<{ success: boolean; running?: boolean }>;
+        forget: (chatId: string) => Promise<{ success: boolean }>;
+        onEvent: (callback: (event: TaskEvent) => void) => () => void;
       };
 
       shell: {

@@ -957,6 +957,7 @@ dependencies = [
  "hex",
  "icu_collator",
  "nix 0.30.1",
+ "regex",
  "serde",
  "serde_json",
  "sha2 0.10.9",

@@ -8,6 +8,7 @@ import { showsTailMark } from "./indicator";
 import WorkingStatus from "./WorkingStatus";
 import WorkBlock from "./WorkBlock";
 import WorkGroup from "./WorkGroup";
+import { TaskChip } from "./TaskChip";
 import { isWorkStep, touchedFiles } from "./workSummary";
 import { OpenFileContext } from "./openFileContext";
 import { useTranscriptView } from "./transcriptView";
@@ -461,6 +462,8 @@ export function AssistantTurn({
           ))}
         </div>
       )}
+
+      {isLast && !isFailed && <TaskChip chatId={chatId} t={t} />}
 
       {!isFailed && (displayMsg.stopped || msg.interrupted) && (
         <div role="status" className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-text-secondary">

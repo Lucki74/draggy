@@ -7,3 +7,5 @@ mod js;
 pub mod shell;
 pub mod skills;
 pub mod spawn;
+pub mod task_text;
+pub mod tasks;
