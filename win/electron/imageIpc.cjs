@@ -266,8 +266,17 @@ function register(ipc, deps) {
   function initImageFor(init) {
     if (!init) return { ok: true, dataUrl: null };
     if (init.kind === "attachment") return { ok: true, dataUrl: init.dataUrl };
+    if (init.kind === "created") {
+      const resolved = path.resolve(init.path);
+      const mime = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".png": "image/png" }[path.extname(resolved).toLowerCase()];
+      if (!mime || !isInsideCreatedFilesDir(resolved) || !fs.existsSync(resolved)) return { ok: true, dataUrl: null, missing: true };
+      return { ok: true, dataUrl: `data:${mime};base64,${fs.readFileSync(resolved).toString("base64")}` };
+    }
     const read = fileOps.read(init.workspaceId, init.path);
-    if (!read?.success || !read.isImage || !read.dataUrl) return { ok: false, error: read?.error || "That file is not an image" };
+    if (!read?.success || !read.isImage || !read.dataUrl) {
+      // A reference the chat tracked may have been moved or deleted since; that is text-only, not a failure.
+      return init.optional ? { ok: true, dataUrl: null, missing: true } : { ok: false, error: read?.error || "That file is not an image" };
+    }
     return { ok: true, dataUrl: read.dataUrl };
   }
 
@@ -308,6 +317,7 @@ function register(ipc, deps) {
 
     const init = initImageFor(request.init);
     if (!init.ok) return { success: false, code: "E_INIT_IMAGE", error: init.error };
+    const referenceMissing = Boolean(init.missing);
 
     const loras = imageModels.listLoras(imageModels.loraDir(app.getPath("userData")));
     const lora = [];
@@ -352,7 +362,7 @@ function register(ipc, deps) {
       else timer.fail(null, { code: saved.code, reason: String(saved.error ?? "").slice(0, 120) });
       if (!saved.success) return saved;
       imageProgress({ requestId: request.requestId, status: "done" });
-      return { ...saved, width: result.width, height: result.height, seed: result.seed, model: result.model };
+      return { ...saved, width: result.width, height: result.height, seed: result.seed, model: result.model, referenceUsed: result.referenceUsed, referenceDropped: result.referenceDropped || referenceMissing };
     } catch (error) {
       const code = error?.code || "E_FAILED";
       if (code === "E_CANCELLED") timer.end({ status: "cancelled" });

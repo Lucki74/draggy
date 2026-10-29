@@ -1,3 +1,4 @@
+import type { TrackedImage } from "../images/imageTracker";
 import type { AppSettings, SearchStep, UserQuestion, UserReply } from "../types";
 import type { ToolAnnotations } from "../agent/permissions";
 import type { PlanItem } from "../plan/plan";
@@ -40,6 +41,8 @@ export interface ToolEnvironment {
   canRunCommands?: boolean;
   /** Whether the image engine and an image model are both installed. */
   imageReady?: boolean;
+  /** Whether the chat model can read pictures, which is what lets it look at one of the chat's images. */
+  vision?: boolean;
   /** The only groups this turn may use, when set. A request from the local API gets the web and
    * nothing else: not the user's extensions, not their files. */
   allowedGroups?: ToolGroup[];
@@ -75,6 +78,8 @@ export interface ToolContext {
   newId: () => string;
   /** Whether the model can read images. A tool that would return one checks this first. */
   vision?: boolean;
+  /** The pictures in this chat, numbered img_1 upward. A tool that makes one adds it here. */
+  images?: TrackedImage[];
   /** Hands the model a base64 image with this tool's result. Ignored for a model without vision. */
   attachImage?: (base64: string) => void;
   signal: AbortSignal;

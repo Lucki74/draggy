@@ -137,6 +137,48 @@ pub(crate) fn definition(name: &str, description: &str, parameters: &Value) -> T
     }
 }
 
+/// The picture tools a model is offered once an image engine is ready. `view_image` is offered only to a chat model
+/// that can read pictures. No engine runs them in this crate yet, so a host executes the calls.
+pub fn image_definitions(vision: bool) -> Vec<ToolDefinition> {
+    let mut tools = vec![definition(
+        "generate_image",
+        "Draw a picture from a description with the local image engine. Describe the subject, style and composition in plain words.",
+        &json!({
+            "type": "object",
+            "properties": {
+                "prompt": { "type": "string", "description": "What the picture shows, in detail: subject, setting, style, lighting." },
+                "negative_prompt": { "type": "string", "description": "What the picture should not contain." },
+                "width": { "type": "integer", "description": "Width in pixels, a multiple of 64. Leave out for the model's default." },
+                "height": { "type": "integer", "description": "Height in pixels, a multiple of 64. Leave out for the model's default." },
+                "seed": { "type": "integer", "description": "A seed, to make the same picture again. Leave out for a new one." },
+                "reference_image": {
+                    "type": "string",
+                    "description": "The ID of a picture in this chat (such as img_2) to start from, to change a small detail and keep the rest. Describe the whole picture with the change in prompt."
+                },
+                "strength": {
+                    "type": "number",
+                    "description": "With reference_image: how far to move away from it, 0 to 1. Defaults to 0.35. Raise it for a bigger change."
+                }
+            },
+            "required": ["prompt"]
+        }),
+    )];
+    if vision {
+        tools.push(definition(
+            "view_image",
+            "Look at one picture of this chat by its ID (such as img_2), for example to check a detail before changing it.",
+            &json!({
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string", "description": "The picture's ID from the list of pictures in this chat." }
+                },
+                "required": ["id"]
+            }),
+        ));
+    }
+    tools
+}
+
 impl FileTools {
     pub fn new(folder: &str, allow_commands: bool, tasks: TaskSet) -> Self {
         let root = PathBuf::from(folder);
