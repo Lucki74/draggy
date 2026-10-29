@@ -17,6 +17,7 @@ const registryMod = require("../../../electron/providers/registry.cjs");
 const modelsMod = require("../../../electron/providers/models.cjs");
 const remote = require("../../../electron/providers/remoteCatalog.cjs");
 const discovery = require("../../../electron/providers/discovery.cjs");
+const autoPin = require("../../../electron/providers/autoPin.cjs");
 const ADAPTERS: Record<string, any> = {
   openai: require("../../../electron/providers/adapters/openai.cjs"),
   anthropic: require("../../../electron/providers/adapters/anthropic.cjs"),
@@ -320,6 +321,10 @@ export async function run(area: string, input: any): Promise<any> {
     }
     case "models": return modelsListOf(input);
     case "registry": return registryOpsOf(input);
+    case "autopin": {
+      const plan = autoPin.planPins({ entry: { noisePatterns: input.noisePatterns }, listed: input.listed, pinned: input.pinned, seen: input.seen ?? undefined });
+      return plain({ seenModels: plan.seenModels, pinnedModels: plan.pinnedModels, added: plan.added });
+    }
     case "remote": {
       if (input.op === "merge") {
         const inUse: string[] = input.inUse ?? [];

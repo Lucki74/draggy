@@ -111,6 +111,8 @@ function createRegistry({ storage, secrets }) {
       instance.pinnedModels = [...new Set((patch.pinnedModels || []).map(String))].slice(0, 500);
       instance.knownModels = [...new Set([...knownOf(instance), ...(find(instance.type)?.defaultModels || [])])];
     }
+    // Written by the background refresh only: ids the listing has shown, so an unticked one is not pinned again.
+    if (patch.seenModels !== undefined) instance.seenModels = [...new Set((patch.seenModels || []).map(String))].slice(0, 5000);
     if (patch.modelOverrides !== undefined) instance.modelOverrides = checkOverrides(patch.modelOverrides);
     if (patch.enabled !== undefined) {
       const enabled = Boolean(patch.enabled);

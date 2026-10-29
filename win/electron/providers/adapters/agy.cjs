@@ -275,10 +275,10 @@ function createAgyAdapter({
   }
 
   /** `agy models` lists the model slugs; the first word of each line is the slug. */
-  async function models() {
+  async function models(instanceId, { refresh = false } = {}) {
     const state = readState();
     if (!state.signedIn) return [];
-    if (!listed) {
+    if (refresh || !listed) {
       const binary = locate({ env }) || state.binary;
       if (!binary) return [];
       const answer = await run(binary, ["models"]);
@@ -317,7 +317,7 @@ function createAgyAdapter({
   }
 
   debug("agy adapter ready");
-  return { stream, signIn, submitCode: () => false, cancel, signOut, status, download: () => null, models, stopAll };
+  return { stream, signIn, submitCode: () => false, cancel, signOut, status, download: () => null, models, busy: () => running !== null, stopAll };
 }
 
 module.exports = { createAgyAdapter, locateAgy, judgeBuild, toPrompt, createEventReader, resultFailure };

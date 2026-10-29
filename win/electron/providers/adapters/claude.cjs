@@ -482,12 +482,12 @@ function createClaudeAdapter({
     return { signedIn: true, email: read.email || undefined, plan: read.subscriptionType || undefined };
   }
 
-  /** The models the runtime's `initialize` lists, read once per launch of the app; empty until it is installed.
-   * An earlier pin's user gets the new one here, which is how a newly released model reaches them. */
-  async function models(instanceId) {
+  /** The models the runtime's `initialize` lists; empty until it is installed. A refresh asks the runtime again,
+   * which is how a model released since launch reaches the menu. */
+  async function models(instanceId, { refresh = false } = {}) {
     if (!installed(appData) && !previous(appData)) return [];
     const runtime = runtimeFor(instanceId);
-    if (!runtime.models) {
+    if (refresh || !runtime.models) {
       const proc = await utility(instanceId);
       try {
         runtime.models = (proc.init?.models || []).filter((m) => m?.value);
@@ -498,12 +498,17 @@ function createClaudeAdapter({
     return listedModels(runtime.models);
   }
 
+  /** True while a turn runs on this account, so a background listing leaves it alone. */
+  function busy(instanceId) {
+    return [...(runtimes.get(instanceId)?.sessions.values() || [])].some((s) => s.turn);
+  }
+
   async function stopAll() {
     const all = [...runtimes.values()].flatMap((runtime) => [...runtime.sessions.values()]);
     await Promise.all([...all.map((s) => s.supervisor.stop()), ...[...runtimes.values()].map((runtime) => runtime.login?.proc.stop())]);
   }
 
-  return { stream, signIn, cancel, signOut, status, download, models, runtimeFor, stopAll };
+  return { stream, signIn, cancel, signOut, status, download, models, busy, runtimeFor, stopAll };
 }
 
 module.exports = { createClaudeAdapter, listedModels, toContent, flatten, textOf, mcpTools, effortOf, turnFailure, sessionOnDisk };

@@ -156,7 +156,7 @@ export function InstanceRow({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch updates state when models arrive
     if (instance.enabled || open) void listModels();
-  }, [instance.enabled, open, instance.hasKey, instance.baseUrl, instance.modelOverrides, listModels]);
+  }, [instance.enabled, open, instance.hasKey, instance.baseUrl, instance.modelOverrides, instance.pinnedModels, listModels]);
 
   const local = instance.kind === "local";
   const blocked = instance.needsKey && (!instance.hasKey || entry?.available === false);

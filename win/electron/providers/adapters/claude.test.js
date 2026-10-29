@@ -358,6 +358,8 @@ describe("the Claude account's sign-in", () => {
     expect(await adapter.models("claude")).toEqual(listed);
     expect(claude.starts).toHaveLength(1);
     expect(claude.last().stopped).toBe(true);
+    await adapter.models("claude", { refresh: true });
+    expect(claude.starts).toHaveLength(2);
   });
 });
 

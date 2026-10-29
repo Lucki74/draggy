@@ -17,6 +17,7 @@ const KEY: &str = "providers";
 const PROFILES: [&str; 3] = ["auto", "compact", "full"];
 const FLAG_NAMES: [&str; 3] = ["tools", "vision", "thinking"];
 const MAX_PINNED: usize = 500;
+const MAX_SEEN: usize = 5000;
 
 /// Where the records are kept. A write replaces the whole value.
 pub trait KvStore {
@@ -63,6 +64,9 @@ pub struct Instance {
     pub pinned_models: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub known_models: Option<Vec<String>>,
+    /// Ids the background refresh has seen, so an unticked one is not pinned again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seen_models: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prompt_profile: Option<String>,
     #[serde(default)]
@@ -85,6 +89,8 @@ pub struct ProviderView {
     pub pinned_models: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub known_models: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub seen_models: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_profile: Option<String>,
     pub model_overrides: BTreeMap<String, ModelOverride>,
@@ -120,6 +126,8 @@ pub struct Patch {
     pub headers: Option<BTreeMap<String, Value>>,
     pub prompt_profile: Option<String>,
     pub pinned_models: Option<Vec<String>>,
+    /// Written by the background refresh only.
+    pub seen_models: Option<Vec<String>>,
     pub model_overrides: Option<BTreeMap<String, Value>>,
     pub enabled: Option<bool>,
 }
@@ -207,6 +215,7 @@ impl<K: KvStore, S: Keystore> Registry<K, S> {
             enabled: false,
             pinned_models: entry.default_models.clone(),
             known_models: Some(entry.default_models.clone()),
+            seen_models: None,
             prompt_profile: Some("auto".to_owned()),
             model_overrides: BTreeMap::new(),
             base_url: None,
@@ -263,6 +272,15 @@ impl<K: KvStore, S: Keystore> Registry<K, S> {
             let mut known = self.known_of(&instance);
             known.extend(self.default_models_of(&instance.provider_type));
             instance.known_models = Some(unique(known.into_iter()));
+        }
+        if let Some(seen) = patch.seen_models {
+            // Capped like the reference, so a long-lived provider cannot grow the record without limit.
+            instance.seen_models = Some(
+                unique(seen.into_iter())
+                    .into_iter()
+                    .take(MAX_SEEN)
+                    .collect(),
+            );
         }
         if let Some(overrides) = &patch.model_overrides {
             instance.model_overrides = check_overrides(overrides);
@@ -456,6 +474,7 @@ impl<K: KvStore, S: Keystore> Registry<K, S> {
             enabled: instance.enabled,
             pinned_models: instance.pinned_models.clone(),
             known_models: instance.known_models.clone(),
+            seen_models: instance.seen_models.clone(),
             prompt_profile: instance.prompt_profile.clone(),
             model_overrides: instance.model_overrides.clone(),
             headers: instance.headers.clone(),
