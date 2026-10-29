@@ -1,0 +1,42 @@
+{
+  "area": "agent",
+  "description": "The picture index the model sees and the strength a reference starts at (win/src/images/imageTracker.ts, core/crates/agent/src/image_reference.rs).",
+  "cases": [
+    {
+      "name": "no pictures gives no index",
+      "input": { "op": "index", "images": [] },
+      "expected": ""
+    },
+    {
+      "name": "generated and attached pictures",
+      "input": {
+        "op": "index",
+        "images": [
+          { "id": "img_1", "origin": "attached", "messageId": "m1", "label": "sketch.png" },
+          { "id": "img_2", "origin": "generated", "messageId": "m2", "label": "a red fox", "width": 512, "height": 768 }
+        ]
+      },
+      "expected": "Pictures in this chat (pass an ID as reference_image to generate_image to change a detail of one and keep the rest):\n- img_1: attached by the user (sketch.png)\n- img_2: generated: \"a red fox\", 512x768"
+    },
+    {
+      "name": "generated picture without a size",
+      "input": { "op": "index", "images": [{ "id": "img_1", "origin": "generated", "messageId": "m1", "label": "a blue door" }] },
+      "expected": "Pictures in this chat (pass an ID as reference_image to generate_image to change a detail of one and keep the rest):\n- img_1: generated: \"a blue door\""
+    },
+    {
+      "name": "reference defaults to 0.35",
+      "input": { "op": "strength", "hasReference": true, "explicit": null },
+      "expected": 0.35
+    },
+    {
+      "name": "explicit strength wins",
+      "input": { "op": "strength", "hasReference": true, "explicit": 0.8 },
+      "expected": 0.8
+    },
+    {
+      "name": "no reference leaves strength unset",
+      "input": { "op": "strength", "hasReference": false, "explicit": null },
+      "expected": null
+    }
+  ]
+}

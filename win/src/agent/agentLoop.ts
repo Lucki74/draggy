@@ -1,3 +1,4 @@
+import { imageIndex, trackImages } from "../images/imageTracker";
 import {
   KEEP_ALIVE,
   beginLlamaWork,
@@ -393,7 +394,11 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     ...request.settings,
     ...(cannotUseTools ? { webMode: "off" as const } : {}),
   };
-  const sized = { ...request.environment, compactTools: (info?.promptProfile ?? "compact") === "compact" };
+  const sized = {
+    ...request.environment,
+    compactTools: (info?.promptProfile ?? "compact") === "compact",
+    vision: hasCapability(info, "vision"),
+  };
   const environment = cannotUseTools ? withoutTools(sized) : sized;
 
   // A probe that failed is not proof a model cannot call tools: the engine may
@@ -478,6 +483,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       model,
     ),
     loadedSection,
+    environment.imageReady ? imageIndex(trackImages(messages)) : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -992,6 +998,9 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     invokedSkills,
   } = await prepareTurn(request);
   toolContext.vision = nativeVision;
+  // The tool list was built with this flag, so a call to a tool that needs it is checked against the same one.
+  environment.vision = nativeVision;
+  toolContext.images = trackImages(request.messages);
   const loopLimit = toolLoopLimit(slow, MAX_TOOL_LOOPS);
   const turnStartedAt = Date.now();
 
