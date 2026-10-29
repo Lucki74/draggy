@@ -69,7 +69,13 @@ mod tests {
     use super::*;
 
     fn generated(id: &str, label: &str) -> TrackedImage {
-        TrackedImage { id: id.into(), origin: ImageOrigin::Generated, label: label.into(), width: None, height: None }
+        TrackedImage {
+            id: id.into(),
+            origin: ImageOrigin::Generated,
+            label: label.into(),
+            width: None,
+            height: None,
+        }
     }
 
     #[test]

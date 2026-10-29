@@ -34,7 +34,12 @@ impl ImageEngine {
 
     /// The stub engine cannot sample from a picture, so it records the reference and marks it dropped. A real
     /// engine replaces this and uses `strength`, which defaults to `DEFAULT_REFERENCE_STRENGTH`.
-    pub fn generate_with_reference(&self, prompt: &str, reference: Option<&str>, _strength: Option<f64>) -> GeneratedImage {
+    pub fn generate_with_reference(
+        &self,
+        prompt: &str,
+        reference: Option<&str>,
+        _strength: Option<f64>,
+    ) -> GeneratedImage {
         *self.is_generating.lock().unwrap() = true;
 
         let img = GeneratedImage {

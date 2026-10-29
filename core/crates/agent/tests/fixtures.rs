@@ -316,7 +316,11 @@ fn image_reference(input: &Value) -> Value {
                         .iter()
                         .map(|item| TrackedImage {
                             id: item["id"].as_str().unwrap_or_default().to_string(),
-                            origin: if item["origin"] == "attached" { ImageOrigin::Attached } else { ImageOrigin::Generated },
+                            origin: if item["origin"] == "attached" {
+                                ImageOrigin::Attached
+                            } else {
+                                ImageOrigin::Generated
+                            },
                             label: item["label"].as_str().unwrap_or_default().to_string(),
                             width: item["width"].as_u64().map(|v| v as u32),
                             height: item["height"].as_u64().map(|v| v as u32),
@@ -326,7 +330,10 @@ fn image_reference(input: &Value) -> Value {
                 .unwrap_or_default();
             json!(image_index(&images))
         }
-        "strength" => json!(reference_strength(flag(&input["hasReference"]), input["explicit"].as_f64())),
+        "strength" => json!(reference_strength(
+            flag(&input["hasReference"]),
+            input["explicit"].as_f64()
+        )),
         other => panic!("unknown imageReference op {other}"),
     }
 }
