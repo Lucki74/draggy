@@ -7,6 +7,7 @@ pub mod command_rules;
 pub mod compaction;
 pub mod context_breakdown;
 pub mod effort;
+pub mod image_reference;
 mod js;
 pub mod json;
 pub mod live_turn;

@@ -9,6 +9,7 @@ use draggy_agent::effort::{
     EFFORT_DEFAULT, Effort, EffortInput, Surface, allowed_efforts, clamp_effort, effective_effort,
     effort_from_legacy, local_budget, next_effort,
 };
+use draggy_agent::image_reference::{ImageOrigin, TrackedImage, image_index, reference_strength};
 use draggy_agent::json::canonical;
 use draggy_agent::parsing::{
     ParsedToolCall, TOOL_MARKER_OVERLAP, ToolParser, extract_file_streaming_args, extract_thought,
@@ -54,6 +55,7 @@ fn run(file: &str, input: &Value) -> Value {
         "prompts.json" => prompts(input),
         "promptProfile.json" => profile(input),
         "effort.json" => effort_rules(input),
+        "imageReference.json" => image_reference(input),
         other => panic!("no runner for {other}"),
     }
 }
@@ -301,6 +303,32 @@ fn level_list(value: &Value) -> Option<Vec<Effort>> {
     value
         .as_array()
         .map(|items| items.iter().map(level_of).collect())
+}
+
+/// `imageReference.json`: the picture index and the default strength, against `win/src/images/imageTracker.ts`.
+fn image_reference(input: &Value) -> Value {
+    match op(input) {
+        "index" => {
+            let images: Vec<TrackedImage> = input["images"]
+                .as_array()
+                .map(|items| {
+                    items
+                        .iter()
+                        .map(|item| TrackedImage {
+                            id: item["id"].as_str().unwrap_or_default().to_string(),
+                            origin: if item["origin"] == "attached" { ImageOrigin::Attached } else { ImageOrigin::Generated },
+                            label: item["label"].as_str().unwrap_or_default().to_string(),
+                            width: item["width"].as_u64().map(|v| v as u32),
+                            height: item["height"].as_u64().map(|v| v as u32),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            json!(image_index(&images))
+        }
+        "strength" => json!(reference_strength(flag(&input["hasReference"]), input["explicit"].as_f64())),
+        other => panic!("unknown imageReference op {other}"),
+    }
 }
 
 /// `effort.json`: the rules that set the level a turn runs at, against `win/src/ai/effort.ts`.
