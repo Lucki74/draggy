@@ -210,6 +210,7 @@ function customEntry(dir, name, map) {
     vramGB: 0,
     defaults: imageFamilies.defaultsFor(family, name),
     serverArgs: family ? family.serverArgs : [],
+    referenceMode: imageFamilies.referenceModeOf(family, name),
     license: "",
     licenseUrl: "",
     files,
