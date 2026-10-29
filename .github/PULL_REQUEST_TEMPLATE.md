@@ -1,5 +1,8 @@
-## What changed
+## Summary
+<!-- 1-2 sentences: what changed and why -->
 
-## How it was tested
+## Changes
+- 
 
-- [ ] `npm run check` passes
+## Context
+<!-- Risks, follow-ups, screenshots. Delete if empty. -->
