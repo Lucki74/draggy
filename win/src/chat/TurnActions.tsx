@@ -1,6 +1,8 @@
 import { Fragment } from "react";
 import { useLiveTurn } from "../agent/liveTurn";
 import { IconButton } from "../ui";
+import { useDisplayMoney } from "../stats/displayMoney";
+import { turnCostLabel } from "../stats/turnCostLabel";
 import type { TurnMetrics } from "../types";
 
 const formatTokens = (value: number) =>
@@ -8,25 +10,39 @@ const formatTokens = (value: number) =>
 
 const METRICS_ROW = "flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-text-secondary tabular-nums";
 
-function Cells({ cells }: { cells: string[] }) {
-  return cells.map((cell, index) => (
-    <Fragment key={`${index}-${cell}`}>
-      {index > 0 && (
-        <span aria-hidden="true" className="text-text-tertiary">
-          ·
-        </span>
-      )}
-      <span className="whitespace-nowrap">{cell}</span>
-    </Fragment>
-  ));
+type Cell = string | { text: string; title: string };
+
+function Cells({ cells }: { cells: Cell[] }) {
+  return cells.map((cell, index) => {
+    const text = typeof cell === "string" ? cell : cell.text;
+    return (
+      <Fragment key={`${index}-${text}`}>
+        {index > 0 && (
+          <span aria-hidden="true" className="text-text-tertiary">
+            ·
+          </span>
+        )}
+        {typeof cell === "string" ? (
+          <span className="whitespace-nowrap">{text}</span>
+        ) : (
+          <span className="whitespace-nowrap cursor-help" title={cell.title}>
+            {text}
+          </span>
+        )}
+      </Fragment>
+    );
+  });
 }
 
 export function MetricsFooter({
   metrics,
   t,
+  locale,
 }: {
   metrics: TurnMetrics;
   t: (key: string) => string;
+  /** Formats the cost; the system locale when omitted. */
+  locale?: string;
 }) {
   const contextUsed = metrics.promptTokens + metrics.responseTokens;
   const contextPercent =
@@ -34,10 +50,14 @@ export function MetricsFooter({
       ? Math.min(100, Math.round((contextUsed / metrics.contextWindow) * 100))
       : 0;
 
-  const cells: string[] = [
+  const cells: Cell[] = [
     `${metrics.tokensPerSecond.toFixed(1)} ${t("tokensPerSecond")}`,
     `${formatTokens(metrics.responseTokens)} ${t("tokensOut")}`,
   ];
+
+  const display = useDisplayMoney();
+  const cost = turnCostLabel(metrics.cost, t, locale, display);
+  if (cost) cells.push(cost);
 
   if (metrics.timeToFirstTokenMs !== null) {
     cells.push(`${(metrics.timeToFirstTokenMs / 1000).toFixed(2)}s ${t("toFirstToken")}`);

@@ -16,6 +16,7 @@ use draggy_providers::agy::adapter::{
     exit_failure, judge_build, locate_agy, parse_models, permission_refused, result_failure,
     to_prompt, turn_args, usage_of,
 };
+use draggy_providers::types::TokenUsage;
 use draggy_tools::spawn::{StdChild as Child, spawn_piped_blocking};
 use serde_json::{Value, json};
 
@@ -220,7 +221,11 @@ impl AgyStream {
                 None => {
                     let usage = usage_of(result.get("usage").or_else(|| result.get("stats")));
                     ModelChunk {
-                        done: Some(self.counts(usage.prompt_tokens, usage.output_tokens)),
+                        done: Some(self.counts(
+                            usage.prompt_tokens,
+                            usage.output_tokens,
+                            usage.tokens,
+                        )),
                         ..ModelChunk::default()
                     }
                 }
@@ -240,7 +245,7 @@ impl AgyStream {
     }
 
     #[allow(clippy::cast_precision_loss)]
-    fn counts(&self, prompt: u64, output: u64) -> FinalCounts {
+    fn counts(&self, prompt: u64, output: u64, split: Option<TokenUsage>) -> FinalCounts {
         let now = Instant::now();
         let first = self.first_token.unwrap_or(now);
         let prompt_ns = first.duration_since(self.started).as_nanos() as f64;
@@ -253,6 +258,7 @@ impl AgyStream {
             eval_duration_ns: eval_ns,
             load_duration_ns: 0.0,
             total_duration_ns: prompt_ns + eval_ns,
+            usage: split,
         }
     }
 

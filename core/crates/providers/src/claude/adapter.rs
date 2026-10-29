@@ -9,6 +9,7 @@ use serde_json::{Map, Value, json};
 use crate::gateway::AccountFailure;
 use crate::js::{json_text, to_string, truthy};
 use crate::types::{ErrorKind, ProviderError, Usage};
+use crate::usage::from_anthropic;
 
 const LEVELS: [&str; 3] = ["low", "medium", "high"];
 const DEFAULT_TURN_FAILURE: &str = "The turn failed.";
@@ -202,18 +203,7 @@ pub fn effort_of(body: &Value) -> Value {
 
 /// The token counts a result reports. Cache reads and writes count toward the prompt.
 pub fn usage_of(usage: Option<&Value>) -> Usage {
-    let count = |name: &str| {
-        usage
-            .and_then(|u| u.get(name))
-            .and_then(Value::as_u64)
-            .unwrap_or(0)
-    };
-    Usage {
-        prompt_tokens: count("input_tokens")
-            + count("cache_read_input_tokens")
-            + count("cache_creation_input_tokens"),
-        output_tokens: count("output_tokens"),
-    }
+    from_anthropic(usage)
 }
 
 fn failure(kind: ErrorKind, message: &str) -> ProviderError {

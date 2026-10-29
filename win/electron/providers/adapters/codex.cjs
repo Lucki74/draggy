@@ -5,6 +5,7 @@ const { createThreads } = require("../account/threads.cjs");
 const { assetFor, ensureCodex, installedBinary } = require("../codex/binary.cjs");
 const { startCodex, contextWindows } = require("../codex/process.cjs");
 const { log: appLog } = require("../../logger.cjs");
+const { fromCodex } = require("../usage.cjs");
 
 const LEVELS = new Set(["low", "medium", "high"]);
 // A call arrives as one server request each, so the leg waits this long for a parallel sibling.
@@ -181,7 +182,7 @@ function createCodexAdapter({
     else if (method === "item/reasoning/summaryTextDelta") sse?.delta({ reasoning: params.delta });
     else if (method === "thread/tokenUsage/updated") {
       const last = params.tokenUsage?.last || {};
-      turn.usage = { promptTokens: last.inputTokens ?? 0, outputTokens: last.outputTokens ?? 0 };
+      turn.usage = fromCodex(last);
     } else if (method === "turn/completed") completed(rt, turn, params.turn || {});
   }
 

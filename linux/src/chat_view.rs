@@ -13,16 +13,18 @@ use gtk::{gdk, gio, glib};
 use crate::state::{AppState, BRAVE_KEY, SERVER_KEY};
 use crate::tasks_view::TasksList;
 use draggy_core::{
-    ApprovalChoice, ApprovalRecord, CancelToken, ImageRecord, Session, read_document,
+    ApprovalChoice, ApprovalRecord, CancelToken, CoreError, ImageRecord, Session, TurnOutcome,
+    read_document,
 };
 use draggy_linux::chat::{
-    ChatMessage, Entry, Role, Transcript, metrics_line, start_turn, step_label, to_records,
-    to_saved, with_document,
+    ChatMessage, Entry, Role, Transcript, cost_label, metrics_line, start_turn, step_label,
+    to_records, to_saved, with_document,
 };
 use draggy_linux::conversations::{self, Conversation, Store};
 use draggy_linux::markdown::{self, Block};
 use draggy_linux::preview;
 use draggy_linux::runtime::runtime;
+use draggy_linux::services::stats_store::{self, TurnCost};
 use draggy_linux::settings::Settings;
 use draggy_linux::speech;
 use draggy_linux::talk;
@@ -851,7 +853,11 @@ impl DraggyChat {
                         chat.ask_approval(request, reply);
                     }
                     ChatMessage::Finished(result) => {
+                        let cost = chat.price_turn(&result);
                         chat.imp().log.borrow_mut().finish(result);
+                        if let Some(cost) = cost {
+                            chat.imp().log.borrow_mut().set_cost(cost);
+                        }
                         chat.refresh_reply();
                         chat.refresh_plan();
                         chat.refresh_tasks();
@@ -865,6 +871,43 @@ impl DraggyChat {
                 }
             }
         });
+    }
+
+    /// Prices a finished turn from the settings it ran with, and keeps it in the local database. `None` when the turn
+    /// made no figures to price. A row that cannot be kept is reported, and the price is still shown.
+    fn price_turn(&self, result: &Result<TurnOutcome, CoreError>) -> Option<TurnCost> {
+        let outcome = result.as_ref().ok()?;
+        let metrics = outcome.metrics.as_ref()?;
+        let (settings, chat_id) = {
+            let live = self.imp().live.borrow();
+            let live = live.as_ref()?;
+            (live.settings.clone(), live.id.clone())
+        };
+        let target = settings.cost_target();
+        let cost = stats_store::price_turn(&target, metrics);
+        if let Some(storage) = self
+            .imp()
+            .state
+            .borrow()
+            .as_ref()
+            .and_then(|state| state.storage())
+        {
+            let workspace =
+                Some(settings.folder.trim().to_owned()).filter(|folder| !folder.is_empty());
+            let row = stats_store::turn_metric(
+                &target,
+                &cost,
+                metrics,
+                outcome,
+                workspace,
+                &chat_id,
+                stats_store::now_ms(),
+            );
+            if storage.record_metric(&row).is_err() {
+                self.toast("The turn's cost could not be saved.");
+            }
+        }
+        Some(cost)
     }
 
     fn refresh_reply(&self) {
@@ -981,8 +1024,19 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
     if let (false, Some(metrics)) = (entry.streaming, &entry.metrics) {
         meta.push(metrics_line(metrics));
     }
+    let cost = if entry.streaming {
+        None
+    } else {
+        entry.cost.as_ref().and_then(cost_label)
+    };
+    if let Some(cost) = &cost {
+        meta.push(cost.text.clone());
+    }
     parts.meta.set_visible(!meta.is_empty());
     parts.meta.set_text(&meta.join(" · "));
+    parts
+        .meta
+        .set_tooltip_text(cost.as_ref().map(|cost| cost.title.as_str()));
 }
 
 /// Replaces the body with the text drawn for its role: plain for the user, Markdown blocks for the assistant.

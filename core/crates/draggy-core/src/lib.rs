@@ -8,6 +8,7 @@
 pub mod adblock;
 pub mod agy_host;
 pub mod cancel;
+pub mod cost;
 pub mod documents;
 pub mod engine;
 pub mod error;

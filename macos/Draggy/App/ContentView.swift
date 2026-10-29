@@ -70,7 +70,7 @@ struct ContentView: View {
             case .extensions:
                 ExtensionsPanelView()
             case .stats:
-                StatsPanelView(store: StatsStore())
+                StatsPanelView(store: model.stats)
             case .talk:
                 TalkModeView()
             case .diagnostics:

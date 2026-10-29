@@ -105,6 +105,13 @@ export default function Preferences({
         <Row label={t("onbUpdates")}>
           <Toggle label={t("onbUpdates")} checked={settings.autoUpdate} onChange={(autoUpdate) => onUpdateSettings({ autoUpdate })} />
         </Row>
+        <Row label={t("onbPrices")} description={t("onbPricesHint")}>
+          <Toggle
+            label={t("onbPrices")}
+            checked={settings.priceRefresh !== false}
+            onChange={(priceRefresh) => onUpdateSettings({ priceRefresh })}
+          />
+        </Row>
       </Group>
 
       <Group title={t("onbExtrasTitle")}>

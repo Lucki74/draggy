@@ -63,6 +63,10 @@
       {
         "from": "../NOTICE",
         "to": "NOTICE"
+      },
+      {
+        "from": "../shared/pricing/prices.json",
+        "to": "prices.json"
       }
     ],
     "asarUnpack": [

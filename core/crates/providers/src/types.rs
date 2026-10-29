@@ -154,11 +154,39 @@ pub enum FinishReason {
     ToolCalls,
 }
 
-/// Token counts the provider reported; both are zero when it reported none.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+/// Token counts the provider reported; both are zero when it reported none. `tokens` is the split the cost
+/// engine prices, when the provider gave one.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub struct Usage {
     pub prompt_tokens: u64,
     pub output_tokens: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens: Option<TokenUsage>,
+}
+
+/// Whether the vendor split the counts itself or only totals came back.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UsageSource {
+    #[default]
+    Reported,
+    Derived,
+    Estimated,
+}
+
+/// Disjoint token buckets, so each can be priced by its own rate.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenUsage {
+    pub input: u64,
+    pub cache_read: u64,
+    pub cache_write: u64,
+    pub output: u64,
+    pub reasoning: u64,
+    pub source: UsageSource,
+    /// What the provider says it charged, in dollars (OpenRouter reports this).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost_usd: Option<f64>,
 }
 
 /// A complete, non-streaming answer in neutral form.
