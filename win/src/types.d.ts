@@ -1,12 +1,5 @@
 import type { ProviderState } from "./ai/providers";
 import type { PriceTable } from "./stats/cost";
-export type {
-  QuestionType,
-  QuestionOption,
-  UserQuestion,
-  UserAnswer,
-  QuestionSession,
-} from "./chat/questionTypes";
 
 /** Drops one listener from a main-process channel, leaving the others alone. */
 export type Unsubscribe = () => void;
@@ -624,9 +617,8 @@ export interface ImageResult {
  * workspace. "no" is a refusal of the call in front of the user. */
 export type ApprovalAnswer = "once" | "task" | "workspace" | "no";
 
-/** A question the model asks the user: pick from the options, or write an answer. */
-export interface UserQuestion {
-  id: string;
+/** One question the model asks the user: pick from the options, or write an answer. */
+export interface QuestionItem {
   text: string;
   /** Empty means free text only. */
   options: string[];
@@ -634,10 +626,21 @@ export interface UserQuestion {
   multiple: boolean;
 }
 
-/** What the user sent back: the options picked and/or the words written. */
-export interface UserReply {
+/** A question card. It may carry follow-ups that the user steps through in the same card. */
+export interface UserQuestion extends QuestionItem {
+  id: string;
+  more?: QuestionItem[];
+}
+
+/** What the user sent back for one question: the options picked and/or the words written. */
+export interface QuestionAnswer {
   choices: string[];
   text: string;
+}
+
+/** The answers to a card: the first question's own, plus one per follow-up in order. */
+export interface UserReply extends QuestionAnswer {
+  more?: QuestionAnswer[];
 }
 
 export interface TurnMetrics {
@@ -1056,8 +1059,6 @@ export interface ChatSession {
   pinned?: boolean;
   /** Finished while the user was elsewhere. */
   unread?: boolean;
-  /** Whether interactive AI questions are toggled off for this chat. */
-  aiQuestionsDisabled?: boolean;
   /** How much work the transcript shows. Missing means normal. */
   view?: import("./chat/transcriptView").TranscriptView;
   /** Saved dock panes, active tab and width for this session. */
@@ -1292,12 +1293,6 @@ export interface AppSettings {
   imageModel: string;
   /** The size images are drawn at, as width and height in pixels: "1024x1024". */
   imageResolution: string;
-  aiQuestionsEnabled?: boolean;
-  aiQuestionsRequireAnswer?: boolean;
-  aiQuestionsShowSessionBar?: boolean;
-  aiQuestionsAutoSkip?: boolean;
-  aiQuestionsMaxPerSession?: number;
-  aiQuestionsTimeoutMinutes?: number;
   budgets?: BudgetSettings;
   /** Fetch fresh prices and exchange rates in the background. */
   priceRefresh?: boolean;

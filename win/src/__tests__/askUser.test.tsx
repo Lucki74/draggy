@@ -27,10 +27,35 @@ function context(askUser?: (question: UserQuestion) => Promise<UserReply | null>
 }
 
 describe("the ask_user tool", () => {
-  it("is for work in a folder and stays out of the compact list", () => {
-    expect(ask.extended).toBe(true);
-    expect(ask.available?.({ hasFolder: false } as never)).toBe(false);
-    expect(ask.available?.({ hasFolder: true } as never)).toBe(true);
+  it("is there in a plain chat and in a folder, for small models too", () => {
+    expect(ask.extended).toBeFalsy();
+    expect(ask.available).toBeUndefined();
+  });
+
+  it("asks follow-ups in the same card and numbers the answers", async () => {
+    const asked = vi.fn(async () => ({ choices: ["SQLite"], text: "", more: [{ choices: [], text: "none" }] }));
+    const { ctx } = context(asked);
+    const more = JSON.stringify([{ question: "Any limits?", options: "", multiple: false }, { question: " " }, 3]);
+
+    const result = await ask.run({ question: "Which database?", options: "SQLite\nPostgres", more }, ctx);
+
+    expect(asked).toHaveBeenCalledWith({
+      id: "q1",
+      text: "Which database?",
+      options: ["SQLite", "Postgres"],
+      multiple: false,
+      more: [{ text: "Any limits?", options: [], multiple: false }],
+    });
+    expect(result).toBe("TOOL RESULT (ask_user): The user answered:\n1. Which database? → SQLite\n2. Any limits? → none");
+  });
+
+  it("ignores follow-ups that are not a JSON list", async () => {
+    const asked = vi.fn(async () => ({ choices: ["A"], text: "" }));
+    const { ctx } = context(asked);
+
+    await ask.run({ question: "Which?", options: "A\nB", more: "not json" }, ctx);
+
+    expect(asked).toHaveBeenCalledWith({ id: "q1", text: "Which?", options: ["A", "B"], multiple: false });
   });
 
   it("puts the question and its options to the user and returns the pick", async () => {
@@ -134,6 +159,47 @@ describe("the question card", () => {
     fireEvent.click(screen.getByRole("button", { name: /questionSkip/ }));
     expect(answer).toHaveBeenNthCalledWith(1, "q1", null);
     expect(answer).toHaveBeenNthCalledWith(2, "q1", null);
+  });
+
+  it("steps through follow-ups and sends every answer together", () => {
+    const answer = show(
+      step({ more: [{ text: "Which port?", options: [], multiple: false }, { text: "Which tools?", options: ["a", "b"], multiple: true }] }),
+    );
+    fireEvent.click(screen.getByRole("radio", { name: /Postgres/ }));
+    expect(answer).not.toHaveBeenCalled();
+    expect(screen.getByText("questionProgress")).toBeTruthy();
+
+    const box = screen.getByRole("textbox");
+    fireEvent.change(box, { target: { value: "5432" } });
+    fireEvent.click(screen.getByRole("button", { name: /questionNext/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /a/ }));
+    fireEvent.click(screen.getByRole("button", { name: /questionSend/ }));
+
+    expect(answer).toHaveBeenCalledWith("q1", {
+      choices: ["Postgres"],
+      text: "",
+      more: [
+        { choices: [], text: "5432" },
+        { choices: ["a"], text: "" },
+      ],
+    });
+  });
+
+  it("goes back to change an earlier answer", () => {
+    const answer = show(step({ more: [{ text: "Sure?", options: ["yes"], multiple: false }] }));
+    fireEvent.click(screen.getByRole("radio", { name: /SQLite/ }));
+    fireEvent.click(screen.getByRole("button", { name: /questionBack/ }));
+    expect(screen.getByRole("radio", { name: /SQLite/ }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: /Postgres/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /yes/ }));
+    expect(answer).toHaveBeenCalledWith("q1", { choices: ["Postgres"], text: "", more: [{ choices: ["yes"], text: "" }] });
+  });
+
+  it("skipping every question dismisses the card", () => {
+    const answer = show(step({ more: [{ text: "Sure?", options: [], multiple: false }] }));
+    fireEvent.click(screen.getByRole("button", { name: /questionSkip/ }));
+    fireEvent.click(screen.getByRole("button", { name: /questionSkip/ }));
+    expect(answer).toHaveBeenCalledWith("q1", null);
   });
 
   it("shows the reply once answered, with no form", () => {
