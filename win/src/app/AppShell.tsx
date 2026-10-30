@@ -1,4 +1,5 @@
 import { useShellTabs } from "../terminal/useShellTabs";
+import { latestForeground, watchTasks } from "../tasks/taskStore";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildLabel } from "./buildLabel";
 import { ReleaseNotes } from "../updates/ReleaseNotes";
@@ -31,7 +32,6 @@ import type { ToolEnvironment } from "../tools/registry";
 import { syncMcpTools } from "../tools/mcp";
 import type { McpServerState } from "../tools/mcp";
 import { useSessions } from "./useSessions";
-import { questionSessionStore } from "../store/questionSession";
 import { useAgentRuns } from "./useAgentRuns";
 import { useUpdateDialog } from "./useUpdateDialog";
 import { ACTIVE_WORKSPACE_KEY, useWorkspaces } from "./useWorkspaces";
@@ -912,6 +912,22 @@ export default function AppShell({
     return () => window.removeEventListener("keydown", handleTerminal);
   }, [active.rootPath, openShell]);
 
+  // Task events reach the chip and the Tasks tab from the first command on.
+  useEffect(() => watchTasks(), []);
+
+  // Ctrl+Alt+B sends the command the agent is running to the background.
+  useEffect(() => {
+    const handleBackground = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || !e.altKey || e.shiftKey || e.key.toLowerCase() !== "b") return;
+      const runId = latestForeground();
+      if (!runId) return;
+      e.preventDefault();
+      void window.electronAPI?.commands?.detach(runId);
+    };
+    window.addEventListener("keydown", handleBackground);
+    return () => window.removeEventListener("keydown", handleBackground);
+  }, []);
+
   // Ctrl+\ closes the active pane in the dock.
   useEffect(() => {
     const handleClosePane = (e: KeyboardEvent) => {
@@ -1314,13 +1330,6 @@ export default function AppShell({
               ?.exportChat({ defaultName: transcriptFilename(session, format, now), content, ext: format })
               ?.catch((error: unknown) => logSwallow("chat", error, "the export was not saved"));
           }}
-          onToggleAiQuestions={(id) => {
-            store.updateSession(id, (s) => ({ ...s, aiQuestionsDisabled: !s.aiQuestionsDisabled }));
-          }}
-          onClearQuestionHistory={async (id) => {
-            await questionSessionStore.clearSessions(id);
-            setViewToast(t("questionHistoryCleared"));
-          }}
           onViewTalk={() => {
             setSelectedChatId(generateId());
             setViewMode("talk");
@@ -1397,7 +1406,6 @@ export default function AppShell({
               width={currentDockLayout.width}
               workspaceId={active.id}
               rootPath={active.rootPath}
-              onNewShell={(shell) => void openShell(shell)}
               gitStatus={gitStatus}
               t={t}
               onStartResize={startResizeRightPane}

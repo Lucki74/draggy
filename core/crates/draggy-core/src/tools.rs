@@ -16,6 +16,8 @@ use draggy_tools::spawn::CancelToken as RunCancel;
 use serde_json::{Value, json};
 use std::time::Duration;
 
+use crate::task_tools::{self, TaskSet};
+
 /// A store that keeps nothing. The read tools never write a checkpoint, so none is needed.
 struct NoStore;
 
@@ -56,6 +58,7 @@ pub struct FileTools {
     folder: String,
     guard: Guard,
     allow_commands: bool,
+    tasks: TaskSet,
 }
 
 /// The tool definitions a model is offered when the session has a folder. `run_command` is offered only when the
@@ -106,22 +109,24 @@ pub fn definitions(allow_commands: bool) -> Vec<ToolDefinition> {
     if allow_commands {
         tools.push(definition(
             "run_command",
-            "Run a command in the project folder, the way a developer types it in a terminal: git, gh, npm, pnpm, cargo, python, tests, builds and linters. Returns what it printed and its exit code. Nothing can be typed into it while it runs, so pass flags that avoid prompts.",
+            "Run a command in the project folder, the way a developer types it in a terminal: git, gh, npm, pnpm, cargo, python, tests, builds and linters. Returns what it printed and its exit code. Pass flags that avoid prompts. Something that keeps running, like a dev server or a watcher, goes in the background with background: true.",
             &json!({
                 "type": "object",
                 "properties": {
                     "command": {"type": "string", "description": "The command line to run, as it would be typed."},
                     "shell": {"type": "string", "description": "Optional. One of \"bash\" or \"sh\". Leave it out to use this computer's default shell."},
-                    "timeout_seconds": {"type": "integer", "description": "Optional. How long it may run before it is stopped, up to 600. Defaults to 120."}
+                    "timeout_seconds": {"type": "integer", "description": "Optional. How long it may run before it is stopped, up to 600. Defaults to 120."},
+                    "background": {"type": "boolean", "description": "Optional. Set true for something that keeps running, like a dev server or a watcher, or that takes long: it starts at once and you read it with task_output."}
                 },
                 "required": ["command"]
             }),
         ));
+        tools.extend(task_tools::definitions());
     }
     tools
 }
 
-fn definition(name: &str, description: &str, parameters: &Value) -> ToolDefinition {
+pub(crate) fn definition(name: &str, description: &str, parameters: &Value) -> ToolDefinition {
     ToolDefinition {
         kind: "function".to_owned(),
         function: FunctionDefinition {
@@ -132,8 +137,50 @@ fn definition(name: &str, description: &str, parameters: &Value) -> ToolDefiniti
     }
 }
 
+/// The picture tools a model is offered once an image engine is ready. `view_image` is offered only to a chat model
+/// that can read pictures. No engine runs them in this crate yet, so a host executes the calls.
+pub fn image_definitions(vision: bool) -> Vec<ToolDefinition> {
+    let mut tools = vec![definition(
+        "generate_image",
+        "Draw a picture from a description with the local image engine. Describe the subject, style and composition in plain words.",
+        &json!({
+            "type": "object",
+            "properties": {
+                "prompt": { "type": "string", "description": "What the picture shows, in detail: subject, setting, style, lighting." },
+                "negative_prompt": { "type": "string", "description": "What the picture should not contain." },
+                "width": { "type": "integer", "description": "Width in pixels, a multiple of 64. Leave out for the model's default." },
+                "height": { "type": "integer", "description": "Height in pixels, a multiple of 64. Leave out for the model's default." },
+                "seed": { "type": "integer", "description": "A seed, to make the same picture again. Leave out for a new one." },
+                "reference_image": {
+                    "type": "string",
+                    "description": "The ID of a picture in this chat (such as img_2) to start from, to change a small detail and keep the rest. Describe the whole picture with the change in prompt."
+                },
+                "strength": {
+                    "type": "number",
+                    "description": "With reference_image: how far to move away from it, 0 to 1. Defaults to 0.35. Raise it for a bigger change."
+                }
+            },
+            "required": ["prompt"]
+        }),
+    )];
+    if vision {
+        tools.push(definition(
+            "view_image",
+            "Look at one picture of this chat by its ID (such as img_2), for example to check a detail before changing it.",
+            &json!({
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string", "description": "The picture's ID from the list of pictures in this chat." }
+                },
+                "required": ["id"]
+            }),
+        ));
+    }
+    tools
+}
+
 impl FileTools {
-    pub fn new(folder: &str, allow_commands: bool) -> Self {
+    pub fn new(folder: &str, allow_commands: bool, tasks: TaskSet) -> Self {
         let root = PathBuf::from(folder);
         let roots: Roots = Box::new(move |_workspace| vec![root.clone()]);
         Self {
@@ -141,6 +188,7 @@ impl FileTools {
             folder: folder.to_owned(),
             guard: Guard::default(),
             allow_commands,
+            tasks,
         }
     }
 
@@ -156,6 +204,14 @@ impl FileTools {
             .and_then(Value::as_str)
             .filter(|name| matches!(*name, "bash" | "sh"))
             .map(str::to_owned);
+        if args.get("background").and_then(Value::as_bool) == Some(true) {
+            return self.tasks.start(
+                &command,
+                shell.as_deref(),
+                &PathBuf::from(&self.folder),
+                ctx,
+            );
+        }
         let seconds = args
             .get("timeout_seconds")
             .and_then(Value::as_f64)
@@ -440,19 +496,32 @@ impl ToolRuntime for FileTools {
                 open_world: true,
                 ..ToolAnnotations::default()
             },
+            other if self.allow_commands && task_tools::owns(other) => {
+                task_tools::annotations(other)
+            }
             _ => ToolAnnotations::default(),
         }
     }
 
     fn run(&mut self, name: &str, args: &Value, ctx: &mut ToolContext<'_>) -> String {
-        match name {
+        let result = match name {
             "read_file" => self.read(args, ctx),
             "list_directory" => self.list(args, ctx),
             "write_document" => self.write_document(args, ctx),
             "run_command" if self.allow_commands => self.command(args, ctx),
-            other => format!(
-                "TOOL ERROR: There is no tool called \"{other}\". Available tools: read_file, list_directory, write_document, run_command."
-            ),
+            other if self.allow_commands && task_tools::owns(other) => {
+                self.tasks.run(other, args, ctx)
+            }
+            other => {
+                return format!(
+                    "TOOL ERROR: There is no tool called \"{other}\". Available tools: read_file, list_directory, write_document, run_command, task_output, task_list, task_stop, task_wait, task_input."
+                );
+            }
+        };
+        // Tasks that ended since the last call are reported with the next result the model reads.
+        match self.tasks.ended_notice().filter(|_| self.allow_commands) {
+            Some(notice) => format!("{notice}\n\n{result}"),
+            None => result,
         }
     }
 }

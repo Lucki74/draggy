@@ -118,7 +118,7 @@ function planMemory({ needGB, freeVramGB = null, totalVramGB = 0, loadedLlmGB = 
 }
 
 /** Sizes the engine accepts: multiples of 64 inside its limits, with everything else kept in range. */
-function clampRequest(request = {}, limits = FALLBACK_LIMITS, defaults = {}) {
+function clampRequest(request = {}, limits = FALLBACK_LIMITS, defaults = {}, referenceMode = "img2img") {
   const lim = { ...FALLBACK_LIMITS, ...(limits || {}) };
   const size = (value, fallback, min, max) => {
     const raw = Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : fallback;
@@ -150,7 +150,10 @@ function clampRequest(request = {}, limits = FALLBACK_LIMITS, defaults = {}) {
     steps: Math.min(MAX_STEPS, Math.max(1, int(request.steps, defaults.steps || 20))),
     cfgScale: Number.isFinite(Number(request.cfgScale)) ? Math.min(30, Math.max(0, Number(request.cfgScale))) : defaults.cfgScale ?? 7,
     seed: int(request.seed, -1) >= 0 ? int(request.seed, -1) : -1,
-    initImage: typeof request.initImage === "string" && request.initImage ? request.initImage : null,
+    // A model with no reference mode draws from the text alone, and the result says the picture was dropped.
+    initImage: referenceMode && typeof request.initImage === "string" && request.initImage ? request.initImage : null,
+    referenceMode: referenceMode || null,
+    referenceDropped: !referenceMode && typeof request.initImage === "string" && Boolean(request.initImage),
     strength: Number.isFinite(strength) ? Math.min(1, Math.max(0, strength)) : 0.75,
     lora: Array.isArray(request.lora) ? request.lora.slice(0, 4) : [],
     hires: Boolean(request.hires),
@@ -168,7 +171,8 @@ function buildJobBody(clamped) {
     seed: clamped.seed,
     batch_count: 1,
     strength: clamped.strength,
-    init_image: clamped.initImage,
+    // An edit model is shown the original as a reference; any other model starts from it, noised by `strength`.
+    ...(clamped.referenceMode === "edit" ? { ref_images: clamped.initImage ? [clamped.initImage] : [] } : { init_image: clamped.initImage }),
     lora: clamped.lora.map((entry) => ({ path: entry.path, multiplier: entry.multiplier ?? 1, is_high_noise: false })),
     hires: { enabled: clamped.hires, upscaler: "Latent", scale: 2 },
     sample_params: {
@@ -432,12 +436,12 @@ function generate(requestId, requestBody = {}, onProgress = () => {}) {
         // Set once the engine is up, since starting it clears the flag along with the old engine.
         if (evicted) tookChatMemory = true;
         if (record.cancelled) throw new SdError("E_CANCELLED", "Cancelled");
-        const clamped = clampRequest(requestBody, caps?.limits, resolved.entry.defaults);
+        const clamped = clampRequest(requestBody, caps?.limits, resolved.entry.defaults, resolved.entry.referenceMode === undefined ? "img2img" : resolved.entry.referenceMode);
         onProgress({ status: "generating" });
         crashedDuringJob = false;
         try {
           const tmpPath = await runJob(info, clamped, record, onProgress);
-          return { tmpPath, width: clamped.width, height: clamped.height, seed: clamped.seed, model: resolved.entry.id };
+          return { tmpPath, width: clamped.width, height: clamped.height, seed: clamped.seed, model: resolved.entry.id, referenceUsed: Boolean(clamped.initImage), referenceDropped: clamped.referenceDropped };
         } catch (error) {
           // A stop that had to end the engine looks like a crash from here, but it is the stop.
           if (record.cancelled) throw new SdError("E_CANCELLED", "Cancelled");

@@ -6,9 +6,8 @@ use std::collections::{HashMap, VecDeque};
 use serde_json::{Map, Value, json};
 
 use super::common::{
-    Connection, Decoder, Flow, ListedModel, Stream, arguments_object, count, function_tools,
-    hosted, level_of, non_empty, output_limit, parse_data_url, refusal, text_of, text_or_empty,
-    think_of,
+    Connection, Decoder, Flow, ListedModel, Stream, arguments_object, function_tools, hosted,
+    level_of, non_empty, output_limit, parse_data_url, refusal, text_of, text_or_empty, think_of,
 };
 use crate::catalog::capabilities_for;
 use crate::errors::from_response_value;
@@ -16,8 +15,9 @@ use crate::http::{HttpRequest, Method};
 use crate::js::{json_text, truthy};
 use crate::types::{
     ChatMessage, ChatRequest, CompletedToolCall, Completion, Content, ContentPart, FinishReason,
-    ProviderError, StreamEvent, Usage,
+    ProviderError, StreamEvent,
 };
+use crate::usage::from_anthropic;
 use std::collections::BTreeMap;
 
 const VERSION: &str = "2023-06-01";
@@ -391,7 +391,8 @@ pub struct AnthropicDecoder {
     signed: Vec<Value>,
     tool_index: u32,
     stop: Option<String>,
-    usage: Usage,
+    /// Every count the stream has reported so far, later ones replacing earlier.
+    counts: serde_json::Map<String, Value>,
 }
 
 /// The Anthropic stream as neutral events.
@@ -402,7 +403,7 @@ pub fn stream(instance_id: Option<&str>) -> Stream<AnthropicDecoder> {
         signed: Vec::new(),
         tool_index: 0,
         stop: None,
-        usage: Usage::default(),
+        counts: serde_json::Map::new(),
     })
 }
 
@@ -413,11 +414,9 @@ impl AnthropicDecoder {
         match kind {
             "error" => return Err(failure_of(json.get("error").unwrap_or(&Value::Null))),
             "message_start" => {
-                let usage = json.pointer("/message/usage");
-                self.usage.prompt_tokens = count(usage.and_then(|u| u.get("input_tokens")))
-                    + count(usage.and_then(|u| u.get("cache_read_input_tokens")))
-                    + count(usage.and_then(|u| u.get("cache_creation_input_tokens")));
-                self.usage.output_tokens = count(usage.and_then(|u| u.get("output_tokens")));
+                if let Some(usage) = json.pointer("/message/usage").and_then(Value::as_object) {
+                    self.counts.extend(usage.clone());
+                }
             }
             "content_block_start" => {
                 let block = json.get("content_block").cloned().unwrap_or(Value::Null);
@@ -539,8 +538,10 @@ impl AnthropicDecoder {
                 {
                     self.stop = Some(reason.to_owned());
                 }
-                if let Some(output) = json.pointer("/usage/output_tokens") {
-                    self.usage.output_tokens = count(Some(output));
+                if let Some(usage) = json.get("usage").and_then(Value::as_object) {
+                    for (key, value) in usage.iter().filter(|(_, value)| value.is_number()) {
+                        self.counts.insert(key.clone(), value.clone());
+                    }
                 }
             }
             "message_stop" => return Ok(true),
@@ -576,7 +577,7 @@ impl Decoder for AnthropicDecoder {
         }
         out.push(StreamEvent::Finish {
             reason,
-            usage: self.usage,
+            usage: from_anthropic(Some(&Value::Object(std::mem::take(&mut self.counts)))),
         });
         Ok(())
     }
@@ -645,10 +646,6 @@ pub fn translate_json(
         })
         .collect();
     let finish = finish_of(json.get("stop_reason").and_then(Value::as_str))?;
-    let usage = json.get("usage");
-    let prompt = count(usage.and_then(|u| u.get("input_tokens")))
-        + count(usage.and_then(|u| u.get("cache_read_input_tokens")))
-        + count(usage.and_then(|u| u.get("cache_creation_input_tokens")));
     let provider_state =
         instance_id
             .filter(|_| !signed.is_empty())
@@ -661,10 +658,7 @@ pub fn translate_json(
         reasoning,
         tool_calls,
         finish,
-        usage: Usage {
-            prompt_tokens: prompt,
-            output_tokens: count(usage.and_then(|u| u.get("output_tokens"))),
-        },
+        usage: from_anthropic(json.get("usage")),
         provider_state,
     })
 }

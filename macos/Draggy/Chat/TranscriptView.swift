@@ -169,7 +169,11 @@ private final class MessageCell: NSTableCellView, NSTextViewDelegate {
         if let speed = line.speed {
             title += String(format: String(localized: " \u{00B7} %.1f tokens/s"), speed)
         }
+        if let cost = line.cost {
+            title += " \u{00B7} " + cost.text
+        }
         caption.stringValue = title
+        caption.toolTip = line.cost?.help
         // VoiceOver reads one element per message: who spoke, then what was said.
         setAccessibilityElement(true)
         setAccessibilityRole(.row)

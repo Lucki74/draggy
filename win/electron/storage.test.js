@@ -781,10 +781,83 @@ describe("statistics", () => {
     ...extra,
   });
 
+  // A turn that was never priced stores no cost columns, and they stay out of the listing.
+  const NO_COST = {};
+
+  const priced = (extra = {}) => ({
+    providerId: "openai",
+    kind: "billed",
+    inputTokens: 1000,
+    cacheReadTokens: 200,
+    cacheWriteTokens: 0,
+    outputTokens: 300,
+    reasoningTokens: 50,
+    costMicros: 10500,
+    costSource: "table",
+    priceUpdatedAt: "2026-10-01T00:00:00.000Z",
+    ...extra,
+  });
+
   it("keeps a finished turn and gives it back", () => {
     storage.recordMetric(turn());
 
-    expect(storage.listMetrics()).toEqual([turn()]);
+    expect(storage.listMetrics()).toEqual([{ ...turn(), ...NO_COST }]);
+  });
+
+  it("keeps what a turn cost beside its counts", () => {
+    storage.recordMetric(turn(priced()));
+
+    expect(storage.listMetrics()).toEqual([{ ...turn(), ...priced() }]);
+  });
+
+  it("keeps a free turn different from one nobody could price", () => {
+    storage.recordMetric(turn({ chatId: "free", ...priced({ costMicros: 0 }) }));
+    storage.recordMetric(turn({ chatId: "unknown", ...priced({ costMicros: null, costSource: "unknown" }) }));
+
+    const rows = Object.fromEntries(storage.listMetrics().map((row) => [row.chatId, row]));
+    expect(rows.free.costMicros).toBe(0);
+    expect(rows.unknown.costMicros).toBeUndefined();
+    expect(rows.unknown.costSource).toBe("unknown");
+  });
+
+  it("drops a cost field it cannot trust", () => {
+    storage.recordMetric(turn(priced({ kind: "free-for-all", costSource: "guess", costMicros: -4, inputTokens: "lots", priceUpdatedAt: 7 })));
+
+    const [row] = storage.listMetrics();
+    expect(row.kind).toBeUndefined();
+    expect(row.costSource).toBeUndefined();
+    expect(row.costMicros).toBeUndefined();
+    expect(row.inputTokens).toBeUndefined();
+    expect(row.priceUpdatedAt).toBeUndefined();
+    expect(row.providerId).toBe("openai");
+  });
+
+  it("opens a database whose metrics table predates costs and leaves its rows alone", () => {
+    storage.close();
+
+    const legacyDir = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-metrics-"));
+    const { DatabaseSync } = require("node:sqlite");
+    const old = new DatabaseSync(path.join(legacyDir, "draggy.db"));
+    old.exec(`
+      CREATE TABLE metrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, recorded_at INTEGER NOT NULL, workspace_id TEXT, chat_id TEXT,
+        model TEXT NOT NULL, prompt_tokens INTEGER NOT NULL DEFAULT 0, response_tokens INTEGER NOT NULL DEFAULT 0,
+        response_ms REAL NOT NULL DEFAULT 0, first_token_ms REAL, load_ms REAL NOT NULL DEFAULT 0,
+        task_ms REAL NOT NULL DEFAULT 0, loops INTEGER NOT NULL DEFAULT 1, tools TEXT
+      );
+      INSERT INTO metrics (recorded_at, chat_id, model, prompt_tokens, response_tokens) VALUES (1000, 'old', 'gpt-4o', 500, 100);
+    `);
+    old.close();
+
+    storage.init(legacyDir);
+
+    expect(storage.listMetrics()).toMatchObject([{ chatId: "old", model: "gpt-4o", promptTokens: 500, ...NO_COST }]);
+    expect(storage.recordMetric(turn(priced())).success).toBe(true);
+    expect(storage.listMetrics()).toHaveLength(2);
+
+    storage.close();
+    fs.rmSync(legacyDir, { recursive: true, force: true });
+    storage.init(workdir);
   });
 
   it("lists newest first, and only since a given time", () => {

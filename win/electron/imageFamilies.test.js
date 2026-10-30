@@ -104,3 +104,32 @@ describe("a family model in the image folder", () => {
     expect(imageModels.modelArgs(resolved).slice(0, 1)).toEqual(["-m"]);
   });
 });
+
+describe("every family", () => {
+  const { FAMILIES, COMPONENTS, partsOf, familyOf, referenceModeOf } = require("./imageFamilies.cjs");
+
+  it("names components that exist, with a hash and a size", () => {
+    for (const family of FAMILIES) {
+      for (const part of partsOf(family)) {
+        expect(COMPONENTS[part.id], `${family.id} part ${part.role}`).toBeTruthy();
+        expect(part.sha256).toMatch(/^[0-9a-f]{64}$/);
+        expect(part.size).toBeGreaterThan(0);
+      }
+      expect(family.defaults.width).toBeGreaterThan(0);
+    }
+  });
+
+  it("routes real file names to their family", () => {
+    expect(familyOf("unsloth/Qwen-Image-2.1-GGUF", "qwen-image-2.1-Q4_K_M.gguf").id).toBe("qwen-image-2.1");
+    expect(familyOf("Qwen-Image-Edit-2509-Q4_K_M.gguf").id).toBe("qwen-image-edit");
+    expect(familyOf("flux1-dev-Q4_0.gguf").id).toBe("flux");
+  });
+
+  it("edits by reference only where the family takes reference images", () => {
+    expect(referenceModeOf(familyOf("qwen-image-edit-Q4.gguf"))).toBe("edit");
+    expect(referenceModeOf(familyOf("flux2-klein-4b.gguf"))).toBe("edit");
+    expect(referenceModeOf(familyOf("flux1-kontext-dev.gguf"), "flux1-kontext-dev.gguf")).toBe("edit");
+    expect(referenceModeOf(familyOf("qwen-image-2.1-Q4_K_M.gguf"))).toBe("img2img");
+    expect(referenceModeOf(null, "sd-turbo.gguf")).toBe("img2img");
+  });
+});

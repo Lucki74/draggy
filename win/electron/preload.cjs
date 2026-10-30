@@ -171,6 +171,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
     clear: () => ipcRenderer.invoke("metrics:clear"),
   },
 
+  pricing: {
+    table: () => ipcRenderer.invoke("pricing:table"),
+    configure: (options) => ipcRenderer.invoke("pricing:configure", options),
+    refresh: () => ipcRenderer.invoke("pricing:refresh"),
+    status: () => ipcRenderer.invoke("pricing:status"),
+    rates: () => ipcRenderer.invoke("pricing:rates"),
+    onUpdated: (callback) => subscribe("pricing-updated", callback),
+  },
+
   git: {
     status: (workspaceId) => ipcRenderer.invoke("git:status", workspaceId),
     diff: (workspaceId, path, staged, untracked) =>
@@ -214,7 +223,25 @@ contextBridge.exposeInMainWorld("electronAPI", {
     run: (workspaceId, runId, command, options) =>
       ipcRenderer.invoke("commands:run", workspaceId, runId, command, options),
     cancel: (runId) => ipcRenderer.invoke("commands:cancel", runId),
+    detach: (runId) => ipcRenderer.invoke("commands:detach", runId),
+    resetState: (chatId) => ipcRenderer.invoke("commands:resetState", chatId),
     onOutput: (callback) => subscribe("commands:output", callback),
+  },
+
+  tasks: {
+    list: (chatId) => ipcRenderer.invoke("tasks:list", chatId),
+    output: (chatId, id, options) => ipcRenderer.invoke("tasks:output", chatId, id, options),
+    wait: (chatId, id, options) => ipcRenderer.invoke("tasks:wait", chatId, id, options),
+    abortWait: (waitId) => ipcRenderer.invoke("tasks:abortWait", waitId),
+    stop: (chatId, id) => ipcRenderer.invoke("tasks:stop", chatId, id),
+    write: (chatId, id, data) => ipcRenderer.invoke("tasks:write", chatId, id, data),
+    input: (chatId, id, data) => ipcRenderer.send("tasks:input", chatId, id, data),
+    resize: (uid, cols, rows) => ipcRenderer.invoke("tasks:resize", uid, cols, rows),
+    snapshot: (uid) => ipcRenderer.invoke("tasks:snapshot", uid),
+    takeInbox: (chatId) => ipcRenderer.invoke("tasks:takeInbox", chatId),
+    hasRunning: (chatId) => ipcRenderer.invoke("tasks:hasRunning", chatId),
+    forget: (chatId) => ipcRenderer.invoke("tasks:forget", chatId),
+    onEvent: (callback) => subscribe("tasks:event", callback),
   },
 
   shell: {
@@ -358,6 +385,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     accountSignOut: (id) => ipcRenderer.invoke("providers:account-sign-out", id),
     accountStatus: (id) => ipcRenderer.invoke("providers:account-status", id),
     onAccountProgress: (callback) => subscribe("providers:account-progress", callback),
+    onModelsChanged: (callback) => subscribe("providers:models-changed", callback),
   },
 
   appInfo: () => ipcRenderer.invoke("app:version"),

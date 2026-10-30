@@ -5,6 +5,7 @@
 pub mod account;
 pub mod adapters;
 pub mod agy;
+pub mod autopin;
 pub mod catalog;
 pub mod claude;
 pub mod codex;
@@ -20,3 +21,4 @@ pub mod remote_catalog;
 pub mod rpc;
 pub mod sse;
 pub mod types;
+pub mod usage;

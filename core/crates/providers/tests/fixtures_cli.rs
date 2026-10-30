@@ -597,6 +597,7 @@ impl AccountRuntime for Scripted {
                             .get("outputTokens")
                             .and_then(Value::as_u64)
                             .unwrap_or(0),
+                        ..Usage::default()
                     },
                 );
             }

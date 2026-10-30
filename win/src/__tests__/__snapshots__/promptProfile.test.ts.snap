@@ -219,6 +219,7 @@ AVAILABLE TOOLS
 14. browser_get_text: {} → the text of the current browser page, or {"ref": "e5"} → the text of that element
 15. browser_close: {} → closes the browser session
 16. create_file: {"filename": "report.docx", "content": "# Title\\n\\nBody"} → writes a file the user can open
+17. ask_user: {"question": "Which database should I use?", "options": "SQLite\\nPostgres"} → the option the user picked
 
 To use a tool, output EXACTLY this JSON format inside <tool> tags and nothing else:
 <tool>

@@ -8,6 +8,7 @@ use draggy_linux::models;
 use draggy_linux::secrets::{KeyringStore, SecretStore};
 use draggy_linux::servers::PlainValues;
 use draggy_linux::settings::Settings;
+use draggy_storage::Storage;
 
 /// The name under which the model server's key is stored.
 pub const SERVER_KEY: &str = "model-server";
@@ -23,6 +24,7 @@ pub struct AppState {
     engine: RefCell<Option<Arc<LocalEngine>>>,
     library: RefCell<Option<Arc<ModelLibrary>>>,
     agy: RefCell<Option<Arc<AgyAccount>>>,
+    storage: RefCell<Option<Arc<Storage>>>,
     /// The llama-server program the Models page installed or found.
     pub engine_binary: RefCell<String>,
     /// The model file the Models page picked.
@@ -45,6 +47,7 @@ impl AppState {
             engine: RefCell::new(None),
             library: RefCell::new(None),
             agy: RefCell::new(None),
+            storage: RefCell::new(None),
             engine_binary: RefCell::new(String::new()),
             engine_model: RefCell::new(String::new()),
         }
@@ -84,6 +87,16 @@ impl AppState {
             AgyAccount::new(dir.to_string_lossy().into_owned())
         })
         .clone()
+    }
+
+    /// The local database the turns and their costs are kept in. `None` when there is no data folder or it cannot open.
+    pub fn storage(&self) -> Option<Arc<Storage>> {
+        let mut slot = self.storage.borrow_mut();
+        if slot.is_none() {
+            let dir = models::data_dir()?;
+            *slot = Storage::open(&dir).ok().map(Arc::new);
+        }
+        slot.clone()
     }
 
     /// The model library, made on first use. `None` when there is no data folder or it cannot start.

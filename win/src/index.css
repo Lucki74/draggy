@@ -895,3 +895,86 @@ kbd {
     font-size: 11px;
     color: var(--text-tertiary);
 }
+
+.terminal-view-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 4px 8px 0;
+    border-block-end: 1px solid var(--rule);
+}
+.terminal-view-tab {
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    border-block-end: 2px solid transparent;
+}
+.terminal-view-tab:hover {
+    color: var(--text-primary);
+}
+.terminal-view-tab[aria-selected="true"] {
+    color: var(--text-primary);
+    border-block-end-color: var(--text-primary);
+}
+.terminal-tasks {
+    flex: 1 1 0;
+    min-block-size: 0;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: 8px 12px;
+}
+.terminal-tasks-empty {
+    padding: 16px 12px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+.terminal-task {
+    padding-block: 8px;
+    border-block-end: 1px solid var(--rule);
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 12px;
+}
+.terminal-task-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-inline-size: 0;
+}
+.terminal-task-row .terminal-agent-command {
+    flex: 1 1 0;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.terminal-task-id {
+    color: var(--text-tertiary);
+}
+.terminal-task[data-status="failed"] .terminal-agent-status {
+    color: var(--danger);
+}
+.terminal-task-actions {
+    display: flex;
+    gap: 6px;
+    margin-block-start: 6px;
+}
+.terminal-tasks-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    border-block-end: 1px solid var(--rule);
+}
+.terminal-tasks-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.terminal-tasks-action:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+}

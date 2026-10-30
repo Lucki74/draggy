@@ -250,6 +250,7 @@ describe("the providers bridge", () => {
       "list",
       "models",
       "onAccountProgress",
+      "onModelsChanged",
       "remove",
       "scan",
       "setKey",

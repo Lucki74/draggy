@@ -91,7 +91,7 @@ export function ChatPreferencesPage({
             onChange={(defaultEffort) => onUpdate({ defaultEffort, effort: defaultEffort })}
           />
         </Row>
-        <Row label={t("newChatStart")} description={t("newChatStartHint")}>
+        <Row label={t("newChatStart")}>
           <Segmented
             label={t("newChatStart")}
             value={settings.newChatStart}
@@ -123,53 +123,6 @@ export function ChatPreferencesPage({
         </Block>
       </Group>
 
-      <Group title={t("interactiveQuestions")}>
-        <Row label={t("enableAiQuestions")} description={t("enableAiQuestionsHint")}>
-          <Toggle
-            checked={settings.aiQuestionsEnabled ?? true}
-            onChange={(aiQuestionsEnabled) => onUpdate({ aiQuestionsEnabled })}
-            label={t("enableAiQuestions")}
-          />
-        </Row>
-        <Row label={t("requireAnswerBeforeContinuing")}>
-          <Toggle
-            checked={settings.aiQuestionsRequireAnswer ?? true}
-            onChange={(aiQuestionsRequireAnswer) => onUpdate({ aiQuestionsRequireAnswer })}
-            label={t("requireAnswerBeforeContinuing")}
-          />
-        </Row>
-        <Row label={t("autoSkipAfterTimeout")}>
-          <Toggle
-            checked={settings.aiQuestionsAutoSkip ?? false}
-            onChange={(aiQuestionsAutoSkip) => onUpdate({ aiQuestionsAutoSkip })}
-            label={t("autoSkipAfterTimeout")}
-          />
-        </Row>
-        <Row label={t("maxQuestionsPerSession")}>
-          <input
-            type="number"
-            min={1}
-            max={10}
-            value={settings.aiQuestionsMaxPerSession ?? 5}
-            onChange={(e) =>
-              onUpdate({ aiQuestionsMaxPerSession: Math.max(1, parseInt(e.target.value, 10) || 5) })
-            }
-            className="h-8 w-20 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          />
-        </Row>
-        <Row label={t("questionTimeoutMinutes")}>
-          <input
-            type="number"
-            min={0}
-            max={60}
-            value={settings.aiQuestionsTimeoutMinutes ?? 0}
-            onChange={(e) =>
-              onUpdate({ aiQuestionsTimeoutMinutes: Math.max(0, parseInt(e.target.value, 10) || 0) })
-            }
-            className="h-8 w-20 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          />
-        </Row>
-      </Group>
     </Page>
   );
 }

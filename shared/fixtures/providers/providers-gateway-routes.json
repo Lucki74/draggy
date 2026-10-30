@@ -261,7 +261,8 @@
             "usage": {
               "prompt_tokens": 4,
               "completion_tokens": 1,
-              "total_tokens": 5
+              "total_tokens": 5,
+              "draggy_usage": { "input": 4, "cacheRead": 0, "cacheWrite": 0, "output": 1, "reasoning": 0, "source": "derived" }
             }
           },
           "[DONE]"
@@ -965,7 +966,8 @@
           "usage": {
             "prompt_tokens": 2,
             "completion_tokens": 1,
-            "total_tokens": 3
+            "total_tokens": 3,
+            "draggy_usage": { "input": 2, "cacheRead": 0, "cacheWrite": 0, "output": 1, "reasoning": 0, "source": "derived" }
           }
         },
         "upstream": [
@@ -1166,7 +1168,8 @@
             "usage": {
               "prompt_tokens": 1,
               "completion_tokens": 1,
-              "total_tokens": 2
+              "total_tokens": 2,
+              "draggy_usage": { "input": 1, "cacheRead": 0, "cacheWrite": 0, "output": 1, "reasoning": 0, "source": "reported" }
             }
           },
           "[DONE]"

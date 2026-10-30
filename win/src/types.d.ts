@@ -1,11 +1,5 @@
 import type { ProviderState } from "./ai/providers";
-export type {
-  QuestionType,
-  QuestionOption,
-  UserQuestion,
-  UserAnswer,
-  QuestionSession,
-} from "./chat/questionTypes";
+import type { PriceTable } from "./stats/cost";
 
 /** Drops one listener from a main-process channel, leaving the others alone. */
 export type Unsubscribe = () => void;
@@ -229,7 +223,52 @@ export interface CommandResult {
   truncated?: boolean;
   durationMs?: number;
   shell?: string;
+  /** Set when the command was moved to the background and is still running as this task. */
+  detached?: boolean;
+  background?: boolean;
+  taskId?: string;
+  task?: BackgroundTask;
+  /** The folder the command ended in, when that is outside the project and was not followed. */
+  outside?: string;
+  notice?: string;
 }
+
+export type BackgroundTaskStatus = "running" | "exited" | "failed" | "stopped";
+
+export interface BackgroundTask {
+  /** `chatId/tN`, unique across chats. */
+  uid: string;
+  /** `tN`, the id the model uses within its chat. */
+  id: string;
+  chatId: string;
+  command: string;
+  shell: string;
+  mode: "pty" | "pipe" | "adopted";
+  status: BackgroundTaskStatus;
+  exitCode: number | null;
+  signal: string | null;
+  startedAt: number;
+  endedAt: number | null;
+  /** True while the task runs on a terminal the user or the model can type into. */
+  canInput: boolean;
+  lastLine: string;
+  error: string | null;
+}
+
+export interface TaskInboxItem {
+  uid: string;
+  id: string;
+  command: string;
+  status: BackgroundTaskStatus;
+  exitCode: number | null;
+  durationMs: number;
+  tail: string;
+}
+
+export type TaskEvent =
+  | { type: "started"; chatId: string; task: BackgroundTask }
+  | { type: "output"; chatId: string; uid: string; chunk: string }
+  | { type: "ended"; chatId: string; task: BackgroundTask; wake: boolean };
 
 export interface RunnerProbe {
   success: boolean;
@@ -406,6 +445,10 @@ export interface SearchStep {
   language?: string;
   stdout?: string;
   stderr?: string;
+  /** On a "command" step: the id the main process knows the run by, which lets it be sent to the background. */
+  runId?: string;
+  /** On a "command" step: the background task it became or started as. */
+  taskId?: string;
   /** On an "edit_file" step: what to hand a revert, and what changed. */
   checkpointId?: number;
   before?: string;
@@ -461,6 +504,10 @@ export interface ImageStepInfo {
   finishedAt?: number;
   /** Already in the reader's language, with a link to the article on it when there is one. */
   error?: string;
+  /** The tracked picture this one started from, such as img_2. */
+  reference?: string;
+  /** The reference was asked for but the picture was drawn from the text alone. */
+  referenceDropped?: boolean;
 }
 
 export interface ImageModelFile {
@@ -538,7 +585,10 @@ export interface ImageRequest {
   fitModel?: boolean;
   lora?: string[];
   model?: string;
-  init?: { kind: "attachment"; dataUrl: string } | { kind: "project"; workspaceId: string; path: string };
+  init?:
+    | { kind: "attachment"; dataUrl: string }
+    | { kind: "project"; workspaceId: string; path: string; optional?: boolean }
+    | { kind: "created"; path: string };
   destination?:
     | { kind: "chat" }
     | { kind: "project"; workspaceId: string; path: string; chatId?: string; overwrite?: boolean };
@@ -554,6 +604,10 @@ export interface ImageResult {
   model?: string;
   checkpointId?: number;
   created?: boolean;
+  /** The starting picture shaped this one. */
+  referenceUsed?: boolean;
+  /** A starting picture was given but the model cannot use one or the file had gone, so only the text was drawn. */
+  referenceDropped?: boolean;
   code?: string;
   error?: string;
   params?: Record<string, string>;
@@ -563,9 +617,8 @@ export interface ImageResult {
  * workspace. "no" is a refusal of the call in front of the user. */
 export type ApprovalAnswer = "once" | "task" | "workspace" | "no";
 
-/** A question the model asks the user: pick from the options, or write an answer. */
-export interface UserQuestion {
-  id: string;
+/** One question the model asks the user: pick from the options, or write an answer. */
+export interface QuestionItem {
   text: string;
   /** Empty means free text only. */
   options: string[];
@@ -573,10 +626,21 @@ export interface UserQuestion {
   multiple: boolean;
 }
 
-/** What the user sent back: the options picked and/or the words written. */
-export interface UserReply {
+/** A question card. It may carry follow-ups that the user steps through in the same card. */
+export interface UserQuestion extends QuestionItem {
+  id: string;
+  more?: QuestionItem[];
+}
+
+/** What the user sent back for one question: the options picked and/or the words written. */
+export interface QuestionAnswer {
   choices: string[];
   text: string;
+}
+
+/** The answers to a card: the first question's own, plus one per follow-up in order. */
+export interface UserReply extends QuestionAnswer {
+  more?: QuestionAnswer[];
 }
 
 export interface TurnMetrics {
@@ -595,7 +659,26 @@ export interface TurnMetrics {
   contextTokens?: number;
   /** What the prompt was spent on, measured on the last pass of the turn. */
   breakdown?: ContextBreakdown;
+  /** One entry per request the turn made, so a long prompt that moved one request into a dearer tier prices right. */
+  passUsage?: import("./stats/tokenUsage").TokenUsage[];
+  /** Who answered, who pays and what it came to. Absent on replies from before costs were kept. */
+  cost?: TurnCost;
 }
+
+/** The part of a recorded turn that is about money. */
+export type TurnCost = Pick<
+  MetricRow,
+  | "providerId"
+  | "kind"
+  | "inputTokens"
+  | "cacheReadTokens"
+  | "cacheWriteTokens"
+  | "outputTokens"
+  | "reasoningTokens"
+  | "costMicros"
+  | "costSource"
+  | "priceUpdatedAt"
+>;
 
 export interface ApiServerStatus {
   success: boolean;
@@ -637,6 +720,21 @@ export interface MetricRow {
   taskMs: number;
   loops: number;
   tools: Record<string, number>;
+  /** Which provider instance answered; absent for the built-in engine and for rows from before costs were kept. */
+  providerId?: string | null;
+  /** Who pays for the turn. Absent on old rows, which the statistics page prices from the model name. */
+  kind?: "billed" | "account" | "local" | null;
+  /** The token split, summed over the turn's passes. Null where the engine reported no split. */
+  inputTokens?: number | null;
+  cacheReadTokens?: number | null;
+  cacheWriteTokens?: number | null;
+  outputTokens?: number | null;
+  reasoningTokens?: number | null;
+  /** Whole micro-dollars, or null when no price was known. Never 0 for "unknown". */
+  costMicros?: number | null;
+  costSource?: "reported" | "table" | "estimated" | "unknown" | null;
+  /** The price table's `generatedAt` the figure was worked out from. */
+  priceUpdatedAt?: string | null;
 }
 
 export type GitChangeKind =
@@ -749,7 +847,7 @@ export interface MessageVersion {
 }
 
 /** Why a turn failed, which decides what the failure offers. */
-export type TurnErrorKind = "engine" | "memory" | "network" | "rate-limit" | "context" | "unknown";
+export type TurnErrorKind = "engine" | "memory" | "network" | "rate-limit" | "context" | "budget" | "unknown";
 
 /** A message written while a turn ran, sent when it ends. */
 export interface QueuedMessage {
@@ -961,8 +1059,6 @@ export interface ChatSession {
   pinned?: boolean;
   /** Finished while the user was elsewhere. */
   unread?: boolean;
-  /** Whether interactive AI questions are toggled off for this chat. */
-  aiQuestionsDisabled?: boolean;
   /** How much work the transcript shows. Missing means normal. */
   view?: import("./chat/transcriptView").TranscriptView;
   /** Saved dock panes, active tab and width for this session. */
@@ -1093,6 +1189,40 @@ export type Language = "en" | "fr" | "es" | "zh";
 /** How hard a model reasons. Off sends no reasoning; each level above it asks for more. */
 export type EffortLevel = "off" | "low" | "medium" | "high" | "max";
 
+/** A daily and a monthly cap in micro-dollars; null leaves that period unlimited. */
+export interface BudgetLimits {
+  dailyMicros: number | null;
+  monthlyMicros: number | null;
+}
+
+/** Caps on what billed replies may cost. Reaching one stops new cloud sends until the user continues anyway. */
+export interface BudgetSettings {
+  enabled: boolean;
+  global: BudgetLimits;
+  /** Per provider instance id. */
+  providers: Record<string, BudgetLimits>;
+}
+
+/** Where the price table and the exchange rates stand, as the main process last saw them. */
+export interface PricingStatus {
+  origin: "live" | "bundled" | "none";
+  pricesGeneratedAt: string | null;
+  priceCount: number;
+  ratesDate: string | null;
+  pricesAt: number | null;
+  pricesError: string | null;
+  ratesAt: number | null;
+  ratesError: string | null;
+}
+
+/** Units of each currency for one US dollar. */
+export interface ExchangeRates {
+  base: "USD";
+  date: string;
+  fetchedAt: number;
+  rates: Record<string, number>;
+}
+
 export interface AppSettings {
   /** "system" follows the operating system, and is what a new install starts on. */
   theme: "light" | "dark" | "system";
@@ -1165,12 +1295,13 @@ export interface AppSettings {
   imageModel: string;
   /** The size images are drawn at, as width and height in pixels: "1024x1024". */
   imageResolution: string;
-  aiQuestionsEnabled?: boolean;
-  aiQuestionsRequireAnswer?: boolean;
-  aiQuestionsShowSessionBar?: boolean;
-  aiQuestionsAutoSkip?: boolean;
-  aiQuestionsMaxPerSession?: number;
-  aiQuestionsTimeoutMinutes?: number;
+  budgets?: BudgetSettings;
+  /** Fetch fresh prices and exchange rates in the background. */
+  priceRefresh?: boolean;
+  /** ISO code the costs are shown in. They are stored in US dollars either way. */
+  displayCurrency?: string;
+  /** The model a local reply is priced against for "saved", as `provider/model`. */
+  referenceModel?: string;
 }
 
 declare global {
@@ -1449,6 +1580,24 @@ declare global {
         clear: () => Promise<{ success: boolean; removed?: number }>;
       };
 
+      pricing: {
+        /** The rate card replies are priced from: a refreshed copy when there is one, else the snapshot that ships. */
+        table: () => Promise<{ success: boolean; table?: PriceTable; origin?: "live" | "bundled" }>;
+        /** Turns the background refresh on or off. Off sends nothing on its own. */
+        configure: (options: { automatic: boolean }) => Promise<{ success: boolean }>;
+        /** The user asked for fresh prices and rates now. */
+        refresh: () => Promise<{
+          success: boolean;
+          prices?: { ok: boolean; error?: string };
+          rates?: { ok: boolean; error?: string };
+          status?: PricingStatus;
+        }>;
+        status: () => Promise<{ success: boolean; status?: PricingStatus }>;
+        /** Units of each currency per US dollar, or null before the first download. */
+        rates: () => Promise<{ success: boolean; rates?: ExchangeRates | null }>;
+        onUpdated: (callback: (status: PricingStatus) => void) => () => void;
+      };
+
       git: {
         /** Where the project's repository stands. Hidden when git or the repository is absent. */
         status: (workspaceId: string) => Promise<GitStatus>;
@@ -1546,11 +1695,51 @@ declare global {
           workspaceId: string,
           runId: string,
           command: string,
-          options?: { shell?: string; defaultShell?: string; timeoutMs?: number },
+          options?: {
+            shell?: string;
+            defaultShell?: string;
+            timeoutMs?: number;
+            /** The chat the command belongs to: its folder, environment and tasks carry over. */
+            chatId?: string;
+            /** Start it as a background task and return at once. */
+            background?: boolean;
+            /** Move it to the background at the time limit instead of stopping it. Default true. */
+            autoDetach?: boolean;
+          },
         ) => Promise<CommandResult>;
         cancel: (runId: string) => Promise<{ success: boolean }>;
+        /** Moves a running foreground command to the background. */
+        detach: (runId: string) => Promise<{ success: boolean; taskId?: string; error?: string }>;
+        /** Forgets the folder and environment a chat's commands built up. */
+        resetState: (chatId: string) => Promise<{ success: boolean }>;
         /** Output of a running command as it arrives. */
         onOutput: (callback: (event: { runId: string; chunk: string }) => void) => () => void;
+      };
+
+      tasks: {
+        list: (chatId: string) => Promise<{ success: boolean; tasks?: BackgroundTask[] }>;
+        output: (
+          chatId: string,
+          id: string,
+          options?: { since?: number; tail?: number; grep?: string; max_chars?: number },
+        ) => Promise<{ success: boolean; error?: string; task?: BackgroundTask; output?: string; truncated?: boolean; next?: number }>;
+        wait: (
+          chatId: string,
+          id: string,
+          options?: { seconds?: number; until?: string; waitId?: string },
+        ) => Promise<{ success: boolean; error?: string; reason?: "ended" | "matched" | "timeout" | "aborted"; task?: BackgroundTask }>;
+        abortWait: (waitId: string) => Promise<{ success: boolean }>;
+        stop: (chatId: string, id: string) => Promise<{ success: boolean; error?: string; task?: BackgroundTask; alreadyEnded?: boolean }>;
+        write: (chatId: string, id: string, data: string) => Promise<{ success: boolean; error?: string; task?: BackgroundTask }>;
+        /** Keystrokes from the user's terminal view. No reply. */
+        input: (chatId: string, id: string, data: string) => void;
+        resize: (uid: string, cols: number, rows: number) => Promise<{ success: boolean }>;
+        snapshot: (uid: string) => Promise<{ success: boolean; error?: string; task?: BackgroundTask; data?: string }>;
+        /** Tasks that ended since the model last looked; each is returned once. */
+        takeInbox: (chatId: string) => Promise<{ success: boolean; items?: TaskInboxItem[] }>;
+        hasRunning: (chatId: string) => Promise<{ success: boolean; running?: boolean }>;
+        forget: (chatId: string) => Promise<{ success: boolean }>;
+        onEvent: (callback: (event: TaskEvent) => void) => () => void;
       };
 
       shell: {
@@ -1720,6 +1909,7 @@ declare global {
         /** Never downloads the runtime: one not installed yet answers signed out. */
         accountStatus: (id: string) => Promise<ProviderResult<{ status: AccountStatus }>>;
         onAccountProgress: (callback: (progress: AccountProgress) => void) => Unsubscribe;
+        onModelsChanged: (callback: (change: { id: string; added: string[] }) => void) => Unsubscribe;
       };
 
       appInfo: () => Promise<AppInfo>;

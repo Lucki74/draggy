@@ -598,6 +598,16 @@ export function WorkBlock({
               {isReverted ? t("changeUndone") : t("undoChange")}
             </button>
           )}
+          {isActive && step.type === "command" && step.runId && (
+            <button
+              type="button"
+              onClick={() => void window.electronAPI?.commands?.detach(step.runId as string)}
+              title={`${t("sendToBackground")} (Ctrl+Alt+B)`}
+              className="text-[12px] text-text-secondary hover:text-text-primary underline-offset-2 hover:underline"
+            >
+              {t("sendToBackground")}
+            </button>
+          )}
           {isActive && <Spark />}
         </span>
       </div>

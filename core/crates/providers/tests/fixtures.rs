@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use draggy_providers::adapters::common::{Connection, ListedModel, Stream};
 use draggy_providers::adapters::{anthropic, gemini, ollama, openai};
+use draggy_providers::autopin::plan_pins;
 use draggy_providers::catalog::{Catalog, CatalogEntry, capabilities_for, problem_with};
 use draggy_providers::discovery::{Discovery, ports};
 use draggy_providers::errors::{
@@ -22,6 +23,7 @@ use draggy_providers::sse::{Delta, SseWriter, completion};
 use draggy_providers::types::{
     ChatRequest, FinishReason, ProviderError, ProviderState, StreamEvent, Usage,
 };
+use draggy_providers::usage::{from_anthropic, from_codex, from_gemini, from_openai, from_totals};
 use draggy_testkit::{cases, files};
 use serde_json::{Map, Value, json};
 
@@ -715,6 +717,7 @@ fn sse_case(input: &Value) -> Value {
         let usage = Usage {
             prompt_tokens: args["usage"]["promptTokens"].as_u64().unwrap_or_default(),
             output_tokens: args["usage"]["outputTokens"].as_u64().unwrap_or_default(),
+            ..Usage::default()
         };
         let tool_calls: Vec<Value> = args
             .get("toolCalls")
@@ -754,6 +757,7 @@ fn sse_case(input: &Value) -> Value {
                 let usage = Usage {
                     prompt_tokens: op["usage"]["promptTokens"].as_u64().unwrap_or_default(),
                     output_tokens: op["usage"]["outputTokens"].as_u64().unwrap_or_default(),
+                    ..Usage::default()
                 };
                 writer.finish(text(op.get("reason")).map(|r| finish_reason(&r)), usage);
             }
@@ -799,23 +803,99 @@ fn parse_frame(frame: &str) -> Value {
     serde_json::from_str(payload).expect("a frame carries JSON")
 }
 
+/// These fixtures pin the legacy prompt and output counts; the token split has its own `usage` fixture.
+fn without_split(mut value: Value) -> Value {
+    match &mut value {
+        Value::Object(map) => {
+            if let Some(Value::Object(usage)) = map.get_mut("usage") {
+                usage.remove("tokens");
+            }
+            for child in map.values_mut() {
+                *child = without_split(child.take());
+            }
+        }
+        Value::Array(items) => {
+            for child in items.iter_mut() {
+                *child = without_split(child.take());
+            }
+        }
+        _ => {}
+    }
+    value
+}
+
+fn usage_case(input: &Value) -> Value {
+    let payload = input.get("payload");
+    let count = |key: &str| {
+        payload
+            .and_then(|p| p.get(key))
+            .and_then(Value::as_u64)
+            .unwrap_or_default()
+    };
+    let usage = match input["vendor"].as_str().unwrap_or_default() {
+        "anthropic" => from_anthropic(payload),
+        "openai" => from_openai(payload),
+        "gemini" => from_gemini(payload),
+        "codex" => from_codex(payload),
+        "totals" => from_totals(count("prompt"), count("output")),
+        other => panic!("unknown usage vendor {other}"),
+    };
+    json!({
+        "promptTokens": usage.prompt_tokens,
+        "outputTokens": usage.output_tokens,
+        "tokens": usage.tokens,
+    })
+}
+
+fn autopin_case(input: &Value) -> Value {
+    let entry: CatalogEntry = serde_json::from_value(json!({
+        "id": "fixture",
+        "name": "Fixture",
+        "kind": "cloud",
+        "protocol": "openai",
+        "auth": "bearer",
+        "noisePatterns": input["noisePatterns"].clone(),
+    }))
+    .expect("a fixture entry reads");
+    let list = |value: &Value| -> Option<Vec<String>> {
+        value.as_array().map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect()
+        })
+    };
+    let listed = list(&input["listed"]).unwrap_or_default();
+    let pinned = list(&input["pinned"]).unwrap_or_default();
+    let seen = list(&input["seen"]);
+    let plan = plan_pins(Some(&entry), &listed, &pinned, seen.as_deref());
+    json!({
+        "seenModels": plan.seen_models,
+        "pinnedModels": plan.pinned_models,
+        "added": plan.added,
+    })
+}
+
 /// Runs one case of the named fixture file through the port.
 fn run(area: &str, input: &Value) -> Value {
     match area {
+        "autopin" => autopin_case(input),
         "sse" => sse_case(input),
         "errors" => errors_case(input),
         "catalog" => catalog_case(input),
         "requests" => requests_case(input),
         "streams" => {
             let events = stream_events(input);
-            Value::Array(events.iter().map(view_json).collect())
+            Value::Array(events.iter().map(view_json).map(without_split).collect())
         }
-        "answers" => answers_case(input),
+        "answers" => without_split(answers_case(input)),
         "listings" => listings_case(input),
         "models" => models_case(input),
         "registry" => registry_case(input),
         "remote" => remote_case(input),
         "discovery" => discovery_case(input),
+        "usage" => usage_case(input),
         other => panic!("no runner for fixture area {other}"),
     }
 }

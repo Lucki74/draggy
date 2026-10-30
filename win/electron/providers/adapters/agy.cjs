@@ -6,6 +6,7 @@ const platform = require("../../platform.cjs");
 const { googleFailure, parseGoogleError } = require("../google/failure.cjs");
 const { flatten, textOf } = require("./claude.cjs");
 const { log } = require("../../logger.cjs");
+const { fromTotals } = require("../usage.cjs");
 
 const PRINT_TIMEOUT = "5m";
 // The CLI's own timeout plus a minute, for a process that hangs past it.
@@ -57,7 +58,7 @@ function toPrompt(messages) {
 }
 
 function usageOf(usage) {
-  return { promptTokens: usage?.input_tokens ?? usage?.prompt_tokens ?? 0, outputTokens: usage?.output_tokens ?? usage?.completion_tokens ?? 0 };
+  return fromTotals(usage?.input_tokens ?? usage?.prompt_tokens, usage?.output_tokens ?? usage?.completion_tokens);
 }
 
 /** Reads the NDJSON stream one event at a time. `on` gets `{ delta, tool, init, result }` calls. */
@@ -274,10 +275,10 @@ function createAgyAdapter({
   }
 
   /** `agy models` lists the model slugs; the first word of each line is the slug. */
-  async function models() {
+  async function models(instanceId, { refresh = false } = {}) {
     const state = readState();
     if (!state.signedIn) return [];
-    if (!listed) {
+    if (refresh || !listed) {
       const binary = locate({ env }) || state.binary;
       if (!binary) return [];
       const answer = await run(binary, ["models"]);
@@ -316,7 +317,7 @@ function createAgyAdapter({
   }
 
   debug("agy adapter ready");
-  return { stream, signIn, submitCode: () => false, cancel, signOut, status, download: () => null, models, stopAll };
+  return { stream, signIn, submitCode: () => false, cancel, signOut, status, download: () => null, models, busy: () => running !== null, stopAll };
 }
 
 module.exports = { createAgyAdapter, locateAgy, judgeBuild, toPrompt, createEventReader, resultFailure };

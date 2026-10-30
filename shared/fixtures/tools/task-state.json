@@ -1,0 +1,211 @@
+{
+  "area": "tools",
+  "description": "How a command's final folder and environment reach the next command. Input has op: supports (shell) says whether a shell can report state; epilogue (shell, marker) is the text appended to the command; parse (output, marker) splits output into {output, state} where state is {cwd, env} or null; diff (before, after) returns {set, unset} ignoring shell-rewritten variables; apply (base, diff) returns the environment a diff produces.",
+  "cases": [
+    {
+      "name": "bash can report state",
+      "input": {
+        "op": "supports",
+        "shell": "bash"
+      },
+      "expected": {
+        "supported": true
+      }
+    },
+    {
+      "name": "powershell can report state",
+      "input": {
+        "op": "supports",
+        "shell": "pwsh"
+      },
+      "expected": {
+        "supported": true
+      }
+    },
+    {
+      "name": "cmd cannot report state",
+      "input": {
+        "op": "supports",
+        "shell": "cmd"
+      },
+      "expected": {
+        "supported": false
+      }
+    },
+    {
+      "name": "bash epilogue keeps the exit code",
+      "input": {
+        "op": "epilogue",
+        "shell": "bash",
+        "marker": "DGab12"
+      },
+      "expected": {
+        "text": "\n__dg_rc=$?\nprintf '\\n%s\\n' \"DGab12:cwd:$(pwd -W 2>/dev/null || pwd)\"\nenv | sed \"s/^/DGab12:env:/\"\nprintf '%s\\n' \"DGab12:end\"\nexit $__dg_rc"
+      }
+    },
+    {
+      "name": "powershell epilogue keeps the exit code",
+      "input": {
+        "op": "epilogue",
+        "shell": "pwsh",
+        "marker": "DGab12"
+      },
+      "expected": {
+        "text": "\n$__dgOk = $?; $__dgRc = $LASTEXITCODE\nWrite-Output \"DGab12:cwd:$((Get-Location).Path)\"\nGet-ChildItem Env: | ForEach-Object { Write-Output \"DGab12:env:$($_.Name)=$($_.Value)\" }\nWrite-Output \"DGab12:end\"\nif ($__dgRc) { exit $__dgRc } elseif (-not $__dgOk) { exit 1 }"
+      }
+    },
+    {
+      "name": "cmd has no epilogue",
+      "input": {
+        "op": "epilogue",
+        "shell": "cmd",
+        "marker": "DGab12"
+      },
+      "expected": {
+        "text": null
+      }
+    },
+    {
+      "name": "a report is split from the output",
+      "input": {
+        "op": "parse",
+        "marker": "DGab12",
+        "output": "built\n\nDGab12:cwd:/work/app\nDGab12:env:A=1\nDGab12:env:B=x=y\nDGab12:end\n"
+      },
+      "expected": {
+        "output": "built\n",
+        "state": {
+          "cwd": "/work/app",
+          "env": {
+            "A": "1",
+            "B": "x=y"
+          }
+        }
+      }
+    },
+    {
+      "name": "output without a trailing newline keeps its text",
+      "input": {
+        "op": "parse",
+        "marker": "DGab12",
+        "output": "built\nDGab12:cwd:/work\nDGab12:end\n"
+      },
+      "expected": {
+        "output": "built",
+        "state": {
+          "cwd": "/work",
+          "env": {}
+        }
+      }
+    },
+    {
+      "name": "no report means no state",
+      "input": {
+        "op": "parse",
+        "marker": "DGab12",
+        "output": "killed early\n"
+      },
+      "expected": {
+        "output": "killed early\n",
+        "state": null
+      }
+    },
+    {
+      "name": "a look-alike marker is not a report",
+      "input": {
+        "op": "parse",
+        "marker": "DGab12",
+        "output": "DGzz99:cwd:/evil\nDGzz99:end\n"
+      },
+      "expected": {
+        "output": "DGzz99:cwd:/evil\nDGzz99:end\n",
+        "state": null
+      }
+    },
+    {
+      "name": "env lines without equals are skipped",
+      "input": {
+        "op": "parse",
+        "marker": "DGab12",
+        "output": "x\nDGab12:cwd:/w\nDGab12:env:novalue\nDGab12:env:K=v\nDGab12:end\n"
+      },
+      "expected": {
+        "output": "x",
+        "state": {
+          "cwd": "/w",
+          "env": {
+            "K": "v"
+          }
+        }
+      }
+    },
+    {
+      "name": "diff finds changed added and removed variables",
+      "input": {
+        "op": "diff",
+        "before": {
+          "A": "1",
+          "C": "3",
+          "PWD": "/a"
+        },
+        "after": {
+          "A": "2",
+          "B": "b",
+          "PWD": "/b"
+        }
+      },
+      "expected": {
+        "set": {
+          "A": "2",
+          "B": "b"
+        },
+        "unset": [
+          "C"
+        ]
+      }
+    },
+    {
+      "name": "diff ignores variables the shell rewrites",
+      "input": {
+        "op": "diff",
+        "before": {
+          "SHLVL": "1",
+          "_": "/bin/a",
+          "__dg_rc": "0"
+        },
+        "after": {
+          "SHLVL": "2",
+          "_": "/bin/b",
+          "__dg_rc": "1"
+        }
+      },
+      "expected": {
+        "set": {},
+        "unset": []
+      }
+    },
+    {
+      "name": "apply sets and removes",
+      "input": {
+        "op": "apply",
+        "base": {
+          "A": "1",
+          "C": "3"
+        },
+        "diff": {
+          "set": {
+            "A": "2",
+            "B": "b"
+          },
+          "unset": [
+            "C"
+          ]
+        }
+      },
+      "expected": {
+        "A": "2",
+        "B": "b"
+      }
+    }
+  ]
+}

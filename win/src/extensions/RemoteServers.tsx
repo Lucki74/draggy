@@ -87,7 +87,6 @@ export default function RemoteServers({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <p className="min-w-[200px] flex-1 text-[13px] leading-5 text-text-secondary">{t("remoteServerHint")}</p>
         <Button variant="secondary" size="dense" icon={<Icon name="plus" size={14} />} onClick={() => setAdding(true)}>
           {t("addRemoteServer")}
         </Button>

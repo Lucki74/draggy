@@ -109,7 +109,7 @@ const LIBRARY_PROMPT: &str = r##"The user indexed local documents in a private l
 
 const COMMANDS_PROMPT: &str = r##"Execute terminal commands in the project folder with run_command using the local shell. Run tests, builds, linting, git, or gh; prefer existing project scripts.
 Environment: Windows. Commands run in bash (Git for Windows) when it is installed and in PowerShell otherwise; the result names the shell that ran. Write POSIX syntax for bash and PowerShell syntax for pwsh, or pass shell to choose.
-Commands cannot receive input while running, so pass flags that avoid prompts and pagers. The user sees commands and may be asked to approve them. Destructive operations (force push, history rewrite, unprompted file deletion) are forbidden. Verify outcomes before reporting success."##;
+The folder and environment variables a command ends with carry over to the next one. Pass flags that avoid prompts and pagers. A server, watcher or long job goes in the background with background: true, or moves there by itself at the time limit; read it with task_output, wait with task_wait, stop it with task_stop, and answer a prompt it shows with task_input. You are told when a background task ends. The user sees commands and may be asked to approve them. Destructive operations (force push, history rewrite, unprompted file deletion) are forbidden. Verify outcomes before reporting success."##;
 
 const PLAN_PROMPT: &str = r##"For multi-step work, initialize a checklist via update_plan before starting, updating it as steps complete so the user can track progress. Single questions or one-step tasks require no plan. If the user edits the plan, follow their updated checklist."##;
 
@@ -146,7 +146,7 @@ Example: renaming formatDate means search_files for "formatDate", edit the defin
 
 const FULL_PLAN_PROMPT: &str = r##"The checklist, in more detail: keep each item short and concrete ("Add the settings field", not "Work on settings"), and mark an item done as soon as it is, not all at the end. When the work changes, change the plan too rather than leaving stale items."##;
 
-const FULL_COMMANDS_PROMPT: &str = r##"Commands, in more detail: try read-only commands (git status, git diff, listing files, running the tests) before changing anything. If the user declines a command, that is their answer: do not retry it or reach the same result another way; say what you wanted to do and ask."##;
+const FULL_COMMANDS_PROMPT: &str = r##"Commands, in more detail: try read-only commands (git status, git diff, listing files, running the tests) before changing anything. If the user declines a command, that is their answer: do not retry it or reach the same result another way; say what you wanted to do and ask. Do not wait on a background task by running sleep: use task_wait, or carry on with other work. Stop the tasks you started once they are no longer needed."##;
 
 const THINKING_LOW: &str = "REASONING EFFORT: LOW (target: under 1,000 reasoning tokens). Keep reasoning concise, focused and linear. Identify the main solution path without exhaustive branching or circular re-checking, then answer promptly.";
 

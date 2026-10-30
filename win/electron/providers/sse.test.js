@@ -38,6 +38,22 @@ describe("a provider's answer, in llama-server's shape", () => {
     expect(last).toMatchObject({ done: true, done_reason: "tool_calls", prompt_eval_count: 12, eval_count: 5 });
   });
 
+  it("passes the token split along beside the llama-server counts", async () => {
+    const tokens = { input: 8, cacheRead: 4, cacheWrite: 0, output: 5, reasoning: 0, source: "reported" };
+    const chunks = await readBack((sse) => {
+      sse.delta({ content: "Hi" });
+      sse.finish("stop", { promptTokens: 12, outputTokens: 5, tokens });
+      sse.done();
+    });
+    expect(chunks.find((c) => c.done)).toMatchObject({ prompt_eval_count: 12, eval_count: 5, usage: { draggy_usage: tokens } });
+    expect(completion({ content: "ok", usage: { promptTokens: 12, outputTokens: 5, tokens } }).usage).toEqual({
+      prompt_tokens: 12,
+      completion_tokens: 5,
+      total_tokens: 17,
+      draggy_usage: tokens,
+    });
+  });
+
   it("carries a length stop through as `length`", async () => {
     const chunks = await readBack((sse) => {
       sse.delta({ content: "cut" });

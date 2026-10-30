@@ -2,7 +2,8 @@
 
 Draggy runs on your machine and, unless you add a provider, talks to a model on
 your machine. There is no server, no account and no telemetry, so most of the usual web attack surface
-does not exist here. What is left is still worth taking seriously: Draggy reads
+does not exist here. The only background request is the price refresh for the cost counters: a GET
+to three fixed public URLs that carries nothing from your chats, and Settings can switch it off. What is left is still worth taking seriously: Draggy reads
 web pages, opens files you hand it, runs short programs, and can start extension
 servers written by other people. Any of those can carry something hostile.
 

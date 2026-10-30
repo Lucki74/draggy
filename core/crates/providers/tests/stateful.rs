@@ -486,6 +486,7 @@ fn an_answer_is_timed_from_the_first_token_to_the_last() {
         Usage {
             prompt_tokens: 3,
             output_tokens: 4,
+            ..Usage::default()
         },
     );
     let frame = writer.take_frames().pop().expect("the finish frame");

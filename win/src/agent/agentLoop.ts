@@ -1,3 +1,4 @@
+import { imageIndex, trackImages } from "../images/imageTracker";
 import {
   KEEP_ALIVE,
   beginLlamaWork,
@@ -100,6 +101,7 @@ import {
   logRendererOnce, newCorrelationId, swallowed } from "../logger";
 import { generateId, isBinary, safeJsonParse } from "../utils";
 import { raceAbort } from "./abortRace";
+import { describeEnded, inputFor, isHarmlessInput } from "../tools/tasks";
 import type {
   AppSettings,
   ApprovalAnswer,
@@ -392,7 +394,11 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     ...request.settings,
     ...(cannotUseTools ? { webMode: "off" as const } : {}),
   };
-  const sized = { ...request.environment, compactTools: (info?.promptProfile ?? "compact") === "compact" };
+  const sized = {
+    ...request.environment,
+    compactTools: (info?.promptProfile ?? "compact") === "compact",
+    vision: hasCapability(info, "vision"),
+  };
   const environment = cannotUseTools ? withoutTools(sized) : sized;
 
   // A probe that failed is not proof a model cannot call tools: the engine may
@@ -477,6 +483,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       model,
     ),
     loadedSection,
+    environment.imageReady ? imageIndex(trackImages(messages)) : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -836,13 +843,19 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     if (signal.aborted) return CANCELLED_RESULT;
     toolCalls[name] = (toolCalls[name] ?? 0) + 1;
 
-    const target = targetFromArgs(args);
+    // Typing into a task is a command in all but name: the user is asked about the text itself, and
+    // a plain y/n or a key press is let through.
+    const typing = name === "task_input";
+    const target = typing ? (inputFor(args)?.replace(/\r$/, "") ?? null) : targetFromArgs(args);
     const annotations = annotationsFor(name);
     const shell = typeof args.shell === "string" ? args.shell : null;
-    const verdict = decide({ mode, tool: name, annotations, target, grants, shell });
+    const verdict =
+      typing && isHarmlessInput(args)
+        ? ({ decision: "allow", reason: "An answer to a prompt." } as const)
+        : decide({ mode, tool: name, annotations, target, grants, shell });
     const kind = annotations.executes ? ("command" as const) : undefined;
     // What "always" would remember, shown on the card so the user knows before choosing.
-    const remembered = grantsFor(name, target, annotations, shell);
+    const remembered = typing ? [] : grantsFor(name, target, annotations, shell);
 
     if (verdict.decision === "allow") {
       const toolStart = performance.now();
@@ -985,6 +998,9 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     invokedSkills,
   } = await prepareTurn(request);
   toolContext.vision = nativeVision;
+  // The tool list was built with this flag, so a call to a tool that needs it is checked against the same one.
+  environment.vision = nativeVision;
+  toolContext.images = trackImages(request.messages);
   const loopLimit = toolLoopLimit(slow, MAX_TOOL_LOOPS);
   const turnStartedAt = Date.now();
 
@@ -1114,6 +1130,12 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       wire.push({ role: "user", content: note });
     }
     if (steering.length > 0) host.onSteps([...steps]);
+
+    // Background tasks that ended since the model last looked are reported once, here.
+    if (toolContext.chatId) {
+      const ended = await window.electronAPI?.tasks?.takeInbox(toolContext.chatId).catch(swallowed("agent", "the report of ended tasks is retried on the next request", null));
+      if (ended?.items && ended.items.length > 0) wire.push({ role: "user", content: describeEnded(ended.items) });
+    }
 
     const loopController = new AbortController();
     const abortHandler = () => loopController.abort();

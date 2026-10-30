@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from "react";
+import { useContext, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import StreamingMarkdown from "./StreamingMarkdown";
 import { copyAsMarkdown } from "./copyMarkdown";
@@ -8,6 +8,7 @@ import { showsTailMark } from "./indicator";
 import WorkingStatus from "./WorkingStatus";
 import WorkBlock from "./WorkBlock";
 import WorkGroup from "./WorkGroup";
+import { TaskChip } from "./TaskChip";
 import { isWorkStep, touchedFiles } from "./workSummary";
 import { OpenFileContext } from "./openFileContext";
 import { useTranscriptView } from "./transcriptView";
@@ -16,10 +17,6 @@ import { Button, Chip, Icon, Lightbox, Spark } from "../ui";
 import { formatTokenCount } from "../agent/contextBreakdown";
 import { normalizeMath, sanitizeContent } from "../utils";
 import { continuesBody } from "./continuation";
-import { parseQuestions } from "./questionParser";
-import { useQuestionSessionContext } from "./questionSessionContext";
-import { QuestionCard } from "./components/QuestionCard";
-import { QuestionHistoryCard } from "./components/QuestionHistoryCard";
 import {
   MARKDOWN_COMPONENTS,
   REHYPE_PLUGINS,
@@ -43,6 +40,7 @@ const ERROR_KIND_KEYS: Record<Exclude<TurnErrorKind, "unknown">, string> = {
   network: "errorKindNetwork",
   "rate-limit": "errorKindRateLimit",
   context: "errorKindContext",
+  budget: "errorKindBudget",
 };
 
 // Summarizes compacted history tokens so the user knows where earlier context was saved.
@@ -132,40 +130,6 @@ export function AssistantTurn({
       ? t(ERROR_KIND_KEYS[displayMsg.errorKind])
       : null;
   const view = useTranscriptView();
-  const questionCtx = useQuestionSessionContext();
-
-  const matchingSession = useMemo(() => {
-    if (!questionCtx) return null;
-    const parsed = parseQuestions(text);
-    if (!parsed.hasQuestions && !text.includes('"_draggy"')) return null;
-
-    // 1. Match by messageId
-    let match = questionCtx.sessions.find((s) => s.messageId === msg.id);
-    if (match) return match;
-
-    // 2. Match by sessionId
-    if (parsed.sessionId) {
-      match = questionCtx.sessions.find(
-        (s) => s.id === parsed.sessionId || s.metadata?.parsedSessionId === parsed.sessionId,
-      );
-      if (match) return match;
-    }
-
-    // 3. Match by question IDs
-    if (parsed.questions.length > 0) {
-      match = questionCtx.sessions.find((s) =>
-        s.questions.some((q) => parsed.questions.some((pq) => pq.id === q.id)),
-      );
-      if (match) return match;
-    }
-
-    // 4. Fallback for active session on last turn
-    if (isLast && questionCtx.activeSession && parsed.hasQuestions) {
-      return questionCtx.activeSession;
-    }
-
-    return null;
-  }, [questionCtx, msg.id, text, isLast]);
   // Changes put back this session, leaving message text as the historical record.
   const [reverted, setReverted] = useState<ReadonlySet<number>>(new Set());
   // In a project the file opens in the canvas; elsewhere it lives in the output folder.
@@ -353,7 +317,7 @@ export function AssistantTurn({
             <div key={bodyKey} className={isFailed ? "mb-3" : undefined}>
               {live ? (
                 <StreamingMarkdown
-                  source={normalizeMath(parseQuestions(text).cleanText)}
+                  source={normalizeMath(text)}
                   streaming={isGenerating}
                   animateOnMount={false}
                   components={MARKDOWN_COMPONENTS}
@@ -364,27 +328,8 @@ export function AssistantTurn({
                   rehypePlugins={REHYPE_PLUGINS}
                   components={MARKDOWN_COMPONENTS}
                 >
-                  {normalizeMath(parseQuestions(text).cleanText)}
+                  {normalizeMath(text)}
                 </ReactMarkdown>
-              )}
-              {matchingSession && (
-                matchingSession.status === "active" ? (
-                  <QuestionCard
-                    key={matchingSession.id}
-                    session={matchingSession}
-                    onAnswer={questionCtx?.onAnswer ?? (() => {})}
-                    onSkip={questionCtx?.onSkip}
-                    onNavigate={questionCtx?.onNavigate}
-                    onComplete={questionCtx?.onComplete}
-                    t={questionCtx?.t ?? t}
-                  />
-                ) : (
-                  <QuestionHistoryCard
-                    key={matchingSession.id}
-                    session={matchingSession}
-                    t={questionCtx?.t ?? t}
-                  />
-                )
               )}
             </div>
           ) : null,
@@ -422,7 +367,7 @@ export function AssistantTurn({
                     icon={<Icon name="arrow-clockwise" size={16} />}
                     onClick={() => onRegenerate(idx)}
                   >
-                    {t("regenerateResponse")}
+                    {t(displayMsg.errorKind === "budget" ? "budgetContinue" : "regenerateResponse")}
                   </Button>
                   {hasGeneratedText && onResume && (
                     <Button variant="ghost" size="dense" onClick={onResume}>
@@ -460,6 +405,8 @@ export function AssistantTurn({
           ))}
         </div>
       )}
+
+      {isLast && !isFailed && <TaskChip chatId={chatId} t={t} />}
 
       {!isFailed && (displayMsg.stopped || msg.interrupted) && (
         <div role="status" className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-text-secondary">

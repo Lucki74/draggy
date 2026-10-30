@@ -11,6 +11,7 @@ mod services;
 mod settings_dialog;
 mod skills_view;
 mod state;
+mod tasks_view;
 mod ui;
 mod window;
 

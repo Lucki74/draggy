@@ -10,12 +10,14 @@ import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const sseMod = require("../../../electron/providers/sse.cjs");
+const usageMod = require("../../../electron/providers/usage.cjs");
 const errors = require("../../../electron/providers/errors.cjs");
 const catalog = require("../../../electron/providers/catalog.cjs");
 const registryMod = require("../../../electron/providers/registry.cjs");
 const modelsMod = require("../../../electron/providers/models.cjs");
 const remote = require("../../../electron/providers/remoteCatalog.cjs");
 const discovery = require("../../../electron/providers/discovery.cjs");
+const autoPin = require("../../../electron/providers/autoPin.cjs");
 const ADAPTERS: Record<string, any> = {
   openai: require("../../../electron/providers/adapters/openai.cjs"),
   anthropic: require("../../../electron/providers/adapters/anthropic.cjs"),
@@ -319,6 +321,10 @@ export async function run(area: string, input: any): Promise<any> {
     }
     case "models": return modelsListOf(input);
     case "registry": return registryOpsOf(input);
+    case "autopin": {
+      const plan = autoPin.planPins({ entry: { noisePatterns: input.noisePatterns }, listed: input.listed, pinned: input.pinned, seen: input.seen ?? undefined });
+      return plain({ seenModels: plan.seenModels, pinnedModels: plan.pinnedModels, added: plan.added });
+    }
     case "remote": {
       if (input.op === "merge") {
         const inUse: string[] = input.inUse ?? [];
@@ -358,6 +364,17 @@ export async function run(area: string, input: any): Promise<any> {
       const scanned = await found.scan();
       const ports = found.ports();
       return plain({ ports, found: scanned, probes: Object.fromEntries(Object.entries(probes).sort()) });
+    }
+    case "usage": {
+      const { payload } = input;
+      switch (input.vendor) {
+        case "anthropic": return plain(usageMod.fromAnthropic(payload));
+        case "openai": return plain(usageMod.fromOpenAI(payload));
+        case "gemini": return plain(usageMod.fromGemini(payload));
+        case "codex": return plain(usageMod.fromCodex(payload));
+        case "totals": return plain(usageMod.fromTotals(payload.prompt, payload.output));
+        default: throw new Error(`unknown vendor ${input.vendor}`);
+      }
     }
     default: throw new Error(`unknown fixture area ${area}`);
   }

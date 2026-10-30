@@ -183,6 +183,11 @@ export default function ImageCard({ step, t, previewSrc }: ImageCardProps) {
             )}
             {info.status === "done" && !unloadable && meta && <span className="truncate">{meta}</span>}
           </p>
+          {info.status === "done" && info.referenceDropped && (
+            <p role="note" className="text-[12px] leading-4 text-text-secondary">
+              {t("imageReferenceDropped")}
+            </p>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5">

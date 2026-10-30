@@ -8,6 +8,7 @@
 pub mod adblock;
 pub mod agy_host;
 pub mod cancel;
+pub mod cost;
 pub mod documents;
 pub mod engine;
 pub mod error;
@@ -23,6 +24,7 @@ pub mod plan;
 pub mod records;
 pub mod session;
 pub mod skills;
+pub mod task_tools;
 pub mod tools;
 pub mod update;
 pub mod web;
@@ -48,7 +50,7 @@ pub use models::{
 pub use observer::{ApprovalHandler, TurnObserver};
 pub use records::{
     AgyConfigRecord, ApprovalChoice, ApprovalRecord, ImageRecord, LiveRecord, MessageRecord,
-    MetricsRecord, PermissionModeRecord, PlanStepRecord, SessionConfig, StepRecord,
+    MetricsRecord, PermissionModeRecord, PlanStepRecord, SessionConfig, StepRecord, TaskRecord,
     TurnEventRecord, TurnOutcome, WebConfigRecord,
 };
 pub use session::Session;

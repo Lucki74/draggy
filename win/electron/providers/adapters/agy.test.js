@@ -149,7 +149,7 @@ describe("the adapter", () => {
     const sse = sseMock();
     await adapter.stream({ body, modelId: "gemini-3-pro", sse, signal: null });
     expect(sse.delta.mock.calls.map((c) => c[0].content).join("")).toBe("hello there");
-    expect(sse.finish).toHaveBeenCalledWith("stop", { promptTokens: 3, outputTokens: 2 });
+    expect(sse.finish).toHaveBeenCalledWith("stop", expect.objectContaining({ promptTokens: 3, outputTokens: 2 }));
     const args = calls.at(-1).args;
     expect(args).toEqual(expect.arrayContaining(["--output-format", "stream-json", "--print-timeout", "--model", "gemini-3-pro"]));
     expect(args).not.toContain("--dangerously-skip-permissions");
@@ -198,4 +198,20 @@ describe("the adapter", () => {
     await adapter.signOut();
     expect(await adapter.status()).toEqual({ signedIn: false });
   });
+
+  it("asks agy again on a refresh and keeps the list otherwise", async () => {
+    let asked = 0;
+    const exec = (binary, args, options, callback) => {
+      if (args[0] === "models") asked += 1;
+      execFake({ models: "gemini-3-pro  Gemini\n" })(binary, args, options, callback);
+    };
+    const adapter = make({ spawn: fakeSpawn({ stdout: lines([INIT, SUCCESS]) }).spawn, exec });
+    await adapter.signIn("x");
+    await adapter.models();
+    await adapter.models();
+    expect(asked).toBe(1);
+    await adapter.models("x", { refresh: true });
+    expect(asked).toBe(2);
+  });
+
 });

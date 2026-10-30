@@ -69,6 +69,19 @@ function defaultsFor(family, ...hints) {
   return family.defaults;
 }
 
+/** Families whose pictures are edited by showing the model the original (sd-server `ref_images`), not by adding noise to it. */
+const EDIT_FAMILIES = new Set(["qwen-image-edit", "flux2-klein-9b", "flux2-klein-4b", "flux2-dev"]);
+
+/**
+ * How a model takes a reference picture: "edit" (the original goes in as a reference image), "img2img" (it is the
+ * starting point, noised by `strength`), or null for a model that cannot use one. Plain checkpoints do img2img.
+ */
+function referenceModeOf(family, ...hints) {
+  const text = hints.filter(Boolean).join(" ").toLowerCase();
+  if ((family && EDIT_FAMILIES.has(family.id)) || /kontext|[-_ ]edit/.test(text)) return "edit";
+  return "img2img";
+}
+
 /** The components a family needs, as downloadable files carrying their role. */
 function partsOf(family) {
   if (!family) return [];
@@ -77,4 +90,4 @@ function partsOf(family) {
 
 const COMPONENT_FILES = new Set(Object.values(COMPONENTS).map((component) => component.filename));
 
-module.exports = { COMPONENTS, FAMILIES, COMPONENT_FILES, familyOf, defaultsFor, partsOf };
+module.exports = { COMPONENTS, FAMILIES, COMPONENT_FILES, familyOf, defaultsFor, partsOf, referenceModeOf };

@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use draggy_providers::types::TokenUsage;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -152,6 +153,9 @@ pub struct TurnMetrics {
     pub time_to_first_token_ms: Option<f64>,
     #[serde(default)]
     pub load_ms: f64,
+    /// The token split of each request the turn made, for the host to price.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pass_usage: Vec<TokenUsage>,
 }
 
 /// What a turn produced, as the agent loop reports it when it stops.
@@ -185,6 +189,9 @@ pub struct MetricRow {
     pub task_ms: f64,
     pub loops: f64,
     pub tools: BTreeMap<String, f64>,
+    /// The token split of each request, so the host can price the turn and record the cost columns.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pass_usage: Vec<TokenUsage>,
 }
 
 /// What a turn sends and how it was started.
@@ -939,6 +946,7 @@ impl TaskManager {
             task_ms: now - turn.started_at,
             loops: result.loops,
             tools: result.tool_calls.clone(),
+            pass_usage: metrics.pass_usage.clone(),
         }
     }
 

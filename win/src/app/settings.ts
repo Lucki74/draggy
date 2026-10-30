@@ -5,6 +5,9 @@ import { safeJsonParse, writeLocalStorage } from "../utils";
 import { swallowed } from "../logger";
 import { DEFAULT_ACCENT, applyAccent } from "./accent";
 import { EFFORT_DEFAULT, effortFromLegacy, isEffortLevel } from "../ai/effort";
+import { DEFAULT_BUDGETS } from "../stats/budget";
+import { DEFAULT_REFERENCE, formatReference, turnPricer } from "../stats/pricing";
+import { resolveDisplayMoney, setDisplayMoney } from "../stats/displayMoney";
 
 /** Thinking modes before the five effort levels, and the key each one became. */
 const LEGACY_EFFORT_KEYS = [
@@ -57,12 +60,10 @@ export const defaultSettings: AppSettings = {
   fixedContextSize: null,
   imageModel: "",
   imageResolution: "1024x1024",
-  aiQuestionsEnabled: true,
-  aiQuestionsRequireAnswer: true,
-  aiQuestionsShowSessionBar: true,
-  aiQuestionsAutoSkip: false,
-  aiQuestionsMaxPerSession: 5,
-  aiQuestionsTimeoutMinutes: 0,
+  budgets: DEFAULT_BUDGETS,
+  priceRefresh: true,
+  displayCurrency: "USD",
+  referenceModel: formatReference(DEFAULT_REFERENCE),
 };
 
 export const FONT_SIZES = { sm: "13px", base: "15px", lg: "18px" };
@@ -196,6 +197,40 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
       .configure({ automatic: settings.autoUpdate })
       .catch(swallowed("app", "the main process already logged this call"));
   }, [settings.autoUpdate, isSplashMode, holdUpdates]);
+
+  // Like the updater, the price refresh is the main process's to schedule. It is the only thing that
+  // reaches the network for costs, so it waits for the first-run choice too.
+  useEffect(() => {
+    if (isSplashMode || holdUpdates) return;
+    window.electronAPI?.pricing
+      ?.configure({ automatic: settings.priceRefresh !== false })
+      .catch(swallowed("app", "the main process already logged this call"));
+  }, [settings.priceRefresh, isSplashMode, holdUpdates]);
+
+  // Costs are stored in dollars. The display currency and its rate are applied where they are shown.
+  const displayCurrency = settings.displayCurrency;
+  useEffect(() => {
+    const pricing = window.electronAPI?.pricing;
+    if (!pricing) return;
+    let live = true;
+    const load = () =>
+      pricing
+        .rates()
+        .then((answer) => {
+          if (live) setDisplayMoney(resolveDisplayMoney(displayCurrency, answer?.success ? answer.rates?.rates : null));
+        })
+        .catch(swallowed("app", "costs show in dollars without rates"));
+    void load();
+    // A refreshed table changes what replies cost; forget the cached one and pick the new rates up.
+    const stop = pricing.onUpdated?.(() => {
+      turnPricer.reset();
+      void load();
+    });
+    return () => {
+      live = false;
+      if (typeof stop === "function") stop();
+    };
+  }, [displayCurrency]);
 
   // The image engine runs in the main process, which keeps no settings of its own.
   useEffect(() => {

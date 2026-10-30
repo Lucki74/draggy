@@ -3,6 +3,7 @@
 const { fromResponse } = require("../errors.cjs");
 const { capabilitiesFor } = require("../catalog.cjs");
 const { HostedToolError } = require("./openai.cjs");
+const { fromAnthropic } = require("../usage.cjs");
 const { log } = require("../../logger.cjs");
 
 const VERSION = "2023-06-01";
@@ -169,7 +170,8 @@ async function translateStream(stream, sse, { instanceId } = {}) {
   let buffer = "";
   let toolIndex = 0;
   let stopReason = null;
-  const usage = { promptTokens: 0, outputTokens: 0 };
+  // The counts as the API reports them: message_start has the input side, message_delta the running output.
+  const counts = {};
 
   const handle = (json) => {
     if (json.type === "error") {
@@ -178,9 +180,7 @@ async function translateStream(stream, sse, { instanceId } = {}) {
       throw Object.assign(new Error("upstream error"), { failure });
     }
     if (json.type === "message_start") {
-      const u = json.message?.usage || {};
-      usage.promptTokens = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
-      usage.outputTokens = u.output_tokens ?? 0;
+      Object.assign(counts, json.message?.usage || {});
     } else if (json.type === "content_block_start") {
       const block = json.content_block || {};
       if (HOSTED.test(block.type || "")) throw new HostedToolError(block.type);
@@ -212,7 +212,8 @@ async function translateStream(stream, sse, { instanceId } = {}) {
       if (block?.type === "thinking" && block.signature) signed.push({ type: "thinking", thinking: block.thinking, signature: block.signature });
     } else if (json.type === "message_delta") {
       if (json.delta?.stop_reason) stopReason = json.delta.stop_reason;
-      if (json.usage?.output_tokens !== undefined) usage.outputTokens = json.usage.output_tokens;
+      // Newer API versions repeat the input side here too, with the final figures.
+      for (const [key, value] of Object.entries(json.usage || {})) if (typeof value === "number") counts[key] = value;
     }
     return json.type === "message_stop";
   };
@@ -238,6 +239,7 @@ async function translateStream(stream, sse, { instanceId } = {}) {
   }
   const finish = finishOf(stopReason);
   if (instanceId && signed.length) sse.providerState({ instanceId, state: { blocks: signed } });
+  const usage = fromAnthropic(counts);
   log.debug("providers.anthropic", "stream done", { finish, promptTokens: usage.promptTokens, outputTokens: usage.outputTokens, signedBlocks: signed.length });
   sse.finish(finish, usage);
 }
@@ -249,7 +251,6 @@ function translateJson(json, { instanceId } = {}) {
   const signed = content
     .filter((block) => (block.type === "thinking" && block.signature) || block.type === "redacted_thinking")
     .map((block) => (block.type === "thinking" ? { type: "thinking", thinking: block.thinking || "", signature: block.signature } : { type: "redacted_thinking", data: block.data }));
-  const u = json.usage || {};
   return {
     content: content.filter((block) => block.type === "text").map((block) => block.text).join(""),
     reasoning: content.filter((block) => block.type === "thinking").map((block) => block.thinking || "").join(""),
@@ -257,7 +258,7 @@ function translateJson(json, { instanceId } = {}) {
       .filter((block) => block.type === "tool_use")
       .map((block) => ({ id: block.id, type: "function", function: { name: block.name, arguments: JSON.stringify(block.input ?? {}) } })),
     finish: finishOf(json.stop_reason),
-    usage: { promptTokens: (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0), outputTokens: u.output_tokens ?? 0 },
+    usage: fromAnthropic(json.usage),
     ...(instanceId && signed.length ? { providerState: { instanceId, state: { blocks: signed } } } : {}),
   };
 }

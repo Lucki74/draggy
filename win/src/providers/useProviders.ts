@@ -5,11 +5,20 @@ import type { DiscoveredServer, ProviderCatalogEntry, ProviderFailure, ProviderI
 import { logRendererEvent, swallowed } from "../logger";
 
 const listeners = new Set<() => void>();
+let bridge: (() => void) | null = null;
 
 /** Runs when a provider is added, changed or removed, so menus list the models it now offers. */
 export function onProvidersChange(listener: () => void): () => void {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  // The main process also reports models it found on its own, so menus follow without a click.
+  if (!bridge) bridge = api()?.onModelsChanged?.(() => providersChanged()) ?? null;
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      bridge?.();
+      bridge = null;
+    }
+  };
 }
 
 function providersChanged() {
@@ -52,6 +61,7 @@ export function useProviders({ scanOnOpen = true }: { scanOnOpen?: boolean } = {
       .then(setCatalog)
       .catch(swallowed("providers", "the main process already logged this call"));
     if (scanOnOpen) void scan();
+    return onProvidersChange(() => void reload());
   }, [reload, scan, scanOnOpen]);
 
   /** Runs one change, then lists again, so the page shows what main kept rather than what was asked. */

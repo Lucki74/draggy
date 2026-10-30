@@ -12,6 +12,8 @@ use draggy_core::{
 
 use crate::conversations::SavedMessage;
 use crate::runtime::runtime;
+use crate::services::stats_store::{REFERENCE_MODEL, REFERENCE_PROVIDER, TurnCost, format_money};
+use draggy_core::cost::CostKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
@@ -26,6 +28,8 @@ pub struct Entry {
     pub text: String,
     pub steps: Vec<StepRecord>,
     pub metrics: Option<MetricsRecord>,
+    /// What the reply cost, once its turn has been priced.
+    pub cost: Option<TurnCost>,
     pub streaming: bool,
     /// Something to tell the user beside the text: a failure, or that the turn was stopped.
     pub note: Option<String>,
@@ -38,6 +42,7 @@ impl Entry {
             text,
             steps: Vec::new(),
             metrics: None,
+            cost: None,
             streaming,
             note: None,
         }
@@ -110,6 +115,17 @@ impl Transcript {
         }
     }
 
+    /// Attaches the price of the turn to the reply it produced.
+    pub fn set_cost(&mut self, cost: TurnCost) {
+        if let Some(reply) = self
+            .entries
+            .last_mut()
+            .filter(|entry| entry.role == Role::Assistant)
+        {
+            reply.cost = Some(cost);
+        }
+    }
+
     /// Ends the reply with the turn's outcome, or with the reason it failed.
     pub fn finish(&mut self, result: Result<TurnOutcome, CoreError>) {
         let Some(reply) = self.entries.last_mut().filter(|entry| entry.streaming) else {
@@ -144,6 +160,73 @@ impl Transcript {
 }
 
 const OUT_OF_CONTEXT: &str = "The conversation no longer fits the model's context window.";
+
+/// The cost figure under a finished reply, and what its hover card says.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CostLabel {
+    pub text: String,
+    pub title: String,
+}
+
+/// What to show for a reply's cost, or none when there is nothing to say. A billed reply with no known price has no
+/// figure, since $0 would read as free. A local reply costs nothing and shows what it saved.
+pub fn cost_label(cost: &TurnCost) -> Option<CostLabel> {
+    let usage = &cost.usage;
+    let estimated = cost.source == "estimated";
+    let buckets = [
+        ("Input", usage.input),
+        ("Cache read", usage.cache_read),
+        ("Cache write", usage.cache_write),
+        ("Output", usage.output),
+        ("Reasoning", usage.reasoning),
+    ];
+    let mut lines: Vec<String> = buckets
+        .into_iter()
+        .filter(|(label, count)| *count > 0 || matches!(*label, "Input" | "Output"))
+        .map(|(label, count)| format!("{label}: {}", compact(count)))
+        .collect();
+    let text = match cost.kind {
+        CostKind::Local => {
+            lines.push(format!(
+                "Local model: nothing is billed. Saved is what the same tokens cost on {REFERENCE_PROVIDER}/{REFERENCE_MODEL}."
+            ));
+            match cost.saved_micros {
+                Some(saved) => format!("$0.00 · saved {}", format_money(saved, estimated)),
+                None => "$0.00".to_owned(),
+            }
+        }
+        CostKind::Billed => format_money(cost.micros?, estimated),
+        CostKind::Account => {
+            lines.push(
+                "Not billed: your plan covers this reply. The figure is what the same tokens cost through the API."
+                    .to_owned(),
+            );
+            format!("{} API-equivalent", format_money(cost.micros?, true))
+        }
+    };
+    if estimated {
+        lines.push("Estimated from the token totals".to_owned());
+    }
+    if let Some(date) = &cost.price_updated_at {
+        lines.push(format!(
+            "Prices as of {}",
+            date.get(..10).unwrap_or(date.as_str())
+        ));
+    }
+    Some(CostLabel {
+        text,
+        title: lines.join("\n"),
+    })
+}
+
+/// A token count in thousands past 999, such as "1.2k".
+fn compact(count: u64) -> String {
+    if count >= 1000 {
+        format!("{:.1}k", count as f64 / 1000.0)
+    } else {
+        count.to_string()
+    }
+}
 
 /// The speed line under a finished reply, such as "120 tokens, 41.5 tok/s".
 pub fn metrics_line(metrics: &MetricsRecord) -> String {
@@ -521,5 +604,55 @@ mod tests {
                 _ => continue,
             }
         }
+    }
+
+    fn priced(kind: CostKind, micros: Option<i64>, source: &str) -> TurnCost {
+        TurnCost {
+            kind,
+            micros,
+            saved_micros: None,
+            source: source.to_owned(),
+            price_updated_at: Some("2026-01-15T00:00:00Z".to_owned()),
+            usage: draggy_core::cost::PassUsageRecord {
+                input: 1200,
+                cache_read: 0,
+                cache_write: 0,
+                output: 80,
+                reasoning: 0,
+                estimated: source == "estimated",
+                cost_usd: None,
+            },
+        }
+    }
+
+    #[test]
+    fn a_billed_reply_shows_its_price_and_no_figure_without_one() {
+        assert_eq!(cost_label(&priced(CostKind::Billed, None, "unknown")), None);
+        let label = cost_label(&priced(CostKind::Billed, Some(4_200), "table")).expect("a figure");
+        assert_eq!(label.text, "$0.0042");
+        assert!(label.title.contains("Input: 1.2k"));
+        assert!(label.title.contains("Prices as of 2026-01-15"));
+        assert!(!label.title.contains("Estimated"));
+    }
+
+    #[test]
+    fn an_estimate_and_an_account_login_are_marked() {
+        let estimated =
+            cost_label(&priced(CostKind::Billed, Some(1_500_000), "estimated")).expect("a figure");
+        assert_eq!(estimated.text, "~$1.50");
+        let account =
+            cost_label(&priced(CostKind::Account, Some(1_500_000), "table")).expect("a figure");
+        assert_eq!(account.text, "~$1.50 API-equivalent");
+        assert!(account.title.contains("Not billed"));
+    }
+
+    #[test]
+    fn a_local_reply_costs_nothing_and_shows_its_saving() {
+        let local = TurnCost {
+            saved_micros: Some(2_000),
+            ..priced(CostKind::Local, None, "table")
+        };
+        let label = cost_label(&local).expect("a label");
+        assert_eq!(label.text, "$0.00 · saved $0.0020");
     }
 }

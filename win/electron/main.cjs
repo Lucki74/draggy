@@ -38,6 +38,8 @@ function finishStartup() {
 const platform = require("./platform.cjs");
 const documents = require("./documents.cjs");
 const storage = require("./storage.cjs");
+const pricing = require("./pricing/table.cjs");
+const pricingRefresh = require("./pricing/refresh.cjs");
 const fsGuard = require("./fsGuard.cjs");
 const gitTools = require("./git.cjs");
 const apiServerTools = require("./apiServer.cjs");
@@ -49,9 +51,20 @@ const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
 const runner = require("./runner.cjs");
 const commands = require("./commands.cjs");
+const { createTaskManager } = require("./tasks.cjs");
 const { createShellHost } = require("./shellHost.cjs");
 const { availableShells } = require("./shells.cjs");
 const shellHost = createShellHost();
+
+/** Background tasks, one manager for the app. Logs live in the user data folder and go on quit. */
+let taskManager = null;
+function tasks() {
+  taskManager ||= createTaskManager({
+    logDir: path.join(app.getPath("userData"), "task-logs"),
+    onEvent: (event) => broadcast("tasks:event", event),
+  });
+  return taskManager;
+}
 const { flushWindow, closeLogs } = require("./quitFlush.cjs");
 const updater = require("./updater.cjs");
 const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
@@ -63,6 +76,7 @@ const connectivity = require("./connectivity.cjs");
 const { createGateway } = require("./providers/gateway.cjs");
 const { createRegistry } = require("./providers/registry.cjs");
 const { createModels } = require("./providers/models.cjs");
+const { createAutoRefresh } = require("./providers/autoRefresh.cjs");
 const { createDiscovery } = require("./providers/discovery.cjs");
 const { createRemoteCatalog } = require("./providers/remoteCatalog.cjs");
 const { createProviderHandlers } = require("./providers/ipc.cjs");
@@ -843,6 +857,7 @@ let onboardingPlan = "done";
 let providers = null;
 let codexAccounts = null;
 let claudeAccounts = null;
+let providerAutoRefresh = null;
 let agyAccounts = null;
 let searchKey = null;
 
@@ -1218,10 +1233,19 @@ app.whenReady().then(() => {
     },
   });
   const accounts = { codex: codexAccounts, claude: claudeAccounts, agy: agyAccounts };
+  const models = createModels({ registry: providers, accounts });
+  providerAutoRefresh?.stop();
+  providerAutoRefresh = createAutoRefresh({
+    registry: providers,
+    models,
+    accounts,
+    notify: (channel, payload) => mainWindow && !mainWindow.isDestroyed() && sendTo(mainWindow, channel, payload),
+  });
+  providerAutoRefresh.start();
   const providerHandlers = createProviderHandlers({
     registry: providers,
     keystore: () => secrets.available(),
-    models: createModels({ registry: providers, accounts }),
+    models,
     accounts,
     openExternal: (url) => shell.openExternal(url),
     notify: (channel, payload) => mainWindow && !mainWindow.isDestroyed() && sendTo(mainWindow, channel, payload),
@@ -1307,6 +1331,7 @@ function shutdown() {
   const steps = [
     ["browsers", closeBrowserWindows],
     ["updater", () => updater.dispose()],
+    ["pricing", () => pricingRefresherInstance?.dispose()],
     ["engine-updater", () => engineUpdater.dispose()],
     // Servers and code runs are children of this process and would otherwise
     // be left running after the window is gone.
@@ -1314,6 +1339,7 @@ function shutdown() {
     ["mcp", () => mcp.stopAll()],
     ["runner", () => runner.stopAll()],
     ["commands", () => commands.stopAll()],
+    ["tasks", () => taskManager?.stopAll()],
     ["terminals", () => shellHost.stopAll()],
     ["llama", () => llamaProcess.stopServerSync()],
     ["colibri", () => {
@@ -1355,10 +1381,12 @@ function shutdown() {
 }
 
 let quitting = false;
+app.on("browser-window-focus", () => providerAutoRefresh?.focused());
 
 app.on("before-quit", (event) => {
   if (quitting) return;
   quitting = true;
+  providerAutoRefresh?.stop();
   event.preventDefault();
   const quit = lifecycle.createTimeline("quit", { now: () => performance.now(), startedAt: performance.now(), scope: "quit" });
   const timed = (label, work) => Promise.resolve(work).finally(() => quit.mark(label));
@@ -3273,6 +3301,42 @@ ipc.handle("metrics:list", wrap("metrics", async (event, since) => ({
 
 ipc.handle("metrics:clear", wrap("metrics", async () => storage.clearMetrics()));
 
+let priceTableInstance = null;
+const priceTable = () =>
+  (priceTableInstance ??= pricing.createPriceTable({
+    userData: app.getPath("userData"),
+    bundled: pricing.bundledPath({ packaged: app.isPackaged }),
+    log,
+  }));
+
+ipc.handle("pricing:table", wrap("pricing", async () => {
+  const table = priceTable().get();
+  return table ? { success: true, table, origin: priceTable().origin() } : { success: false };
+}));
+
+let pricingRefresherInstance = null;
+const pricingRefresher = () =>
+  (pricingRefresherInstance ??= pricingRefresh.createPricingRefresher({
+    userData: app.getPath("userData"),
+    table: priceTable(),
+    log,
+    onUpdate: (status) => broadcast("pricing-updated", status),
+  }));
+
+// The schedule is the only automatic request; the renderer turns it on from the setting and holds it
+// back during first-run setup. "Update now" is the user asking, so it ignores the setting.
+ipc.handle("pricing:configure", wrap("pricing", async (event, options) => {
+  pricingRefresher().setAutomatic(Boolean(options?.automatic));
+  return { success: true };
+}));
+ipc.handle("pricing:refresh", wrap("pricing", async () => ({
+  success: true,
+  ...(await pricingRefresher().refresh({ force: true })),
+  status: pricingRefresher().status(),
+})));
+ipc.handle("pricing:status", wrap("pricing", async () => ({ success: true, status: pricingRefresher().status() })));
+ipc.handle("pricing:rates", wrap("pricing", async () => ({ success: true, rates: pricingRefresher().rates() })));
+
 ipc.handle("checkpoint:list", wrap("fs", async (event, workspaceId) => ({
   success: true,
   checkpoints: storage.listCheckpoints(String(workspaceId || "")),
@@ -3430,13 +3494,26 @@ ipc.handle("library:search", wrap("library", async (event, query, limit, model, 
 ));
 
 // A command runs in the conversation's own project folder, which the main process looks up; the
-// renderer names a workspace and cannot pick a folder.
+// renderer names a workspace and cannot pick a folder. With `background` it starts as a task and
+// returns at once; otherwise it runs in the foreground and can be moved to the background later.
 ipc.handle(
   "commands:run",
   wrap("commands", async (event, workspaceId, runId, command, options) => {
     const root = rootsFor(workspaceId)[0];
     if (!root) {
       return { success: false, error: "Commands run inside a project, and this conversation has none." };
+    }
+    const chatId = String(options?.chatId || workspaceId || "default");
+    if (options?.background) {
+      const started = tasks().start({
+        chatId,
+        cwd: root,
+        command,
+        shell: options?.shell,
+        defaultShell: options?.defaultShell,
+      });
+      if (started.error) return { success: false, error: started.error };
+      return { success: true, background: true, taskId: started.task.id, task: started.task, shell: started.task.shell, ...(started.notice ? { notice: started.notice } : {}) };
     }
     return commands.run({
       id: runId,
@@ -3445,10 +3522,67 @@ ipc.handle(
       shell: options?.shell,
       defaultShell: options?.defaultShell,
       timeoutMs: options?.timeoutMs,
+      chatId,
+      stateKey: chatId,
+      tasks: tasks(),
+      autoDetach: options?.autoDetach !== false,
       onOutput: (chunk) => sendTo(BrowserWindow.fromWebContents(event.sender), "commands:output", { runId, chunk }),
     });
   }),
 );
+
+ipc.handle("commands:detach", wrap("commands", async (event, runId) => commands.detach(String(runId || ""))));
+
+ipc.handle("commands:resetState", wrap("commands", async (event, chatId) => ({
+  success: commands.resetState(String(chatId || "")),
+})));
+
+// Background tasks. Every call names the chat it belongs to; a task is found by its id within that chat.
+ipc.handle("tasks:list", wrap("tasks", async (event, chatId) => ({ success: true, tasks: tasks().list(String(chatId || "")) })));
+ipc.handle("tasks:output", wrap("tasks", async (event, chatId, id, options) => {
+  const result = tasks().output(String(chatId || ""), String(id || ""), options || {});
+  return result.error ? { success: false, error: result.error } : { success: true, ...result };
+}));
+const waits = new Map();
+ipc.handle("tasks:wait", wrap("tasks", async (event, chatId, id, options) => {
+  const controller = new AbortController();
+  const waitId = options?.waitId ? String(options.waitId) : null;
+  if (waitId) waits.set(waitId, controller);
+  try {
+    const result = await tasks().wait(String(chatId || ""), String(id || ""), { ...(options || {}), signal: controller.signal });
+    return result.error ? { success: false, error: result.error } : { success: true, ...result };
+  } finally {
+    if (waitId) waits.delete(waitId);
+  }
+}));
+ipc.handle("tasks:abortWait", wrap("tasks", async (event, waitId) => {
+  const controller = waits.get(String(waitId || ""));
+  controller?.abort();
+  return { success: Boolean(controller) };
+}));
+ipc.handle("tasks:stop", wrap("tasks", async (event, chatId, id) => {
+  const result = tasks().stop(String(chatId || ""), String(id || ""));
+  return result.error ? { success: false, error: result.error } : { success: true, ...result };
+}));
+ipc.handle("tasks:write", wrap("tasks", async (event, chatId, id, data) => {
+  const result = tasks().write(String(chatId || ""), String(id || ""), String(data ?? ""));
+  return result.error ? { success: false, error: result.error } : { success: true, ...result };
+}));
+ipc.on("tasks:input", (event, chatId, id, data) => {
+  tasks().write(String(chatId || ""), String(id || ""), String(data ?? ""));
+});
+ipc.handle("tasks:resize", wrap("tasks", async (event, uid, cols, rows) => ({ success: tasks().resize(String(uid || ""), cols, rows) })));
+ipc.handle("tasks:snapshot", wrap("tasks", async (event, uid) => {
+  const snapshot = tasks().snapshot(String(uid || ""));
+  return snapshot ? { success: true, ...snapshot } : { success: false, error: "That task is gone." };
+}));
+ipc.handle("tasks:takeInbox", wrap("tasks", async (event, chatId) => ({ success: true, items: tasks().takeInbox(String(chatId || "")) })));
+ipc.handle("tasks:hasRunning", wrap("tasks", async (event, chatId) => ({ success: true, running: tasks().hasRunning(String(chatId || "")) })));
+ipc.handle("tasks:forget", wrap("tasks", async (event, chatId) => {
+  tasks().forget(String(chatId || ""));
+  commands.resetState(String(chatId || ""));
+  return { success: true };
+}));
 
 ipc.handle("commands:cancel", wrap("commands", async (event, runId) => ({
   success: commands.cancel(String(runId || "")),

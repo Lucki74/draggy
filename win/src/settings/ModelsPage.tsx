@@ -10,7 +10,7 @@ import CompactLimitField from "./CompactLimitField";
 import DownloadsMenu from "./DownloadsMenu";
 import { ImageModelRow } from "./ImageModelsSection";
 import { useImageEngine } from "../images/useImageEngine";
-import { cannotGenerate, isEmbeddingModel, isImageModel } from "../modelKinds";
+import { isEmbeddingModel, isImageModel } from "../modelKinds";
 import { CONTEXT_BUCKETS, displayModelName, formatContextCeiling, installedModelDisplayNames, quantizationOf, type InstalledModel } from "../llama";
 import { isActivePull, type ModelManager } from "./useModelManager";
 import type { AppSettings } from "../types";
@@ -23,7 +23,6 @@ interface ModelsPageProps {
   chatModel: string;
   onUpdate: (patch: Partial<AppSettings>) => void;
   /** Makes a model the one Chat runs. */
-  onSelectChatModel: (name: string) => void;
   t: (key: string) => string;
 }
 
@@ -55,7 +54,7 @@ const ABILITY_LABELS: Record<string, string> = {
 
 /** What is installed, what can be downloaded, and the two models that serve everything else: the
  * one that indexes documents, and when a conversation gets folded. */
-export default function ModelsPage({ manager, settings, chatModel, onUpdate, onSelectChatModel, t }: ModelsPageProps) {
+export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }: ModelsPageProps) {
   const codeModel = settings.codeModel || chatModel;
   const displayNames = installedModelDisplayNames(manager.installed);
   const imageEngine = useImageEngine();
@@ -92,17 +91,6 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onS
               entry.name === codeModel ? t("usedForCode") : null,
               entry.name === embedModel ? t("usedForEmbedding") : null,
             ].filter((label): label is string => Boolean(label));
-            const roles = cannotGenerate(entry.capabilities)
-              ? []
-              : [
-                  entry.name !== chatModel && { label: t("useForChat"), apply: () => {
-                    // An empty Code model follows Chat, so pin it before Chat moves.
-                    if (!settings.codeModel) onUpdate({ codeModel: chatModel });
-                    onSelectChatModel(entry.name);
-                  } },
-                  entry.name !== codeModel && { label: t("useForCode"), apply: () => onUpdate({ codeModel: entry.name }) },
-                ].filter((role): role is { label: string; apply: () => void } => Boolean(role));
-
             const loaded =
               manager.loaded.includes(entry.name) ||
               manager.loaded.some((n) => n.split(":")[0] === entry.name.split(":")[0]);
@@ -114,7 +102,6 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onS
                 displayName={displayNames.get(entry.name) || displayModelName(entry.name)}
                 usedBy={usedBy}
                 locked={locked}
-                roles={roles}
                 loaded={loaded}
                 onUnload={() => manager.unload(entry.name)}
                 onRemove={() => void manager.remove(entry.name)}
@@ -236,7 +223,6 @@ function InstalledRow({
   displayName,
   usedBy,
   locked,
-  roles,
   loaded,
   onUnload,
   onRemove,
@@ -247,7 +233,6 @@ function InstalledRow({
   usedBy: string[];
   /** Chat or Code runs it, so it cannot be removed. */
   locked: boolean;
-  roles: { label: string; apply: () => void }[];
   loaded: boolean;
   onUnload: () => Promise<void>;
   onRemove: () => void;
@@ -282,7 +267,6 @@ function InstalledRow({
           </span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] leading-4 text-text-secondary">
             <span className="tabular-nums">{[formatBytes(entry.size), quantizationOf(entry.name)].filter(Boolean).join(" · ")}</span>
-            {cannotGenerate(entry.capabilities) && <Badge title={t("embeddingOnlyHint")}>{t("embeddingOnly")}</Badge>}
             {usedBy.map((label) => (
               <Badge key={label} strong>
                 {label}
@@ -291,11 +275,6 @@ function InstalledRow({
           </span>
         </button>
 
-        {roles.map((role) => (
-          <UiButton key={role.label} variant="secondary" size="dense" onClick={role.apply}>
-            {role.label}
-          </UiButton>
-        ))}
         {loaded && (
           <UiButton
             variant="secondary"

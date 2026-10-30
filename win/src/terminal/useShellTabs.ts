@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { openPane, terminalPane, type DockLayout } from "../app/dockLayout";
-import { onPrefill, takePrefill, type PrefillRequest } from "./terminalBus";
+import { onPrefill, onShowTasks, takePrefill, type PrefillRequest } from "./terminalBus";
 import type { ShellId } from "./shells";
 import { activeSessionId, openSession, prefillSession, selectSession, sessionsFor, shellName } from "./terminalSessions";
 
@@ -55,6 +55,8 @@ export function useShellTabs({ workspaceId, defaultShell, layout, onLayoutChange
       void openShell();
     }
   }, [workspaceId, openShell, showTab]);
+
+  useEffect(() => onShowTasks(showTerminal), [showTerminal]);
 
   useEffect(() => {
     const handle = async (request: PrefillRequest) => {

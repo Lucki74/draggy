@@ -108,6 +108,8 @@ final class AppModel {
     let mcp = McpModel(manager: try? McpManager(nodePath: nil, extensionsDir: nil))
     let browser = BrowserModel()
     let agy = AgyModel()
+    /// What this session's replies cost, shown on the Stats page. Kept in memory only.
+    let stats = StatsStore()
     private var session: Session?
     /// The plan the model keeps for this conversation.
     private(set) var plan: [PlanStepRecord] = []
@@ -127,6 +129,11 @@ final class AppModel {
     func report(_ message: String?) { errorMessage = message }
     /// The tool call that is waiting for the user's answer.
     private(set) var pendingApproval: ApprovalRecord?
+    /// The background commands of the conversation, read from the core while the chat polls.
+    private(set) var tasks: [TaskRecord] = []
+    /// Failed tasks whose list was opened, so the chip stops counting them.
+    private(set) var seenFailures: Set<String> = []
+    var isShowingTasks = false
 
     var draft = ""
     /// Pictures waiting to go with the next message.
@@ -294,10 +301,17 @@ final class AppModel {
         )
     }
 
+    /// The project folder's name, which the Stats page files each reply under.
+    var workspaceName: String {
+        folderPath.isEmpty ? String(localized: "No workspace") : URL(fileURLWithPath: folderPath).lastPathComponent
+    }
+
     func newConversation() {
         guard !isRunning else { return }
         session = nil
         plan = []
+        tasks = []
+        seenFailures = []
         transcript = Transcript()
         currentID = UUID()
         errorMessage = nil
@@ -307,6 +321,8 @@ final class AppModel {
     func open(_ id: UUID) {
         guard !isRunning, id != currentID else { return }
         session = nil
+        tasks = []
+        seenFailures = []
         currentID = id
         transcript = Transcript(restoring: library.load(id))
         errorMessage = nil
@@ -373,6 +389,23 @@ final class AppModel {
         plan = []
     }
 
+    /// Reads the session's background commands. The list is replaced only when something changed.
+    func refreshTasks() {
+        let latest = session?.tasks() ?? []
+        if latest != tasks { tasks = latest }
+    }
+
+    func stopTask(_ id: String) {
+        session?.stopTask(id: id)
+        refreshTasks()
+    }
+
+    /// Opening the list marks the failures seen, so the chip stops counting them.
+    func showTasks() {
+        seenFailures.formUnion(tasks.filter { $0.status == "failed" }.map(\.id))
+        isShowingTasks = true
+    }
+
     func answerApproval(_ choice: ApprovalChoice) {
         pendingApproval = nil
         broker?.resolve(choice)
@@ -403,12 +436,23 @@ final class AppModel {
             if let speed = update.speed { self.transcript.setSpeed(speed) }
             self.plan = self.session?.plan() ?? []
         }
+        // Where this reply goes is fixed now, so a settings change during the turn does not re-price it.
+        let usesAccount = agyEnabled && agy.config(model: agyModel) != nil
+        let route = TurnPricer.route(usesAccount: usesAccount, baseURL: baseURL)
+        let configuredModel = usesAccount ? agyModel : modelName
+        let workspace = workspaceName
 
         do {
             let session = try currentSession()
             let outcome = try await session.sendWithImages(
                 text: text, images: images, observer: sink, approvals: broker, cancel: token)
             transcript.finishReply(outcome.textContent)
+            if let metrics = outcome.metrics {
+                let turn = TurnPricer.record(
+                    metrics: metrics, route: route, configuredModel: configuredModel, workspace: workspace)
+                stats.record(turn)
+                transcript.setCost(TurnCostLabel(turn))
+            }
             lastReply = outcome.textContent
             if speakReplies, talkPhase == .off { speaker.speak(outcome.textContent) }
             transcript.setSteps(outcome.steps.map(transcriptStep))
