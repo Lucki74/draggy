@@ -64,10 +64,10 @@ pub async fn install<D: Downloader, X: Extractor>(
     let sums = downloader
         .get_text(&format!("{BASE_URL}/{RELEASE}/SHA256SUMS.txt"), None)
         .await?;
-    if let Some(published) = parse_sums(&sums).get(archive.name) {
-        if published != archive.sha256 {
-            return Err(BinaryError::Checksum(archive.name.to_owned()));
-        }
+    if let Some(published) = parse_sums(&sums).get(archive.name)
+        && published != archive.sha256
+    {
+        return Err(BinaryError::Checksum(archive.name.to_owned()));
     }
     std::fs::create_dir_all(scratch)?;
     let file = scratch.join(archive.name);

@@ -829,7 +829,7 @@ function syncTitleBarTheme() {
 
 /** Hands the gpu.rocm choice to the engine code, which reads it when it picks a build. Off for unreadable settings. */
 function applyRunnerSetting(rawSettings) {
-  let rocm = false;
+  let rocm;
   try {
     const parsed = typeof rawSettings === "string" ? JSON.parse(rawSettings) : rawSettings;
     rocm = parsed?.gpuRocm === true;

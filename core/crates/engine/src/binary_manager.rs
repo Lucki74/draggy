@@ -825,10 +825,12 @@ pub fn pick_release_assets_with<'a>(
         }
     }
 
-    if options.rocm && profile.vram_gb > 0.0 && !profile.nvidia {
-        if let Some(rocm) = pick_rocm_asset(os, arch, assets) {
-            return with_variant(Some(rocm), None);
-        }
+    if options.rocm
+        && profile.vram_gb > 0.0
+        && !profile.nvidia
+        && let Some(rocm) = pick_rocm_asset(os, arch, assets)
+    {
+        return with_variant(Some(rocm), None);
     }
 
     if windows {
