@@ -5,8 +5,6 @@ import InView from "./InView";
 import { JUMP_LIST_MIN_PROMPTS, PromptJumpList } from "./PromptJumpList";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { Button, Icon } from "../ui";
-import { useQuestionSessionContext } from "./questionSessionContext";
-import { QuestionHistoryCard } from "./components/QuestionHistoryCard";
 import { ComposerQueueContext } from "./Composer";
 import type { AppSettings, ApprovalAnswer, ChatSession } from "../types";
 
@@ -65,20 +63,6 @@ export function Transcript({
   const queueCtx = useContext(ComposerQueueContext);
   // Notes the turn has not read yet stay in view as sent, until the turn folds them in.
   const pendingNotes = queueCtx?.chatId === chat.id && chat.isGenerating ? (queueCtx.pendingSteers ?? []) : [];
-
-  const questionCtx = useQuestionSessionContext();
-  const orphanSessions = useMemo(() => {
-    if (!questionCtx) return [];
-    return questionCtx.sessions.filter((s) => {
-      if (s.status === "active") return false;
-      const hasMessage = chat.messages.some((m) => {
-        if (s.messageId === m.id) return true;
-        const text = m.textContent ?? m.content ?? "";
-        return text.includes('"_draggy"') && (text.includes(s.id) || s.questions.some((q) => text.includes(q.id)));
-      });
-      return !hasMessage;
-    });
-  }, [questionCtx, chat.messages]);
 
   const anchors = () =>
     [...(scrollContainerRef.current?.querySelectorAll<HTMLElement>("[data-anchor]") ?? [])];
@@ -268,9 +252,6 @@ export function Transcript({
               <span className="text-text-tertiary ms-1.5">{t("steerPending")}</span>
             </span>
           </div>
-        ))}
-        {orphanSessions.map((s) => (
-          <QuestionHistoryCard key={s.id} session={s} t={questionCtx?.t ?? t} />
         ))}
         <div ref={messagesEndRef} />
         <div aria-live="polite" className="sr-only">

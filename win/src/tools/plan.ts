@@ -1,6 +1,7 @@
 import { registerTools } from "./registry";
 import type { ToolSpec } from "./registry";
 import { parsePlan, planSummary, renderPlan } from "../plan/plan";
+import type { QuestionAnswer, QuestionItem, UserQuestion } from "../types";
 
 /** The plan tool: the whole checklist in one string every call, the only shape small local models
  * get right reliably. */
@@ -60,11 +61,50 @@ const updatePlan: ToolSpec = {
   },
 };
 
+const MAX_OPTIONS = 8;
+const MAX_FOLLOW_UPS = 4;
+
+/** One option per line, with list bullets and numbers taken off. */
+function readOptions(raw: unknown): string[] {
+  const lines = Array.isArray(raw) ? raw.map(String) : String(raw ?? "").split("\n");
+  return lines
+    .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)])\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, MAX_OPTIONS);
+}
+
+function readItem(text: string, rawOptions: unknown, multiple: boolean): QuestionItem {
+  const options = readOptions(rawOptions);
+  return { text, options, multiple: options.length > 1 && multiple };
+}
+
+/** The follow-ups a model sent as JSON. Anything that is not a usable question is dropped. */
+function readMore(raw: unknown): QuestionItem[] {
+  if (typeof raw !== "string" || !raw.trim()) return [];
+  try {
+    const list: unknown = JSON.parse(raw);
+    if (!Array.isArray(list)) return [];
+    return list
+      .flatMap((entry): QuestionItem[] => {
+        if (!entry || typeof entry !== "object") return [];
+        const item = entry as Record<string, unknown>;
+        const text = String(item.question ?? item.text ?? "").trim();
+        return text ? [readItem(text, item.options, item.multiple === true)] : [];
+      })
+      .slice(0, MAX_FOLLOW_UPS);
+  } catch {
+    return [];
+  }
+}
+
+const said = (reply: QuestionAnswer | undefined) =>
+  reply ? [...reply.choices, reply.text.trim()].filter(Boolean).join("; ") : "";
+
 const askUser: ToolSpec = {
   name: "ask_user",
-  group: "plan",
+  group: "ask",
   description:
-    "Ask the user a question and wait for the answer. Use it when you cannot go on without a choice only they can make, such as which of two approaches to take. Give options for a pick, or none for a written answer. Do not use it for things you can find out or decide yourself.",
+    "Ask the user a question and wait for the answer. Use it when the request is ambiguous or you cannot go on without a choice only they can make, such as which of two approaches to take. Give options for a pick, or none for a written answer. Put related questions in one call with more instead of asking one at a time. Do not use it for things you can find out or decide yourself.",
   parameters: {
     question: { type: "string", description: "The question, short and specific." },
     options: {
@@ -72,11 +112,13 @@ const askUser: ToolSpec = {
       description: "The choices, one per line. Leave out for a written answer.",
     },
     multiple: { type: "boolean", description: "True when the user may pick more than one option." },
+    more: {
+      type: "string",
+      description:
+        'Follow-up questions for the same card, as a JSON list, at most four: [{"question": "...", "options": "A\\nB", "multiple": false}]',
+    },
   },
   required: ["question"],
-  // Left out of the compact list that small models see; they can still call it.
-  extended: true,
-  available: (environment) => Boolean(environment.hasFolder),
   usage:
     '{"question": "Which database should I use?", "options": "SQLite\\nPostgres"} → the option the user picked',
   annotations: {
@@ -96,12 +138,12 @@ const askUser: ToolSpec = {
       return "TOOL RESULT (ask_user): No one is there to answer. Choose yourself and say what you assumed.";
     }
 
-    const options = String(args.options ?? "")
-      .split("\n")
-      .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)])\s*/, "").trim())
-      .filter(Boolean)
-      .slice(0, 8);
-    const question = { id: ctx.newId(), text, options, multiple: options.length > 1 && args.multiple === true };
+    const more = readMore(args.more);
+    const question: UserQuestion = {
+      id: ctx.newId(),
+      ...readItem(text, args.options, args.multiple === true),
+      ...(more.length ? { more } : {}),
+    };
 
     ctx.pushStep({ id: question.id, type: "question", content: ctx.t("questionAsked"), isComplete: false, question });
     ctx.syncSteps();
@@ -114,8 +156,13 @@ const askUser: ToolSpec = {
     if (!reply) {
       return "TOOL RESULT (ask_user): The user dismissed the question. Carry on with your best judgment, or say what you still need.";
     }
-    const parts = [...reply.choices, reply.text.trim()].filter(Boolean);
-    return `TOOL RESULT (ask_user): The user answered: ${parts.join("; ")}`;
+    if (!question.more) return `TOOL RESULT (ask_user): The user answered: ${said(reply)}`;
+
+    const replies = [reply, ...(reply.more ?? [])];
+    const lines = [question, ...question.more].map(
+      (item, index) => `${index + 1}. ${item.text} → ${said(replies[index]) || "(no answer)"}`,
+    );
+    return `TOOL RESULT (ask_user): The user answered:\n${lines.join("\n")}`;
   },
 };
 

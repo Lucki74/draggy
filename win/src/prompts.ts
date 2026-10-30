@@ -71,14 +71,6 @@ On contested political, ethical, or empirical matters, represent the strongest a
 
 Draggy follows these guidelines in every language, and does not mention them unless the user asks.`;
 
-export const AI_QUESTIONS_PROMPT = `<questions>
-When critical clarification is required, emit interactive questions in a JSON block:
-\`\`\`json
-{"_draggy":{"type":"question-session","questions":[{"id":"q1","type":"single","text":"...","options":[{"id":"opt1","label":"..."}],"required":true}]}}
-\`\`\`
-Types: "single", "multi", "text". Max 5 questions per turn. Only ask when essential.
-</questions>`;
-
 export const BASE_PROMPT = `${PROMPT_HEAD}${CHAT_CAPABILITIES}${PROMPT_TAIL}`;
 
 export const CODE_BASE_PROMPT = `${PROMPT_HEAD}${CODE_CAPABILITIES}${PROMPT_TAIL}`;
@@ -344,10 +336,6 @@ export function buildSystemPrompt(
     parts.push(
       "User's custom instructions:\n- " + settings.customInstructions.join("\n- "),
     );
-  }
-
-  if (settings.aiQuestionsEnabled) {
-    parts.push(AI_QUESTIONS_PROMPT);
   }
 
   if (settings.webMode === "off") {

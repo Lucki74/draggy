@@ -11,6 +11,7 @@ export type ToolGroup =
   | "code"
   | "library"
   | "plan"
+  | "ask"
   | "skill"
   | "agent"
   | "git"
