@@ -44,8 +44,10 @@ pub fn parse_sums(text: &str) -> BTreeMap<String, String> {
         .filter_map(|line| {
             let (digest, name) = line.trim().split_once(char::is_whitespace)?;
             let name = name.trim().trim_start_matches('*');
-            (digest.len() == 64 && digest.bytes().all(|b| b.is_ascii_hexdigit()) && !name.is_empty())
-                .then(|| (name.to_owned(), digest.to_ascii_lowercase()))
+            (digest.len() == 64
+                && digest.bytes().all(|b| b.is_ascii_hexdigit())
+                && !name.is_empty())
+            .then(|| (name.to_owned(), digest.to_ascii_lowercase()))
         })
         .collect()
 }
@@ -69,7 +71,9 @@ pub async fn install<D: Downloader, X: Extractor>(
     }
     std::fs::create_dir_all(scratch)?;
     let file = scratch.join(archive.name);
-    downloader.download(&archive_url(archive), &file, &|_| {}).await?;
+    downloader
+        .download(&archive_url(archive), &file, &|_| {})
+        .await?;
     if hex::encode(Sha256::digest(std::fs::read(&file)?)) != archive.sha256 {
         let _ = std::fs::remove_file(&file);
         return Err(BinaryError::Checksum(archive.name.to_owned()));
@@ -113,7 +117,10 @@ pub fn parse_gateway_line(line: &str) -> GatewayEvent {
             line.find(marker).map(|at| &line[at + marker.len()..])
         };
         if let Some(rest) = found {
-            let kind: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+            let kind: String = rest
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
             if !kind.is_empty() {
                 let detail = rest[kind.len()..].trim().to_owned();
                 return GatewayEvent::LoadFail { kind, detail };
@@ -138,7 +145,13 @@ pub struct Launch {
     pub cwd: PathBuf,
 }
 
-pub fn build_launch(python: &Path, script: &Path, model_dir: &Path, port: u16, kv_slots: u32) -> Launch {
+pub fn build_launch(
+    python: &Path,
+    script: &Path,
+    model_dir: &Path,
+    port: u16,
+    kv_slots: u32,
+) -> Launch {
     Launch {
         program: python.to_owned(),
         args: vec![
@@ -168,7 +181,10 @@ pub fn spawn_plan(launch: Launch, port: u16, model: &str) -> crate::supervisor::
         program: launch.program,
         args: launch.args,
         cwd: Some(launch.cwd),
-        env: vec![("PYTHONUTF8".into(), "1".into()), ("PYTHONUNBUFFERED".into(), "1".into())],
+        env: vec![
+            ("PYTHONUTF8".into(), "1".into()),
+            ("PYTHONUNBUFFERED".into(), "1".into()),
+        ],
         port,
         ready_path: "/health",
         model: model.to_owned(),
@@ -187,7 +203,15 @@ mod tests {
         assert!(archive_for(Os::Linux, Arch::Arm64).is_none());
         assert!(archive_for(Os::Windows, Arch::X64).is_none());
         for archive in [Os::Linux, Os::MacOs].map(|os| {
-            archive_for(os, if os == Os::Linux { Arch::X64 } else { Arch::Arm64 }).unwrap()
+            archive_for(
+                os,
+                if os == Os::Linux {
+                    Arch::X64
+                } else {
+                    Arch::Arm64
+                },
+            )
+            .unwrap()
         }) {
             assert_eq!(archive.sha256.len(), 64);
             assert!(archive_url(&archive).starts_with("https://"));
@@ -196,7 +220,11 @@ mod tests {
 
     #[test]
     fn sums_parse_by_name() {
-        let text = format!("{}  a.tar.gz\n{} *b.tar.gz\nnot a line\n", "A".repeat(64), "b".repeat(64));
+        let text = format!(
+            "{}  a.tar.gz\n{} *b.tar.gz\nnot a line\n",
+            "A".repeat(64),
+            "b".repeat(64)
+        );
         let sums = parse_sums(&text);
         assert_eq!(sums["a.tar.gz"], "a".repeat(64));
         assert_eq!(sums["b.tar.gz"], "b".repeat(64));
@@ -207,17 +235,26 @@ mod tests {
     fn gateway_lines() {
         assert_eq!(
             parse_gateway_line("x engine load failed: kind=nomem need 9 GB"),
-            GatewayEvent::LoadFail { kind: "nomem".into(), detail: "need 9 GB".into() }
+            GatewayEvent::LoadFail {
+                kind: "nomem".into(),
+                detail: "need 9 GB".into()
+            }
         );
         assert_eq!(
             parse_gateway_line("LOAD_FAIL kind=oom"),
-            GatewayEvent::LoadFail { kind: "oom".into(), detail: String::new() }
+            GatewayEvent::LoadFail {
+                kind: "oom".into(),
+                detail: String::new()
+            }
         );
         assert_eq!(
             parse_gateway_line("OpenAI-compatible API listening on 127.0.0.1:8000"),
             GatewayEvent::Listening
         );
-        assert_eq!(parse_gateway_line("blocked by Application Control policy"), GatewayEvent::Blocked);
+        assert_eq!(
+            parse_gateway_line("blocked by Application Control policy"),
+            GatewayEvent::Blocked
+        );
         assert_eq!(parse_gateway_line("loading"), GatewayEvent::Line);
     }
 
@@ -231,7 +268,13 @@ mod tests {
 
     #[test]
     fn launch_binds_loopback() {
-        let launch = build_launch(Path::new("/py"), Path::new("/rt/gw.py"), Path::new("/m"), 8000, 1);
+        let launch = build_launch(
+            Path::new("/py"),
+            Path::new("/rt/gw.py"),
+            Path::new("/m"),
+            8000,
+            1,
+        );
         assert_eq!(launch.args[0], "-u");
         let at = launch.args.iter().position(|a| a == "--host").unwrap();
         assert_eq!(launch.args[at + 1], "127.0.0.1");

@@ -186,13 +186,25 @@ mod tests {
     #[test]
     fn default_runner_per_platform() {
         let pick = default_runner;
-        assert_eq!(pick(Os::MacOs, Arch::Arm64, 16.0, false, false), Some("metal"));
-        assert_eq!(pick(Os::Windows, Arch::X64, 12.0, true, false), Some("cuda"));
-        assert_eq!(pick(Os::Windows, Arch::X64, 8.0, false, false), Some("vulkan"));
+        assert_eq!(
+            pick(Os::MacOs, Arch::Arm64, 16.0, false, false),
+            Some("metal")
+        );
+        assert_eq!(
+            pick(Os::Windows, Arch::X64, 12.0, true, false),
+            Some("cuda")
+        );
+        assert_eq!(
+            pick(Os::Windows, Arch::X64, 8.0, false, false),
+            Some("vulkan")
+        );
         assert_eq!(pick(Os::Windows, Arch::X64, 8.0, false, true), Some("rocm"));
         assert_eq!(pick(Os::Windows, Arch::X64, 0.0, false, false), Some("cpu"));
         // No Linux CUDA archive: an NVIDIA card falls to Vulkan.
-        assert_eq!(pick(Os::Linux, Arch::X64, 12.0, true, false), Some("vulkan"));
+        assert_eq!(
+            pick(Os::Linux, Arch::X64, 12.0, true, false),
+            Some("vulkan")
+        );
         assert_eq!(pick(Os::Linux, Arch::X64, 8.0, false, true), Some("rocm"));
         assert_eq!(pick(Os::Linux, Arch::X64, 0.0, false, false), Some("cpu"));
         assert_eq!(pick(Os::Linux, Arch::Arm64, 8.0, false, false), None);
@@ -213,7 +225,10 @@ mod tests {
             fallback_order(Os::Linux, Arch::X64, "rocm"),
             ["rocm", "vulkan", "cpu"]
         );
-        assert_eq!(fallback_order(Os::Linux, Arch::X64, "cuda"), ["vulkan", "cpu"]);
+        assert_eq!(
+            fallback_order(Os::Linux, Arch::X64, "cuda"),
+            ["vulkan", "cpu"]
+        );
         assert_eq!(fallback_order(Os::MacOs, Arch::Arm64, "metal"), ["metal"]);
         assert!(fallback_order(Os::Linux, Arch::Arm64, "vulkan").is_empty());
     }

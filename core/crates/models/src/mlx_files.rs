@@ -67,7 +67,13 @@ pub struct MlxDownload {
 /// share files. None when the repository is not an MLX model or `repo` is not a plain `owner/name`.
 pub fn mlx_download_plan(repo: &str, files: &[RepoFile]) -> Option<(String, Vec<MlxDownload>)> {
     let (owner, name) = repo.split_once('/')?;
-    let plain = |part: &str| !part.is_empty() && !part.contains("..") && part.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b));
+    let plain = |part: &str| {
+        !part.is_empty()
+            && !part.contains("..")
+            && part
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+    };
     if !plain(owner) || !plain(name) {
         return None;
     }
@@ -87,7 +93,8 @@ pub fn mlx_download_plan(repo: &str, files: &[RepoFile]) -> Option<(String, Vec<
 /// are MLX, anything else is GGUF. This is what sets the record's format when a folder is listed.
 pub fn format_of_names(names: &[&str]) -> ModelFormat {
     let lower: Vec<String> = names.iter().map(|n| n.to_lowercase()).collect();
-    let mlx = lower.iter().any(|n| n.ends_with(".safetensors")) && lower.iter().any(|n| n == "config.json");
+    let mlx = lower.iter().any(|n| n.ends_with(".safetensors"))
+        && lower.iter().any(|n| n == "config.json");
     if mlx && !lower.iter().any(|n| n.ends_with(".gguf")) {
         ModelFormat::Mlx
     } else {
@@ -116,7 +123,12 @@ pub fn list_mlx_models(models_dir: &std::path::Path) -> Vec<InstalledMlx> {
             let files: Vec<(String, u64)> = std::fs::read_dir(entry.path())
                 .ok()?
                 .filter_map(Result::ok)
-                .filter_map(|f| Some((f.file_name().to_string_lossy().into_owned(), f.metadata().ok()?.len())))
+                .filter_map(|f| {
+                    Some((
+                        f.file_name().to_string_lossy().into_owned(),
+                        f.metadata().ok()?.len(),
+                    ))
+                })
                 .collect();
             let names: Vec<&str> = files.iter().map(|(n, _)| n.as_str()).collect();
             (format_of_names(&names) == ModelFormat::Mlx).then(|| InstalledMlx {
@@ -135,7 +147,10 @@ mod tests {
     use super::*;
 
     fn file(path: &str, size: u64) -> RepoFile {
-        RepoFile { path: path.to_owned(), size }
+        RepoFile {
+            path: path.to_owned(),
+            size,
+        }
     }
 
     #[test]
@@ -169,7 +184,11 @@ mod tests {
         let (folder, plan) = mlx_download_plan("mlx-community/Qwen-4bit", &files).unwrap();
         assert_eq!(folder, "Qwen-4bit");
         assert_eq!(plan.len(), 2);
-        assert!(plan[0].url.starts_with("https://huggingface.co/mlx-community/Qwen-4bit/resolve/main/"));
+        assert!(
+            plan[0]
+                .url
+                .starts_with("https://huggingface.co/mlx-community/Qwen-4bit/resolve/main/")
+        );
         assert!(mlx_download_plan("../x/y", &files).is_none());
         assert!(mlx_download_plan("noslash", &files).is_none());
         assert!(mlx_download_plan("a/b", &[file("m.gguf", 1)]).is_none());
@@ -177,10 +196,16 @@ mod tests {
 
     #[test]
     fn a_folder_listing_sets_the_format() {
-        assert_eq!(format_of_names(&["config.json", "model.safetensors"]), ModelFormat::Mlx);
+        assert_eq!(
+            format_of_names(&["config.json", "model.safetensors"]),
+            ModelFormat::Mlx
+        );
         assert_eq!(format_of_names(&["m-Q4.gguf"]), ModelFormat::Gguf);
         assert_eq!(format_of_names(&["model.safetensors"]), ModelFormat::Gguf);
-        assert_eq!(format_of_names(&["config.json", "a.safetensors", "a.gguf"]), ModelFormat::Gguf);
+        assert_eq!(
+            format_of_names(&["config.json", "a.safetensors", "a.gguf"]),
+            ModelFormat::Gguf
+        );
     }
 
     #[test]

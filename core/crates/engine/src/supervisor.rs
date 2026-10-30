@@ -32,7 +32,9 @@ pub struct SpawnPlan {
 pub enum StartResult {
     Ready,
     /// The process exited or never answered. `output` holds its last lines, for failure mapping.
-    Failed { output: String },
+    Failed {
+        output: String,
+    },
 }
 
 #[derive(Default)]
@@ -134,15 +136,22 @@ impl Supervisor {
         let deadline = tokio::time::Instant::now() + plan.timeout;
         loop {
             if *exit_rx.borrow() {
-                return StartResult::Failed { output: self.output() };
+                return StartResult::Failed {
+                    output: self.output(),
+                };
             }
-            if matches!(get(plan.port, plan.ready_path, Duration::from_millis(1500)).await, Some((200, _))) {
+            if matches!(
+                get(plan.port, plan.ready_path, Duration::from_millis(1500)).await,
+                Some((200, _))
+            ) {
                 locked(&self.inner).running = true;
                 return StartResult::Ready;
             }
             if tokio::time::Instant::now() >= deadline {
                 self.stop().await;
-                return StartResult::Failed { output: self.output() };
+                return StartResult::Failed {
+                    output: self.output(),
+                };
             }
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
@@ -230,6 +239,9 @@ mod tests {
         let supervisor = Supervisor::new();
         let mut p = plan("", 9, 500);
         p.program = PathBuf::from("/nonexistent/engine");
-        assert!(matches!(supervisor.start(p).await, StartResult::Failed { .. }));
+        assert!(matches!(
+            supervisor.start(p).await,
+            StartResult::Failed { .. }
+        ));
     }
 }

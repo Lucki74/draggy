@@ -203,12 +203,14 @@ impl ModelLibrary {
                 format: "gguf".to_owned(),
             })
             .collect();
-        records.extend(list_mlx_models(&self.models_dir).into_iter().map(|mlx| InstalledModelRecord {
-            filename: mlx.name,
-            path: mlx.path.to_string_lossy().into_owned(),
-            bytes: mlx.bytes,
-            capabilities: Vec::new(),
-            format: "mlx".to_owned(),
+        records.extend(list_mlx_models(&self.models_dir).into_iter().map(|mlx| {
+            InstalledModelRecord {
+                filename: mlx.name,
+                path: mlx.path.to_string_lossy().into_owned(),
+                bytes: mlx.bytes,
+                capabilities: Vec::new(),
+                format: "mlx".to_owned(),
+            }
         }));
         Ok(records)
     }

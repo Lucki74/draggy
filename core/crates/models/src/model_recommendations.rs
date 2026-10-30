@@ -534,9 +534,16 @@ mod mlx_tests {
 
     #[test]
     fn only_apple_silicon_is_mlx_capable() {
-        let mac = RuntimeTarget { platform: Some("darwin".into()), arch: Some("arm64".into()), ..Default::default() };
+        let mac = RuntimeTarget {
+            platform: Some("darwin".into()),
+            arch: Some("arm64".into()),
+            ..Default::default()
+        };
         assert!(mlx_capable(&mac));
-        assert!(!mlx_capable(&RuntimeTarget { arch: Some("x64".into()), ..mac.clone() }));
+        assert!(!mlx_capable(&RuntimeTarget {
+            arch: Some("x64".into()),
+            ..mac.clone()
+        }));
         assert!(!supports_mlx(&mac));
     }
 }

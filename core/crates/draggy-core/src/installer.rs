@@ -110,9 +110,9 @@ impl Downloader for NetDownloader {
 /// Sets the `gpu.rocm` choice: when on, an AMD card takes the ROCm build ahead of Vulkan. Off by default.
 #[uniffi::export]
 pub fn set_gpu_rocm(enabled: bool) {
-    draggy_engine::binary_manager::set_runner_options(draggy_engine::binary_manager::RunnerOptions {
-        rocm: enabled,
-    });
+    draggy_engine::binary_manager::set_runner_options(
+        draggy_engine::binary_manager::RunnerOptions { rocm: enabled },
+    );
 }
 
 /// The engine a model of `format` ("gguf" or "mlx") runs on here: "llamacpp" or "mlx". An MLX model on a machine that

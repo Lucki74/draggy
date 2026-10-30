@@ -278,7 +278,10 @@ mod tests {
         host.start("llamacpp", || async { Ok(ok()) }).await.ok();
         let result = host.start("mlx", || async { Ok(ok()) }).await;
         assert_eq!(result, Err(HostError::Launch(MLX_UNAVAILABLE.to_owned())));
-        assert_eq!((host.llamacpp.stops.get(), host.colibri.stops.get()), (0, 1));
+        assert_eq!(
+            (host.llamacpp.stops.get(), host.colibri.stops.get()),
+            (0, 1)
+        );
         assert_eq!(host.active(), Some("llamacpp"));
     }
 

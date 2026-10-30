@@ -9,8 +9,9 @@ use std::rc::Rc;
 use std::sync::Mutex;
 
 use draggy_engine::binary_manager::{
-    Asset, GpuProfile, RUNNER_TABLE, RunnerOptions, RunnerSpec, build_number, detect_gpu_runner_with, engine_environment, engine_state,
-    pick_release_assets, recommended_release_asset, validate_download_url, variant_of, why_picked,
+    Asset, GpuProfile, RUNNER_TABLE, RunnerOptions, RunnerSpec, build_number,
+    detect_gpu_runner_with, engine_environment, engine_state, pick_release_assets,
+    recommended_release_asset, validate_download_url, variant_of, why_picked,
 };
 use draggy_engine::command::{CommandOutput, CommandRunner, ProcessSpec};
 use draggy_engine::cpu_topology::{
@@ -1058,9 +1059,11 @@ fn fixtures_match_the_typescript_reference() {
 
 #[test]
 fn runner_table_matches_the_shared_fixture() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../shared/fixtures/runner-table.json");
-    let fixture: Value = serde_json::from_str(&fs::read_to_string(path).expect("runner-table.json reads"))
-        .expect("runner-table.json parses");
+    let path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../shared/fixtures/runner-table.json");
+    let fixture: Value =
+        serde_json::from_str(&fs::read_to_string(path).expect("runner-table.json reads"))
+            .expect("runner-table.json parses");
     let column = |spec: &Option<RunnerSpec>| match spec {
         Some(spec) => json!({"folders": spec.folders, "marker": spec.marker}),
         None => Value::Null,

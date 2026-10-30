@@ -64,7 +64,11 @@ pub fn parse_requirements(text: &str) -> Result<Vec<Requirement>, String> {
             .filter_map(|p| p.strip_prefix("--hash=sha256:"))
             .map(str::to_owned)
             .collect();
-        if hashes.is_empty() || hashes.iter().any(|h| h.len() != 64 || !h.bytes().all(|b| b.is_ascii_hexdigit())) {
+        if hashes.is_empty()
+            || hashes
+                .iter()
+                .any(|h| h.len() != 64 || !h.bytes().all(|b| b.is_ascii_hexdigit()))
+        {
             return Err(format!("{name}: missing or malformed sha256 hash"));
         }
         out.push(Requirement {
@@ -85,13 +89,18 @@ pub const REQUIREMENTS: &str = include_str!("../data/mlx-requirements.txt");
 /// Why an MLX start failed, as a stable key the shells can translate.
 pub fn failure_key(output: &str) -> &'static str {
     let lower = output.to_ascii_lowercase();
-    if lower.contains("out of memory") || lower.contains("insufficient memory") || lower.contains("kiogpucommandbuffercallbackerrorouto") {
+    if lower.contains("out of memory")
+        || lower.contains("insufficient memory")
+        || lower.contains("kiogpucommandbuffercallbackerrorouto")
+    {
         "mlx-nomem"
     } else if lower.contains("no module named") || lower.contains("modulenotfounderror") {
         "mlx-runtime-missing"
     } else if lower.contains("address already in use") {
         "mlx-port-busy"
-    } else if lower.contains("unsupported model") || lower.contains("model type") && lower.contains("not supported") {
+    } else if lower.contains("unsupported model")
+        || lower.contains("model type") && lower.contains("not supported")
+    {
         "mlx-unsupported-model"
     } else {
         "mlx-start-failed"
@@ -121,10 +130,16 @@ pub fn spawn_plan(python: &Path, model_dir: &Path, port: u16) -> crate::supervis
         program: launch.program,
         args: launch.args,
         cwd: None,
-        env: vec![("PYTHONUNBUFFERED".into(), "1".into()), ("PYTHONUTF8".into(), "1".into())],
+        env: vec![
+            ("PYTHONUNBUFFERED".into(), "1".into()),
+            ("PYTHONUTF8".into(), "1".into()),
+        ],
         port,
         ready_path: "/v1/models",
-        model: model_dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+        model: model_dir
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default(),
         timeout: std::time::Duration::from_secs(300),
     }
 }
@@ -150,7 +165,11 @@ pub async fn start(
 
 /// A port nothing listens on, asked from the system.
 pub fn free_port() -> Option<u16> {
-    std::net::TcpListener::bind(("127.0.0.1", 0)).ok()?.local_addr().ok().map(|a| a.port())
+    std::net::TcpListener::bind(("127.0.0.1", 0))
+        .ok()?
+        .local_addr()
+        .ok()
+        .map(|a| a.port())
 }
 
 #[cfg(test)]
@@ -176,7 +195,9 @@ mod tests {
     #[test]
     fn requirements_must_be_pinned_and_hashed() {
         let hash = "a".repeat(64);
-        let ok = format!("mlx-lm==0.1.0 \\\n    --hash=sha256:{hash}\n# c\nmlx==0.2 --hash=sha256:{hash}\n");
+        let ok = format!(
+            "mlx-lm==0.1.0 \\\n    --hash=sha256:{hash}\n# c\nmlx==0.2 --hash=sha256:{hash}\n"
+        );
         let parsed = parse_requirements(&ok).unwrap();
         assert_eq!(parsed.len(), 2);
         assert_eq!(parsed[0].version, "0.1.0");
@@ -187,8 +208,14 @@ mod tests {
 
     #[test]
     fn failures_map_to_keys() {
-        assert_eq!(failure_key("ModuleNotFoundError: No module named 'mlx'"), "mlx-runtime-missing");
-        assert_eq!(failure_key("OSError: [Errno 48] Address already in use"), "mlx-port-busy");
+        assert_eq!(
+            failure_key("ModuleNotFoundError: No module named 'mlx'"),
+            "mlx-runtime-missing"
+        );
+        assert_eq!(
+            failure_key("OSError: [Errno 48] Address already in use"),
+            "mlx-port-busy"
+        );
         assert_eq!(failure_key("RuntimeError: out of memory"), "mlx-nomem");
         assert_eq!(failure_key("boom"), "mlx-start-failed");
     }
@@ -204,7 +231,15 @@ mod tests {
     #[tokio::test]
     async fn mlx_refuses_off_apple_silicon() {
         let sup = crate::supervisor::Supervisor::new();
-        let r = start(&sup, Os::Linux, Arch::X64, Path::new("/py"), Path::new("/m"), 9).await;
+        let r = start(
+            &sup,
+            Os::Linux,
+            Arch::X64,
+            Path::new("/py"),
+            Path::new("/m"),
+            9,
+        )
+        .await;
         assert!(r.is_err());
     }
 
@@ -217,6 +252,9 @@ mod tests {
 
     #[test]
     fn logs_are_redacted() {
-        assert_eq!(redact("token hf_abc123 at /Users/me/x"), "token [redacted] at ~");
+        assert_eq!(
+            redact("token hf_abc123 at /Users/me/x"),
+            "token [redacted] at ~"
+        );
     }
 }
