@@ -210,7 +210,10 @@ mod tests {
 
     #[test]
     fn mlx_folders_are_listed_and_gguf_files_are_not() {
-        let dir = std::env::temp_dir().join(format!("draggy-mlx-list-{}", std::process::id()));
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_nanos());
+        let dir = std::env::temp_dir().join(format!("draggy-mlx-list-{stamp}"));
         let _ = std::fs::remove_dir_all(&dir);
         let m = dir.join("Qwen-4bit");
         std::fs::create_dir_all(&m).unwrap();
