@@ -8,12 +8,11 @@ const url = (name: string) => FILES[`./icons/${name}.svg`] ?? FILES[`./icons/${n
 const BRAND: Record<string, string> = {
   chatgpt: "openai",
   anthropic: "claude",
-  mlx: "apple",
   "ollama-cloud": "ollama",
 };
 
 /** One-colour logos: painted with the text colour so they stay visible in both themes. */
-const MONO = new Set(["openai", "xai", "groq", "cerebras", "openrouter", "moonshot", "zai", "ollama", "lmstudio", "apple", "nebius", "custom"]);
+const MONO = new Set(["openai", "xai", "groq", "cerebras", "openrouter", "moonshot", "zai", "ollama", "lmstudio", "nebius", "custom"]);
 
 /** Logos drawn on a hard square: rounded to match the tiles beside them. */
 const TILE = new Set(["localai", "textgen"]);

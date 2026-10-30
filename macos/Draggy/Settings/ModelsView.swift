@@ -18,7 +18,8 @@ struct ModelsView: View {
                         }
                     } label: {
                         Text(model.filename).lineLimit(1).truncationMode(.middle)
-                        Text(ByteCountFormatter.string(fromByteCount: Int64(model.bytes), countStyle: .file))
+                        Text(verbatim: ByteCountFormatter.string(fromByteCount: Int64(model.bytes), countStyle: .file)
+                            + (model.format == "mlx" ? " · MLX" : ""))
                             .foregroundStyle(.secondary)
                     }
                 }

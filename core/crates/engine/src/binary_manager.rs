@@ -356,12 +356,114 @@ pub fn has_nvidia_driver(platform: &Platform, system_root: &Path) -> bool {
         .any(|file| Path::new(file).exists())
 }
 
-/// Picks the GPU backend the engine folder can run. Sub-folder layouts come from Ollama installs, flat ones from llama.cpp releases.
+/// Where one runner lives on one OS: its sub-folder names and the library that proves the backend is there.
+pub struct RunnerSpec {
+    pub folders: &'static [&'static str],
+    pub marker: &'static str,
+}
+
+/// One GPU backend the engine folder can hold. A `None` spec means the runner does not exist on that OS.
+pub struct RunnerRow {
+    pub runner_type: &'static str,
+    pub windows: Option<RunnerSpec>,
+    pub linux: Option<RunnerSpec>,
+    /// Needs an NVIDIA driver and video memory to load.
+    pub needs_nvidia: bool,
+    /// AMD ROCm or HIP. Windows only looks for it when the user opted in; Linux always has.
+    pub rocm: bool,
+}
+
+/// Every runner in preference order. This is the only place runner names are written; `shared/fixtures/engine/runner-table.json`
+/// pins it for the Windows shell too. Opting into ROCm moves the rocm row ahead of vulkan.
+pub const RUNNER_TABLE: &[RunnerRow] = &[
+    RunnerRow {
+        runner_type: "cuda",
+        windows: Some(RunnerSpec {
+            folders: &["cuda_v12", "cuda_v13"],
+            marker: "ggml-cuda.dll",
+        }),
+        linux: Some(RunnerSpec {
+            folders: &["cuda_v12", "cuda_v13"],
+            marker: "libggml-cuda.so",
+        }),
+        needs_nvidia: true,
+        rocm: false,
+    },
+    RunnerRow {
+        runner_type: "vulkan",
+        windows: Some(RunnerSpec {
+            folders: &["vulkan"],
+            marker: "ggml-vulkan.dll",
+        }),
+        linux: Some(RunnerSpec {
+            folders: &["vulkan"],
+            marker: "libggml-vulkan.so",
+        }),
+        needs_nvidia: false,
+        rocm: false,
+    },
+    RunnerRow {
+        runner_type: "rocm",
+        windows: Some(RunnerSpec {
+            folders: &["hip", "rocm"],
+            marker: "ggml-hip.dll",
+        }),
+        linux: Some(RunnerSpec {
+            folders: &["rocm"],
+            marker: "libggml-hip.so",
+        }),
+        needs_nvidia: false,
+        rocm: true,
+    },
+];
+
+/// What the user chose about GPU backends. Everything off keeps the default order.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RunnerOptions {
+    /// `gpu.rocm`: allow ROCm on Linux and HIP on Windows, ahead of Vulkan.
+    pub rocm: bool,
+}
+
+static ROCM_ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+impl RunnerOptions {
+    /// The options the shell last set with [`set_runner_options`]. Everything is off until it does.
+    pub fn current() -> Self {
+        Self {
+            rocm: ROCM_ENABLED.load(Ordering::Relaxed),
+        }
+    }
+}
+
+/// Records the user's GPU backend choices (`gpu.rocm`) for the engine installer and updater.
+pub fn set_runner_options(options: RunnerOptions) {
+    ROCM_ENABLED.store(options.rocm, Ordering::Relaxed);
+}
+
+/// Picks the GPU backend the engine folder can run, with the options the shell set.
 pub fn detect_gpu_runner(
     platform: &Platform,
     llama_dir: &Path,
     vram_gb: f64,
     nvidia: bool,
+) -> GpuRunner {
+    detect_gpu_runner_with(
+        platform,
+        llama_dir,
+        vram_gb,
+        nvidia,
+        RunnerOptions::current(),
+    )
+}
+
+/// Picks the GPU backend the engine folder can run. Sub-folder layouts come from Ollama installs, flat ones from llama.cpp releases.
+/// The first row of [`RUNNER_TABLE`] whose folder or marker is present wins.
+pub fn detect_gpu_runner_with(
+    platform: &Platform,
+    llama_dir: &Path,
+    vram_gb: f64,
+    nvidia: bool,
+    options: RunnerOptions,
 ) -> GpuRunner {
     let found = |dir: PathBuf, dll: Option<&str>, runner_type: &'static str| GpuRunner {
         backend_dll: dll.map(|name| dir.join(name)),
@@ -371,46 +473,50 @@ pub fn detect_gpu_runner(
     if platform.os == Os::MacOs {
         return found(llama_dir.to_path_buf(), None, "metal");
     }
+    let windows = platform.os == Os::Windows;
     // AMD and Intel report VRAM too; without an NVIDIA driver a CUDA runner cannot load.
     let cuda_usable = vram_gb > 0.0 && nvidia;
 
-    if platform.os == Os::Windows {
-        // CUDA beats Vulkan on NVIDIA in every layout, so a stray vulkan folder must not win over a flat CUDA build.
-        if cuda_usable {
-            for name in ["cuda_v12", "cuda_v13"] {
+    let mut rows: Vec<&RunnerRow> = RUNNER_TABLE.iter().collect();
+    if options.rocm {
+        // CUDA, then ROCm or HIP, then the rest. The sort is stable.
+        rows.sort_by_key(|row| match (row.needs_nvidia, row.rocm) {
+            (true, _) => 0,
+            (_, true) => 1,
+            _ => 2,
+        });
+    }
+    for row in rows {
+        let spec = if windows { &row.windows } else { &row.linux };
+        let Some(spec) = spec else { continue };
+        if row.needs_nvidia && !cuda_usable {
+            continue;
+        }
+        // Windows HIP exists only for users who asked for it; an Ollama `rocm` folder must not change their runner.
+        if row.rocm && windows && !options.rocm {
+            continue;
+        }
+        if windows {
+            // Folders before the flat library, as the release layouts put them.
+            for name in spec.folders {
                 let dir = llama_dir.join(name);
                 if dir.is_dir() {
-                    return found(dir, Some("ggml-cuda.dll"), "cuda");
+                    return found(dir, Some(spec.marker), row.runner_type);
                 }
             }
-            if llama_dir.join("ggml-cuda.dll").exists() {
-                return found(llama_dir.to_path_buf(), Some("ggml-cuda.dll"), "cuda");
+            if llama_dir.join(spec.marker).exists() {
+                return found(llama_dir.to_path_buf(), Some(spec.marker), row.runner_type);
             }
-        }
-        let vulkan_dir = llama_dir.join("vulkan");
-        if vulkan_dir.is_dir() {
-            return found(vulkan_dir, Some("ggml-vulkan.dll"), "vulkan");
-        }
-        if llama_dir.join("ggml-vulkan.dll").exists() {
-            return found(llama_dir.to_path_buf(), Some("ggml-vulkan.dll"), "vulkan");
-        }
-        return found(llama_dir.to_path_buf(), None, "cpu");
-    }
-
-    let mut runners: Vec<(&str, &str, &'static str)> = Vec::new();
-    if cuda_usable {
-        runners.push(("cuda_v12", "libggml-cuda.so", "cuda"));
-        runners.push(("cuda_v13", "libggml-cuda.so", "cuda"));
-    }
-    runners.push(("vulkan", "libggml-vulkan.so", "vulkan"));
-    runners.push(("rocm", "libggml-hip.so", "rocm"));
-    for (name, library, runner_type) in runners {
-        let dir = llama_dir.join(name);
-        if dir.is_dir() {
-            return found(dir, Some(library), runner_type);
-        }
-        if llama_dir.join(library).exists() {
-            return found(llama_dir.to_path_buf(), Some(library), runner_type);
+        } else {
+            for name in spec.folders {
+                let dir = llama_dir.join(name);
+                if dir.is_dir() {
+                    return found(dir, Some(spec.marker), row.runner_type);
+                }
+                if llama_dir.join(spec.marker).exists() {
+                    return found(llama_dir.to_path_buf(), Some(spec.marker), row.runner_type);
+                }
+            }
         }
     }
     found(llama_dir.to_path_buf(), None, "cpu")
@@ -649,6 +755,18 @@ pub fn pick_release_assets<'a>(
     assets: &'a [Asset],
     profile: &GpuProfile,
 ) -> Picked<'a> {
+    pick_release_assets_with(os, arch, assets, profile, RunnerOptions::current())
+}
+
+/// [`pick_release_assets`] with the options given. With `gpu.rocm` on, a card without an NVIDIA driver takes the ROCm
+/// archive when the release has one, ahead of Vulkan.
+pub fn pick_release_assets_with<'a>(
+    os: Os,
+    arch: Arch,
+    assets: &'a [Asset],
+    profile: &GpuProfile,
+    options: RunnerOptions,
+) -> Picked<'a> {
     let by_name = |pattern: &str| -> Option<&'a Asset> {
         let re = Regex::new(pattern).ok()?;
         assets.iter().find(|asset| re.is_match(&asset.name))
@@ -707,6 +825,14 @@ pub fn pick_release_assets<'a>(
         }
     }
 
+    if options.rocm
+        && profile.vram_gb > 0.0
+        && !profile.nvidia
+        && let Some(rocm) = pick_rocm_asset(os, arch, assets)
+    {
+        return with_variant(Some(rocm), None);
+    }
+
     if windows {
         if arm {
             return with_variant(by_name(r"^llama-b[0-9]+-bin-win-cpu-arm64\.zip$"), None);
@@ -725,6 +851,20 @@ pub fn pick_release_assets<'a>(
         )),
         None,
     )
+}
+
+/// The ROCm archive for an AMD card, used only when `gpu.rocm` is on. x64 Windows and Ubuntu publish one; nothing else does.
+pub fn pick_rocm_asset(os: Os, arch: Arch, assets: &[Asset]) -> Option<&Asset> {
+    if arch != Arch::X64 {
+        return None;
+    }
+    let pattern = match os {
+        Os::Windows => r"^llama-b[0-9]+-bin-win-rocm-[0-9.]+-x64\.zip$",
+        Os::Linux => r"^llama-b[0-9]+-bin-ubuntu-rocm-[0-9.]+-x64\.tar\.gz$",
+        Os::MacOs => return None,
+    };
+    let re = Regex::new(pattern).ok()?;
+    assets.iter().find(|asset| re.is_match(&asset.name))
 }
 
 /// The reason a build was chosen, in a few words, for the log.
@@ -1108,6 +1248,58 @@ mod tests {
             cuda13: false,
         };
         assert!(why_picked(&amd, Some("vulkan")).contains("vulkan"));
+    }
+
+    #[test]
+    fn gpu_rocm_takes_the_rocm_archive_only_when_on() {
+        let assets: Vec<Asset> = [
+            "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+            "llama-b1-bin-ubuntu-rocm-10.0-x64.tar.gz",
+        ]
+        .into_iter()
+        .map(asset)
+        .collect();
+        let amd = GpuProfile {
+            vram_gb: 16.0,
+            nvidia: false,
+            cuda13: false,
+        };
+        let name = |options| {
+            pick_release_assets_with(Os::Linux, Arch::X64, &assets, &amd, options)
+                .main
+                .map(|a| a.name.as_str())
+        };
+        assert_eq!(
+            name(RunnerOptions::default()),
+            Some("llama-b1-bin-ubuntu-vulkan-x64.tar.gz")
+        );
+        assert_eq!(
+            name(RunnerOptions { rocm: true }),
+            Some("llama-b1-bin-ubuntu-rocm-10.0-x64.tar.gz")
+        );
+    }
+
+    #[test]
+    fn the_rocm_archive_is_picked_only_where_one_exists() {
+        let assets: Vec<Asset> = [
+            "llama-b1-bin-win-cpu-x64.zip",
+            "llama-b1-bin-win-rocm-10.0-x64.zip",
+            "llama-b1-bin-ubuntu-rocm-10.0-x64.tar.gz",
+        ]
+        .into_iter()
+        .map(asset)
+        .collect();
+        let name = |os, arch| pick_rocm_asset(os, arch, &assets).map(|a| a.name.as_str());
+        assert_eq!(
+            name(Os::Windows, Arch::X64),
+            Some("llama-b1-bin-win-rocm-10.0-x64.zip")
+        );
+        assert_eq!(
+            name(Os::Linux, Arch::X64),
+            Some("llama-b1-bin-ubuntu-rocm-10.0-x64.tar.gz")
+        );
+        assert_eq!(name(Os::Linux, Arch::Arm64), None);
+        assert_eq!(name(Os::MacOs, Arch::Arm64), None);
     }
 
     #[test]

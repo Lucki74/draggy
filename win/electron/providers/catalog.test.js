@@ -95,3 +95,9 @@ describe("the bar a catalog entry must meet", () => {
     expect(problemWith({ ...good, capabilityPatterns: [{ match: "(", capabilities: [] }] })).toMatch(/pattern/);
   });
 });
+
+describe("providers that do not run on Windows", () => {
+  it("does not list MLX-LM, which needs Apple silicon", () => {
+    expect(find("mlx")).toBeNull();
+  });
+});

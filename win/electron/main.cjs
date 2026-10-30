@@ -827,6 +827,18 @@ function syncTitleBarTheme() {
   }
 }
 
+/** Hands the gpu.rocm choice to the engine code, which reads it when it picks a build. Off for unreadable settings. */
+function applyRunnerSetting(rawSettings) {
+  let rocm;
+  try {
+    const parsed = typeof rawSettings === "string" ? JSON.parse(rawSettings) : rawSettings;
+    rocm = parsed?.gpuRocm === true;
+  } catch {
+    rocm = false;
+  }
+  binaryManager.setRunnerOptions({ rocm });
+}
+
 function applyThemeSetting(rawSettings) {
   overlayColor = themes.accentColor(rawSettings);
   const setting = themes.themeSetting(rawSettings);
@@ -1159,6 +1171,7 @@ app.whenReady().then(() => {
   onboardingPlan = decideOnboarding();
   try {
     applyThemeSetting(storage.getValue("draggy_settings"));
+    applyRunnerSetting(storage.getValue("draggy_settings"));
   } catch (error) {
     log.warn("theme", `could not read the saved theme: ${error.message}`);
   }
@@ -3402,6 +3415,7 @@ ipc.handle("db:set", wrap("db", async (event, key, value) => {
     const changed = settingsLog.describeChange(before, value);
     if (Object.keys(changed).length > 0) log.info("settings", "settings saved", { changed });
     applyThemeSetting(value);
+    applyRunnerSetting(value);
   } else if (result.success) {
     log.info("settings", "setting saved", settingsLog.describeKeySave(key));
   }

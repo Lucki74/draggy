@@ -92,8 +92,22 @@ function validateDownloadUrl(url) {
   return allowed;
 }
 
-/** Picks the GPU backend the engine folder can run. Sub-folder layouts come from Ollama installs, flat ones from llama.cpp releases. */
-function detectGpuRunner(llamaDir, vramGB = 0) {
+/** The Windows column of shared/fixtures/runner-table.json, in preference order. The core's RUNNER_TABLE holds the same rows. */
+const RUNNER_TABLE = [
+  { runnerType: "cuda", needsNvidia: true, rocm: false, folders: ["cuda_v12", "cuda_v13"], marker: "ggml-cuda.dll" },
+  { runnerType: "vulkan", needsNvidia: false, rocm: false, folders: ["vulkan"], marker: "ggml-vulkan.dll" },
+  { runnerType: "rocm", needsNvidia: false, rocm: true, folders: ["hip", "rocm"], marker: "ggml-hip.dll" },
+];
+
+/** The user's GPU backend choices (gpu.rocm). Everything is off until the main process sets it from settings. */
+let runnerOptions = { rocm: false };
+function setRunnerOptions(options = {}) {
+  runnerOptions = { rocm: options.rocm === true };
+}
+
+/** Picks the GPU backend the engine folder can run. Sub-folder layouts come from Ollama installs, flat ones from llama.cpp releases.
+ * `options.rocm` (gpu.rocm) lets HIP in, ahead of Vulkan. Off, an Ollama `rocm` folder cannot change the runner. */
+function detectGpuRunner(llamaDir, vramGB = 0, options = runnerOptions) {
   const found = (runnerDir, dllName, runnerType) => ({
     runnerDir,
     backendDll: dllName ? path.join(runnerDir, dllName) : null,
@@ -102,19 +116,18 @@ function detectGpuRunner(llamaDir, vramGB = 0) {
 
   // AMD and Intel report VRAM too; without an NVIDIA driver a CUDA runner cannot load.
   const cudaUsable = vramGB > 0 && hasNvidiaDriver();
+  const rows = options.rocm
+    ? [...RUNNER_TABLE].sort((a, b) => (a.needsNvidia ? 0 : a.rocm ? 1 : 2) - (b.needsNvidia ? 0 : b.rocm ? 1 : 2))
+    : RUNNER_TABLE.filter((row) => !row.rocm);
 
   // CUDA beats Vulkan on NVIDIA in every layout, so a stray vulkan folder must not win over a flat CUDA build.
-  if (cudaUsable) {
-    for (const name of ["cuda_v12", "cuda_v13"]) {
+  for (const row of rows) {
+    if (row.needsNvidia && !cudaUsable) continue;
+    for (const name of row.folders) {
       const dir = path.join(llamaDir, name);
-      if (isDirectory(dir)) return found(dir, "ggml-cuda.dll", "cuda");
+      if (isDirectory(dir)) return found(dir, row.marker, row.runnerType);
     }
-    if (fs.existsSync(path.join(llamaDir, "ggml-cuda.dll"))) return found(llamaDir, "ggml-cuda.dll", "cuda");
-  }
-  const vulkanDir = path.join(llamaDir, "vulkan");
-  if (isDirectory(vulkanDir)) return found(vulkanDir, "ggml-vulkan.dll", "vulkan");
-  if (fs.existsSync(path.join(llamaDir, "ggml-vulkan.dll"))) {
-    return found(llamaDir, "ggml-vulkan.dll", "vulkan");
+    if (fs.existsSync(path.join(llamaDir, row.marker))) return found(llamaDir, row.marker, row.runnerType);
   }
   return found(llamaDir, null, "cpu");
 }
@@ -237,7 +250,7 @@ function hasNvidiaDriver() {
 /** Chooses release assets for this machine: the engine archive, plus the CUDA runtime when it is not
  * bundled. CUDA 13 goes to Blackwell cards (RTX 50) with a new enough driver: the 12.x builds carry no
  * native code for them. Older cards stay on 12, since 13 dropped the oldest architectures. */
-function pickReleaseAssets(assets, { vramGB = 0, arch = os.arch(), nvidia = false, cuda13 = false } = {}) {
+function pickReleaseAssets(assets, { vramGB = 0, arch = os.arch(), nvidia = false, cuda13 = false, rocm = runnerOptions.rocm } = {}) {
   const byName = (pattern) => assets.find((asset) => pattern.test(asset.name));
   const arm = arch === "arm64";
   const withVariant = (picked) => (picked.main ? { ...picked, variant: variantOf(picked.main.name) } : picked);
@@ -250,6 +263,11 @@ function pickReleaseAssets(assets, { vramGB = 0, arch = os.arch(), nvidia = fals
       const runtime = version && assets.find((asset) => asset.name === runtimeName);
       if (main && runtime) return withVariant({ main, extra: runtime });
     }
+  }
+
+  if (rocm && vramGB > 0 && !nvidia && !arm) {
+    const hip = byName(/^llama-b\d+-bin-win-rocm-[\d.]+-x64\.zip$/);
+    if (hip) return withVariant({ main: hip });
   }
 
   if (arm) return withVariant({ main: byName(/^llama-b\d+-bin-win-cpu-arm64\.zip$/) });
@@ -455,6 +473,8 @@ module.exports = {
   recommendedReleaseAsset,
   validateDownloadUrl,
   detectGpuRunner,
+  setRunnerOptions,
+  RUNNER_TABLE,
   getEngineEnvironment,
   ensureEngineReady,
   pickReleaseAssets,

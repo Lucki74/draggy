@@ -1048,31 +1048,6 @@
       }
     },
     {
-      "name": "entry mlx",
-      "input": {
-        "op": "entry",
-        "id": "mlx"
-      },
-      "expected": {
-        "id": "mlx",
-        "name": "MLX-LM",
-        "kind": "local",
-        "protocol": "openai",
-        "baseUrl": "http://127.0.0.1:8080/v1",
-        "auth": "none",
-        "discovery": {
-          "port": 8080,
-          "probe": "/v1/models"
-        },
-        "capabilityPatterns": [],
-        "defaultModels": [],
-        "quirks": {
-          "templateKwargs": true,
-          "reasoningContent": true
-        }
-      }
-    },
-    {
       "name": "entry colibri",
       "input": {
         "op": "entry",

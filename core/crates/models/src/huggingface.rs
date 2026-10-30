@@ -1519,7 +1519,7 @@ impl<C: HttpClient> HuggingFace<C> {
     }
 }
 
-fn hub_url(repo: &str, file: &str) -> String {
+pub(crate) fn hub_url(repo: &str, file: &str) -> String {
     format!("https://huggingface.co/{repo}/resolve/main/{file}?download=true")
 }
 

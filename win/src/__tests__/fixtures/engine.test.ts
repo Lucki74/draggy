@@ -55,7 +55,7 @@ const binaryManager = require("../../../electron/binaryManager.cjs") as {
   whyPicked: (profile: Record<string, unknown>, variant: string) => string;
   recommendedReleaseAsset: (vramGB: number) => string;
   validateDownloadUrl: (url: string) => boolean;
-  detectGpuRunner: (llamaDir: string, vramGB: number) => { runnerDir: string; backendDll: string | null; runnerType: string };
+  detectGpuRunner: (llamaDir: string, vramGB: number, options?: { rocm?: boolean }) => { runnerDir: string; backendDll: string | null; runnerType: string };
   engineState: (llamaDir: string, vramGB: number) => { present: boolean; complete: boolean; runnerType: string };
   getEngineEnvironment: (
     userDataDir: string,
@@ -365,7 +365,7 @@ function runGpuRunner(input: Input): unknown {
           const state = binaryManager.engineState(llama, num(input.vramGB));
           return { present: state.present, complete: state.complete, runnerType: state.runnerType };
         }
-        const runner = binaryManager.detectGpuRunner(llama, num(input.vramGB));
+        const runner = binaryManager.detectGpuRunner(llama, num(input.vramGB), { rocm: input.rocm === true });
         return {
           runnerDir: rel(llama, runner.runnerDir),
           backendDll: runner.backendDll === null ? null : rel(llama, runner.backendDll),

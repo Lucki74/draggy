@@ -67,7 +67,7 @@ impl Clock for SystemClock {
 pub struct HttpProbe;
 
 /// The status code and body of a loopback GET, or None when nothing answered in time.
-async fn get(port: u16, path: &str, timeout: Duration) -> Option<(u16, String)> {
+pub(crate) async fn get(port: u16, path: &str, timeout: Duration) -> Option<(u16, String)> {
     let exchange = async {
         let mut stream = TcpStream::connect(("127.0.0.1", port)).await.ok()?;
         let request =

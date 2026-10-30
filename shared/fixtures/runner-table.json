@@ -1,0 +1,26 @@
+{
+  "description": "GPU runners in preference order. Rust (binary_manager.rs RUNNER_TABLE) and the Windows shell (binaryManager.cjs RUNNER_TABLE) must match this file. The Windows shell reads the windows column only. A null column means the runner does not exist on that OS. rocm rows move ahead of vulkan only when gpu.rocm is on, and on Windows are skipped when it is off.",
+  "rows": [
+    {
+      "runnerType": "cuda",
+      "needsNvidia": true,
+      "rocm": false,
+      "windows": { "folders": ["cuda_v12", "cuda_v13"], "marker": "ggml-cuda.dll" },
+      "linux": { "folders": ["cuda_v12", "cuda_v13"], "marker": "libggml-cuda.so" }
+    },
+    {
+      "runnerType": "vulkan",
+      "needsNvidia": false,
+      "rocm": false,
+      "windows": { "folders": ["vulkan"], "marker": "ggml-vulkan.dll" },
+      "linux": { "folders": ["vulkan"], "marker": "libggml-vulkan.so" }
+    },
+    {
+      "runnerType": "rocm",
+      "needsNvidia": false,
+      "rocm": true,
+      "windows": { "folders": ["hip", "rocm"], "marker": "ggml-hip.dll" },
+      "linux": { "folders": ["rocm"], "marker": "libggml-hip.so" }
+    }
+  ]
+}

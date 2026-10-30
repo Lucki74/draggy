@@ -107,6 +107,33 @@ impl Downloader for NetDownloader {
     }
 }
 
+/// Sets the `gpu.rocm` choice: when on, an AMD card takes the ROCm build ahead of Vulkan. Off by default.
+#[uniffi::export]
+pub fn set_gpu_rocm(enabled: bool) {
+    draggy_engine::binary_manager::set_runner_options(
+        draggy_engine::binary_manager::RunnerOptions { rocm: enabled },
+    );
+}
+
+/// The engine a model of `format` ("gguf" or "mlx") runs on here: "llamacpp" or "mlx". An MLX model on a machine that
+/// is not an Apple silicon Mac is refused, and never falls back to llama.cpp.
+#[uniffi::export]
+pub fn engine_for_model_format(format: String) -> Result<String, crate::error::CoreError> {
+    let platform = host_platform();
+    draggy_engine::engine_host::engine_for_format(&format, platform.os, platform.arch)
+        .map(str::to_owned)
+        .map_err(|error| crate::error::CoreError::Engine {
+            message: error.to_string(),
+        })
+}
+
+/// Whether this machine can run MLX models.
+#[uniffi::export]
+pub fn mlx_supported() -> bool {
+    let platform = host_platform();
+    draggy_engine::mlx_runtime::supported(platform.os, platform.arch)
+}
+
 fn host_platform() -> Platform {
     let os = if cfg!(target_os = "macos") {
         Os::MacOs
