@@ -16,6 +16,20 @@ const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "draggy-wiki-shots-"));
 app.setPath("appData", path.join(scratch, "appdata"));
 app.setPath("userData", path.join(scratch, "userdata"));
 fs.mkdirSync(app.getPath("userData"), { recursive: true });
+
+// The installed engine and one model are linked in, so a run never downloads them again.
+const realUserData = path.join(process.env.APPDATA || "", "Draggy");
+if (fs.existsSync(path.join(realUserData, "bin"))) {
+  fs.symlinkSync(path.join(realUserData, "bin"), path.join(app.getPath("userData"), "bin"), "junction");
+}
+const captureModel = "Qwen3.5-9B-Q4_K_M.gguf";
+if (fs.existsSync(path.join(realUserData, "models", captureModel))) {
+  fs.mkdirSync(path.join(app.getPath("userData"), "models"));
+  fs.linkSync(
+    path.join(realUserData, "models", captureModel),
+    path.join(app.getPath("userData"), "models", captureModel),
+  );
+}
 app.commandLine.appendSwitch("force-device-scale-factor", process.env.DRAGGY_SHOTS_SCALE || "1.6");
 
 const PROJECT = path.join(scratch, "weather-cli");
@@ -159,7 +173,7 @@ async function submit(win, text) {
 
 function allowPending(win) {
   return inPage(win, () => {
-    const button = [...document.querySelectorAll("button")].find((node) => node.textContent.trim() === "Allow once");
+    const button = [...document.querySelectorAll("button")].find((node) => /^Allow once/.test(node.textContent.trim()));
     if (!button) return null;
     const card = button.closest("div.rounded-xl");
     const target = card?.querySelector("pre")?.textContent ?? card?.querySelector("p")?.textContent ?? "a tool";
@@ -197,7 +211,17 @@ async function setDark(win, dark) {
 
 async function capture(win, name) {
   await sleep(700);
-  const image = await win.webContents.capturePage({ x: 0, y: 0, width: WIDTH, height: HEIGHT });
+  // A capture right after a reload or a hover can fail with a transient viz error; retry it.
+  let image;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      image = await win.webContents.capturePage({ x: 0, y: 0, width: WIDTH, height: HEIGHT });
+      break;
+    } catch (error) {
+      if (attempt === 4) throw error;
+      await sleep(1500);
+    }
+  }
   fs.writeFileSync(path.join(OUT, `${name}.png`), image.toPNG());
   const size = image.getSize();
   log(`saved ${name}.png (${size.width}x${size.height})`);
@@ -278,7 +302,7 @@ async function run() {
   await openWorkspace(win, "weather");
   await send(
     win,
-    "In src/cli.ts, check if the city argument is empty and print an error message. Update the file.",
+    "In src/cli.ts, add a --json flag that prints the forecast as JSON. Just edit the file, dont run anything.",
   );
   await click(win, "src", { exact: true }).catch(() => undefined);
   await sleep(600);
@@ -317,14 +341,15 @@ async function run() {
 
   // Tool documentation shows the command output and result card.
   log("Scene 4: Tools (approved command output & tool steps)");
-  await click(win, "Allow once", { exact: true });
+  await click(win, "Allow once");
   log("waiting for npm test to complete");
   await waitFor(
-    () => inPage(win, () => {
-      const stop = document.querySelector('[data-stop=\'true\']');
-      return !stop;
-    }),
-    { timeout: 180_000, every: 1000, label: "npm test completion" },
+    async () => {
+      // The model may ask again (an install first); each card is allowed once.
+      if (await allowPending(win)) return false;
+      return inPage(win, () => !document.querySelector("[data-stop=\"true\"]"));
+    },
+    { timeout: 300_000, every: 1000, label: "npm test completion" },
   );
   await sleep(1500);
   await inPage(win, () => {

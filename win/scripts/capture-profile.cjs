@@ -182,7 +182,7 @@ function prepare({ prefix, scale, models, onboarding = false, language = "" }) {
   }
   app.commandLine.appendSwitch("force-device-scale-factor", String(scale));
   // The setup guesses its language from the system's, so the capture names it rather than inherit this machine's.
-  if (onboarding) app.commandLine.appendSwitch("lang", language || "en-US");
+  app.commandLine.appendSwitch("lang", language || "en-US");
 
   const project = path.join(scratch, "weather-cli");
   writeDemoProject(project);

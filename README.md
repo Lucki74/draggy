@@ -48,6 +48,8 @@ architecture in English, French, Spanish, and Chinese. Start with
 
 - Guided setup for interface language, theme, and hardware-matched models.
 - Local llama.cpp engine running GGUF models on your hardware.
+- Optional ROCm build of llama.cpp for AMD graphics cards, off by default.
+- Background terminal tasks in Code mode.
 - Compact system prompts tuned for 1B to 7B models.
 - Separate chat and coding workspaces with independent model selection.
 - File editing, terminal commands, and undoable diff reviews.
@@ -61,7 +63,7 @@ architecture in English, French, Spanish, and Chinese. Start with
 - Colibri engine streams large MoE models from disk.
 - Voice chat with turn detection and interruption handling.
 - Real-time streaming replies with text fade-in.
-- Local GPU image generation with Stable Diffusion and Z-Image.
+- Local GPU image generation with Stable Diffusion and Z-Image, with reference images.
 - Optional token-protected OpenAI-compatible local server.
 - Connect external runtimes or cloud APIs with secured keys.
 
