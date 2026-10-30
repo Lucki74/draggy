@@ -234,7 +234,6 @@ const CATALOG = [
   local("textgen", "text-generation-webui", 5000, "/v1/models"),
   local("gpt4all", "GPT4All", 4891, "/v1/models"),
   local("llamafile", "llamafile", 8080, "/v1/models"),
-  local("mlx", "MLX-LM", 8080, "/v1/models"),
   local("colibri", "colibri", 8000, "/metrics"),
   local("lemonade", "Lemonade", 8000, "/api/v1/models", { baseUrl: "http://127.0.0.1:8000/api/v1" }),
 ];

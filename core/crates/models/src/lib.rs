@@ -6,6 +6,7 @@ pub mod draft_model;
 pub mod draft_pairing;
 pub mod gguf;
 pub mod huggingface;
+pub mod mlx_files;
 mod js;
 pub mod mmproj;
 pub mod model_cache;

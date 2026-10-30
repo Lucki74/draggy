@@ -427,6 +427,11 @@ pub fn supports_mlx(_target: &RuntimeTarget) -> bool {
     false
 }
 
+/// Whether the hardware could run MLX. `supports_mlx` stays false until an MLX ladder is checked on a Mac.
+pub fn mlx_capable(target: &RuntimeTarget) -> bool {
+    is_apple_silicon(target)
+}
+
 fn is_apple_silicon(target: &RuntimeTarget) -> bool {
     target.platform.as_deref() == Some("darwin") && target.arch.as_deref() == Some("arm64")
 }
@@ -520,5 +525,18 @@ pub fn get_recommended_download(vram: f64, target: &RuntimeTarget) -> Recommende
         label: rung.label,
         reference: rung.model,
         size: js::round(rung.size_gb * 1e9) as u64,
+    }
+}
+
+#[cfg(test)]
+mod mlx_tests {
+    use super::*;
+
+    #[test]
+    fn only_apple_silicon_is_mlx_capable() {
+        let mac = RuntimeTarget { platform: Some("darwin".into()), arch: Some("arm64".into()), ..Default::default() };
+        assert!(mlx_capable(&mac));
+        assert!(!mlx_capable(&RuntimeTarget { arch: Some("x64".into()), ..mac.clone() }));
+        assert!(!supports_mlx(&mac));
     }
 }

@@ -61,7 +61,6 @@
           "textgen",
           "gpt4all",
           "llamafile",
-          "mlx",
           "colibri",
           "lemonade"
         ],
@@ -170,7 +169,6 @@
           "textgen",
           "gpt4all",
           "llamafile",
-          "mlx",
           "colibri",
           "lemonade",
           "newcloud"
@@ -563,7 +561,6 @@
           "textgen",
           "gpt4all",
           "llamafile",
-          "mlx",
           "colibri",
           "lemonade",
           "newcloud"
@@ -641,7 +638,6 @@
           "textgen",
           "gpt4all",
           "llamafile",
-          "mlx",
           "colibri",
           "lemonade"
         ],

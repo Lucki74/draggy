@@ -9,7 +9,7 @@ use std::rc::Rc;
 use std::sync::Mutex;
 
 use draggy_engine::binary_manager::{
-    Asset, GpuProfile, build_number, detect_gpu_runner, engine_environment, engine_state,
+    Asset, GpuProfile, RUNNER_TABLE, RunnerOptions, RunnerSpec, build_number, detect_gpu_runner_with, engine_environment, engine_state,
     pick_release_assets, recommended_release_asset, validate_download_url, variant_of, why_picked,
 };
 use draggy_engine::command::{CommandOutput, CommandRunner, ProcessSpec};
@@ -520,7 +520,10 @@ fn run_gpu_runner(input: &Value) -> Value {
         let state = engine_state(&host, &llama, vram, nvidia);
         return json!({"present": state.present, "complete": state.complete, "runnerType": state.runner_type});
     }
-    let runner = detect_gpu_runner(&host, &llama, vram, nvidia);
+    let options = RunnerOptions {
+        rocm: input["rocm"].as_bool().unwrap_or(false),
+    };
+    let runner = detect_gpu_runner_with(&host, &llama, vram, nvidia, options);
     json!({
         "runnerDir": rel(&llama, &runner.runner_dir),
         "backendDll": runner.backend_dll.as_ref().map(|dll| rel(&llama, dll)),
@@ -1051,4 +1054,28 @@ fn fixtures_match_the_typescript_reference() {
         failures.len(),
         failures.join("\n")
     );
+}
+
+#[test]
+fn runner_table_matches_the_shared_fixture() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../shared/fixtures/runner-table.json");
+    let fixture: Value = serde_json::from_str(&fs::read_to_string(path).expect("runner-table.json reads"))
+        .expect("runner-table.json parses");
+    let column = |spec: &Option<RunnerSpec>| match spec {
+        Some(spec) => json!({"folders": spec.folders, "marker": spec.marker}),
+        None => Value::Null,
+    };
+    let actual: Vec<Value> = RUNNER_TABLE
+        .iter()
+        .map(|row| {
+            json!({
+                "runnerType": row.runner_type,
+                "needsNvidia": row.needs_nvidia,
+                "rocm": row.rocm,
+                "windows": column(&row.windows),
+                "linux": column(&row.linux),
+            })
+        })
+        .collect();
+    assert_eq!(Value::Array(actual), fixture["rows"]);
 }

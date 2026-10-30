@@ -229,6 +229,255 @@
       }
     },
     {
+      "name": "HIP folder is ignored on Windows while gpu.rocm is off",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "rocm/"
+        ],
+        "vramGB": 8,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": null,
+        "runnerType": "cpu"
+      }
+    },
+    {
+      "name": "HIP folder beats Vulkan on Windows when gpu.rocm is on",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "rocm/",
+          "vulkan/"
+        ],
+        "vramGB": 8,
+        "nvidia": false,
+        "rocm": true
+      },
+      "expected": {
+        "runnerDir": "rocm",
+        "backendDll": "rocm/ggml-hip.dll",
+        "runnerType": "rocm"
+      }
+    },
+    {
+      "name": "flat HIP build on Windows when gpu.rocm is on",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "ggml-hip.dll"
+        ],
+        "vramGB": 8,
+        "nvidia": false,
+        "rocm": true
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": "ggml-hip.dll",
+        "runnerType": "rocm"
+      }
+    },
+    {
+      "name": "gpu.rocm on without a HIP build keeps Vulkan on Windows",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "vulkan/"
+        ],
+        "vramGB": 8,
+        "nvidia": false,
+        "rocm": true
+      },
+      "expected": {
+        "runnerDir": "vulkan",
+        "backendDll": "vulkan/ggml-vulkan.dll",
+        "runnerType": "vulkan"
+      }
+    },
+    {
+      "name": "Intel Vulkan install on Windows",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "files": [
+          "vulkan/"
+        ],
+        "vramGB": 2,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": "vulkan",
+        "backendDll": "vulkan/ggml-vulkan.dll",
+        "runnerType": "vulkan"
+      }
+    },
+    {
+      "name": "Windows arm64 with no runner is CPU",
+      "input": {
+        "op": "runner",
+        "platform": "win32",
+        "arch": "arm64",
+        "files": [],
+        "vramGB": 0,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": null,
+        "runnerType": "cpu"
+      }
+    },
+    {
+      "name": "flat ROCm library on Linux",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "files": [
+          "libggml-hip.so"
+        ],
+        "vramGB": 8,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": "libggml-hip.so",
+        "runnerType": "rocm"
+      }
+    },
+    {
+      "name": "Vulkan folder wins over a ROCm folder on Linux by default",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "files": [
+          "rocm/",
+          "vulkan/"
+        ],
+        "vramGB": 8,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": "vulkan",
+        "backendDll": "vulkan/libggml-vulkan.so",
+        "runnerType": "vulkan"
+      }
+    },
+    {
+      "name": "ROCm folder beats Vulkan on Linux when gpu.rocm is on",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "files": [
+          "rocm/",
+          "vulkan/"
+        ],
+        "vramGB": 8,
+        "nvidia": false,
+        "rocm": true
+      },
+      "expected": {
+        "runnerDir": "rocm",
+        "backendDll": "rocm/libggml-hip.so",
+        "runnerType": "rocm"
+      }
+    },
+    {
+      "name": "CUDA still beats ROCm on Linux when gpu.rocm is on",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "files": [
+          "cuda_v12/",
+          "rocm/"
+        ],
+        "vramGB": 12,
+        "nvidia": true,
+        "rocm": true
+      },
+      "expected": {
+        "runnerDir": "cuda_v12",
+        "backendDll": "cuda_v12/libggml-cuda.so",
+        "runnerType": "cuda"
+      }
+    },
+    {
+      "name": "Intel Vulkan install on Linux",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "files": [
+          "vulkan/"
+        ],
+        "vramGB": 4,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": "vulkan",
+        "backendDll": "vulkan/libggml-vulkan.so",
+        "runnerType": "vulkan"
+      }
+    },
+    {
+      "name": "Linux arm64 flat Vulkan layout",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "arch": "arm64",
+        "files": [
+          "libggml-vulkan.so"
+        ],
+        "vramGB": 8,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": "libggml-vulkan.so",
+        "runnerType": "vulkan"
+      }
+    },
+    {
+      "name": "Linux arm64 CUDA layout",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "arch": "arm64",
+        "files": [
+          "libggml-cuda.so"
+        ],
+        "vramGB": 16,
+        "nvidia": true
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": "libggml-cuda.so",
+        "runnerType": "cuda"
+      }
+    },
+    {
+      "name": "Linux arm64 with only the CPU build is CPU",
+      "input": {
+        "op": "runner",
+        "platform": "linux",
+        "arch": "arm64",
+        "files": [
+          "libggml-cpu.so"
+        ],
+        "vramGB": 0,
+        "nvidia": false
+      },
+      "expected": {
+        "runnerDir": ".",
+        "backendDll": null,
+        "runnerType": "cpu"
+      }
+    },
+    {
       "name": "Windows engine with a Vulkan runner is complete",
       "input": {
         "op": "state",

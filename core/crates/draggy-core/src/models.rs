@@ -11,6 +11,7 @@ use draggy_models::download::{
     DownloadError, DownloadRequest, Downloader, Phase, Progress, ReqwestClient, SystemEnv,
 };
 use draggy_models::huggingface::HuggingFace;
+use draggy_models::mlx_files::list_mlx_models;
 use draggy_models::mmproj::Projectors;
 use draggy_models::model_storage::{CapabilityCache, delete_gguf_model, list_gguf_models};
 
@@ -34,6 +35,8 @@ pub struct InstalledModelRecord {
     pub path: String,
     pub bytes: u64,
     pub capabilities: Vec<String>,
+    /// `gguf` or `mlx`. The format decides the engine.
+    pub format: String,
 }
 
 /// How far a download is. A model made of several files reports one running total.
@@ -190,15 +193,24 @@ impl ModelLibrary {
             &mut locked(&self.cache),
         )
         .map_err(|error| model_error(error.to_string()))?;
-        Ok(entries
+        let mut records: Vec<InstalledModelRecord> = entries
             .into_iter()
             .map(|entry| InstalledModelRecord {
                 filename: entry.filename,
                 path: entry.path.to_string_lossy().into_owned(),
                 bytes: entry.size,
                 capabilities: entry.capabilities,
+                format: "gguf".to_owned(),
             })
-            .collect())
+            .collect();
+        records.extend(list_mlx_models(&self.models_dir).into_iter().map(|mlx| InstalledModelRecord {
+            filename: mlx.name,
+            path: mlx.path.to_string_lossy().into_owned(),
+            bytes: mlx.bytes,
+            capabilities: Vec::new(),
+            format: "mlx".to_owned(),
+        }));
+        Ok(records)
     }
 
     /// Deletes a model file. False when there was no such file.

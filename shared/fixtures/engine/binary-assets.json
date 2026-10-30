@@ -674,6 +674,126 @@
         "url": "https://192.168.1.10/llama-server.zip"
       },
       "expected": false
+    },
+    {
+      "name": "variant of a Windows ROCm archive",
+      "input": {
+        "op": "variantOf",
+        "name": "llama-b9-bin-win-rocm-10.0-x64.zip"
+      },
+      "expected": "rocm-10.0"
+    },
+    {
+      "name": "variant of an Ubuntu ROCm archive",
+      "input": {
+        "op": "variantOf",
+        "name": "llama-b9-bin-ubuntu-rocm-10.0-x64.tar.gz"
+      },
+      "expected": "rocm-10.0"
+    },
+    {
+      "name": "variant of a Windows arm64 Vulkan archive",
+      "input": {
+        "op": "variantOf",
+        "name": "llama-b9-bin-win-vulkan-arm64.zip"
+      },
+      "expected": "vulkan"
+    },
+    {
+      "name": "Windows AMD card keeps Vulkan while a ROCm archive is published",
+      "input": {
+        "op": "pick",
+        "platform": "win32",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-rocm-10.0-x64.zip",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-rocm-10.0-x64.tar.gz"
+        ],
+        "vramGB": 8,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-win-vulkan-x64.zip",
+        "extra": null,
+        "variant": "vulkan"
+      }
+    },
+    {
+      "name": "Windows Intel card takes Vulkan",
+      "input": {
+        "op": "pick",
+        "platform": "win32",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-rocm-10.0-x64.zip",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-rocm-10.0-x64.tar.gz"
+        ],
+        "vramGB": 2,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-win-vulkan-x64.zip",
+        "extra": null,
+        "variant": "vulkan"
+      }
+    },
+    {
+      "name": "Ubuntu AMD card keeps Vulkan while a ROCm archive is published",
+      "input": {
+        "op": "pick",
+        "platform": "linux",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-rocm-10.0-x64.zip",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-rocm-10.0-x64.tar.gz"
+        ],
+        "vramGB": 8,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+        "extra": null,
+        "variant": "vulkan"
+      }
+    },
+    {
+      "name": "Ubuntu Intel card takes Vulkan",
+      "input": {
+        "op": "pick",
+        "platform": "linux",
+        "arch": "x64",
+        "assets": [
+          "llama-b1-bin-win-cpu-x64.zip",
+          "llama-b1-bin-win-vulkan-x64.zip",
+          "llama-b1-bin-win-rocm-10.0-x64.zip",
+          "llama-b1-bin-ubuntu-x64.tar.gz",
+          "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+          "llama-b1-bin-ubuntu-rocm-10.0-x64.tar.gz"
+        ],
+        "vramGB": 2,
+        "nvidia": false,
+        "cuda13": false
+      },
+      "expected": {
+        "main": "llama-b1-bin-ubuntu-vulkan-x64.tar.gz",
+        "extra": null,
+        "variant": "vulkan"
+      }
     }
   ]
 }

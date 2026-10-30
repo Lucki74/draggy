@@ -47,6 +47,25 @@ pub struct EngineHost<L: EngineControl, C: EngineControl> {
     active: Option<&'static str>,
 }
 
+/// The `mlx` kind exists so the setting can name it; it runs only on Apple silicon, so here it always refuses.
+const MLX_UNAVAILABLE: &str = "The MLX engine runs only on Apple silicon Macs.";
+
+/// The engine a model of `format` runs on. GGUF always goes to llama.cpp. MLX goes to the MLX engine on Apple silicon and
+/// is refused elsewhere; there is no silent fallback to llama.cpp, which cannot read MLX weights.
+pub fn engine_for_format(
+    format: &str,
+    os: crate::platform::Os,
+    arch: crate::platform::Arch,
+) -> Result<&'static str, HostError> {
+    use crate::platform::{Arch, Os};
+    match format {
+        "gguf" => Ok("llamacpp"),
+        "mlx" if os == Os::MacOs && arch == Arch::Arm64 => Ok("mlx"),
+        "mlx" => Err(HostError::Launch(MLX_UNAVAILABLE.to_owned())),
+        other => Err(HostError::UnknownEngine(other.to_owned())),
+    }
+}
+
 fn canonical_kind(kind: &str) -> Option<&'static str> {
     match kind {
         "llamacpp" => Some("llamacpp"),
@@ -85,6 +104,10 @@ impl<L: EngineControl, C: EngineControl> EngineHost<L, C> {
         F: FnOnce() -> Fut,
         Fut: Future<Output = Result<LaunchOutcome, String>>,
     {
+        if kind == "mlx" {
+            tracing::warn!(target: "engine.host", "mlx engine is not available on this platform");
+            return Err(HostError::Launch(MLX_UNAVAILABLE.to_owned()));
+        }
         let Some(canonical) = canonical_kind(kind) else {
             tracing::error!(target: "engine.host", kind, "unknown engine");
             return Err(HostError::UnknownEngine(kind.to_owned()));
@@ -146,6 +169,32 @@ impl<L: EngineControl, C: EngineControl> EngineHost<L, C> {
 mod tests {
     use super::*;
     use std::cell::{Cell, RefCell};
+
+    #[test]
+    fn formats_route_to_engines() {
+        use crate::platform::{Arch, Os};
+        let cases = [
+            ("gguf", Os::Windows, Arch::X64, Ok("llamacpp")),
+            ("gguf", Os::Linux, Arch::Arm64, Ok("llamacpp")),
+            ("gguf", Os::MacOs, Arch::Arm64, Ok("llamacpp")),
+            ("mlx", Os::MacOs, Arch::Arm64, Ok("mlx")),
+            ("mlx", Os::MacOs, Arch::X64, Err(MLX_UNAVAILABLE)),
+            ("mlx", Os::Windows, Arch::X64, Err(MLX_UNAVAILABLE)),
+            ("mlx", Os::Linux, Arch::X64, Err(MLX_UNAVAILABLE)),
+        ];
+        for (format, os, arch, want) in cases {
+            let got = engine_for_format(format, os, arch);
+            assert_eq!(
+                got,
+                want.map_err(|m: &str| HostError::Launch(m.to_owned())),
+                "{format} {os:?} {arch:?}"
+            );
+        }
+        assert!(matches!(
+            engine_for_format("onnx", Os::Linux, Arch::X64),
+            Err(HostError::UnknownEngine(_))
+        ));
+    }
 
     /// A stand-in engine that records how often it was stopped and what it reports.
     struct FakeEngine {
@@ -220,6 +269,16 @@ mod tests {
             .start("llamacpp", || async { Err("boom".to_owned()) })
             .await;
         assert_eq!(result, Err(HostError::Launch("boom".to_owned())));
+        assert_eq!(host.active(), Some("llamacpp"));
+    }
+
+    #[tokio::test]
+    async fn the_mlx_kind_refuses_and_leaves_the_running_engine_alone() {
+        let mut host = EngineHost::new(FakeEngine::new(), FakeEngine::new());
+        host.start("llamacpp", || async { Ok(ok()) }).await.ok();
+        let result = host.start("mlx", || async { Ok(ok()) }).await;
+        assert_eq!(result, Err(HostError::Launch(MLX_UNAVAILABLE.to_owned())));
+        assert_eq!((host.llamacpp.stops.get(), host.colibri.stops.get()), (0, 1));
         assert_eq!(host.active(), Some("llamacpp"));
     }
 

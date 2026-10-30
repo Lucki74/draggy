@@ -3,6 +3,7 @@
 
 pub mod binary_manager;
 pub mod command;
+pub mod colibri_runtime;
 pub mod cpu_topology;
 pub mod engine_host;
 pub mod engine_updater;
@@ -15,5 +16,8 @@ pub mod llama_flags;
 pub mod llama_health;
 pub mod llama_output;
 pub mod llama_process;
+pub mod mlx_runtime;
 pub mod platform;
+pub mod supervisor;
+pub mod sd_runner;
 pub mod vram_probe;

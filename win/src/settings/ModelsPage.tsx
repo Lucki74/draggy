@@ -4,7 +4,7 @@ import { CapabilityIcons } from "../providers/CapabilityIcons";
 import { formatBytes } from "../formatBytes";
 import { Icon } from "../ui/icons/Icon";
 import { fill } from "../onboarding/text";
-import { Badge, Block, ConfirmDialog, Group, Page, Row, Select } from "./Controls";
+import { Badge, Block, ConfirmDialog, Group, Page, Row, Select, Toggle } from "./Controls";
 import ModelSearch from "./ModelSearch";
 import CompactLimitField from "./CompactLimitField";
 import DownloadsMenu from "./DownloadsMenu";
@@ -196,6 +196,12 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onS
         </Row>
       </Group>
 
+      <Group title={t("gpuBackendGroup")}>
+        <Row label={t("gpuRocmSetting")} description={t("gpuRocmHint")}>
+          <Toggle label={t("gpuRocmSetting")} checked={settings.gpuRocm === true} onChange={(gpuRocm) => onUpdate({ gpuRocm })} />
+        </Row>
+      </Group>
+
       <Group title={t("contextGroup")}>
         <Row label={t("fixedContextSize")} description={t("fixedContextSizeHint")}>
           <Select
@@ -337,6 +343,12 @@ function InstalledRow({
         >
           <dt className="text-text-secondary">{t("modelFile")}</dt>
           <dd className="min-w-0 break-all font-mono text-text-primary">{entry.name}</dd>
+          {entry.format === "mlx" && (
+            <>
+              <dt className="text-text-secondary">{t("modelFormat")}</dt>
+              <dd className="text-text-primary">MLX</dd>
+            </>
+          )}
           {entry.family && (
             <>
               <dt className="text-text-secondary">{t("modelFamily")}</dt>

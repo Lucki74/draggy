@@ -56,6 +56,8 @@ export interface InstalledModel {
    * thinking for one whose template supports it. */
   capabilities: string[];
   contextLength?: number | null;
+  /** The weight format. A record without it is GGUF. MLX models exist only on Apple silicon Macs. */
+  format?: "gguf" | "mlx";
 }
 
 /** A model identifier with any leading "gguf:" stripped, matching the filename the engine was

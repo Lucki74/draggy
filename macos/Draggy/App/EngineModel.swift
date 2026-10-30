@@ -69,6 +69,14 @@ final class EngineModel {
         didSet { defaults.set(modelPath, forKey: Key.modelFile) }
     }
 
+    /// True on Apple silicon, where MLX models can run. Elsewhere an MLX model is refused and never falls back to llama.cpp.
+    var supportsMLX: Bool { mlxSupported() }
+
+    /// The engine a model of `format` ("gguf" or "mlx") runs on. Throws for MLX where it cannot run.
+    func engineName(forFormat format: String) throws -> String {
+        try engineForModelFormat(format: format)
+    }
+
     var isBusy: Bool { phase == .starting }
 
     var isInstalling: Bool { installPercent != nil }

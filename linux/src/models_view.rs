@@ -412,6 +412,9 @@ fn refresh_installed(ui: &Rc<Ui>) {
 
 fn installed_row(ui: &Rc<Ui>, model: &InstalledModelRecord) -> gtk::Widget {
     let mut detail = size_label(model.bytes);
+    if model.format == "mlx" {
+        detail = format!("{detail} · MLX");
+    }
     if !model.capabilities.is_empty() {
         detail = format!("{detail} · {}", model.capabilities.join(", "));
     }
