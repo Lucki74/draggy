@@ -743,11 +743,11 @@ async function run() {
         inPage(win, () => {
           const body = document.body.innerText;
           const loading = /Loading voice model|Downloading|Preparing/.test(body);
-          const hasError = /Failed to fetch|failed|Retry/i.test(body);
-          const hasControls = Boolean(document.querySelector("footer button"));
+          const hasError = /Failed to fetch|Download failed|Could not start/.test(body);
+          const hasControls = /Listening|Speaking|Thinking/.test(body) && /Show chat/.test(body);
           return !loading && !hasError && hasControls;
         }),
-      { timeout: 180_000, every: 1000, label: "Talk to finish loading and become live" },
+      { timeout: 240_000, every: 1000, label: "Talk to finish loading and become live" },
     );
     await sleep(2500);
     await shoot(win, "app-talk");
