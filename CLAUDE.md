@@ -14,6 +14,11 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 - On Windows without Developer Mode, 48 tests in `toolsFiles.test.ts` fail with EPERM because they create symlinks. Treat them as environmental, not as regressions.
 - An untracked `win/chat` file may be lying around; leave it out of commits.
 
+## Screenshots
+
+- Screenshots and clips follow the Documentation section in AGENTS.md. Never leave Open-Meteo style filler requests in prompts; use realistic coding or research asks.
+- Do not push, tag or release when asked only to update docs or the website.
+
 ## Editing
 
 - Source files use CRLF in the working copy. A script that rewrites a file must normalize to LF, edit, and write CRLF back.

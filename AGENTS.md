@@ -147,7 +147,12 @@ Prerelease version sorting follows semver rules: tag upward from the intended ta
 
 The public website lives in `../draggy-website` as an independent repository. Draggy interfaces use Phosphor icons (`@phosphor-icons/core`), while the website maintains its own icon builds.
 
-Documentation screenshots are captured from live runs via `scripts/screenshots.cjs` and `scripts/wiki-shots.cjs`.
+Documentation screenshots and clips are captured from live runs via `win/scripts/screenshots.cjs`, `wiki-shots.cjs` and `clips.cjs`. Run them with `DRAGGY_RENDERER=dist`, and `DRAGGY_SHOTS_ONLY=<scene>` to retake one scene. They write into `../draggy-website`, so keep that path reachable.
+
+- Set `TEMP` and `TMP` to a neutral folder such as `C:demo` first, or the settings shots show your user name.
+- The Talk scene needs `--disable-gpu` on machines where the WebGPU voice load hangs. Check that `node_modules/onnxruntime-web/dist/*.wasm` is complete; a truncated `jsep.wasm` fails with a CompileError.
+- Look at every generation-dependent shot before publishing it.
+- Each build's release notes replace the previous ones: keep only `RELEASE-NOTES-BUILD-<n>.md` for the current build.
 
 ## Environment notes
 
