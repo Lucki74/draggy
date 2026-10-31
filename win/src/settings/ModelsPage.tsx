@@ -185,7 +185,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
 
       <Group title={t("gpuBackendGroup")}>
         <Row label={t("gpuRocmSetting")} description={t("gpuRocmHint")}>
-          <Toggle label={t("gpuRocmSetting")} checked={settings.gpuRocm === true} onChange={(gpuRocm) => onUpdate({ gpuRocm })} />
+          <Toggle label={t("gpuRocmSetting")} checked={settings.gpuRocm !== false} onChange={(gpuRocm) => onUpdate({ gpuRocm })} />
         </Row>
       </Group>
 

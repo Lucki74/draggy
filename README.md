@@ -48,7 +48,6 @@ architecture in English, French, Spanish, and Chinese. Start with
 
 - Guided setup for interface language, theme, and hardware-matched models.
 - Local llama.cpp engine running GGUF models on your hardware.
-- Optional ROCm build of llama.cpp for AMD graphics cards, off by default.
 - Background terminal tasks in Code mode.
 - Compact system prompts tuned for 1B to 7B models.
 - Separate chat and coding workspaces with independent model selection.
