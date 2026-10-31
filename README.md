@@ -49,20 +49,17 @@ architecture in English, French, Spanish, and Chinese. Start with
 - Local GGUF models via llama.cpp.
 - GPU acceleration: CUDA, Metal, Vulkan, ROCm.
 - Coding agent with undoable diffs.
-- Four permission modes.
 - Separate chat and code workspaces.
 - Sandboxed browser and web search.
 - Document generation.
 - Semantic search across local folders.
 - MCP servers, 572 built-in skills.
 - Large MoE models from disk.
-- Voice chat with interruption.
+- Voice chat.
 - Local image generation.
 - OpenAI-compatible local server.
 - External runtimes and cloud APIs.
 - Cost counters for cloud usage.
-- Windows, macOS, Linux apps.
-- English, French, Spanish, Chinese.
 
 ## Installing and requirements
 
