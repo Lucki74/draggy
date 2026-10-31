@@ -417,7 +417,7 @@ async function run() {
   if (wanted("chat")) await scene("chat", async () => {
     await send(
       win,
-      "why does postgresql choose a sequential scan instead of using my b-tree index on user_id?",
+      "the wal file still keeps growing even after a checkpoint runs, what can hold it open?",
     );
     await shoot(win, "app-chat");
   });
@@ -434,6 +434,24 @@ async function run() {
     await click(win, "Skills", { exact: true });
     await sleep(1200);
     await shoot(win, "app-skills");
+  });
+
+  if (wanted("project")) await scene("project", async () => {
+    await openWorkspace(win, "weather");
+    await send(
+      win,
+      "in src/format.ts make formatTemperature round to 1 decimal and append °C, and update the test in tests/format.test.ts to expect 21.0°C. just edit the files, dont run anything",
+    );
+    // The redesigned app shows each edit as a diff in the reply, so there is no file tree to open.
+    // The edit and its diff are the point of the scene, so bring them into view.
+    await inPage(win, () => {
+      const edits = [...document.querySelectorAll("span")].filter((node) =>
+        /^(Wrote|Edited)\b/.test(node.textContent.trim()),
+      );
+      edits.at(-1)?.scrollIntoView({ block: "start" });
+    });
+    await sleep(1500);
+    await shoot(win, "app-project");
   });
 
   if (wanted("skills")) await scene("skills", async () => {
@@ -461,7 +479,7 @@ async function run() {
     await shoot(win, "app-skill-request");
     // The context meter lives in the Code composer, so the loaded-skill popover is shot from a project.
     await openWorkspace(win, "weather");
-    await send(win, "/proofreader Their going too the park tomorow, weather permiting, and they has invited Sam.");
+    await send(win, "/proofreader The weather-cli prints the forcast for any city, and it round every temperature to one decimal with a °C sign.");
     await click(win, "Context window:")
       .then(async () => {
         await inPage(win, () => {
@@ -472,24 +490,6 @@ async function run() {
         await click(win, "Context window:");
       })
       .catch((error) => log("skipped app-skill-context:", error.message));
-  });
-
-  if (wanted("project")) await scene("project", async () => {
-    await openWorkspace(win, "weather");
-    await send(
-      win,
-      "make formatTemperature round to 1 decimal and add °C, then fix the test. just edit the files, dont run anything",
-    );
-    // The redesigned app shows each edit as a diff in the reply, so there is no file tree to open.
-    // The edit and its diff are the point of the scene, so bring them into view.
-    await inPage(win, () => {
-      const edits = [...document.querySelectorAll("span")].filter((node) =>
-        /^(Wrote|Edited)\b/.test(node.textContent.trim()),
-      );
-      edits.at(-1)?.scrollIntoView({ block: "start" });
-    });
-    await sleep(1500);
-    await shoot(win, "app-project");
   });
 
   if (wanted("history")) await scene("history", async () => {
@@ -697,12 +697,16 @@ async function run() {
       win.contentView.children.find(
         (one) => one.webContents && one.webContents !== win.webContents && /^https?:/.test(one.webContents.getURL()),
       );
-    await inPage(win, () => window.open("https://en.wikipedia.org/wiki/Electron_(software)", "_blank"));
+    await inPage(win, () => window.open("https://en.wikipedia.org/wiki/SQLite", "_blank"));
     const pane = await waitFor(() => paneView(), { timeout: 60_000, label: "the browser pane" });
     await waitFor(
       () => pane.webContents.executeJavaScript('document.readyState === "complete"').catch(() => false),
       { timeout: 60_000, every: 500, label: "the page" },
     );
+    // Wikipedia's fundraising banner covers the article; hide it before the page is captured.
+    await pane.webContents
+      .insertCSS("#frbanner, #centralNotice, .frb, [id^=frb], .cn-fundraising { display: none !important; }")
+      .catch(() => {});
     await sleep(2000);
 
     for (const dark of [false, true]) {
@@ -714,6 +718,11 @@ async function run() {
       await overlay(shell, page, bounds, `app-browser-${dark ? "dark" : "light"}`);
     }
     await setDark(win, false);
+    // The pane is a native view over the window; drop it so the next scenes are not covered.
+    try {
+      win.contentView.removeChildView(pane);
+      pane.webContents.close();
+    } catch {}
     await inPage(win, () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     await sleep(800);
   });
@@ -734,11 +743,11 @@ async function run() {
         inPage(win, () => {
           const body = document.body.innerText;
           const loading = /Loading voice model|Downloading|Preparing/.test(body);
-          const hasError = /Failed to fetch|failed|Retry/i.test(body);
-          const hasControls = Boolean(document.querySelector("footer button"));
+          const hasError = /Failed to fetch|Download failed|Could not start/.test(body);
+          const hasControls = /Listening|Speaking|Thinking/.test(body) && /Show chat/.test(body);
           return !loading && !hasError && hasControls;
         }),
-      { timeout: 180_000, every: 1000, label: "Talk to finish loading and become live" },
+      { timeout: 240_000, every: 1000, label: "Talk to finish loading and become live" },
     );
     await sleep(2500);
     await shoot(win, "app-talk");
