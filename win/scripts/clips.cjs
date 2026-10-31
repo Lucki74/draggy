@@ -429,8 +429,15 @@ const CLIPS = {
     workspace: ["default", "chat"],
     speed: 8,
     async script(rec, win) {
-      await ask(rec, "what does open-meteo send back for current weather? check their docs");
-      await work(rec, win);
+      await ask(rec, "what changed in python 3.13? check the official docs and list the main points");
+      // The agent asks before it clicks on the site: allow it for the session, then wait for the finished reply.
+      for (;;) {
+        await work(rec, win);
+        if (!(await approving(win))) break;
+        rec.fast = false;
+        await sleep(900);
+        await rec.clickOn(() => [...document.querySelectorAll("button")].find((n) => /^Allow for this session/.test(n.textContent.trim())));
+      }
       rec.fast = false;
       await sleep(2000);
     },
@@ -439,7 +446,7 @@ const CLIPS = {
     workspace: ["default", "chat"],
     speed: 24,
     async script(rec, win) {
-      await ask(rec, "does open-meteo need an api key? link where you found that");
+      await ask(rec, "is sqlite safe to use from several threads? link where you found that");
       await work(rec, win);
       rec.fast = false;
       await sleep(900);
@@ -474,9 +481,14 @@ const CLIPS = {
       await sleep(1400);
       await dump(win, "approval");
       await rec.clickOn(() => [...document.querySelectorAll("button")].find((n) => /^Allow once/.test(n.textContent.trim())));
-      rec.fast = true;
-      await waitFor(async () => !(await approving(win)) && !(await generating(win)), { timeout: 600_000, every: 400, label: "the reply" });
-      rec.fast = false;
+      for (;;) {
+        rec.fast = true;
+        await waitFor(async () => (await approving(win)) || !(await generating(win)), { timeout: 600_000, every: 400, label: "the reply" });
+        rec.fast = false;
+        if (!(await approving(win))) break;
+        await sleep(900);
+        await rec.clickOn(() => [...document.querySelectorAll("button")].find((n) => /^Allow once/.test(n.textContent.trim())));
+      }
       await sleep(1500);
     },
   },
@@ -494,7 +506,7 @@ const CLIPS = {
         const box = document.querySelector("[data-region=composer] form textarea");
         if (box && !box.value.trim()) {
           const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
-          setter.call(box, "what does the open-meteo api return for current weather?");
+          setter.call(box, "how do i undo my last git commit and keep the changes?");
           box.dispatchEvent(new Event("input", { bubbles: true }));
         }
       });
