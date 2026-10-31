@@ -46,26 +46,20 @@ architecture in English, French, Spanish, and Chinese. Start with
 
 ## Features
 
-- Guided setup for interface language, theme, and hardware-matched models.
-- Local llama.cpp engine running GGUF models on your hardware.
-- Optional ROCm build of llama.cpp for AMD graphics cards, off by default.
-- Background terminal tasks in Code mode.
-- Compact system prompts tuned for 1B to 7B models.
-- Separate chat and coding workspaces with independent model selection.
-- File editing, terminal commands, and undoable diff reviews.
-- Four permission modes: plan, ask, accept edits, and auto.
-- Interactive task checklists with real-time step reordering.
-- Interactive question cards for single-choice, multiple-choice, and text clarifications.
-- Thumbnail preview cards for image attachments in the composer.
-- Sandboxed ad-blocking browser, web search, and document generation.
-- Semantic search and retrieval across local folders.
-- Support for MCP servers and 572 built-in skills across chat and code.
-- Colibri engine streams large MoE models from disk.
-- Voice chat with turn detection and interruption handling.
-- Real-time streaming replies with text fade-in.
-- Local GPU image generation with Stable Diffusion and Z-Image, with reference images.
-- Optional token-protected OpenAI-compatible local server.
-- Connect external runtimes or cloud APIs with secured keys.
+- Local GGUF models via llama.cpp.
+- GPU acceleration: CUDA, Metal, Vulkan, ROCm.
+- Coding agent with undoable diffs.
+- Separate chat and code workspaces.
+- Sandboxed browser and web search.
+- Document generation.
+- Semantic search across local folders.
+- MCP servers, 572 built-in skills.
+- Large MoE models from disk.
+- Voice chat.
+- Local image generation.
+- OpenAI-compatible local server.
+- External runtimes and cloud APIs.
+- Cost counters for cloud usage.
 
 ## Installing and requirements
 

@@ -1242,7 +1242,7 @@ export interface AppSettings {
   allowMaxInChat: boolean;
   /** Lets a slow model (under 3 tokens per second) think; off by default because thinking multiplies the wait. */
   slowModelThinking: boolean;
-  /** Lets an AMD card use the ROCm or HIP build ahead of Vulkan. Off unless set. */
+  /** Lets an AMD card use the ROCm or HIP build ahead of Vulkan. On unless set to false. */
   gpuRocm?: boolean;
   /** Lets colibri route to cached experts when the true ones are on disk: faster, and answers may change. */
   colibriLossy: boolean;
