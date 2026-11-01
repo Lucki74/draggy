@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { ES } from "../extensions/descriptions.es";
 import { FR } from "../extensions/descriptions.fr";
-import { ZH } from "../extensions/descriptions.zh";
+import { RU } from "../extensions/descriptions.ru";
 import { localDescription } from "../extensions/descriptions";
 
 const require = createRequire(import.meta.url);
@@ -19,7 +19,7 @@ const wanted = [
 ];
 
 describe("extension descriptions", () => {
-  for (const [name, table] of [["French", FR], ["Spanish", ES], ["Chinese", ZH]] as const) {
+  for (const [name, table] of [["French", FR], ["Spanish", ES], ["Russian", RU]] as const) {
     it(`${name} covers every bundled server and skill, and nothing else`, () => {
       expect(Object.keys(table).sort()).toEqual([...wanted].sort());
       expect(Object.values(table).every((text) => text.trim().length > 10)).toBe(true);

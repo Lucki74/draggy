@@ -9,15 +9,13 @@ import {
 
 export type Completeness = "complete" | "unfinished" | "unclear";
 
-/** Languages written without spaces between words, where the trailing-word rules below cannot apply
- * and punctuation has to carry the decision alone. */
-const UNSPACED = new Set(["zh"]);
 
 /** Sounds people make while still deciding what to say. */
 const HESITATION: Record<string, string[]> = {
   en: ["um", "uh", "erm", "er", "hmm", "mmm", "like", "well", "i", "mean"],
   fr: ["euh", "heu", "hum", "bah", "ben", "enfin", "genre"],
   es: ["eh", "este", "esto", "pues", "bueno", "osea"],
+  ru: ["эм", "ээ", "мм", "ну", "типа", "короче", "в общем"],
 };
 
 /** Words that cannot end a sentence: conjunctions, prepositions, articles and the like. If the
@@ -40,6 +38,11 @@ const CONNECTOR: Record<string, string[]> = {
     "y", "pero", "o", "porque", "que", "quien", "si", "cuando", "el", "la",
     "los", "las", "un", "una", "de", "del", "a", "al", "para", "con", "en",
     "sobre", "por", "mi", "tu", "su", "es", "son", "era", "muy", "más",
+  ],
+  ru: [
+    "и", "а", "но", "или", "что", "чтобы", "если", "когда", "потому", "который", "которая", "которые",
+    "как", "в", "во", "на", "с", "со", "к", "по", "из", "у", "о", "об", "от", "для", "за", "при", "без",
+    "не", "мой", "моя", "мои", "его", "её", "их", "это", "там", "очень", "тоже", "просто",
   ],
 };
 
@@ -74,11 +77,6 @@ export function judgeCompleteness(
   if (MID_SENTENCE.test(trimmed)) return "unfinished";
 
   const spoken = words(trimmed);
-
-  if (UNSPACED.has(language)) {
-    if (TERMINAL.test(trimmed)) return "complete";
-    return trimmed.length >= 12 ? "unclear" : "unfinished";
-  }
 
   const last = spoken[spoken.length - 1];
   if (!last) return "unclear";

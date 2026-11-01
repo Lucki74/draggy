@@ -18,7 +18,7 @@ describe("direction is left to right", () => {
     act(() => result.current[1]((prev) => ({ ...prev, language: "fr" })));
     expect(document.documentElement.dir).toBe("ltr");
 
-    act(() => result.current[1]((prev) => ({ ...prev, language: "zh" })));
+    act(() => result.current[1]((prev) => ({ ...prev, language: "ru" })));
     expect(document.documentElement.dir).toBe("ltr");
   });
 });

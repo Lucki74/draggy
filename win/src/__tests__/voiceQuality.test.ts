@@ -162,13 +162,13 @@ describe("spoken text", () => {
     expect(numberToWords("1000000", "es")).toBe("un millón");
   });
 
-  it("reads numbers in Chinese", () => {
-    expect(numberToWords("10", "zh")).toBe("十");
-    expect(numberToWords("25", "zh")).toBe("二十五");
-    expect(numberToWords("200", "zh")).toBe("两百");
-    expect(numberToWords("105", "zh")).toBe("一百零五");
-    expect(numberToWords("10000", "zh")).toBe("一万");
-    expect(numberToWords("3.5", "zh")).toBe("三点五");
+  it("reads numbers in Russian", () => {
+    expect(numberToWords("10", "ru")).toBe("десять");
+    expect(numberToWords("25", "ru")).toBe("двадцать пять");
+    expect(numberToWords("200", "ru")).toBe("двести");
+    expect(numberToWords("105", "ru")).toBe("сто пять");
+    expect(numberToWords("10000", "ru")).toBe("десять тысяч");
+    expect(numberToWords("3.5", "ru")).toBe("три запятая пять");
   });
 
   it("reads money, percentages, ranges and units", () => {
@@ -198,7 +198,7 @@ describe("times, links and code", () => {
     expect(normalizeSpeech("À 14:30", "fr")).toBe("À quatorze heures trente");
     expect(normalizeSpeech("A 1:00", "es")).toBe("A la una");
     expect(normalizeSpeech("A 14:30", "es")).toBe("A las catorce y treinta");
-    expect(normalizeSpeech("10:05", "zh")).toBe("十点零五分");
+    expect(normalizeSpeech("10:05", "ru")).toBe("десять часов пять минут");
   });
 
   it("says a link or a code snippet only when a language is known", () => {
@@ -250,9 +250,9 @@ describe("long sentences", () => {
     expect(fragments.every((f) => f.text.length <= 100)).toBe(true);
   });
 
-  it("holds Chinese to a third of the character limits", () => {
-    const text = `${"今天的天气非常好，我们一起去公园散步吧，".repeat(5)}好的。`;
-    const chunker = createSentenceChunker("zh", { min: 110, max: 250 });
+  it("holds Japanese to a third of the character limits", () => {
+    const text = `${"今日はとても天気がいいので、公園へ散歩に行きましょう。".repeat(5)}いいですね。`;
+    const chunker = createSentenceChunker("ja", { min: 110, max: 250 });
     const fragments = chunker.pushFragments(text);
     const rest = chunker.flushFragment();
     if (rest) fragments.push(rest);

@@ -80,7 +80,7 @@ colibri is not pinned. `electron/colibriBinary.cjs` installs the newest stable r
 The site at draggy.org lives in its own repository (`../draggy-website`) and describes the released app, so update it on release day, not before.
 
 Before running the workflow, make sure:
-- the wiki and site pages reflect what changed, in English, French, Spanish, and Chinese;
+- the wiki and site pages reflect what changed, in English, French, Spanish, and Russian;
 - screenshots match the release interface, generated via `scripts/screenshots.cjs` and `scripts/wiki-shots.cjs` after `npm run build`;
 - the privacy policy date is updated if network behavior changed, listing any new endpoints.
 

@@ -7,7 +7,7 @@ const codes = languages.map((language) => language.code);
 describe("the system language, mapped onto Draggy's", () => {
   it("reads the primary subtag only", () => {
     expect(localeToLanguage("fr-CA", codes)).toBe("fr");
-    expect(localeToLanguage("zh-Hant-TW", codes)).toBe("zh");
+    expect(localeToLanguage("ru-RU", codes)).toBe("ru");
     expect(localeToLanguage("es-MX", codes)).toBe("es");
     expect(localeToLanguage("EN", codes)).toBe("en");
   });

@@ -64,7 +64,7 @@ Every child process must use `platform.spawnHidden` or `platform.execFileHidden`
 
 A preload subscription channel can have multiple listeners. The `subscribe` call returns a disposer removing only its own listener. Blanket unsubscription helpers (`offState`, `offProgress`) are prohibited because one caller could silence another (`electron/preload.test.js`).
 
-Four languages remain in parity: English (`en`), French (`fr`), Spanish (`es`), and Chinese (`zh`). `src/__tests__/translations.test.ts` enforces identical key sets across all four. Do not use machine translation; each table maintains its own register.
+Four languages remain in parity: English (`en`), French (`fr`), Spanish (`es`), and Russian (`ru`). `src/__tests__/translations.test.ts` enforces identical key sets across all four. Do not use machine translation; each table maintains its own register.
 
 Outbound HTTP requests on behalf of models must pass through `electron/urlPolicy.cjs`. Only `http:` and `https:` schemes are permitted, and private network addresses are blocked.
 

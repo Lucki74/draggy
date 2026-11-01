@@ -30,16 +30,16 @@ describe("ComponentGallery", () => {
     expect(screen.getByText("Continuer")).toBeTruthy();
   });
 
-  it("switches to Chinese and updates labels", () => {
+  it("switches to Russian and updates labels", () => {
     render(<ComponentGallery />);
 
-    const zhButton = screen.getByRole("radio", { name: "中文" });
-    fireEvent.click(zhButton);
+    const ruButton = screen.getByRole("radio", { name: "Русский" });
+    fireEvent.click(ruButton);
 
-    expect(screen.getByText("组件库")).toBeTruthy();
-    expect(screen.getByText("按钮")).toBeTruthy();
-    expect(screen.getByText("标签片")).toBeTruthy();
-    expect(screen.getByText("继续")).toBeTruthy();
+    expect(screen.getByText("Галерея компонентов")).toBeTruthy();
+    expect(screen.getByText("Кнопки")).toBeTruthy();
+    expect(screen.getByText("Чипы")).toBeTruthy();
+    expect(screen.getByText("Продолжить")).toBeTruthy();
   });
 
   it("toggles theme between dark and light", () => {

@@ -23,7 +23,7 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 
 - Source files use CRLF in the working copy. A script that rewrites a file must normalize to LF, edit, and write CRLF back.
 - Write helper scripts to a file instead of a shell heredoc, which mangles backslash escapes.
-- A new English translation key needs the French, Spanish and Chinese entries, and a key nothing uses fails the translations test.
+- A new English translation key needs the French, Spanish and Russian entries, and a key nothing uses fails the translations test.
 - Icon names must exist in `src/ui/icons/glyphs.generated.ts`.
 
 ## macOS and Rust work

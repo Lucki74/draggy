@@ -80,9 +80,9 @@ describe("deciding when a turn is over", () => {
     expect(judgeCompleteness("yo pensaba que", "es")).toBe("unfinished");
   });
 
-  it("falls back to punctuation for languages written without spaces", () => {
-    expect(judgeCompleteness("今天的北京天气怎么样？", "zh")).toBe("complete");
-    expect(judgeCompleteness("那个", "zh")).toBe("unfinished");
+  it("reads Russian trailing words and punctuation", () => {
+    expect(judgeCompleteness("Какая сегодня погода в Москве?", "ru")).toBe("complete");
+    expect(judgeCompleteness("и", "ru")).toBe("unfinished");
   });
 
   it("says nothing about an empty transcript", () => {
@@ -113,7 +113,7 @@ describe("recognising acknowledgements that are not turns", () => {
   it("matches in the user's own language", () => {
     expect(isBackchannel("d'accord", "fr")).toBe(true);
     expect(isBackchannel("claro", "es")).toBe(true);
-    expect(isBackchannel("嗯嗯", "zh")).toBe(true);
+    expect(isBackchannel("угу", "ru")).toBe(true);
   });
 
   it("still catches English acknowledgements from a non-English speaker", () => {
