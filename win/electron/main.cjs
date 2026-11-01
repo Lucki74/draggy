@@ -826,14 +826,14 @@ function syncTitleBarTheme() {
   }
 }
 
-/** Hands the gpu.rocm choice to the engine code, which reads it when it picks a build. Off for unreadable settings. */
+/** Hands the gpu.rocm choice to the engine code, which reads it when it picks a build. On unless the setting is off. */
 function applyRunnerSetting(rawSettings) {
   let rocm;
   try {
     const parsed = typeof rawSettings === "string" ? JSON.parse(rawSettings) : rawSettings;
-    rocm = parsed?.gpuRocm === true;
+    rocm = parsed?.gpuRocm !== false;
   } catch {
-    rocm = false;
+    rocm = true;
   }
   binaryManager.setRunnerOptions({ rocm });
 }

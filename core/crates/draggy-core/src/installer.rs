@@ -107,7 +107,7 @@ impl Downloader for NetDownloader {
     }
 }
 
-/// Sets the `gpu.rocm` choice: when on, an AMD card takes the ROCm build ahead of Vulkan. Off by default.
+/// Sets the `gpu.rocm` choice: when on, an AMD card takes the ROCm build ahead of Vulkan. On by default.
 #[uniffi::export]
 pub fn set_gpu_rocm(enabled: bool) {
     draggy_engine::binary_manager::set_runner_options(
