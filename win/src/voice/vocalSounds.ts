@@ -66,7 +66,7 @@ export function restoreCues(text: string): string {
   return text.replace(new RegExp(`${GUARD}(breath|sigh|hmm|laugh)${GUARD}`, "g"), "<$1>");
 }
 
-const PLAYFUL = /\b(?:ha(?:ha)+|he(?:he)+|lol|lmao|rofl|ja(?:ja)+|jeje+|mdr|ptdr|xd)\b|哈哈|呵呵|嘻嘻|[😂🤣😄😆😜😝]/iu;
+const PLAYFUL = /\b(?:ha(?:ha)+|he(?:he)+|lol|lmao|rofl|ja(?:ja)+|jeje+|mdr|ptdr|xd)\b|хаха|хех|ахах|[😂🤣😄😆😜😝]/iu;
 
 /** True when the person just joked or laughed, which is the only time the voice laughs back. */
 export function isPlayful(text: string): boolean {

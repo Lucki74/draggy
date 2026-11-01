@@ -10,11 +10,13 @@ const WEEKDAYS = {
   en: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
   fr: ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"],
   es: ["lunes", "martes", "miércoles", "miercoles", "jueves", "viernes", "sábado", "sabado", "domingo"],
+  ru: ["понедельник", "вторник", "среда", "среду", "четверг", "пятница", "пятницу", "суббота", "субботу", "воскресенье"],
 };
 const MONTHS = {
   en: ["january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december"],
   fr: ["janvier", "février", "fevrier", "mars", "avril", "juin", "juillet", "août", "aout", "septembre", "octobre", "novembre", "décembre", "decembre"],
   es: ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+  ru: ["январь", "января", "февраль", "февраля", "март", "марта", "апрель", "апреля", "май", "мая", "июнь", "июня", "июль", "июля", "август", "августа", "сентябрь", "сентября", "октябрь", "октября", "ноябрь", "ноября", "декабрь", "декабря"],
 };
 
 /** Every language at once: a reply that talks about the clock does so in whatever language it likes. */
@@ -107,7 +109,7 @@ export function countItems(reply) {
   if (listed.length) return listed.length;
   if (lines.length > 1 && lines.every((line) => wordsOf(line).length <= 4)) return lines.length;
   const body = reply.replace(/^[^:：]*[:：]/, "").replace(/[.。]$/, "");
-  return body.split(/\s*(?:,|，|、|;|\band\b|\bet\b|\by\b|和)\s*/i).filter((part) => part.trim()).length;
+  return body.split(/\s*(?:,|，|、|;|\band\b|\bet\b|\by\b|(?<![\p{L}])и(?![\p{L}]))\s*/iu).filter((part) => part.trim()).length;
 }
 
 const sentenceCount = (text) => (text.match(/[^.!?。！？]+[.!?。！？]+|[^.!?。！？]+$/g) ?? []).filter((s) => s.trim()).length;
@@ -144,11 +146,11 @@ const CHECKS = {
       const monthNumber = now.getMonth() + 1;
       const numbers = numbersIn(text);
       const hasDay = numbers.includes(day);
-      const hasMonth = numbers.includes(monthNumber) || MONTH_RE.test(text) || /月/.test(text);
+      const hasMonth = numbers.includes(monthNumber) || MONTH_RE.test(text) || /месяц/i.test(text);
       return { pass: hasDay && hasMonth, detail: `expected day ${day} and month ${monthNumber}` };
     }
     const hours = acceptedHours(now);
-    const found = [...text.matchAll(/\b(\d{1,2})\s?(?::|h|\.)\s?(\d{2})\b|\b(\d{1,2})\s?(?:am|pm)\b|(\d{1,2})\s?[点时]/gi)];
+    const found = [...text.matchAll(/\b(\d{1,2})\s?(?::|h|\.)\s?(\d{2})\b|\b(\d{1,2})\s?(?:am|pm)\b|(\d{1,2})\s?(?:ч\.?|часов|часа|час)(?![а-яё])/gi)];
     const hit = found.some((m) => hours.has(Number(m[1] ?? m[3] ?? m[4])));
     return { pass: hit, detail: `expected hour ${[...hours].join(" or ")}` };
   },

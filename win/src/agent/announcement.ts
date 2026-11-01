@@ -27,9 +27,9 @@ const LEADING_INTENT = new RegExp(
   "iu",
 );
 
-// Chinese and Arabic run the intent straight into the verb, so these match as prefixes.
+// Arabic runs the intent straight into the verb, so these match as prefixes.
 // Kept for parity with the shared announcement fixtures and the Rust core.
-const PREFIX_INTENT = /^(?:让我|我来|我将|我会|我先|现在让我|现在我|接下来|دعني|دعنا|سأ)/u;
+const PREFIX_INTENT = /^(?:دعني|دعنا|سأ)/u;
 
 // Japanese and Korean put the intent at the end of the sentence, not the start.
 const TRAILING_INTENT = /(?:てみます|確認します|調べます|ましょう|보겠습니다|확인하겠습니다|검색하겠습니다)[。.!！]?$/u;

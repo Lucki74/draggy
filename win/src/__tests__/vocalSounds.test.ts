@@ -96,7 +96,7 @@ describe("speaker with sounds", () => {
   });
 
   it("reads jokes in four languages", () => {
-    for (const text of ["haha good one", "LOL", "jajaja qu├® bueno", "mdr c'est nul", "哈哈太好笑了", "that is great 😂"]) {
+    for (const text of ["haha good one", "LOL", "jajaja qu├® bueno", "mdr c'est nul", "хаха очень смешно", "that is great 😂"]) {
       expect(isPlayful(text), text).toBe(true);
     }
     for (const text of ["What is the weather", "Hahahn", "Explain recursion"]) expect(isPlayful(text), text).toBe(false);
