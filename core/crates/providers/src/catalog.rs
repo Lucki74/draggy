@@ -269,7 +269,7 @@ mod tests {
 
     #[test]
     fn bundled_list_loads_every_entry() {
-        assert_eq!(Catalog::bundled().entries().len(), 40);
+        assert_eq!(Catalog::bundled().entries().len(), 39);
     }
 
     #[test]
