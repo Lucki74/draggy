@@ -1,0 +1,48 @@
+name: Documentation
+description: Something in the docs, README or wiki is wrong, missing or out of date.
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Where is it?
+      description: A link, or the file and section. This can be the README, a Markdown file in the repository, or a page on docs.draggy.org.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is wrong with it?
+      options:
+        - Out of date
+        - Incorrect
+        - Missing
+        - Unclear
+        - Broken link or image
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What does it say now, and what should it say? If the app behaves differently from the page, describe what you see.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Draggy build
+      description: Shown under Settings, Updates. Helps tell whether the page is behind the app.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues
+          required: true
