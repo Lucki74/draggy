@@ -296,10 +296,7 @@ impl ToolRuntime for CompositeTools {
 }
 
 impl Session {
-    fn create(
-        config: SessionConfig,
-        mcp: Option<Arc<McpManager>>,
-    ) -> Result<Arc<Self>, CoreError> {
+    fn create(config: SessionConfig, mcp: Option<Arc<McpManager>>) -> Result<Arc<Self>, CoreError> {
         let net = Net::new().map_err(|message| CoreError::Internal { message })?;
         if config.base_url.trim().is_empty() || config.model.trim().is_empty() {
             return Err(CoreError::Invalid {

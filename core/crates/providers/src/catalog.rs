@@ -10,14 +10,7 @@ use crate::js::{to_string, truthy};
 
 const BUNDLED: &str = include_str!("bundled_catalog.json");
 const VENDORS: [&str; 3] = ["openai", "anthropic", "google"];
-const PROTOCOLS: [&str; 6] = [
-    "openai",
-    "ollama",
-    "anthropic",
-    "gemini",
-    "codex",
-    "claude",
-];
+const PROTOCOLS: [&str; 6] = ["openai", "ollama", "anthropic", "gemini", "codex", "claude"];
 const AUTHS: [&str; 5] = ["bearer", "x-api-key", "x-goog-api-key", "account", "none"];
 const CAPABILITIES: [&str; 3] = ["tools", "vision", "thinking"];
 
