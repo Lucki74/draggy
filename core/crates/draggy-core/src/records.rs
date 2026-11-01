@@ -225,22 +225,9 @@ pub struct SessionConfig {
     /// Gives the model `search_web` and `read_url`. Leave it out to keep the web off.
     #[uniffi(default = None)]
     pub web: Option<WebConfigRecord>,
-    /// Answers through the Antigravity CLI instead of a model server. The file, web and MCP tools are then off.
-    #[uniffi(default = None)]
-    pub agy: Option<AgyConfigRecord>,
     /// A folder of skills, one subfolder each with a `SKILL.md`. Leave it out to offer none.
     #[uniffi(default = None)]
     pub skills_dir: Option<String>,
-}
-
-/// Where the Antigravity CLI is and which model it should use. Get it from `AgyAccount::config`.
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq)]
-pub struct AgyConfigRecord {
-    pub binary: String,
-    /// The slug to pass as `--model`. Empty keeps the CLI's own choice.
-    pub model: String,
-    /// The folder the CLI runs in, apart from the user's files.
-    pub work_dir: String,
 }
 
 /// One step of the plan the model keeps. `status` is `todo`, `doing` or `done`.

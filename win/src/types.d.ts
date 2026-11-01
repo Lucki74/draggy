@@ -1173,7 +1173,6 @@ export interface AccountStatus {
   cancelled?: boolean;
   error?: string | null;
   /** Signed in before through a route that no longer exists, so the account needs the new sign-in. */
-  reauth?: boolean;
 }
 
 export type AccountProgress =

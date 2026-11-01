@@ -209,19 +209,6 @@ const CATALOG = [
     ],
     defaultModels: [],
   },
-  {
-    id: "google",
-    name: "Google (Antigravity)",
-    kind: "account",
-    protocol: "agy",
-    vendor: "google",
-    auth: "account",
-    baseUrl: "",
-    keyUrl: "",
-    signInHosts: [],
-    capabilityPatterns: [{ match: "", capabilities: [TOOLS, VISION, THINKING], contextLength: 1048576 }],
-    defaultModels: [],
-  },
 
   local("ollama", "Ollama", 11434, "/api/version", { protocol: "ollama", baseUrl: "http://127.0.0.1:11434" }),
   local("lmstudio", "LM Studio", 1234, "/api/v0/models"),
@@ -240,7 +227,7 @@ const CATALOG = [
 
 // Pairs a plan with its API-key twin, so the Add list asks which way (spec §7.1).
 const VENDORS = new Set(["openai", "anthropic", "google"]);
-const PROTOCOLS = new Set(["openai", "ollama", "anthropic", "gemini", "codex", "claude", "agy"]);
+const PROTOCOLS = new Set(["openai", "ollama", "anthropic", "gemini", "codex", "claude"]);
 const AUTHS = new Set(["bearer", "x-api-key", "x-goog-api-key", "account", "none"]);
 const CAPABILITIES = new Set([TOOLS, VISION, THINKING]);
 

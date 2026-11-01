@@ -3,6 +3,3 @@ contact_links:
   - name: draggy.org
     url: https://draggy.org
     about: Downloads, documentation and more about draggy.
-  - name: Security vulnerability
-    url: https://github.com/Lucki74/draggy/security/advisories/new
-    about: Report a vulnerability privately. Please do not open a public issue.

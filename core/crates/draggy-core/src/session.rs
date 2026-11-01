@@ -1,12 +1,10 @@
 //! A conversation with a model. The shell holds the `Session` handle, calls `send` and reads events through its
 //! observer. The turn itself runs on a thread of its own, so the caller's thread is never blocked on the network.
 
-use std::path::PathBuf;
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use draggy_agent::agent_loop::ModelClient;
 use draggy_agent::agent_loop::Permission;
 use draggy_agent::agent_loop::ToolContext;
 use draggy_agent::agent_loop::{
@@ -27,7 +25,6 @@ use draggy_tools::files::content_hash;
 use draggy_web::search::SearchConfig;
 use serde_json::Value;
 
-use crate::agy_host::AgyModel;
 use crate::cancel::CancelToken;
 use crate::error::CoreError;
 use crate::mcp::McpManager;
@@ -299,21 +296,9 @@ impl ToolRuntime for CompositeTools {
 }
 
 impl Session {
-    fn create(
-        mut config: SessionConfig,
-        mut mcp: Option<Arc<McpManager>>,
-    ) -> Result<Arc<Self>, CoreError> {
-        if config.agy.is_some() {
-            // The CLI runs its own tools, which Draggy does not offer, so none of ours are exposed to it.
-            config.folder = None;
-            config.web = None;
-            config.allow_commands = false;
-            mcp = None;
-        }
+    fn create(config: SessionConfig, mcp: Option<Arc<McpManager>>) -> Result<Arc<Self>, CoreError> {
         let net = Net::new().map_err(|message| CoreError::Internal { message })?;
-        if config.agy.is_none()
-            && (config.base_url.trim().is_empty() || config.model.trim().is_empty())
-        {
+        if config.base_url.trim().is_empty() || config.model.trim().is_empty() {
             return Err(CoreError::Invalid {
                 message: "A session needs a server address and a model.".to_owned(),
             });
@@ -331,7 +316,7 @@ impl Session {
     /// The skills folder, when this session offers skills.
     fn skill_store(&self) -> Option<SkillStore> {
         let dir = self.config.skills_dir.as_deref()?.trim();
-        (self.config.agy.is_none() && !dir.is_empty()).then(|| SkillStore::new(dir))
+        (!dir.is_empty()).then(|| SkillStore::new(dir))
     }
 
     fn request(
@@ -360,9 +345,7 @@ impl Session {
         if !shelf.is_empty() {
             tools.extend(skills::definitions());
         }
-        if self.config.agy.is_none() {
-            tools.extend(plan::definitions());
-        }
+        tools.extend(plan::definitions());
         TurnRequest {
             profile: ModelProfile {
                 model: self.config.model.clone(),
@@ -370,9 +353,8 @@ impl Session {
                 probed: true,
                 has_thinking: false,
                 thinking_allowed: true,
-                // Pictures go to the model only when the user attached some, and never to the agy route.
-                native_vision: self.config.agy.is_none()
-                    && messages.iter().any(|m| m.attachments.is_some()),
+                // Pictures go to the model only when the user attached some.
+                native_vision: messages.iter().any(|m| m.attachments.is_some()),
                 prompt_profile: PromptProfile::Compact,
                 loop_limit: self.config.loop_limit.map_or(75, |limit| limit as usize),
                 max_context: None,
@@ -469,22 +451,11 @@ impl Session {
             _ => None,
         };
         let request = self.request(messages, grants, extra_tools, web_tools.is_some());
-        let mut openai;
-        let mut agy;
-        let model: &mut dyn ModelClient = match &self.config.agy {
-            Some(config) => {
-                agy = AgyModel::new(&config.binary, PathBuf::from(&config.work_dir));
-                &mut agy
-            }
-            None => {
-                openai = OpenAiModel::new(
-                    Arc::clone(&self.net),
-                    &self.config.base_url,
-                    self.config.api_key.as_deref(),
-                );
-                &mut openai
-            }
-        };
+        let mut model = OpenAiModel::new(
+            Arc::clone(&self.net),
+            &self.config.base_url,
+            self.config.api_key.as_deref(),
+        );
         let mut engine = RunningServer {
             window: self.config.context_tokens.unwrap_or(8192),
         };
@@ -501,7 +472,7 @@ impl Session {
             mcp: mcp_tools,
             web: web_tools,
             skills: self.skill_store(),
-            plans: self.config.agy.is_none(),
+            plans: true,
         };
         let mut bridge = Bridge(observer);
         let mut host = Host {
@@ -518,7 +489,7 @@ impl Session {
             &request,
             &mut tail_notes,
             Ports {
-                model,
+                model: &mut model,
                 engine: &mut engine,
                 skills: &mut shelf,
                 tools: &mut composite,

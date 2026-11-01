@@ -1,6 +1,6 @@
 # Releasing Draggy
 
-Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds installers for Windows, macOS, and Linux, then publishes a release with the packages and the `latest.yml` file that `electron-updater` reads inside the app.
+Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds the Windows installer with Electron, the macOS app and the Linux packages natively, then publishes a release with the packages and the `latest.yml` file that `electron-updater` reads inside the app. The macOS build is signed ad hoc until a Developer ID certificate exists.
 
 ## Cutting a build
 
@@ -17,11 +17,14 @@ released.
 gh workflow run release.yml --ref main -f notes="$(cat notes.md)"
 ```
 
-The workflow only runs from `main` and only by hand. It runs `npm run check` on every system before
-it builds, and a failure on one system stops the other two, so a release is all three or none.
+The workflow only runs from `main` and only by hand. The Windows job runs `npm run check` before it
+builds, and the macOS and Linux jobs run the Rust tests for their system. The publish job waits for
+all three, so a failure on any system means nothing is published.
 
 The release is created as a draft, the files are uploaded, and only then is it published and marked
 Latest. A failed upload therefore never leaves a half-empty release that installed apps would pick up.
+If the build has no `latest-linux.yml`, the publish job copies it forward from an earlier release,
+because Linux installs read that file from the newest `b-N` release and fail without it.
 
 ### Notes
 
@@ -36,14 +39,14 @@ new" text in the update dialog.
 gh workflow run release.yml --ref main -f dry_run=true -f notes="dry run"
 ```
 
-A dry run builds all three systems and keeps the installers as workflow artifacts. It creates no
+A dry run builds all three systems, skips the publish job, and keeps the installers as workflow artifacts. It creates no
 tag and no release, so it does not use up a build number.
 
 ## Tags are permanent
 
 The next build number comes from the existing `b-N` tags. Moving or deleting one would hand the same
 number out twice, and an installed copy would then treat a different build as the one it already has.
-Once the repository is public, a ruleset blocks updates and deletions of `b-*` tags. A bad build is
+A ruleset named "build tags" blocks updates and deletions of `b-*` tags. A bad build is
 fixed by releasing the next number.
 
 ## What the updater trusts
@@ -81,4 +84,4 @@ Before running the workflow, make sure:
 - screenshots match the release interface, generated via `scripts/screenshots.cjs` and `scripts/wiki-shots.cjs` after `npm run build`;
 - the privacy policy date is updated if network behavior changed, listing any new endpoints.
 
-For details on how updates apply after install, see the wiki's [Installation](https://draggy.org/wiki/installation) page.
+For details on how updates apply after install, see the docs' [Installation](https://docs.draggy.org/installation) page.

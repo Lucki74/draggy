@@ -706,29 +706,6 @@
     "defaultModels": []
   },
   {
-    "id": "google",
-    "name": "Google (Antigravity)",
-    "kind": "account",
-    "protocol": "agy",
-    "vendor": "google",
-    "auth": "account",
-    "baseUrl": "",
-    "keyUrl": "",
-    "signInHosts": [],
-    "capabilityPatterns": [
-      {
-        "match": "",
-        "capabilities": [
-          "tools",
-          "vision",
-          "thinking"
-        ],
-        "contextLength": 1048576
-      }
-    ],
-    "defaultModels": []
-  },
-  {
     "id": "ollama",
     "name": "Ollama",
     "kind": "local",
