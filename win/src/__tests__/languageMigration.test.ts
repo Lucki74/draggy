@@ -23,7 +23,7 @@ describe("language migration for removed languages", () => {
   });
 
   it("migrates other dropped languages to en", () => {
-    for (const dropped of ["de", "it", "pt", "nl", "ru", "ja", "ko"]) {
+    for (const dropped of ["de", "it", "pt", "nl", "ja", "ko"]) {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify({ language: dropped }));
       expect(loadSettings().language).toBe("en");
     }

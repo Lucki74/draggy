@@ -17,7 +17,7 @@ const TOKENS: Record<string, string[]> = {
     "mhm", "hmm", "ah", "oh", "sí", "si", "vale", "ok", "claro", "cierto",
     "genial", "exacto", "ya", "veo", "por", "supuesto", "bueno",
   ],
-  zh: ["嗯", "嗯嗯", "哦", "啊", "对", "对对", "好", "好的", "是", "是的", "明白", "懂了"],
+  ru: ["ага", "угу", "ну", "ох", "ах", "да", "ладно", "понятно", "ясно", "хорошо", "точно", "верно"],
 };
 
 /** Backchannels are short by nature; anything longer carries real content. */
@@ -48,7 +48,7 @@ export function isBackchannel(text: string, language: string): boolean {
   const known = listFor(language);
   const english = listFor("en");
 
-  // Chinese, Japanese and Korean are not space-separated, so the whole string
+  // Japanese and Korean are not space-separated, so the whole string
   // is matched as one token.
   const parts = /\s/.test(cleaned) ? cleaned.split(/\s+/) : [cleaned];
   if (parts.length > MAX_WORDS) return false;

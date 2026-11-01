@@ -1,7 +1,7 @@
 /**
  * Voice bench: how the talk pipeline cuts replies, and how rendered audio holds together.
  *
- *   node scripts/voice-bench.mjs [--lang en,fr,es,zh] [--engine neural] [--wav <dir>] [--out scratch/voice-bench]
+ *   node scripts/voice-bench.mjs [--lang en,fr,es,ru] [--engine neural] [--wav <dir>] [--out scratch/voice-bench]
  *
  * 1. Every reply in scripts/voice-bench/corpus.<lang>.json goes through the production chunker, a few
  *    characters at a time like streamed tokens, and the fragments are written to <out>/fragments.json.
@@ -21,7 +21,7 @@ import { createServer } from "vite";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function parseArgs(argv) {
-  const opts = { langs: ["en", "fr", "es", "zh"], engine: "neural", wav: null, out: path.join(root, "scratch", "voice-bench") };
+  const opts = { langs: ["en", "fr", "es", "ru"], engine: "neural", wav: null, out: path.join(root, "scratch", "voice-bench") };
   for (let i = 0; i < argv.length; i++) {
     const next = () => argv[++i];
     if (argv[i] === "--lang") opts.langs = next().split(",");

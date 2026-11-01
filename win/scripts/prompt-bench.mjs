@@ -3,7 +3,7 @@
  * Prompt bench: runs a per-language corpus against a model with the production prompt builders.
  *
  *   node scripts/prompt-bench.mjs --model path/to/model.gguf [--tier compact|full] [--variant name]
- *        [--lang en,fr,es,zh] [--runs 3] [--seed 1000] [--out scratch/prompt-bench/<name>]
+ *        [--lang en,fr,es,ru] [--runs 3] [--seed 1000] [--out scratch/prompt-bench/<name>]
  *        [--user-data <Draggy userData>] [--ctx 8192] [--max-tokens 1024] [--group a,b]
  *   node scripts/prompt-bench.mjs --endpoint http://host/v1 --api-key KEY --name label [--caps tools,thinking]
  *   node scripts/prompt-bench.mjs --sizes            prompt token sizes only, no model
@@ -25,7 +25,7 @@ import { pct, summarize } from "./prompt-bench/summary.mjs";
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const benchDir = path.join(root, "scripts", "prompt-bench");
-const LANGS = ["en", "fr", "es", "zh"];
+const LANGS = ["en", "fr", "es", "ru"];
 
 function parseArgs(argv) {
   const o = { tier: "compact", langs: LANGS, runs: 3, seed: 1000, ctx: 8192, maxTokens: 1024, port: 11499, caps: null, groups: null, report: [] };

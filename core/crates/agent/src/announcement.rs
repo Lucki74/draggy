@@ -73,9 +73,9 @@ const LEADING_INTENTS: &[&str] = &[
     "я изучу",
 ];
 
-// Chinese and Arabic run the intent straight into the verb, so these match as prefixes.
+// Arabic runs the intent straight into the verb, so these match as prefixes.
 const PREFIX_INTENT_SOURCE: &str =
-    r"^(?:让我|我来|我将|我会|我先|现在让我|现在我|接下来|دعني|دعنا|سأ)";
+    r"^(?:دعني|دعنا|سأ)";
 
 // Japanese and Korean put the intent at the end of the sentence, not the start.
 const TRAILING_INTENT_SOURCE: &str =

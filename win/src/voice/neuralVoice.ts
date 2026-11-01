@@ -20,7 +20,7 @@ const CACHE_HOST = "draggy://models/";
 const DUCK_RAMP_S = 0.08;
 const CANCEL_RAMP_S = 0.05;
 
-/** Supertonic 3 speaks English, French and Spanish; Chinese keeps the system voice. */
+/** Supertonic 3 speaks English, French, Spanish and Russian; anything else keeps the system voice. */
 export const NEURAL_LANGUAGES = SUPERTONIC_LANGUAGES;
 
 export interface NeuralVoiceOption {

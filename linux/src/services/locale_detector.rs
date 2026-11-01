@@ -4,8 +4,8 @@ pub fn detect_system_locale() -> String {
         "fr".to_string()
     } else if lang.starts_with("es") {
         "es".to_string()
-    } else if lang.starts_with("zh") {
-        "zh".to_string()
+    } else if lang.starts_with("ru") {
+        "ru".to_string()
     } else {
         "en".to_string()
     }

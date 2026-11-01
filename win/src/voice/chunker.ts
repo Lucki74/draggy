@@ -72,7 +72,7 @@ export interface Fragment {
 
 /** Where a long run with no punctuation is best split, most natural first. */
 const CONJUNCTION =
-  /\s(?:and|but|because|so|or|while|which|that|et|mais|parce que|donc|ou|y|pero|porque|pues|o|而且|但是|因为|所以)\s/gi;
+  /\s(?:and|but|because|so|or|while|which|that|et|mais|parce que|donc|ou|y|pero|porque|pues|o|и|но|или|потому что|поэтому|который)\s/gi;
 const CJK_CLAUSE = /[，、]/g;
 
 function lastMatchBefore(pattern: RegExp, buffer: string, limit: number): number {
@@ -156,9 +156,9 @@ export interface SentenceChunker {
   reset: () => void;
 }
 
-/** A Chinese character carries about three Latin characters of speech, and the synthesiser stalls
- * on long runs of it, so CJK fragments are held to a third of the character limits. */
-const CJK_LANGUAGES = /^(zh|ja|ko)/i;
+/** A Japanese or Korean character carries about three Latin characters of speech, and the synthesiser
+ * stalls on long runs of it, so CJK fragments are held to a third of the character limits. */
+const CJK_LANGUAGES = /^(ja|ko)/i;
 
 export function createSentenceChunker(language?: string, engineLimits: ChunkLimits = DEFAULT_LIMITS): SentenceChunker {
   const limits: ChunkLimits =

@@ -74,28 +74,6 @@ const corpus = {
     ["cue", "<sigh> Qué día más largo. Seamos breves."],
     ["path", "Abre C:\\Users\\yo\\notes.txt y mira la primera línea, o visita https://example.com/ayuda."],
   ],
-  zh: [
-    ["oneliner", "好的，请稍等一下。"],
-    ["oneliner", "听起来是个很棒的计划。"],
-    ["oneliner", "不完全是，试试另一个。"],
-    ["two", "我看了日历。你周四下午有空。"],
-    ["two", "好问题。这取决于机器有多少内存。"],
-    ["two", "可以，离线也能用。只有第一次需要下载。"],
-    ["long", long("说实话，最简单的理解方式是，模型会读完你到目前为止说的所有内容，推测你接下来大概想要什么，然后一小段一小段地写出回答，所以它可以在还没想完之前就开始说话，这也是为什么你几乎感觉不到等待。")],
-    ["long", long("第一次运行时它会下载语音，普通网速下大约需要几分钟，之后所有内容都留在你的电脑上，所以你在飞机上或者隧道里也可以和它聊天，完全没有问题。")],
-    ["number", "路程是340公里，大约需要4个小时。"],
-    ["number", "每月12.50元，或者全年120元。"],
-    ["number", "你的会议在3号14:30，持续45分钟。"],
-    ["number", "电量还有82%，文件大小是1.5 GB。"],
-    ["acronym", "CPU没问题，但是GPU很烫。看看API日志。"],
-    ["acronym", "NASA宣布了这件事，BBC也报道了。"],
-    ["question", "你想让我读全文，还是只读摘要？"],
-    ["question", "等一下，你说的是第一个还是第二个？"],
-    ["cue", "哈 <laugh> 这个不错。好了，回到计划上。"],
-    ["cue", "嗯 <hmm> 让我想想。我会这样做。"],
-    ["cue", "<sigh> 今天真漫长。我们长话短说。"],
-    ["path", "打开 C:\\Users\\me\\notes.txt 看第一行，或者访问 https://example.com/help 了解更多。"],
-  ],
 };
 
 for (const [lang, base] of Object.entries(corpus)) {

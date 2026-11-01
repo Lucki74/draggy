@@ -1183,7 +1183,7 @@ export type AccountProgress =
 
 type ProviderResult<T> = ({ success: true } & T) | { success: false; error: ProviderFailure };
 
-export type Language = "en" | "fr" | "es" | "zh";
+export type Language = "en" | "fr" | "es" | "ru";
 
 /** How hard a model reasons. Off sends no reasoning; each level above it asks for more. */
 export type EffortLevel = "off" | "low" | "medium" | "high" | "max";
