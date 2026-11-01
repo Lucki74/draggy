@@ -91,7 +91,7 @@ pub fn from_codex(last: Option<&Value>) -> Usage {
     })
 }
 
-/// Engines that report one prompt count and one output count (Ollama, agy).
+/// Engines that report one prompt count and one output count (Ollama).
 pub fn from_totals(prompt: u64, output: u64) -> Usage {
     usage_of(TokenUsage {
         input: prompt,

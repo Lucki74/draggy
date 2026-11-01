@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use draggy_core::{AgyAccount, EngineHost, LocalEngine, McpManager, ModelLibrary};
+use draggy_core::{EngineHost, LocalEngine, McpManager, ModelLibrary};
 use draggy_linux::models;
 use draggy_linux::secrets::{KeyringStore, SecretStore};
 use draggy_linux::servers::PlainValues;
@@ -23,7 +23,6 @@ pub struct AppState {
     mcp: RefCell<Option<Arc<McpManager>>>,
     engine: RefCell<Option<Arc<LocalEngine>>>,
     library: RefCell<Option<Arc<ModelLibrary>>>,
-    agy: RefCell<Option<Arc<AgyAccount>>>,
     storage: RefCell<Option<Arc<Storage>>>,
     /// The llama-server program the Models page installed or found.
     pub engine_binary: RefCell<String>,
@@ -46,7 +45,6 @@ impl AppState {
             mcp: RefCell::new(None),
             engine: RefCell::new(None),
             library: RefCell::new(None),
-            agy: RefCell::new(None),
             storage: RefCell::new(None),
             engine_binary: RefCell::new(String::new()),
             engine_model: RefCell::new(String::new()),
@@ -77,16 +75,6 @@ impl AppState {
     /// The engine if one was made, so closing the window does not start one just to stop it.
     pub fn engine_if_started(&self) -> Option<Arc<LocalEngine>> {
         self.engine.borrow().clone()
-    }
-
-    /// The Antigravity account, made on first use. It keeps its state beside the models.
-    pub fn agy(&self) -> Arc<AgyAccount> {
-        let mut slot = self.agy.borrow_mut();
-        slot.get_or_insert_with(|| {
-            let dir = models::data_dir().unwrap_or_default().join("agy");
-            AgyAccount::new(dir.to_string_lossy().into_owned())
-        })
-        .clone()
     }
 
     /// The local database the turns and their costs are kept in. `None` when there is no data folder or it cannot open.

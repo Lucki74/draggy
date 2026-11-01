@@ -27,10 +27,10 @@ Draggy is a desktop assistant that talks, browses, and works in project folders,
 running open models on your own computer.
 
 It runs weights locally using an embedded `llama.cpp` engine with GGUF weights
-from Hugging Face. There is no account, no telemetry, and no network traffic
-unless you request it. The one exception is the price refresh behind the cost
-counters, which fetches public price lists and exchange rates and can be turned
-off in Settings. Available as an Electron application on Windows, a native
+from Hugging Face. There is no account and no telemetry. The app only touches
+the network for things you ask for or switch on: model and engine downloads,
+update checks, ad-block lists, and the price refresh behind the cost counters.
+Automatic updates and the price refresh can be turned off in Settings. Available as an Electron application on Windows, a native
 SwiftUI app on macOS, and a native GTK 4 app on Linux.
 
 Compared with LM Studio, Jan or Ollama, the difference is the coding agent: it
@@ -53,7 +53,7 @@ architecture in English, French, Spanish, and Chinese. Start with
 - Compact system prompts tuned for 1B to 7B models.
 - Separate chat and coding workspaces with independent model selection.
 - File editing, terminal commands, and undoable diff reviews.
-- Four permission modes: plan, ask, accept edits, and auto.
+- Four permission modes: plan only, ask first, accept edits, and YOLO.
 - Interactive task checklists with real-time step reordering.
 - Interactive question cards for single-choice, multiple-choice, and text clarifications.
 - Thumbnail preview cards for image attachments in the composer.
@@ -94,6 +94,7 @@ If Draggy is useful to you, a star on this repository helps other people find it
 [![M8ven Score](https://m8ven.ai/badge/mcp/lucki74-draggy-1jbywd?v=cb3b9216ec8930f61be77210c1f8a9ce)](https://m8ven.ai/mcp/lucki74-draggy-1jbywd?s=readme)
 
 ```bash
+cd win
 npm install
 npm run electron:dev
 ```

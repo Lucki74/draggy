@@ -94,9 +94,7 @@ final class AppModel {
         static let web = "webEnabled"
         static let searchProvider = "searchProvider"
         static let searxng = "searxngURL"
-        static let agyOn = "agyOn"
         static let speakReplies = "speakReplies"
-        static let agyModel = "agyModel"
     }
 
     private let defaults: UserDefaults
@@ -107,7 +105,6 @@ final class AppModel {
     let skills = SkillsModel()
     let mcp = McpModel(manager: try? McpManager(nodePath: nil, extensionsDir: nil))
     let browser = BrowserModel()
-    let agy = AgyModel()
     /// What this session's replies cost, shown on the Stats page. Kept in memory only.
     let stats = StatsStore()
     private var session: Session?
@@ -201,21 +198,6 @@ final class AppModel {
 
     @ObservationIgnored let speaker = ReplySpeaker()
 
-    /// Sends chat through the Antigravity CLI. Needs a signed-in account.
-    var agyEnabled: Bool {
-        didSet {
-            defaults.set(agyEnabled, forKey: Key.agyOn)
-            session = nil
-        }
-    }
-
-    var agyModel: String {
-        didSet {
-            defaults.set(agyModel, forKey: Key.agyModel)
-            session = nil
-        }
-    }
-
     var permission: PermissionChoice {
         didSet {
             defaults.set(permission.rawValue, forKey: Key.permission)
@@ -246,9 +228,7 @@ final class AppModel {
         searchProvider = defaults.string(forKey: Key.searchProvider) ?? ""
         searxngURL = defaults.string(forKey: Key.searxng) ?? ""
         permission = defaults.string(forKey: Key.permission).flatMap(PermissionChoice.init(rawValue:)) ?? .ask
-        agyEnabled = defaults.bool(forKey: Key.agyOn)
         speakReplies = defaults.bool(forKey: Key.speakReplies)
-        agyModel = defaults.string(forKey: Key.agyModel) ?? ""
         broker = ApprovalBroker { [weak self] request in
             self?.pendingApproval = request
         }
@@ -256,11 +236,6 @@ final class AppModel {
             self?.baseURL = info.baseUrl
             self?.modelName = info.model
         }
-    }
-
-    func signOutAgy() {
-        agy.signOut()
-        agyEnabled = false
     }
 
     func hasAPIKey() -> Bool {
@@ -437,9 +412,8 @@ final class AppModel {
             self.plan = self.session?.plan() ?? []
         }
         // Where this reply goes is fixed now, so a settings change during the turn does not re-price it.
-        let usesAccount = agyEnabled && agy.config(model: agyModel) != nil
-        let route = TurnPricer.route(usesAccount: usesAccount, baseURL: baseURL)
-        let configuredModel = usesAccount ? agyModel : modelName
+        let route = TurnPricer.route(baseURL: baseURL)
+        let configuredModel = modelName
         let workspace = workspaceName
 
         do {
@@ -472,21 +446,7 @@ final class AppModel {
         // The key is read only here, while the request is being set up.
         let key = (try? secrets.secret(for: Key.apiKey)) ?? nil
         let folder = folderPath.isEmpty ? nil : folderPath
-        let agyRoute = agyEnabled ? agy.config(model: agyModel) : nil
-        let config = agyRoute.map {
-            SessionConfig(
-                baseUrl: "",
-                model: "",
-                apiKey: nil,
-                folder: nil,
-                contextTokens: nil,
-                loopLimit: nil,
-                allowCommands: false,
-                permissionMode: PermissionChoice.ask.record,
-                web: nil,
-                agy: $0
-            )
-        } ?? SessionConfig(
+        let config = SessionConfig(
             baseUrl: baseURL,
             model: modelName,
             apiKey: key,
@@ -496,7 +456,6 @@ final class AppModel {
             allowCommands: allowCommands && folder != nil,
             permissionMode: permission.record,
             web: webConfig(),
-            agy: nil,
             skillsDir: SkillsModel.standardDirectory
         )
         let created: Session

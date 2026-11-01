@@ -67,12 +67,8 @@ enum TurnPricer {
         "api.x.ai": KnownHost(provider: "xai", name: "xAI"),
     ]
 
-    /// The route the next reply takes: the Antigravity account, a loopback server, or a cloud host.
-    static func route(usesAccount: Bool, baseURL: String) -> CostRoute {
-        if usesAccount {
-            // Antigravity signs in with a Google account, so its replies are priced as the Gemini API.
-            return CostRoute(priceProvider: "gemini", name: String(localized: "Antigravity account"), kind: .account)
-        }
+    /// The route the next reply takes: a loopback server, or a cloud host.
+    static func route(baseURL: String) -> CostRoute {
         let host = URL(string: baseURL)?.host?.lowercased() ?? ""
         if loopbackHosts.contains(host) {
             return CostRoute(priceProvider: "", name: String(localized: "Local model"), kind: .local)

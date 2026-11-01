@@ -176,6 +176,5 @@ describe("an account's subtitle", () => {
     expect(accountSubtitle({ signedIn: true }, en)).toBe(en("signedIn"));
     expect(accountSubtitle({ signedIn: true, limits: [{ window: 1440, usedPercent: 5, resetsAt: null }] }, en)).toBe(`${fill(en("usageDays"), { count: "1" })} 5%`);
     expect(accountSubtitle(null, en)).toBe(en("notSignedIn"));
-    expect(accountSubtitle({ signedIn: false, reauth: true }, en)).toBe(en("signInAgainAntigravity"));
   });
 });

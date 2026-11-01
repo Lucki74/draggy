@@ -584,7 +584,6 @@ mod tests {
             allow_commands: false,
             permission_mode: None,
             web: None,
-            agy: None,
             skills_dir: None,
         })
         .expect("a session");

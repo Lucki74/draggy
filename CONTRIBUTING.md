@@ -10,9 +10,10 @@ Things Draggy deliberately does not do: phone home, collect analytics, require a
 
 ## Getting it running
 
-You need Node 24 (matching CI).
+You need Node 24 (matching CI). Run every command below from `win/`.
 
 ```bash
+cd win
 npm install
 ```
 

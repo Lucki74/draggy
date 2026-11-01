@@ -78,7 +78,7 @@ function fromCodex(last = {}) {
   );
 }
 
-/** Engines that report one prompt count and one output count (Ollama, agy). */
+/** Engines that report one prompt count and one output count (Ollama). */
 function fromTotals(prompt, output) {
   return usageOf(tokenUsage({ input: prompt, output, source: "derived" }));
 }

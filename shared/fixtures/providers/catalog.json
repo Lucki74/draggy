@@ -743,36 +743,6 @@
       }
     },
     {
-      "name": "entry google",
-      "input": {
-        "op": "entry",
-        "id": "google"
-      },
-      "expected": {
-        "id": "google",
-        "name": "Google (Antigravity)",
-        "kind": "account",
-        "protocol": "agy",
-        "vendor": "google",
-        "auth": "account",
-        "baseUrl": "",
-        "keyUrl": "",
-        "signInHosts": [],
-        "capabilityPatterns": [
-          {
-            "match": "",
-            "capabilities": [
-              "tools",
-              "vision",
-              "thinking"
-            ],
-            "contextLength": 1048576
-          }
-        ],
-        "defaultModels": []
-      }
-    },
-    {
       "name": "entry ollama",
       "input": {
         "op": "entry",

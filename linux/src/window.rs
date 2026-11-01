@@ -84,7 +84,6 @@ impl DraggyWindow {
         window.attach_chat();
         window.attach_servers();
         window.attach_models();
-        window.attach_google();
         window.attach_browser();
         window.attach_skills();
         window.attach_terminal();
@@ -154,16 +153,6 @@ impl DraggyWindow {
             }
         });
         self.imp().pages.add_named(&page, Some("browser"));
-    }
-
-    fn attach_google(&self) {
-        let weak = self.downgrade();
-        let page = crate::agy_view::build(&self.imp().state, move |text| {
-            if let Some(window) = weak.upgrade() {
-                window.toast(text);
-            }
-        });
-        self.imp().pages.add_named(&page, Some("google"));
     }
 
     fn attach_models(&self) {

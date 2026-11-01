@@ -154,11 +154,6 @@ describe("an account's failure", () => {
     expect(engineFailure(failureOf({ kind: "account-runtime-unavailable", provider: "ChatGPT" }))).toContain("/error/account-runtime-unavailable");
   });
 
-  it("tells a Google plan user why the account was refused, with the article", () => {
-    const out = engineFailure(failureOf({ kind: "account-access-denied", provider: "Antigravity" }));
-    expect(out).toContain("Antigravity was refused by Google (403)");
-    expect(out).toContain("/error/account-access-denied");
-  });
 
   it("gives a spent plan's reset in the reader's clock, with the day only when it is not today", () => {
     vi.useFakeTimers();

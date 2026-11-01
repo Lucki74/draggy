@@ -4,7 +4,6 @@
 
 pub mod account;
 pub mod adapters;
-pub mod agy;
 pub mod autopin;
 pub mod catalog;
 pub mod claude;
