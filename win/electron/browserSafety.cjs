@@ -27,7 +27,7 @@ function hostOf(url) {
 // Words that pay, delete or publish something. Latin words match whole, since "post" is not "postcode".
 const RISKY_LATIN =
   /\b(pay|payer|pagar|buy|acheter|comprar|purchase|order|commander|pedir|checkout|delete|supprimer|eliminar|borrar|remove|send|envoyer|enviar|post|publish|publier|publicar|submit|soumettre|subscribe|donate|confirm)\b/i;
-const RISKY_CJK = /(支付|付款|购买|下单|删除|发送|发布|提交|订阅|捐款|确认)/;
+const RISKY_CJK = /(оплат|купить|заказ|удал|отправ|опублик|подать|подписа|пожертв|подтверд)/i;
 const CLICKABLE = new Set(["button", "link", "menuitem", "checkbox", "switch", "tab", "option"]);
 
 /** Why a click needs the user's word, or null for an ordinary one. */

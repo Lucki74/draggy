@@ -134,17 +134,19 @@
       "expected": "日本"
     },
     {
-      "name": "GBK bytes decode as Chinese",
+      "name": "windows-1251 bytes decode as Russian",
       "input": {
-        "contentType": "text/html; charset=gbk",
+        "contentType": "text/html; charset=windows-1251",
         "bytes": [
-          214,
-          208,
-          206,
-          196
+          207,
+          240,
+          232,
+          226,
+          229,
+          242
         ]
       },
-      "expected": "中文"
+      "expected": "Привет"
     },
     {
       "name": "invalid UTF-8 becomes replacement characters",

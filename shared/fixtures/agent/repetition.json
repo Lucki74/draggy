@@ -417,16 +417,16 @@
       }
     },
     {
-      "name": "Chinese block repeated",
+      "name": "Russian block repeated",
       "input": {
         "op": "detect",
-        "text": "开始\n这是一个重复的句子。\n这是一个重复的句子。\n这是一个重复的句子。"
+        "text": "Начало\nЭто повторяющееся предложение.\nЭто повторяющееся предложение.\nЭто повторяющееся предложение."
       },
       "expected": {
         "hasLoop": true,
-        "pattern": "这是一个重复的句子。",
+        "pattern": "Это повторяющееся предложение.",
         "repeatCount": 3,
-        "trimmedText": "开始\n这是一个重复的句子。"
+        "trimmedText": "Начало\nЭто повторяющееся предложение."
       }
     },
     {
