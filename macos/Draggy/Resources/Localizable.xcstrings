@@ -16,10 +16,10 @@
             "value": "Hablar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "对话"
+            "value": "Разговор"
           }
         }
       }
@@ -39,10 +39,10 @@
             "value": "Escuchando…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在聆听…"
+            "value": "Слушаю…"
           }
         }
       }
@@ -62,10 +62,10 @@
             "value": "Pensando…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "思考中…"
+            "value": "Думаю…"
           }
         }
       }
@@ -85,10 +85,10 @@
             "value": "Hablando…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "朗读中…"
+            "value": "Говорю…"
           }
         }
       }
@@ -108,10 +108,10 @@
             "value": "Permite el micrófono y el reconocimiento de voz para Draggy en Ajustes del Sistema."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "请在系统设置中允许 Draggy 使用麦克风和语音识别。"
+            "value": "Разрешите Draggy доступ к микрофону и распознаванию речи в Системных настройках."
           }
         }
       }
@@ -131,10 +131,10 @@
             "value": "Leer las respuestas en voz alta"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "朗读回复"
+            "value": "Озвучивать ответы"
           }
         }
       }
@@ -154,10 +154,10 @@
             "value": "Plan"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "计划"
+            "value": "План"
           }
         }
       }
@@ -177,10 +177,10 @@
             "value": "Borrar el plan"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "清除计划"
+            "value": "Очистить план"
           }
         }
       }
@@ -200,10 +200,10 @@
             "value": "%1$lld de %2$lld"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$lld/%2$lld"
+            "value": "%1$lld из %2$lld"
           }
         }
       }
@@ -223,10 +223,10 @@
             "value": "Vista previa"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "预览"
+            "value": "Предпросмотр"
           }
         }
       }
@@ -246,10 +246,10 @@
             "value": "Habilidades"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "技能"
+            "value": "Навыки"
           }
         }
       }
@@ -269,10 +269,10 @@
             "value": "Añadir una carpeta de habilidad"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "添加技能文件夹"
+            "value": "Добавить папку навыка"
           }
         }
       }
@@ -292,10 +292,10 @@
             "value": "No hay habilidades instaladas"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "尚未安装技能"
+            "value": "Навыки не установлены"
           }
         }
       }
@@ -315,10 +315,10 @@
             "value": "Quitar la habilidad"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "移除技能"
+            "value": "Удалить навык"
           }
         }
       }
@@ -338,10 +338,10 @@
             "value": "Elija una carpeta con un SKILL.md. El modelo carga una habilidad cuando una petición coincide con su descripción."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "选择包含 SKILL.md 的文件夹。当请求与技能描述相符时,模型会加载该技能。"
+            "value": "Выберите папку с файлом SKILL.md. Модель загружает навык, когда запрос совпадает с его описанием."
           }
         }
       }
@@ -361,10 +361,10 @@
             "value": "Navegador"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "浏览器"
+            "value": "Браузер"
           }
         }
       }
@@ -384,10 +384,10 @@
             "value": "Atrás"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "后退"
+            "value": "Назад"
           }
         }
       }
@@ -407,10 +407,10 @@
             "value": "Adelante"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "前进"
+            "value": "Вперёд"
           }
         }
       }
@@ -430,10 +430,10 @@
             "value": "Recargar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "刷新"
+            "value": "Обновить"
           }
         }
       }
@@ -453,10 +453,10 @@
             "value": "Dirección"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "地址"
+            "value": "Адрес"
           }
         }
       }
@@ -476,10 +476,10 @@
             "value": "Esto no es una dirección web."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "这不是网址。"
+            "value": "Это не веб-адрес."
           }
         }
       }
@@ -499,10 +499,10 @@
             "value": "Conversación"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "对话"
+            "value": "Диалог"
           }
         }
       }
@@ -522,10 +522,10 @@
             "value": "Adjuntar un archivo"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "附加文件"
+            "value": "Прикрепить файл"
           }
         }
       }
@@ -545,10 +545,10 @@
             "value": "Chat"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "聊天"
+            "value": "Чат"
           }
         }
       }
@@ -568,10 +568,10 @@
             "value": "Historial"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "历史记录"
+            "value": "История"
           }
         }
       }
@@ -591,10 +591,10 @@
             "value": "Nuevo chat"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "新聊天"
+            "value": "Новый чат"
           }
         }
       }
@@ -614,10 +614,10 @@
             "value": "¿Permitir %@?"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "允许 %@？"
+            "value": "Разрешить %@?"
           }
         }
       }
@@ -637,10 +637,10 @@
             "value": "No permitir"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "不允许"
+            "value": "Не разрешать"
           }
         }
       }
@@ -660,10 +660,10 @@
             "value": "Esta tarea"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "本次任务"
+            "value": "Эта задача"
           }
         }
       }
@@ -683,10 +683,10 @@
             "value": "Este espacio de trabajo"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "此工作区"
+            "value": "Эта рабочая область"
           }
         }
       }
@@ -706,10 +706,10 @@
             "value": "Una vez"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "仅此一次"
+            "value": "Один раз"
           }
         }
       }
@@ -729,10 +729,10 @@
             "value": "General"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "通用"
+            "value": "Основные"
           }
         }
       }
@@ -752,10 +752,10 @@
             "value": "Modelos"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "模型"
+            "value": "Модели"
           }
         }
       }
@@ -775,10 +775,10 @@
             "value": "Servidores"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "服务器"
+            "value": "Серверы"
           }
         }
       }
@@ -798,10 +798,10 @@
             "value": "%@ está disponible."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 已可用。"
+            "value": "%@ доступен."
           }
         }
       }
@@ -821,10 +821,10 @@
             "value": "Descargar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "下载"
+            "value": "Загрузить"
           }
         }
       }
@@ -844,10 +844,10 @@
             "value": "Descartar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "忽略"
+            "value": "Скрыть"
           }
         }
       }
@@ -867,10 +867,10 @@
             "value": "Añadir el texto de un archivo de Word, PowerPoint, Excel o PDF"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "添加 Word、PowerPoint、Excel 或 PDF 文件中的文字"
+            "value": "Добавить текст файла Word, PowerPoint, Excel или PDF"
           }
         }
       }
@@ -890,10 +890,10 @@
             "value": "Mensaje"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "消息"
+            "value": "Сообщение"
           }
         }
       }
@@ -913,10 +913,10 @@
             "value": "Detener"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "停止"
+            "value": "Стоп"
           }
         }
       }
@@ -936,10 +936,10 @@
             "value": "Enviar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "发送"
+            "value": "Отправить"
           }
         }
       }
@@ -959,10 +959,10 @@
             "value": "Buscar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "搜索"
+            "value": "Поиск"
           }
         }
       }
@@ -982,10 +982,10 @@
             "value": "Los servidores de esta lista aún no se pueden activar."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "此处列出的服务器暂时无法启用。"
+            "value": "Серверы из этого списка пока нельзя включить."
           }
         }
       }
@@ -1005,10 +1005,10 @@
             "value": "Catálogo"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "目录"
+            "value": "Каталог"
           }
         }
       }
@@ -1028,10 +1028,10 @@
             "value": "Ningún servidor coincide."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "没有匹配的服务器。"
+            "value": "Нет подходящих серверов."
           }
         }
       }
@@ -1051,10 +1051,10 @@
             "value": "Remoto"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "远程"
+            "value": "Удалённые"
           }
         }
       }
@@ -1074,10 +1074,10 @@
             "value": "Documentación"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "文档"
+            "value": "Документы"
           }
         }
       }
@@ -1097,10 +1097,10 @@
             "value": "En este Mac"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "在此 Mac 上"
+            "value": "На этом Mac"
           }
         }
       }
@@ -1120,10 +1120,10 @@
             "value": "Aún no hay modelos."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "暂无模型。"
+            "value": "Моделей пока нет."
           }
         }
       }
@@ -1143,10 +1143,10 @@
             "value": "Usar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用"
+            "value": "Использовать"
           }
         }
       }
@@ -1166,10 +1166,10 @@
             "value": "Eliminar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "删除"
+            "value": "Удалить"
           }
         }
       }
@@ -1189,10 +1189,10 @@
             "value": "Buscar un modelo"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "查找模型"
+            "value": "Найти модель"
           }
         }
       }
@@ -1212,10 +1212,10 @@
             "value": "Descargando %@"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在下载 %@"
+            "value": "Загрузка %@"
           }
         }
       }
@@ -1235,10 +1235,10 @@
             "value": "Cancelar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "取消"
+            "value": "Отмена"
           }
         }
       }
@@ -1258,10 +1258,10 @@
             "value": "%1$@ de %2$@"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@ / %2$@"
+            "value": "%1$@ из %2$@"
           }
         }
       }
@@ -1281,10 +1281,10 @@
             "value": "%1$@ de %2$@, unos %3$lld min restantes"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@ / %2$@，约剩 %3$lld 分钟"
+            "value": "%1$@ из %2$@, осталось около %3$lld мин"
           }
         }
       }
@@ -1304,10 +1304,10 @@
             "value": "Dirección del servidor"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "服务器地址"
+            "value": "Адрес сервера"
           }
         }
       }
@@ -1327,10 +1327,10 @@
             "value": "Modelo"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "模型"
+            "value": "Модель"
           }
         }
       }
@@ -1350,10 +1350,10 @@
             "value": "Clave de API"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "API 密钥"
+            "value": "Ключ API"
           }
         }
       }
@@ -1373,10 +1373,10 @@
             "value": "Guardada en el Llavero"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "已保存到钥匙串"
+            "value": "Сохранено в Связке ключей"
           }
         }
       }
@@ -1396,10 +1396,10 @@
             "value": "Ninguno"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "无"
+            "value": "Нет"
           }
         }
       }
@@ -1419,10 +1419,10 @@
             "value": "Guardar clave"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "保存密钥"
+            "value": "Сохранить ключ"
           }
         }
       }
@@ -1442,10 +1442,10 @@
             "value": "Motor local"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "本地引擎"
+            "value": "Локальный движок"
           }
         }
       }
@@ -1465,10 +1465,10 @@
             "value": "Programa del motor"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "引擎程序"
+            "value": "Программа движка"
           }
         }
       }
@@ -1488,10 +1488,10 @@
             "value": "Obtener motor"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "获取引擎"
+            "value": "Получить движок"
           }
         }
       }
@@ -1511,10 +1511,10 @@
             "value": "Archivo del modelo"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "模型文件"
+            "value": "Файл модели"
           }
         }
       }
@@ -1534,10 +1534,10 @@
             "value": "Iniciar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "启动"
+            "value": "Запустить"
           }
         }
       }
@@ -1557,10 +1557,10 @@
             "value": "Proyecto"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "项目"
+            "value": "Проект"
           }
         }
       }
@@ -1580,10 +1580,10 @@
             "value": "Carpeta"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "文件夹"
+            "value": "Папка"
           }
         }
       }
@@ -1603,10 +1603,10 @@
             "value": "Elegir…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "选择…"
+            "value": "Выбрать…"
           }
         }
       }
@@ -1626,10 +1626,10 @@
             "value": "Elegir"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "选择"
+            "value": "Выбрать"
           }
         }
       }
@@ -1649,10 +1649,10 @@
             "value": "Borrar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "清除"
+            "value": "Очистить"
           }
         }
       }
@@ -1672,10 +1672,10 @@
             "value": "Llamadas a herramientas"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "工具调用"
+            "value": "Вызовы инструментов"
           }
         }
       }
@@ -1695,10 +1695,10 @@
             "value": "Permitir que el modelo ejecute comandos"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "允许模型运行命令"
+            "value": "Разрешить модели запускать команды"
           }
         }
       }
@@ -1718,10 +1718,10 @@
             "value": "Detenido"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "已停止"
+            "value": "Остановлено"
           }
         }
       }
@@ -1741,10 +1741,10 @@
             "value": "Iniciando…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在启动…"
+            "value": "Запуск…"
           }
         }
       }
@@ -1764,10 +1764,10 @@
             "value": "Ejecutando %@"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在运行 %@"
+            "value": "Выполняется %@"
           }
         }
       }
@@ -1787,10 +1787,10 @@
             "value": "Preguntar antes de editar y ejecutar comandos"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "编辑和运行命令前询问"
+            "value": "Спрашивать перед правками и командами"
           }
         }
       }
@@ -1810,10 +1810,10 @@
             "value": "Editar libremente, preguntar antes de ejecutar comandos"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "可自由编辑，运行命令前询问"
+            "value": "Править свободно, спрашивать перед командами"
           }
         }
       }
@@ -1833,10 +1833,10 @@
             "value": "Solo lectura"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "只读"
+            "value": "Только чтение"
           }
         }
       }
@@ -1856,10 +1856,10 @@
             "value": "Razonamiento"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "思考"
+            "value": "Размышление"
           }
         }
       }
@@ -1879,10 +1879,10 @@
             "value": "No se pudo guardar la clave en el Llavero."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "无法将密钥保存到钥匙串。"
+            "value": "Не удалось сохранить ключ в Связке ключей."
           }
         }
       }
@@ -1902,10 +1902,10 @@
             "value": "El núcleo se detuvo de forma inesperada."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "核心意外停止。"
+            "value": "Ядро неожиданно остановилось."
           }
         }
       }
@@ -1925,10 +1925,10 @@
             "value": "No se pudo iniciar la biblioteca de modelos."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "无法启动模型库。"
+            "value": "Не удалось запустить библиотеку моделей."
           }
         }
       }
@@ -1948,10 +1948,10 @@
             "value": "Tú"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "你"
+            "value": "Вы"
           }
         }
       }
@@ -1971,10 +1971,10 @@
             "value": " · %.1f tokens/s"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": " · %.1f 词元/秒"
+            "value": " · %.1f токенов/с"
           }
         }
       }
@@ -1994,10 +1994,10 @@
             "value": "Ajustes del servidor"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "服务器设置"
+            "value": "Настройки сервера"
           }
         }
       }
@@ -2017,10 +2017,10 @@
             "value": "Guardar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "保存"
+            "value": "Сохранить"
           }
         }
       }
@@ -2040,10 +2040,10 @@
             "value": "Obligatorio"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "必填"
+            "value": "Обязательно"
           }
         }
       }
@@ -2063,10 +2063,10 @@
             "value": "Los secretos van al llavero."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "机密信息保存在钥匙串中。"
+            "value": "Секреты хранятся в Связке ключей."
           }
         }
       }
@@ -2086,10 +2086,10 @@
             "value": "%@ necesita %@. Abre primero sus ajustes."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 需要 %@。请先打开其设置。"
+            "value": "%1$@ требует: %2$@. Сначала откройте его настройки."
           }
         }
       }
@@ -2109,10 +2109,10 @@
             "value": "No se guardaron los ajustes de %@: %@"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 的设置未保存：%@"
+            "value": "Настройки %1$@ не сохранены: %2$@"
           }
         }
       }
@@ -2132,10 +2132,10 @@
             "value": "Web"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "网络"
+            "value": "Интернет"
           }
         }
       }
@@ -2155,10 +2155,10 @@
             "value": "Dejar que el modelo busque en la web"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "允许模型搜索网络"
+            "value": "Разрешить модели искать в интернете"
           }
         }
       }
@@ -2178,10 +2178,10 @@
             "value": "Motor de búsqueda"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "搜索引擎"
+            "value": "Поисковая система"
           }
         }
       }
@@ -2201,10 +2201,10 @@
             "value": "Automático"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "自动"
+            "value": "Автоматически"
           }
         }
       }
@@ -2224,10 +2224,10 @@
             "value": "Dirección de SearXNG"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "SearXNG 地址"
+            "value": "Адрес SearXNG"
           }
         }
       }
@@ -2247,10 +2247,10 @@
             "value": "Clave API de Brave"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Brave API 密钥"
+            "value": "Ключ API Brave"
           }
         }
       }
@@ -2270,10 +2270,10 @@
             "value": "Guardar la clave de Brave"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "保存 Brave 密钥"
+            "value": "Сохранить ключ Brave"
           }
         }
       }
@@ -2293,10 +2293,10 @@
             "value": "Leyendo %@ del disco…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在从磁盘读取 %@…"
+            "value": "Чтение %@ с диска…"
           }
         }
       }
@@ -2316,10 +2316,10 @@
             "value": "Cargando %@ en la RAM %lld%%…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在将 %@ 载入内存 %lld%%…"
+            "value": "Загрузка %1$@ в ОЗУ: %2$lld%%…"
           }
         }
       }
@@ -2339,10 +2339,10 @@
             "value": "Cargando %@ en la RAM…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在将 %@ 载入内存…"
+            "value": "Загрузка %@ в ОЗУ…"
           }
         }
       }
@@ -2362,10 +2362,10 @@
             "value": "Ampliando el contexto %lld%%…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在扩展上下文 %lld%%…"
+            "value": "Расширение контекста: %lld%%…"
           }
         }
       }
@@ -2385,10 +2385,10 @@
             "value": "Ampliando el contexto…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在扩展上下文…"
+            "value": "Расширение контекста…"
           }
         }
       }
@@ -2408,10 +2408,10 @@
             "value": "Leyendo %lld%% (%lld tok/s)…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在读取 %lld%%（%lld tok/s）…"
+            "value": "Чтение: %1$lld%% (%2$lld ток/с)…"
           }
         }
       }
@@ -2431,10 +2431,10 @@
             "value": "Leyendo %lld%%…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在读取 %lld%%…"
+            "value": "Чтение: %lld%%…"
           }
         }
       }
@@ -2454,10 +2454,10 @@
             "value": "%@ se está preparando…"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 正在准备…"
+            "value": "%@ готовится…"
           }
         }
       }
@@ -2477,10 +2477,10 @@
             "value": "No se pudo leer el archivo."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "无法读取该文件。"
+            "value": "Не удалось прочитать файл."
           }
         }
       }
@@ -2500,10 +2500,10 @@
             "value": "La imagen supera los 10 MB."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "图片超过 10 MB。"
+            "value": "Изображение больше 10 МБ."
           }
         }
       }
@@ -2523,10 +2523,10 @@
             "value": "Quitar la imagen"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "移除图片"
+            "value": "Удалить изображение"
           }
         }
       }
@@ -2546,10 +2546,10 @@
             "value": "%1$lld en curso"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$lld 运行中"
+            "value": "Запущено: %lld"
           }
         }
       }
@@ -2569,10 +2569,10 @@
             "value": "%1$lld fallidas"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$lld 失败"
+            "value": "Ошибок: %lld"
           }
         }
       }
@@ -2592,10 +2592,10 @@
             "value": "Tareas"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "任务"
+            "value": "Задачи"
           }
         }
       }
@@ -2615,10 +2615,10 @@
             "value": "En curso"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "运行中"
+            "value": "Выполняются"
           }
         }
       }
@@ -2638,10 +2638,10 @@
             "value": "Terminada"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "已完成"
+            "value": "Готово"
           }
         }
       }
@@ -2661,10 +2661,10 @@
             "value": "Fallida"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "失败"
+            "value": "Ошибка"
           }
         }
       }
@@ -2684,10 +2684,10 @@
             "value": "Fallida, salida %1$lld"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "失败，退出码 %1$lld"
+            "value": "Ошибка, код выхода %lld"
           }
         }
       }
@@ -2707,10 +2707,10 @@
             "value": "Cerrar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "关闭"
+            "value": "Закрыть"
           }
         }
       }
@@ -2730,10 +2730,10 @@
             "value": "Modelo local"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "本地模型"
+            "value": "Локальная модель"
           }
         }
       }
@@ -2753,10 +2753,10 @@
             "value": "Proveedor desconocido"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "未知提供商"
+            "value": "Неизвестный поставщик"
           }
         }
       }
@@ -2776,10 +2776,10 @@
             "value": "Ningún espacio de trabajo"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "无工作区"
+            "value": "Нет рабочей области"
           }
         }
       }
@@ -2799,10 +2799,10 @@
             "value": "Modelo local. No se cobra nada."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "本地模型，不计费。"
+            "value": "Локальная модель, оплата не взимается."
           }
         }
       }
@@ -2822,10 +2822,10 @@
             "value": "%@ / ahorrado"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ / 已节省"
+            "value": "%@ / экономия"
           }
         }
       }
@@ -2845,10 +2845,10 @@
             "value": "Habría costado %@ con el modelo de referencia."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "在参考模型上约为 %@。"
+            "value": "На эталонной модели стоило бы около %@."
           }
         }
       }
@@ -2868,10 +2868,10 @@
             "value": "%@ equiv."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "约合 %@"
+            "value": "≈ %@"
           }
         }
       }
@@ -2891,10 +2891,10 @@
             "value": "No facturado: lo cubre tu suscripción. La cifra es el coste equivalente en la API."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "未计费：由你的订阅覆盖。金额为等效 API 费用。"
+            "value": "Не списывается: покрывается вашим тарифом. Сумма — эквивалент стоимости по API."
           }
         }
       }
@@ -2914,10 +2914,10 @@
             "value": "Entrada"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "输入"
+            "value": "Ввод"
           }
         }
       }
@@ -2937,10 +2937,10 @@
             "value": "Lectura de caché"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "缓存读取"
+            "value": "Чтение кэша"
           }
         }
       }
@@ -2960,10 +2960,10 @@
             "value": "Escritura de caché"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "缓存写入"
+            "value": "Запись в кэш"
           }
         }
       }
@@ -2983,10 +2983,10 @@
             "value": "Salida"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "输出"
+            "value": "Вывод"
           }
         }
       }
@@ -3006,10 +3006,10 @@
             "value": "Razonamiento"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "推理"
+            "value": "Рассуждение"
           }
         }
       }
@@ -3029,10 +3029,10 @@
             "value": "Estimado a partir de los totales de tokens"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "根据词元总数估算"
+            "value": "Оценка по общему количеству токенов"
           }
         }
       }
@@ -3052,10 +3052,10 @@
             "value": "Precios al %@"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "价格更新于 %@"
+            "value": "Цены на %@"
           }
         }
       }
@@ -3075,10 +3075,10 @@
             "value": "Estadísticas de la sesión"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "会话统计"
+            "value": "Статистика сеанса"
           }
         }
       }
@@ -3098,10 +3098,10 @@
             "value": "Las respuestas aparecen aquí al terminar."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "回复完成后会显示在这里。"
+            "value": "Ответы появятся здесь после завершения."
           }
         }
       }
@@ -3121,10 +3121,10 @@
             "value": "Gastado"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "已花费"
+            "value": "Потрачено"
           }
         }
       }
@@ -3144,10 +3144,10 @@
             "value": "Valor de la suscripción"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "订阅价值"
+            "value": "Стоимость по тарифу"
           }
         }
       }
@@ -3167,10 +3167,10 @@
             "value": "Ahorrado en local"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "本地节省"
+            "value": "Сэкономлено локально"
           }
         }
       }
@@ -3190,10 +3190,10 @@
             "value": "Tokens de entrada"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "提示词元"
+            "value": "Токены запроса"
           }
         }
       }
@@ -3213,10 +3213,10 @@
             "value": "Tokens de respuesta"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "回复词元"
+            "value": "Токены ответа"
           }
         }
       }
@@ -3236,10 +3236,10 @@
             "value": "Aún no hay costes"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "暂无费用数据"
+            "value": "Данных о стоимости пока нет"
           }
         }
       }
@@ -3259,10 +3259,10 @@
             "value": "COSTE A LO LARGO DEL TIEMPO"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "费用趋势"
+            "value": "СТОИМОСТЬ ПО ВРЕМЕНИ"
           }
         }
       }
@@ -3282,10 +3282,10 @@
             "value": "Por proveedor"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "按提供商"
+            "value": "По поставщикам"
           }
         }
       }
@@ -3305,10 +3305,10 @@
             "value": "Por modelo"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "按模型"
+            "value": "По моделям"
           }
         }
       }
@@ -3328,10 +3328,10 @@
             "value": "Por espacio de trabajo"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "按工作区"
+            "value": "По рабочим областям"
           }
         }
       }
@@ -3351,10 +3351,10 @@
             "value": "Proveedor"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "提供商"
+            "value": "Поставщик"
           }
         }
       }
@@ -3374,10 +3374,10 @@
             "value": "Espacio de trabajo"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "工作区"
+            "value": "Рабочая область"
           }
         }
       }
@@ -3397,10 +3397,10 @@
             "value": "Turnos"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "轮次"
+            "value": "Ходы"
           }
         }
       }
@@ -3420,10 +3420,10 @@
             "value": "Tokens"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "词元"
+            "value": "Токены"
           }
         }
       }
@@ -3443,10 +3443,10 @@
             "value": "%lld respuestas sin precio conocido no entran en los totales."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld 条回复没有已知价格，未计入总计。"
+            "value": "%lld ответов без известной цены не учтены в итогах."
           }
         }
       }
@@ -3466,10 +3466,10 @@
             "value": "Los costes están en dólares estadounidenses. El signo ~ indica una estimación a partir de los totales de tokens. El valor de la suscripción es lo que costarían los mismos tokens con la API; no se cobra. Las estadísticas cubren solo esta sesión."
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "费用以美元计。~ 表示根据词元总数估算。订阅价值是同样的词元通过 API 的费用，并不会收取。统计仅涵盖本次会话。"
+            "value": "Стоимость указана в долларах США. Знак ~ означает оценку по общему количеству токенов. Стоимость по тарифу — это то, во что обошлись бы те же токены через API; с вас ничего не списывается. Статистика охватывает только текущий сеанс."
           }
         }
       }
@@ -3489,10 +3489,10 @@
             "value": "HARDWARE DEL SISTEMA"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "系统硬件"
+            "value": "ОБОРУДОВАНИЕ СИСТЕМЫ"
           }
         }
       }
@@ -3512,10 +3512,10 @@
             "value": "Actualizar"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "刷新"
+            "value": "Обновить"
           }
         }
       }
@@ -3535,10 +3535,10 @@
             "value": "RAM usada"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "已用内存"
+            "value": "Занято ОЗУ"
           }
         }
       }
@@ -3558,10 +3558,10 @@
             "value": "Disco libre"
           }
         },
-        "zh-Hans": {
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "可用磁盘"
+            "value": "Свободно на диске"
           }
         }
       }

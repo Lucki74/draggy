@@ -54,7 +54,7 @@ Models too large for memory run on colibri, a second engine managed by `electron
 
 ## Translations
 
-Draggy supports four languages: English, French, Spanish, and Chinese. CI enforces that every language defines exactly the keys English does. Do not use machine translation; each table maintains its own register (`vous` in French, `tú` in Spanish, polite forms in Chinese).
+Draggy supports four languages: English, French, Spanish, and Russian. CI enforces that every language defines exactly the keys English does. Do not use machine translation; each table maintains its own register (`vous` in French, `tú` in Spanish, `вы` in Russian).
 
 ## Copyright and licensing
 

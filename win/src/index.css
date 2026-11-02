@@ -205,11 +205,6 @@ body.dark,
         margin: 0;
     }
 
-    :lang(zh) {
-        font-family: "Geologica Variable", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
-        letter-spacing: normal;
-        line-height: 1.7;
-    }
 
     code, kbd, samp, pre {
         font-family: var(--font-mono);

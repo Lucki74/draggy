@@ -19,7 +19,7 @@ const flag = (name, fallback) => {
   return at >= 0 ? args[at + 1] : fallback;
 };
 const voice = flag("--voice", "F1");
-const langs = flag("--langs", "en,fr,es,zh").split(",");
+const langs = flag("--langs", "en,fr,es,ru").split(",");
 const seed = Number(flag("--seed", "1"));
 const only = flag("--only", null);
 const limit = Number(flag("--timeout", "90")) * 1000;

@@ -40,7 +40,7 @@ Mixture-of-Experts models that do not fit in memory can still run from your driv
 
 Documentation lives on the wiki at [draggy.org/wiki](https://draggy.org/wiki):
 installation details, hardware requirements, features, troubleshooting, and
-architecture in English, French, Spanish, and Chinese. Start with
+architecture in English, French, Spanish, and Russian. Start with
 [Installation](https://draggy.org/wiki/installation), or
 [Building and architecture](https://draggy.org/wiki/development) to work on the code.
 

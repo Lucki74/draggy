@@ -328,7 +328,7 @@
       "name": "a non-ASCII id with a count",
       "input": {
         "op": "profileFor",
-        "model": "@ollama/模型-32B",
+        "model": "@ollama/модель-32B",
         "instance": {
           "kind": "local",
           "promptProfile": "auto"

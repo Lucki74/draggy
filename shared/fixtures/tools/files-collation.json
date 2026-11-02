@@ -811,10 +811,10 @@
       "expected": 1
     },
     {
-      "name": "\"ж\" against \"一\"",
+      "name": "\"ж\" against \"я\"",
       "input": {
         "a": "ж",
-        "b": "一"
+        "b": "я"
       },
       "expected": -1
     },
@@ -1403,34 +1403,34 @@
       "expected": 1
     },
     {
-      "name": "\"中文.txt\" against \"日本.txt\"",
+      "name": "\"Русский.txt\" against \"日本.txt\"",
       "input": {
-        "a": "中文.txt",
+        "a": "Русский.txt",
         "b": "日本.txt"
       },
       "expected": -1
     },
     {
-      "name": "\"一.txt\" against \"二.txt\"",
+      "name": "\"а.txt\" against \"б.txt\"",
       "input": {
-        "a": "一.txt",
-        "b": "二.txt"
+        "a": "а.txt",
+        "b": "б.txt"
       },
       "expected": -1
     },
     {
-      "name": "\"漢字.md\" against \"漢.md\"",
+      "name": "\"слово.md\" against \"слов.md\"",
       "input": {
-        "a": "漢字.md",
-        "b": "漢.md"
+        "a": "слово.md",
+        "b": "слов.md"
       },
       "expected": 1
     },
     {
-      "name": "\"中.md\" against \"中文.md\"",
+      "name": "\"в.md\" against \"вода.md\"",
       "input": {
-        "a": "中.md",
-        "b": "中文.md"
+        "a": "в.md",
+        "b": "вода.md"
       },
       "expected": -1
     },
@@ -1483,12 +1483,12 @@
       "expected": -1
     },
     {
-      "name": "\"ア.txt\" against \"中.txt\"",
+      "name": "\"ア.txt\" against \"я.txt\"",
       "input": {
         "a": "ア.txt",
-        "b": "中.txt"
+        "b": "я.txt"
       },
-      "expected": -1
+      "expected": 1
     },
     {
       "name": "\"😀.txt\" against \"😁.txt\"",

@@ -67,7 +67,7 @@ describe("choosing one", () => {
 
   it("greets in the chosen language", () => {
     expect(GREETINGS.fr).toContain(pickGreeting("fr", "chat-abc"));
-    expect(GREETINGS.zh).toContain(pickGreeting("zh", "chat-abc"));
+    expect(GREETINGS.ru).toContain(pickGreeting("ru", "chat-abc"));
   });
 
   it("falls back to English for a language it does not know", () => {

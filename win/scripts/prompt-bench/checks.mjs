@@ -10,11 +10,13 @@ const WEEKDAYS = {
   en: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
   fr: ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"],
   es: ["lunes", "martes", "miércoles", "miercoles", "jueves", "viernes", "sábado", "sabado", "domingo"],
+  ru: ["понедельник", "вторник", "среда", "среду", "четверг", "пятница", "пятницу", "суббота", "субботу", "воскресенье"],
 };
 const MONTHS = {
   en: ["january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december"],
   fr: ["janvier", "février", "fevrier", "mars", "avril", "juin", "juillet", "août", "aout", "septembre", "octobre", "novembre", "décembre", "decembre"],
   es: ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+  ru: ["январь", "января", "февраль", "февраля", "март", "марта", "апрель", "апреля", "май", "мая", "июнь", "июня", "июль", "июля", "август", "августа", "сентябрь", "сентября", "октябрь", "октября", "ноябрь", "ноября", "декабрь", "декабря"],
 };
 
 /** Every language at once: a reply that talks about the clock does so in whatever language it likes. */
@@ -30,14 +32,14 @@ const TIME_RE = /\b\d{1,2}\s?(?::|h|\.)\s?\d{2}\b|\b\d{1,2}\s?(?:am|pm|a\.m\.|p\
 const DATE_RE = /\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b/;
 const CLOCK_PHRASE_RE =
   /(?:current (?:time|date)|the time is|the date is|today is|it'?s \d|it is \d|il est \d|nous sommes le|on est (?:le|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)|son las \d|es la una|hoy es|estamos a)/i;
-const ZH_CLOCK_RE = /现在(?:是|时间)|当前时间|今天是|星期[一二三四五六日天]|周[一二三四五六日天]|\d{1,2}\s?[点时:：]\s?\d{0,2}|\d{4}\s?年|\d{1,2}\s?月\s?\d{1,2}\s?[日号]/;
+const RU_CLOCK_RE = /сейчас\s+(?:\d|час|утро|вечер|ночь|день)|сегодня\s+\d|\d{1,2}:\d{2}|\d{1,2}\s?(?:часов|часа|утра|вечера)\b|\b\d{4}\s?год|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)|(?:понедельник|вторник|четверг|пятниц[уа]|суббот[уа]|воскресень[ея])/i;
 
 /** The share of a reply's letters that sit inside a time, date or weekday phrase. */
 export function clockShare(reply) {
   const text = reply.trim();
   if (!text) return 0;
   let covered = 0;
-  const patterns = [TIME_RE, DATE_RE, CLOCK_PHRASE_RE, ZH_CLOCK_RE, WEEKDAY_RE, MONTH_RE];
+  const patterns = [TIME_RE, DATE_RE, CLOCK_PHRASE_RE, RU_CLOCK_RE, WEEKDAY_RE, MONTH_RE];
   const marked = new Array(text.length).fill(false);
   for (const re of patterns) {
     const global = new RegExp(re.source, re.flags.includes("g") ? re.flags : `${re.flags}g`);
@@ -50,7 +52,7 @@ export function clockShare(reply) {
 }
 
 export const mentionsClock = (reply) =>
-  TIME_RE.test(reply) || DATE_RE.test(reply) || CLOCK_PHRASE_RE.test(reply) || ZH_CLOCK_RE.test(reply) || WEEKDAY_RE.test(reply) || MONTH_RE.test(reply);
+  TIME_RE.test(reply) || DATE_RE.test(reply) || CLOCK_PHRASE_RE.test(reply) || RU_CLOCK_RE.test(reply) || WEEKDAY_RE.test(reply) || MONTH_RE.test(reply);
 
 /** A reply with its reasoning removed, which is what the user reads. */
 export function visibleText(reply) {
@@ -60,29 +62,30 @@ export function visibleText(reply) {
 }
 
 const wordsOf = (text) => text.trim().split(/\s+/).filter(Boolean);
-const hanCount = (text) => (text.match(/\p{Script=Han}/gu) ?? []).length;
+const cyrCount = (text) => (text.match(/\p{Script=Cyrillic}/gu) ?? []).length;
 
 const STOPWORDS = {
   en: ["the", "and", "is", "are", "you", "to", "of", "it", "in", "that", "what", "for", "with", "can", "how", "this", "have", "hello", "hi", "thanks", "welcome", "help", "need", "your", "i", "an", "has", "was", "were", "be", "on", "at", "by", "from", "or", "not", "but", "do", "does", "will", "there", "year", "yes", "what's", "it's", "i'm", "my", "we", "they", "he", "she", "its", "if", "about", "which", "when", "all"],
   fr: ["le", "la", "les", "et", "est", "vous", "tu", "de", "des", "un", "une", "que", "pour", "avec", "je", "ce", "bonjour", "salut", "merci", "besoin", "votre", "pas", "comment", "qu'est", "peux", "aider"],
   es: ["el", "la", "los", "las", "y", "es", "usted", "tú", "de", "un", "una", "que", "para", "con", "yo", "hola", "gracias", "necesitas", "necesita", "puedo", "ayudar", "cómo", "no", "se", "por"],
+  ru: ["и", "в", "не", "что", "это", "на", "я", "ты", "как", "для", "с", "по", "привет", "спасибо", "можно", "помочь", "вы", "мне", "тебе", "нужно", "или", "если"],
 };
 
 /** Words of a reply that belong to each Latin-script language. */
 export function languageScores(text) {
   const tokens = text.toLowerCase().match(/[\p{L}']+/gu) ?? [];
-  const scores = { en: 0, fr: 0, es: 0 };
+  const scores = { en: 0, fr: 0, es: 0, ru: 0 };
   for (const token of tokens) {
     for (const lang of Object.keys(scores)) if (STOPWORDS[lang].includes(token)) scores[lang]++;
   }
   return scores;
 }
 
-/** The language a reply is in: zh by script, else the Latin language with the most stopwords. */
+/** The language a reply is in: ru by script, else the Latin or Cyrillic language with the most stopwords. */
 export function detectReplyLanguage(text) {
   const letters = (text.match(/\p{L}/gu) ?? []).length;
   if (letters === 0) return null;
-  if (hanCount(text) / letters >= 0.3) return "zh";
+  if (cyrCount(text) / letters >= 0.3) return "ru";
   const scores = languageScores(text);
   const best = Object.entries(scores).sort((a, b) => b[1] - a[1]);
   if (best[0][1] === 0) return null;
@@ -93,7 +96,7 @@ const REFUSAL = {
   en: [/\bI can'?t (?:help|assist|do|provide|comply)/i, /\bI(?:'m| am) (?:not able|unable|sorry)/i, /\bI won'?t\b/i, /\bI cannot\b/i, /\bI'?m sorry, but\b/i, /\bnot something I can\b/i],
   fr: [/je ne peux pas/i, /je ne suis pas en mesure/i, /désolé/i, /je refuse/i],
   es: [/no puedo (?:ayudar|ayudarte|proporcionar|hacer)/i, /lo siento/i, /no es algo con lo que pueda/i],
-  zh: [/我(?:不能|无法|不会)(?:帮|协助|提供)/, /抱歉/, /对不起/],
+  ru: [/не могу (?:помочь|ответить|предоставить)/i, /извините/i, /к сожалению, я не/i],
 };
 export const isRefusal = (reply) => Object.values(REFUSAL).flat().some((re) => re.test(reply));
 
@@ -106,7 +109,7 @@ export function countItems(reply) {
   if (listed.length) return listed.length;
   if (lines.length > 1 && lines.every((line) => wordsOf(line).length <= 4)) return lines.length;
   const body = reply.replace(/^[^:：]*[:：]/, "").replace(/[.。]$/, "");
-  return body.split(/\s*(?:,|，|、|;|\band\b|\bet\b|\by\b|和)\s*/i).filter((part) => part.trim()).length;
+  return body.split(/\s*(?:,|，|、|;|\band\b|\bet\b|\by\b|(?<![\p{L}])и(?![\p{L}]))\s*/iu).filter((part) => part.trim()).length;
 }
 
 const sentenceCount = (text) => (text.match(/[^.!?。！？]+[.!?。！？]+|[^.!?。！？]+$/g) ?? []).filter((s) => s.trim()).length;
@@ -143,11 +146,11 @@ const CHECKS = {
       const monthNumber = now.getMonth() + 1;
       const numbers = numbersIn(text);
       const hasDay = numbers.includes(day);
-      const hasMonth = numbers.includes(monthNumber) || MONTH_RE.test(text) || /月/.test(text);
+      const hasMonth = numbers.includes(monthNumber) || MONTH_RE.test(text) || /месяц/i.test(text);
       return { pass: hasDay && hasMonth, detail: `expected day ${day} and month ${monthNumber}` };
     }
     const hours = acceptedHours(now);
-    const found = [...text.matchAll(/\b(\d{1,2})\s?(?::|h|\.)\s?(\d{2})\b|\b(\d{1,2})\s?(?:am|pm)\b|(\d{1,2})\s?[点时]/gi)];
+    const found = [...text.matchAll(/\b(\d{1,2})\s?(?::|h|\.)\s?(\d{2})\b|\b(\d{1,2})\s?(?:am|pm)\b|(\d{1,2})\s?(?:ч\.?|часов|часа|час)(?![а-яё])/gi)];
     const hit = found.some((m) => hours.has(Number(m[1] ?? m[3] ?? m[4])));
     return { pass: hit, detail: `expected hour ${[...hours].join(" or ")}` };
   },
@@ -166,8 +169,7 @@ const CHECKS = {
   },
   maxWords: (spec, { reply }) => {
     const text = visibleText(reply);
-    // Chinese has no spaces, so each Han character counts as a word.
-    const count = hanCount(text) + wordsOf(text.replace(/\p{Script=Han}/gu, " ")).length;
+    const count = wordsOf(text).length;
     return { pass: count <= spec.n, detail: `${count} words, limit ${spec.n}` };
   },
   maxSentences: (spec, { reply }) => {
@@ -179,9 +181,9 @@ const CHECKS = {
     const text = visibleText(reply);
     const letters = (text.match(/\p{L}/gu) ?? []).length;
     if (letters === 0) return { pass: /\d/.test(text), detail: "empty reply" };
-    const han = hanCount(text) / letters;
-    if (expected === "zh") return { pass: han >= 0.3, detail: `${Math.round(han * 100)}% Han characters` };
-    if (han >= 0.3) return { pass: false, detail: "reply is Chinese" };
+    const cyr = cyrCount(text) / letters;
+    if (expected === "ru") return { pass: cyr >= 0.3, detail: `${Math.round(cyr * 100)}% Cyrillic letters` };
+    if (cyr >= 0.3) return { pass: false, detail: "reply is Russian" };
     const scores = languageScores(text);
     const best = Math.max(...Object.values(scores));
     // One word of evidence is too thin to call a short reply wrong.

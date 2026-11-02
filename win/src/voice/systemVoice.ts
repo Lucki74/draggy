@@ -8,7 +8,7 @@ const VOICE_LANGUAGES: Record<string, string> = {
   en: "en-US",
   fr: "fr-FR",
   es: "es-ES",
-  zh: "zh-CN",
+  ru: "ru-RU",
 };
 
 /** Names that mark a voice as one of the newer neural ones. */

@@ -10,10 +10,10 @@ final class LocalizationTests: XCTestCase {
         return try XCTUnwrap((object as? [String: Any])?["strings"] as? [String: Any])
     }
 
-    func testEveryKeyHasFrenchSpanishAndChinese() throws {
+    func testEveryKeyHasFrenchSpanishAndRussian() throws {
         for (key, entry) in try catalogue() {
             let localizations = (entry as? [String: Any])?["localizations"] as? [String: Any] ?? [:]
-            for language in ["fr", "es", "zh-Hans"] {
+            for language in ["fr", "es", "ru"] {
                 let unit = (localizations[language] as? [String: Any])?["stringUnit"] as? [String: Any]
                 let value = unit?["value"] as? String ?? ""
                 XCTAssertFalse(value.isEmpty, "\(key) has no \(language) text")

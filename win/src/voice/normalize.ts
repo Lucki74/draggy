@@ -2,7 +2,11 @@
  * language. Table-driven, so it is fast and testable; a small model told to "write numbers as
  * words" ignores it often enough that the voice cannot rely on that. */
 
-type Lang = "en" | "fr" | "es" | "zh";
+type Lang = "en" | "fr" | "es" | "ru";
+
+/** One word per grammatical number: singular, the form after 2-4 (Russian), and the plural. English,
+ * French and Spanish only use the first two. */
+type Forms = [string, string, string];
 
 // ------------------------------------------------------------------------------------- numbers
 
@@ -116,40 +120,65 @@ function esWords(n: number): string {
   return out.join(" ");
 }
 
-const ZH_DIGITS = "零一二三四五六七八九";
+const RU_ONES = ["", "один", "два", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять"];
+const RU_ONES_FEMININE = ["", "одна", "две", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять"];
+const RU_TEENS = ["десять", "одиннадцать", "двенадцать", "тринадцать", "четырнадцать", "пятнадцать", "шестнадцать", "семнадцать", "восемнадцать", "девятнадцать"];
+const RU_TENS = ["", "", "двадцать", "тридцать", "сорок", "пятьдесят", "шестьдесят", "семьдесят", "восемьдесят", "девяносто"];
+const RU_HUNDREDS = ["", "сто", "двести", "триста", "четыреста", "пятьсот", "шестьсот", "семьсот", "восемьсот", "девятьсот"];
+/** Above the thousands: the word for each power of a thousand, in the three forms Russian needs. */
+const RU_SCALES: Forms[] = [
+  ["", "", ""],
+  ["тысяча", "тысячи", "тысяч"],
+  ["миллион", "миллиона", "миллионов"],
+  ["миллиард", "миллиарда", "миллиардов"],
+  ["триллион", "триллиона", "триллионов"],
+];
 
-function zhBelowTenThousand(n: number): string {
-  const units = ["", "十", "百", "千"];
-  const digits = String(n).padStart(4, "0").split("").map(Number);
-  let out = "";
-  let zero = false;
-  digits.forEach((digit, i) => {
-    const place = 3 - i;
-    if (digit === 0) {
-      if (out) zero = true;
+/** Russian agreement: 1 приз, 2-4 приза, 5+ призов (11-14 are always the last form). */
+function plural(n: number, [one, few, many]: Forms): string {
+  const tens = n % 100;
+  const units = n % 10;
+  if (units === 1 && tens !== 11) return one;
+  if (units >= 2 && units <= 4 && (tens < 12 || tens > 14)) return few;
+  return many;
+}
+
+function ruBelowThousand(n: number, feminine: boolean): string {
+  const parts: string[] = [];
+  const hundreds = Math.floor(n / 100);
+  const rest = n % 100;
+  if (hundreds) parts.push(RU_HUNDREDS[hundreds]);
+  if (rest >= 10 && rest < 20) {
+    parts.push(RU_TEENS[rest - 10]);
+  } else {
+    const tens = Math.floor(rest / 10);
+    const units = rest % 10;
+    if (tens >= 2) parts.push(RU_TENS[tens]);
+    if (units) parts.push(feminine ? RU_ONES_FEMININE[units] : RU_ONES[units]);
+  }
+  return parts.join(" ");
+}
+
+function ruWords(n: number, feminine = false): string {
+  if (n === 0) return "ноль";
+  const parts = groups(n);
+  const out: string[] = [];
+  parts.forEach((group, i) => {
+    const scale = parts.length - 1 - i;
+    if (!group) return;
+    if (scale === 0) {
+      out.push(ruBelowThousand(group, feminine));
       return;
     }
-    if (zero) out += "零";
-    zero = false;
-    const word = digit === 2 && place >= 2 ? "两" : ZH_DIGITS[digit];
-    out += (place === 1 && digit === 1 && !out ? "" : word) + units[place];
+    // Thousands are feminine (одна тысяча, две тысячи); the larger scales are masculine.
+    out.push(`${ruBelowThousand(group, scale === 1)} ${plural(group, RU_SCALES[scale])}`);
   });
-  return out;
+  return out.join(" ");
 }
 
-function zhWords(n: number): string {
-  if (n === 0) return "零";
-  const high = Math.floor(n / 10000);
-  const low = n % 10000;
-  if (high === 0) return zhBelowTenThousand(low);
-  const front = high >= 10000 ? zhWords(high) : zhBelowTenThousand(high);
-  const mid = low === 0 ? "" : low < 1000 ? `零${zhBelowTenThousand(low)}` : zhBelowTenThousand(low);
-  return `${front}万${mid}`;
-}
+const WORDS: Record<Lang, (n: number) => string> = { en: enWords, fr: frWords, es: esWords, ru: (n) => ruWords(n) };
 
-const WORDS: Record<Lang, (n: number) => string> = { en: enWords, fr: frWords, es: esWords, zh: zhWords };
-
-const POINT: Record<Lang, string> = { en: " point ", fr: " virgule ", es: " coma ", zh: "点" };
+const POINT: Record<Lang, string> = { en: " point ", fr: " virgule ", es: " coma ", ru: " запятая " };
 
 /** One written number, integer or decimal, as words. Digits after the point are read one by one. */
 export function numberToWords(value: string, lang: Lang): string {
@@ -160,36 +189,47 @@ export function numberToWords(value: string, lang: Lang): string {
   let out = WORDS[lang](integer);
   if (fraction) {
     const digits = fraction.split("").map((digit) => WORDS[lang](Number(digit)));
-    out += POINT[lang] + digits.join(lang === "zh" ? "" : " ");
+    out += POINT[lang] + digits.join(" ");
   }
   return out;
 }
 
 // -------------------------------------------------------------------------------- surrounding text
 
-const CURRENCY: Record<string, Record<Lang, [string, string]>> = {
-  "$": { en: ["dollar", "dollars"], fr: ["dollar", "dollars"], es: ["dólar", "dólares"], zh: ["美元", "美元"] },
-  "€": { en: ["euro", "euros"], fr: ["euro", "euros"], es: ["euro", "euros"], zh: ["欧元", "欧元"] },
-  "£": { en: ["pound", "pounds"], fr: ["livre", "livres"], es: ["libra", "libras"], zh: ["英镑", "英镑"] },
+/** The noun for `amount` in `lang`: Russian takes its own agreement, the others singular or plural. */
+function pick(lang: Lang, forms: Forms, amount: number): string {
+  if (lang === "ru") return plural(Math.floor(amount), forms);
+  return amount === 1 ? forms[0] : forms[1];
+}
+
+const CURRENCY: Record<string, Record<Lang, Forms>> = {
+  "$": { en: ["dollar", "dollars", "dollars"], fr: ["dollar", "dollars", "dollars"], es: ["dólar", "dólares", "dólares"], ru: ["доллар", "доллара", "долларов"] },
+  "€": { en: ["euro", "euros", "euros"], fr: ["euro", "euros", "euros"], es: ["euro", "euros", "euros"], ru: ["евро", "евро", "евро"] },
+  "£": { en: ["pound", "pounds", "pounds"], fr: ["livre", "livres", "livres"], es: ["libra", "libras", "libras"], ru: ["фунт", "фунта", "фунтов"] },
 };
 
-const PERCENT: Record<Lang, string> = { en: "percent", fr: "pour cent", es: "por ciento", zh: "百分之" };
-const TO: Record<Lang, string> = { en: "to", fr: "à", es: "a", zh: "到" };
-const AND: Record<Lang, string> = { en: "and", fr: "et", es: "y", zh: "和" };
+const PERCENT: Record<Lang, Forms> = {
+  en: ["percent", "percent", "percent"],
+  fr: ["pour cent", "pour cent", "pour cent"],
+  es: ["por ciento", "por ciento", "por ciento"],
+  ru: ["процент", "процента", "процентов"],
+};
+const TO: Record<Lang, string> = { en: "to", fr: "à", es: "a", ru: "до" };
+const AND: Record<Lang, string> = { en: "and", fr: "et", es: "y", ru: "и" };
 
-const UNITS: Record<string, Record<Lang, [string, string]>> = {
-  km: { en: ["kilometer", "kilometers"], fr: ["kilomètre", "kilomètres"], es: ["kilómetro", "kilómetros"], zh: ["公里", "公里"] },
-  m: { en: ["meter", "meters"], fr: ["mètre", "mètres"], es: ["metro", "metros"], zh: ["米", "米"] },
-  cm: { en: ["centimeter", "centimeters"], fr: ["centimètre", "centimètres"], es: ["centímetro", "centímetros"], zh: ["厘米", "厘米"] },
-  mm: { en: ["millimeter", "millimeters"], fr: ["millimètre", "millimètres"], es: ["milímetro", "milímetros"], zh: ["毫米", "毫米"] },
-  kg: { en: ["kilogram", "kilograms"], fr: ["kilogramme", "kilogrammes"], es: ["kilogramo", "kilogramos"], zh: ["公斤", "公斤"] },
-  g: { en: ["gram", "grams"], fr: ["gramme", "grammes"], es: ["gramo", "gramos"], zh: ["克", "克"] },
-  l: { en: ["liter", "liters"], fr: ["litre", "litres"], es: ["litro", "litros"], zh: ["升", "升"] },
-  gb: { en: ["gigabyte", "gigabytes"], fr: ["gigaoctet", "gigaoctets"], es: ["gigabyte", "gigabytes"], zh: ["吉字节", "吉字节"] },
-  mb: { en: ["megabyte", "megabytes"], fr: ["mégaoctet", "mégaoctets"], es: ["megabyte", "megabytes"], zh: ["兆字节", "兆字节"] },
-  mph: { en: ["mile per hour", "miles per hour"], fr: ["mile à l'heure", "miles à l'heure"], es: ["milla por hora", "millas por hora"], zh: ["英里每小时", "英里每小时"] },
-  "°c": { en: ["degree Celsius", "degrees Celsius"], fr: ["degré Celsius", "degrés Celsius"], es: ["grado Celsius", "grados Celsius"], zh: ["摄氏度", "摄氏度"] },
-  "°f": { en: ["degree Fahrenheit", "degrees Fahrenheit"], fr: ["degré Fahrenheit", "degrés Fahrenheit"], es: ["grado Fahrenheit", "grados Fahrenheit"], zh: ["华氏度", "华氏度"] },
+const UNITS: Record<string, Record<Lang, Forms>> = {
+  km: { en: ["kilometer", "kilometers", "kilometers"], fr: ["kilomètre", "kilomètres", "kilomètres"], es: ["kilómetro", "kilómetros", "kilómetros"], ru: ["километр", "километра", "километров"] },
+  m: { en: ["meter", "meters", "meters"], fr: ["mètre", "mètres", "mètres"], es: ["metro", "metros", "metros"], ru: ["метр", "метра", "метров"] },
+  cm: { en: ["centimeter", "centimeters", "centimeters"], fr: ["centimètre", "centimètres", "centimètres"], es: ["centímetro", "centímetros", "centímetros"], ru: ["сантиметр", "сантиметра", "сантиметров"] },
+  mm: { en: ["millimeter", "millimeters", "millimeters"], fr: ["millimètre", "millimètres", "millimètres"], es: ["milímetro", "milímetros", "milímetros"], ru: ["миллиметр", "миллиметра", "миллиметров"] },
+  kg: { en: ["kilogram", "kilograms", "kilograms"], fr: ["kilogramme", "kilogrammes", "kilogrammes"], es: ["kilogramo", "kilogramos", "kilogramos"], ru: ["килограмм", "килограмма", "килограммов"] },
+  g: { en: ["gram", "grams", "grams"], fr: ["gramme", "grammes", "grammes"], es: ["gramo", "gramos", "gramos"], ru: ["грамм", "грамма", "граммов"] },
+  l: { en: ["liter", "liters", "liters"], fr: ["litre", "litres", "litres"], es: ["litro", "litros", "litros"], ru: ["литр", "литра", "литров"] },
+  gb: { en: ["gigabyte", "gigabytes", "gigabytes"], fr: ["gigaoctet", "gigaoctets", "gigaoctets"], es: ["gigabyte", "gigabytes", "gigabytes"], ru: ["гигабайт", "гигабайта", "гигабайт"] },
+  mb: { en: ["megabyte", "megabytes", "megabytes"], fr: ["mégaoctet", "mégaoctets", "mégaoctets"], es: ["megabyte", "megabytes", "megabytes"], ru: ["мегабайт", "мегабайта", "мегабайт"] },
+  mph: { en: ["mile per hour", "miles per hour", "miles per hour"], fr: ["mile à l'heure", "miles à l'heure", "miles à l'heure"], es: ["milla por hora", "millas por hora", "millas por hora"], ru: ["миля в час", "мили в час", "миль в час"] },
+  "°c": { en: ["degree Celsius", "degrees Celsius", "degrees Celsius"], fr: ["degré Celsius", "degrés Celsius", "degrés Celsius"], es: ["grado Celsius", "grados Celsius", "grados Celsius"], ru: ["градус Цельсия", "градуса Цельсия", "градусов Цельсия"] },
+  "°f": { en: ["degree Fahrenheit", "degrees Fahrenheit", "degrees Fahrenheit"], fr: ["degré Fahrenheit", "degrés Fahrenheit", "degrés Fahrenheit"], es: ["grado Fahrenheit", "grados Fahrenheit", "grados Fahrenheit"], ru: ["градус Фаренгейта", "градуса Фаренгейта", "градусов Фаренгейта"] },
 };
 
 const NUMBER = String.raw`\d+(?:,\d{3})*(?:\.\d+)?`;
@@ -201,8 +241,8 @@ const NUMBER_PATTERN = new RegExp(String.raw`(?<![\p{L}\d.])${NUMBER}(?![\p{L}\d
 
 const TIME_PATTERN = /(?<![\d:])([01]?\d|2[0-3]):([0-5]\d)(?:\s?([ap])\.?m\.?)?(?![\d:])/gi;
 
-const LINK: Record<Lang, string> = { en: "a link", fr: "un lien", es: "un enlace", zh: "一个链接" };
-const SNIPPET: Record<Lang, string> = { en: "a code snippet", fr: "un extrait de code", es: "un fragmento de código", zh: "一段代码" };
+const LINK: Record<Lang, string> = { en: "a link", fr: "un lien", es: "un enlace", ru: "ссылку" };
+const SNIPPET: Record<Lang, string> = { en: "a code snippet", fr: "un extrait de code", es: "un fragmento de código", ru: "фрагмент кода" };
 
 /** What to say in place of a link or a block of code, in `language`. */
 export function linkWord(language: string): string {
@@ -214,14 +254,17 @@ export function snippetWord(language: string): string {
 }
 
 function toLang(language: string): Lang {
-  return language === "fr" || language === "es" || language === "zh" ? language : "en";
+  return language === "fr" || language === "es" || language === "ru" ? language : "en";
 }
 
 function sayTime(hour: string, minute: string, meridiem: string | undefined, lang: Lang): string {
   const h = Number(hour);
   const m = Number(minute);
   const say = (value: number) => numberToWords(String(value), lang);
-  if (lang === "zh") return `${say(h)}点${m === 0 ? "" : m < 10 ? `零${say(m)}分` : `${say(m)}分`}`;
+  if (lang === "ru") {
+    const hours = `${say(h)} ${plural(h, ["час", "часа", "часов"])}`;
+    return m === 0 ? hours : `${hours} ${ruWords(m, true)} ${plural(m, ["минута", "минуты", "минут"])}`;
+  }
   if (lang === "fr") return `${say(h)} ${h > 1 ? "heures" : "heure"}${m === 0 ? "" : ` ${say(m)}`}`;
   if (lang === "es") return `${h === 1 ? "la una" : `las ${say(h)}`}${m === 0 ? "" : ` y ${say(m)}`}`;
   const spoken = m === 0 ? (meridiem ? "" : "o'clock") : m < 10 ? `oh ${say(m)}` : say(m);
@@ -242,39 +285,34 @@ function spellOut(match: string): string {
   return match.split("").join(" ");
 }
 
-function isOne(value: string): boolean {
-  return Number(value.replace(/,/g, "")) === 1;
-}
-
 /** The text a voice should read for `text` in `language`. Anything it does not recognise is left
  * alone. */
 export function normalizeSpeech(text: string, language: string): string {
   const lang = toLang(language);
   const say = (value: string) => numberToWords(value, lang);
+  const amountOf = (value: string) => Number(value.replace(/,/g, ""));
 
   return text
     .replace(TIME_PATTERN, (_, hour: string, minute: string, meridiem?: string) =>
       sayTime(hour, minute, meridiem, lang),
     )
     .replace(CURRENCY_PATTERN, (_, symbol: string, value: string) => {
-      const [one, many] = CURRENCY[symbol][lang];
-      return `${say(value)} ${isOne(value) ? one : many}`;
+      const noun = pick(lang, CURRENCY[symbol][lang], amountOf(value));
+      return `${say(value)} ${noun}`;
     })
-    .replace(PERCENT_PATTERN, (_, value: string) =>
-      lang === "zh" ? `${PERCENT.zh}${say(value)}` : `${say(value)} ${PERCENT[lang]}`,
-    )
+    .replace(PERCENT_PATTERN, (_, value: string) => `${say(value)} ${pick(lang, PERCENT[lang], amountOf(value))}`)
     .replace(UNIT_PATTERN, (_, value: string, unit: string) => {
-      const [one, many] = UNITS[unit.toLowerCase()][lang];
-      return `${say(value)}${lang === "zh" ? "" : " "}${isOne(value) ? one : many}`;
+      const noun = pick(lang, UNITS[unit.toLowerCase()][lang], amountOf(value));
+      return `${say(value)} ${noun}`;
     })
     .replace(RANGE_PATTERN, (_, from: string, to: string) => `${say(from)} ${TO[lang]} ${say(to)}`)
     .replace(NUMBER_PATTERN, (value) => say(value))
     .replace(PATH, (path) => path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? path)
-    .replace(/\band\/or\b/gi, () => (lang === "en" ? "and or" : lang === "fr" ? "et ou" : lang === "es" ? "y o" : "和或"))
+    .replace(/\band\/or\b/gi, () => (lang === "en" ? "and or" : lang === "fr" ? "et ou" : lang === "es" ? "y o" : "и или"))
     .replace(ACRONYM, spellOut)
     .replace(/\s&\s/g, ` ${AND[lang]} `)
-    .replace(/\s\+\s/g, lang === "en" ? " plus " : lang === "zh" ? " 加 " : lang === "fr" ? " plus " : " más ")
-    .replace(/\s=\s/g, lang === "en" ? " equals " : lang === "zh" ? " 等于 " : lang === "fr" ? " égale " : " igual a ")
+    .replace(/\s\+\s/g, lang === "en" ? " plus " : lang === "fr" ? " plus " : lang === "ru" ? " плюс " : " más ")
+    .replace(/\s=\s/g, lang === "en" ? " equals " : lang === "fr" ? " égale " : lang === "ru" ? " равно " : " igual a ")
     .replace(/\s+/g, " ")
     .trim();
 }

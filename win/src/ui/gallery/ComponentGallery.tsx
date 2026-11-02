@@ -29,7 +29,7 @@ import StatsPanel from "../../stats/StatsPanel";
 import { translations } from "../../translations";
 
 
-type GalleryLanguage = "en" | "fr" | "zh";
+type GalleryLanguage = "en" | "fr" | "ru";
 
 const STRINGS = {
   en: {
@@ -78,28 +78,28 @@ const STRINGS = {
     chat: "Discussion",
     code: "Code",
   },
-  zh: {
-    title: "组件库",
-    subtitle: "用于在不同主题和语言下验证设计基元的表面",
-    buttons: "按钮",
-    chips: "标签片",
-    controls: "分段控件",
-    status: "状态与按键",
-    signature: "标志性余烬",
-    icons: "Phosphor 图标",
-    continue: "继续",
-    save: "保存更改",
-    cancel: "取消",
-    delete: "删除会话",
-    loading: "加载中...",
-    allSessions: "所有会话",
-    needsApproval: "需要审批",
-    ready: "就绪",
-    warning: "警告",
-    error: "错误",
-    idle: "空闲",
-    chat: "对话",
-    code: "代码",
+  ru: {
+    title: "Галерея компонентов",
+    subtitle: "Площадка для проверки базовых элементов дизайна в разных темах и языках",
+    buttons: "Кнопки",
+    chips: "Чипы",
+    controls: "Переключатели",
+    status: "Статусы и клавиши",
+    signature: "Фирменные угольки",
+    icons: "Иконки Phosphor",
+    continue: "Продолжить",
+    save: "Сохранить изменения",
+    cancel: "Отмена",
+    delete: "Удалить сеанс",
+    loading: "Загрузка...",
+    allSessions: "Все сеансы",
+    needsApproval: "Нужно одобрение",
+    ready: "Готово",
+    warning: "Предупреждение",
+    error: "Ошибка",
+    idle: "Простой",
+    chat: "Обсуждение",
+    code: "Код",
   },
 };
 
@@ -140,7 +140,7 @@ export default function ComponentGallery() {
               options={[
                 { value: "en", label: "English" },
                 { value: "fr", label: "Français" },
-                { value: "zh", label: "中文" },
+                { value: "ru", label: "Русский" },
               ]}
               value={lang}
               onChange={(v) => setLang(v as GalleryLanguage)}

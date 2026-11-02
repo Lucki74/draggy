@@ -19,9 +19,9 @@
     {
       "name": "non-ASCII text is hashed as UTF-8",
       "input": {
-        "text": "café 你好"
+        "text": "café Привет"
       },
-      "expected": "e98077b530ebbc6d26830964d10c6bbbaad3599a1fbca705795f8cb302c3d2d0"
+      "expected": "304d2570cd3263cff106ef6452c68bab8342d45336bd665e59a410ba2c4668c8"
     }
   ]
 }

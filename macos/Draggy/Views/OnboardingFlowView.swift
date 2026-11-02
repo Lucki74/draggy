@@ -28,7 +28,7 @@ public struct OnboardingFlowView: View {
                     Text("English").tag("en")
                     Text("Français").tag("fr")
                     Text("Español").tag("es")
-                    Text("中文").tag("zh")
+                    Text("Русский").tag("ru")
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 280)

@@ -87,7 +87,7 @@ describe("the cost of a reply", () => {
 
   it("has every label in every language", () => {
     for (const key of ["costEquivalent", "costNotBilled", "costEstimated", "costInput", "costCacheRead", "costCacheWrite", "costOutput", "costReasoning", "costPricesFrom"]) {
-      for (const language of ["en", "fr", "es", "zh"] as const) {
+      for (const language of ["en", "fr", "es", "ru"] as const) {
         expect((translations[language] as Record<string, string>)[key], `${language}.${key}`).toBeTruthy();
       }
     }

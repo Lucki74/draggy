@@ -32,7 +32,7 @@ targets:
         CFBundleName: Draggy
         CFBundleDisplayName: Draggy
         CFBundleIconFile: icon
-        CFBundleLocalizations: [en, fr, es, zh-Hans]
+        CFBundleLocalizations: [en, fr, es, ru]
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)

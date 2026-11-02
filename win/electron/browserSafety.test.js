@@ -27,8 +27,8 @@ describe("risky actions", () => {
     ["button", "Payer maintenant"],
     ["button", "Eliminar"],
     ["button", "Enviar"],
-    ["button", "立即支付"],
-    ["button", "删除"],
+    ["button", "Оплатить сейчас"],
+    ["button", "Удалить"],
   ])("flags %s %s", (role, name) => {
     expect(safety.riskyAction({ role, name })).toBeTruthy();
   });

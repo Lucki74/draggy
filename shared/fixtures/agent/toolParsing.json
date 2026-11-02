@@ -1801,9 +1801,9 @@
           "create_file",
           "run_code"
         ],
-        "raw": "<search_web>北京天气</search_web>"
+        "raw": "<search_web>Москва погода</search_web>"
       },
-      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"北京天气\"}}"
+      "expected": "{\"name\":\"search_web\",\"args\":{\"query\":\"Москва погода\"}}"
     },
     {
       "name": "shorthand holding Cyrillic JSON",
@@ -2132,11 +2132,11 @@
       "input": {
         "op": "detect",
         "names": [
-          "搜索"
+          "поиск"
         ],
-        "raw": "<搜索>北京</搜索>"
+        "raw": "<поиск>Москва</поиск>"
       },
-      "expected": "{\"name\":\"搜索\",\"args\":{\"query\":\"北京\"}}"
+      "expected": "{\"name\":\"поиск\",\"args\":{\"query\":\"Москва\"}}"
     },
     {
       "name": "NBSP and BOM around the reply are trimmed",
@@ -2178,9 +2178,9 @@
           "create_file",
           "run_code"
         ],
-        "raw": "Привет! Как дела? 你好。"
+        "raw": "Привет! Как дела? Привет."
       },
-      "expected": "Привет! Как дела? 你好。"
+      "expected": "Привет! Как дела? Привет."
     },
     {
       "name": "fenced code with tool syntax and an emoji after it",

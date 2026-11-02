@@ -99,12 +99,12 @@ describe("Supertonic synthesis", () => {
 });
 
 describe("voice and recogniser choice", () => {
-  it("speaks every interface language but Chinese", () => {
-    for (const lang of ["en", "fr", "es"]) {
+  it("speaks every interface language", () => {
+    for (const lang of ["en", "fr", "es", "ru"]) {
       expect(isNeuralVoiceAvailable(lang)).toBe(true);
     }
-    expect(isNeuralVoiceAvailable("zh")).toBe(false);
-    expect(SUPERTONIC_LANGUAGES.size).toBe(3);
+    expect(isNeuralVoiceAvailable("ja")).toBe(false);
+    expect(SUPERTONIC_LANGUAGES.size).toBe(4);
   });
 
   it("carries a saved Kokoro voice over by gender", () => {

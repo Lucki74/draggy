@@ -91,9 +91,9 @@
       }
     },
     {
-      "name": "\"https://例子.测试/\"",
+      "name": "\"https://пример.испытание/\"",
       "input": {
-        "url": "https://例子.测试/",
+        "url": "https://пример.испытание/",
         "allowPrivate": false
       },
       "expected": {

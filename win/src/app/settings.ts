@@ -78,7 +78,7 @@ const DARK_QUERY = "(prefers-color-scheme: dark)";
 let legacyBraveKey = "";
 
 const VOICE_MIGRATED_KEY = "draggy.voiceEngineDefault";
-const VALID_LANGUAGES =new Set(["en", "fr", "es", "zh"]);
+const VALID_LANGUAGES =new Set(["en", "fr", "es", "ru"]);
 
 /** Read synchronously from localStorage rather than awaited from sqlite: the first paint needs the
  * theme and the language before any IPC can answer. */

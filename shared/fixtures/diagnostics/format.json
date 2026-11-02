@@ -658,20 +658,20 @@
             "message": "escapes",
             "data": {
               "note": "a\u0001b \"q\" \\ /",
-              "title": "café 你好 😀"
+              "title": "café Привет 😀"
             }
           }
         ]
       },
       "expected": {
         "app": [
-          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] escapes {\"note\":\"a\\u0001b \\\"q\\\" \\\\ /\",\"title\":\"café 你好 😀\"}"
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] escapes {\"note\":\"a\\u0001b \\\"q\\\" \\\\ /\",\"title\":\"café Привет 😀\"}"
         ],
         "debug": [
-          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] escapes {\"note\":\"a\\u0001b \\\"q\\\" \\\\ /\",\"title\":\"café 你好 😀\"}"
+          "2026-01-01T00:00:00.123Z INFO a1b2c3d4.2 [system] [data] escapes {\"note\":\"a\\u0001b \\\"q\\\" \\\\ /\",\"title\":\"café Привет 😀\"}"
         ],
         "events": [
-          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"data\",\"msg\":\"escapes\",\"data\":{\"note\":\"a\\u0001b \\\"q\\\" \\\\ /\",\"title\":\"café 你好 😀\"}}"
+          "{\"ts\":\"2026-01-01T00:00:00.123Z\",\"seq\":2,\"level\":\"INFO\",\"session\":\"a1b2c3d4\",\"proc\":\"main\",\"pid\":4242,\"scope\":\"data\",\"msg\":\"escapes\",\"data\":{\"note\":\"a\\u0001b \\\"q\\\" \\\\ /\",\"title\":\"café Привет 😀\"}}"
         ]
       }
     },

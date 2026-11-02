@@ -8,8 +8,8 @@ import type { Boundary } from "./chunker";
  * This file holds the arithmetic only; the ONNX runtime is passed in, so it can be tested without
  * one and run in a worker with one. */
 
-/** Supertonic's languages that Draggy's interface also speaks. Chinese is the one it lacks. */
-export const SUPERTONIC_LANGUAGES = new Set(["en", "fr", "es"]);
+/** Supertonic's languages that Draggy's interface also speaks. */
+export const SUPERTONIC_LANGUAGES = new Set(["en", "fr", "es", "ru"]);
 
 export const SUPERTONIC_REPO = "Supertone/supertonic-3";
 export const SUPERTONIC_FILES = {

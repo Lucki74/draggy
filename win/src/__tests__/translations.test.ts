@@ -70,7 +70,7 @@ function dynamicPrefixes(): string[] {
 describe("language coverage", () => {
   it("ships exactly four languages", () => {
     expect(codes).toHaveLength(4);
-    expect(codes.sort()).toEqual(["en", "es", "fr", "zh"]);
+    expect(codes.sort()).toEqual(["en", "es", "fr", "ru"]);
   });
 
   it("ships every language the picker offers", () => {

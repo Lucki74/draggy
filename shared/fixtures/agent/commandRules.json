@@ -176,10 +176,10 @@
       "name": "segments: non-ASCII words",
       "input": {
         "op": "segments",
-        "command": "echo 你好 && npm test"
+        "command": "echo Привет && npm test"
       },
       "expected": [
-        "echo 你好",
+        "echo Привет",
         "npm test"
       ]
     },
@@ -570,9 +570,9 @@
       "input": {
         "op": "covered",
         "allowed": [
-          "echo 你好"
+          "echo Привет"
         ],
-        "command": "echo 你好 world"
+        "command": "echo Привет world"
       },
       "expected": true
     },

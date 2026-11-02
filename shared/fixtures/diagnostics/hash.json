@@ -23,9 +23,9 @@
       "expected": "[12 chars, sha256:916a04a8]"
     },
     {
-      "name": "cjk text",
-      "input": "你好世界",
-      "expected": "[4 chars, sha256:beca6335]"
+      "name": "cyrillic text",
+      "input": "Привет, мир",
+      "expected": "[11 chars, sha256:2a2e7636]"
     },
     {
       "name": "newline and quotes",
