@@ -74,8 +74,7 @@ const LEADING_INTENTS: &[&str] = &[
 ];
 
 // Arabic runs the intent straight into the verb, so these match as prefixes.
-const PREFIX_INTENT_SOURCE: &str =
-    r"^(?:دعني|دعنا|سأ)";
+const PREFIX_INTENT_SOURCE: &str = r"^(?:دعني|دعنا|سأ)";
 
 // Japanese and Korean put the intent at the end of the sentence, not the start.
 const TRAILING_INTENT_SOURCE: &str =
