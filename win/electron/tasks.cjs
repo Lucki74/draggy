@@ -5,6 +5,7 @@ const { buildEnv, spawnStream } = require("./exec.cjs");
 const { spawnPty, killPty, ptyAvailable } = require("./platform.cjs");
 const { log } = require("./logger.cjs");
 const text = require("./taskText.cjs");
+const sandbox = require("./sandbox.cjs");
 
 /** Background tasks: commands that keep running while the model works on something else. A task is
  * started in the background, or a foreground command is handed over when it outlasts its timeout or
@@ -186,7 +187,7 @@ function createTaskManager({
   }
 
   /** Starts a command in the background. Resolves with the task, or an error the model can act on. */
-  function start({ chatId, cwd, command, shell, defaultShell, env, cols = 120, rows = 30 }) {
+  function start({ chatId, cwd, command, shell, defaultShell, env, cols = 120, rows = 30, sandbox: boxed }) {
     const line = String(command || "");
     if (!line.trim()) return { error: "No command was given." };
     if (line.length > MAX_COMMAND_CHARS) return { error: "That command is too long to run." };
@@ -196,7 +197,8 @@ function createTaskManager({
     const invocation = shellInvocation(line, shell, { defaultShell });
     if (invocation.error) return { error: invocation.error };
 
-    const usePty = ptyAvailableImpl();
+    // A pseudo-terminal cannot go through the launcher, so a sandboxed task runs on pipes.
+    const usePty = !boxed && ptyAvailableImpl();
     const task = register({ chatId, command: line, shell: invocation.shell, mode: usePty ? "pty" : "pipe", handle: null, cwd });
     const childEnv = buildEnv({ ...invocation.env, ...(env || {}), ...(usePty ? { TERM: "xterm-256color" } : {}) });
     log.info("proc.task", "task starting", { shell: invocation.shell, mode: task.mode, chars: line.length });
@@ -213,8 +215,11 @@ function createTaskManager({
         pty.onData((data) => append(task, data));
         pty.onExit(({ exitCode, signal }) => finish(task, { code: exitCode ?? null, signal: signal || null }));
       } else {
+        const spawn = { file: invocation.file, args: invocation.args, cwd, env: childEnv, verbatim: invocation.verbatim };
+        const launch = boxed ? sandbox.wrap(spawn, { ...boxed, chatKey: chatId }) : spawn;
+        if (launch.error) throw new Error(launch.error);
         const stream = spawnStreamImpl(
-          { file: invocation.file, args: invocation.args, cwd, env: childEnv, verbatim: invocation.verbatim },
+          launch,
           {
             onStdout: (chunk) => append(task, chunk),
             onStderr: (chunk) => append(task, chunk),

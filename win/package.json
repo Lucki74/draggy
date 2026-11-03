@@ -67,6 +67,10 @@
       {
         "from": "../shared/pricing/prices.json",
         "to": "prices.json"
+      },
+      {
+        "from": "sandbox/target/release/draggy-sandbox.exe",
+        "to": "sandbox/draggy-sandbox.exe"
       }
     ],
     "asarUnpack": [

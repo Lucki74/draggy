@@ -66,6 +66,11 @@ jobs:
 
       - run: npm ci
 
+      - name: Build the sandbox launcher
+        working-directory: win/sandbox
+        run: cargo build --release
+
+
       - name: Typecheck, lint and test
         run: npm run check
 

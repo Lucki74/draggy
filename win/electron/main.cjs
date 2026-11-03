@@ -3473,6 +3473,12 @@ ipc.handle("library:search", wrap("library", async (event, query, limit, model, 
   ),
 ));
 
+// A command runs in the sandbox unless the user approved it outside. The network follows the permission mode.
+function boxFor(root, options) {
+  if (options?.outsideSandbox === true) return null;
+  return { project: root, dataDir: app.getPath("userData"), network: options?.network === true };
+}
+
 // A command runs in the conversation's own project folder, which the main process looks up; the
 // renderer names a workspace and cannot pick a folder. With `background` it starts as a task and
 // returns at once; otherwise it runs in the foreground and can be moved to the background later.
@@ -3491,6 +3497,7 @@ ipc.handle(
         command,
         shell: options?.shell,
         defaultShell: options?.defaultShell,
+        sandbox: boxFor(root, options),
       });
       if (started.error) return { success: false, error: started.error };
       return { success: true, background: true, taskId: started.task.id, task: started.task, shell: started.task.shell, ...(started.notice ? { notice: started.notice } : {}) };
@@ -3506,6 +3513,7 @@ ipc.handle(
       stateKey: chatId,
       tasks: tasks(),
       autoDetach: options?.autoDetach !== false,
+      sandbox: boxFor(root, options),
       onOutput: (chunk) => sendTo(BrowserWindow.fromWebContents(event.sender), "commands:output", { runId, chunk }),
     });
   }),

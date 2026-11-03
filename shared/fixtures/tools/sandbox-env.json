@@ -1,0 +1,123 @@
+{
+  "area": "tools",
+  "description": "isSecretName: whether an environment variable name is a key, token or credential that a sandboxed command must not inherit. Input is {name}; expected is {secret}.",
+  "cases": [
+    {
+      "name": "ANTHROPIC_API_KEY is a secret",
+      "input": {
+        "name": "ANTHROPIC_API_KEY"
+      },
+      "expected": {
+        "secret": true
+      }
+    },
+    {
+      "name": "GITHUB_TOKEN is a secret",
+      "input": {
+        "name": "GITHUB_TOKEN"
+      },
+      "expected": {
+        "secret": true
+      }
+    },
+    {
+      "name": "aws_region is a secret",
+      "input": {
+        "name": "aws_region"
+      },
+      "expected": {
+        "secret": true
+      }
+    },
+    {
+      "name": "NPM_CONFIG_AUTH is a secret",
+      "input": {
+        "name": "NPM_CONFIG_AUTH"
+      },
+      "expected": {
+        "secret": true
+      }
+    },
+    {
+      "name": "OPENAI_APIKEY is a secret",
+      "input": {
+        "name": "OPENAI_APIKEY"
+      },
+      "expected": {
+        "secret": true
+      }
+    },
+    {
+      "name": "DRAGGY_HOME is a secret",
+      "input": {
+        "name": "DRAGGY_HOME"
+      },
+      "expected": {
+        "secret": true
+      }
+    },
+    {
+      "name": "SSH_AUTH_SOCK is a secret",
+      "input": {
+        "name": "SSH_AUTH_SOCK"
+      },
+      "expected": {
+        "secret": true
+      }
+    },
+    {
+      "name": "PATH is not a secret",
+      "input": {
+        "name": "PATH"
+      },
+      "expected": {
+        "secret": false
+      }
+    },
+    {
+      "name": "KEYBOARD is not a secret",
+      "input": {
+        "name": "KEYBOARD"
+      },
+      "expected": {
+        "secret": false
+      }
+    },
+    {
+      "name": "MONKEY_PATCH is not a secret",
+      "input": {
+        "name": "MONKEY_PATCH"
+      },
+      "expected": {
+        "secret": false
+      }
+    },
+    {
+      "name": "TEMP is not a secret",
+      "input": {
+        "name": "TEMP"
+      },
+      "expected": {
+        "secret": false
+      }
+    },
+    {
+      "name": "HOMEPATH is not a secret",
+      "input": {
+        "name": "HOMEPATH"
+      },
+      "expected": {
+        "secret": false
+      }
+    },
+    {
+      "name": "AUTHOR_NAME is not a secret",
+      "input": {
+        "name": "AUTHOR_NAME"
+      },
+      "expected": {
+        "secret": false
+      }
+    }
+  ]
+}

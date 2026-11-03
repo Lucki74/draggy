@@ -48,6 +48,8 @@ pub enum ShellError {
     NotInstalled(String),
     #[error("cmd is only available on Windows.")]
     CmdWindowsOnly,
+    #[error("The sandbox is not available, so the command was not run.")]
+    SandboxUnavailable,
     #[error(transparent)]
     Spawn(#[from] SpawnError),
 }
@@ -242,6 +244,8 @@ pub struct CommandRequest {
     pub timeout_ms: Option<f64>,
     pub base_env: Option<Vec<(OsString, OsString)>>,
     pub cancel: CancelToken,
+    /// Runs the command inside the host sandbox when set, and refuses when none is available.
+    pub sandbox: Option<crate::sandbox::Boxed>,
 }
 
 /// A command that ran to an end, a timeout or a cancel.
@@ -280,12 +284,27 @@ pub async fn run_command(request: CommandRequest) -> Result<CommandOutput, Shell
     let base = request
         .base_env
         .unwrap_or_else(|| std::env::vars_os().collect());
+    let env = command_env(base);
+    let (file, args) = match &request.sandbox {
+        None => (invocation.file.clone(), invocation.args.clone()),
+        Some(boxed) => {
+            let pairs = env
+                .iter()
+                .map(|(key, value)| (key.to_string_lossy().into_owned(), value.to_string_lossy().into_owned()))
+                .collect();
+            let mut command = vec![invocation.file.to_string_lossy().into_owned()];
+            command.extend(invocation.args.iter().cloned());
+            let (program, args) = crate::sandbox::host_wrap(boxed, &request.cwd, pairs, command)
+                .ok_or(ShellError::SandboxUnavailable)?;
+            (PathBuf::from(program), args)
+        }
+    };
     let output = spawn::run(
-        &invocation.file,
-        invocation.args.as_slice(),
+        &file,
+        args.as_slice(),
         SpawnOptions {
             cwd: Some(request.cwd),
-            env: Some(command_env(base)),
+            env: Some(env),
             timeout: limit,
             cancel: request.cancel,
             merge_output: true,
@@ -400,6 +419,7 @@ mod tests {
             timeout_ms,
             base_env: None,
             cancel: CancelToken::new(),
+            sandbox: None,
         }
     }
 
@@ -596,6 +616,7 @@ mod tests {
             timeout_ms: None,
             base_env: None,
             cancel: CancelToken::new(),
+            sandbox: None,
         })
         .await;
         let message = no_folder.expect_err("no folder").to_string();
