@@ -290,7 +290,12 @@ pub async fn run_command(request: CommandRequest) -> Result<CommandOutput, Shell
         Some(boxed) => {
             let pairs = env
                 .iter()
-                .map(|(key, value)| (key.to_string_lossy().into_owned(), value.to_string_lossy().into_owned()))
+                .map(|(key, value)| {
+                    (
+                        key.to_string_lossy().into_owned(),
+                        value.to_string_lossy().into_owned(),
+                    )
+                })
                 .collect();
             let mut command = vec![invocation.file.to_string_lossy().into_owned()];
             command.extend(invocation.args.iter().cloned());

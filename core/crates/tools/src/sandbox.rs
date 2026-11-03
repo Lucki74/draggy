@@ -6,7 +6,16 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 /// Names that are secrets whatever their prefix: matched per `_` segment, case-insensitively.
-const SECRET_SEGMENTS: [&str; 8] = ["KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "CREDENTIAL", "CREDENTIALS", "AUTH"];
+const SECRET_SEGMENTS: [&str; 8] = [
+    "KEY",
+    "TOKEN",
+    "SECRET",
+    "PASSWORD",
+    "PASSWD",
+    "CREDENTIAL",
+    "CREDENTIALS",
+    "AUTH",
+];
 const SECRET_PREFIXES: [&str; 4] = ["AWS_", "AZURE_", "GCP_", "DRAGGY_"];
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,7 +43,12 @@ pub struct Boxed {
 
 /// The program and arguments that run `command` inside the host sandbox: bubblewrap on Linux, sandbox-exec on macOS.
 /// None on any other host, where the caller refuses to run rather than run unboxed.
-pub fn host_wrap(boxed: &Boxed, cwd: &std::path::Path, env: Vec<(String, String)>, command: Vec<String>) -> Option<(String, Vec<String>)> {
+pub fn host_wrap(
+    boxed: &Boxed,
+    cwd: &std::path::Path,
+    env: Vec<(String, String)>,
+    command: Vec<String>,
+) -> Option<(String, Vec<String>)> {
     let spec = SandboxSpec {
         project: boxed.project.clone(),
         cwd: cwd.to_path_buf(),
@@ -58,26 +72,40 @@ pub fn host_wrap(boxed: &Boxed, cwd: &std::path::Path, env: Vec<(String, String)
 /// True when the variable name looks like a key, token or credential, so it never reaches a sandboxed command.
 pub fn is_secret_name(name: &str) -> bool {
     let upper = name.to_ascii_uppercase();
-    if SECRET_PREFIXES.iter().any(|prefix| upper.starts_with(prefix)) {
+    if SECRET_PREFIXES
+        .iter()
+        .any(|prefix| upper.starts_with(prefix))
+    {
         return true;
     }
     upper.split('_').any(|part| SECRET_SEGMENTS.contains(&part)) || upper.ends_with("APIKEY")
 }
 
 pub fn scrub_env<I: IntoIterator<Item = (String, String)>>(env: I) -> Vec<(String, String)> {
-    env.into_iter().filter(|(name, _)| !is_secret_name(name)).collect()
+    env.into_iter()
+        .filter(|(name, _)| !is_secret_name(name))
+        .collect()
 }
 
 /// `--unshare-all` drops the network; `--share-net` gives it back. Anything not bound is not there.
 pub fn bubblewrap_args(spec: &SandboxSpec) -> Vec<String> {
-    let mut args: Vec<String> = ["--unshare-all", "--die-with-parent", "--new-session"].map(String::from).to_vec();
+    let mut args: Vec<String> = ["--unshare-all", "--die-with-parent", "--new-session"]
+        .map(String::from)
+        .to_vec();
     if spec.network {
         args.push("--share-net".into());
     }
     for system in ["/usr", "/bin", "/sbin", "/lib", "/lib64", "/etc"] {
         args.extend(["--ro-bind-try".into(), system.into(), system.into()]);
     }
-    args.extend(["--proc".into(), "/proc".into(), "--dev".into(), "/dev".into(), "--tmpfs".into(), "/tmp".into()]);
+    args.extend([
+        "--proc".into(),
+        "/proc".into(),
+        "--dev".into(),
+        "/dev".into(),
+        "--tmpfs".into(),
+        "/tmp".into(),
+    ]);
     for folder in &spec.read_only {
         let text = display(folder);
         args.extend(["--ro-bind-try".into(), text.clone(), text]);
@@ -98,17 +126,32 @@ pub fn bubblewrap_args(spec: &SandboxSpec) -> Vec<String> {
 /// A `sandbox-exec` profile that denies everything, then allows reading the system, the listed folders and writing
 /// only the read-write ones.
 pub fn seatbelt_profile(spec: &SandboxSpec) -> String {
-    let mut out = String::from("(version 1)\n(deny default)\n(allow process-fork)\n(allow process-exec)\n");
+    let mut out =
+        String::from("(version 1)\n(deny default)\n(allow process-fork)\n(allow process-exec)\n");
     out.push_str("(allow sysctl-read)\n(allow mach-lookup)\n(allow signal (target self))\n");
-    for system in ["/usr", "/bin", "/sbin", "/System", "/Library", "/private/etc", "/dev", "/private/var/db"] {
+    for system in [
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/System",
+        "/Library",
+        "/private/etc",
+        "/dev",
+        "/private/var/db",
+    ] {
         out.push_str(&format!("(allow file-read* (subpath \"{system}\"))\n"));
     }
     for folder in &spec.read_only {
-        out.push_str(&format!("(allow file-read* (subpath \"{}\"))\n", quote(folder)));
+        out.push_str(&format!(
+            "(allow file-read* (subpath \"{}\"))\n",
+            quote(folder)
+        ));
     }
     for folder in &spec.read_write {
         let path = quote(folder);
-        out.push_str(&format!("(allow file-read* file-write* (subpath \"{path}\"))\n"));
+        out.push_str(&format!(
+            "(allow file-read* file-write* (subpath \"{path}\"))\n"
+        ));
     }
     out.push_str("(allow file-write* (literal \"/dev/null\"))\n");
     if spec.network {
@@ -167,10 +210,24 @@ mod tests {
 
     #[test]
     fn secret_names_are_found_by_segment() {
-        for name in ["ANTHROPIC_API_KEY", "GITHUB_TOKEN", "aws_region", "NPM_CONFIG_AUTH", "OPENAI_APIKEY", "DRAGGY_HOME"] {
+        for name in [
+            "ANTHROPIC_API_KEY",
+            "GITHUB_TOKEN",
+            "aws_region",
+            "NPM_CONFIG_AUTH",
+            "OPENAI_APIKEY",
+            "DRAGGY_HOME",
+        ] {
             assert!(is_secret_name(name), "{name}");
         }
-        for name in ["PATH", "KEYBOARD", "MONKEY_PATCH", "TEMP", "HOMEPATH", "AUTHOR_NAME"] {
+        for name in [
+            "PATH",
+            "KEYBOARD",
+            "MONKEY_PATCH",
+            "TEMP",
+            "HOMEPATH",
+            "AUTHOR_NAME",
+        ] {
             assert!(!is_secret_name(name), "{name}");
         }
     }
