@@ -3473,9 +3473,10 @@ ipc.handle("library:search", wrap("library", async (event, query, limit, model, 
   ),
 ));
 
-// A command runs in the sandbox unless the user approved it outside. The network follows the permission mode.
+// A command runs in the sandbox only when the renderer asks for it, until the permission modes can approve
+// a command outside. The network follows the permission mode.
 function boxFor(root, options) {
-  if (options?.outsideSandbox === true) return null;
+  if (options?.sandbox !== true || options?.outsideSandbox === true) return null;
   return { project: root, dataDir: app.getPath("userData"), network: options?.network === true };
 }
 
