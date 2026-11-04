@@ -1688,6 +1688,11 @@ declare global {
         onProgress: (callback: (progress: LibraryProgress) => void) => Unsubscribe;
       };
 
+      chats: {
+        /** Makes the chat's own folder if needed, and shows it in the file manager when asked. */
+        folder: (chatId: string, open?: boolean) => Promise<{ success: boolean; path?: string; error?: string }>;
+      };
+
       commands: {
         /** Runs a command in the workspace's own folder. The id lets it be stopped. */
         run: (
@@ -1704,6 +1709,13 @@ declare global {
             background?: boolean;
             /** Move it to the background at the time limit instead of stopping it. Default true. */
             autoDetach?: boolean;
+            /** Run in the sandbox. The main process ignores this for a chat folder, which is always boxed. */
+            sandbox?: boolean;
+            writable?: boolean;
+            network?: boolean;
+            outsideSandbox?: boolean;
+            /** A chat with no project: run in its own folder, in the sandbox, with the network off. */
+            chatFolder?: boolean;
           },
         ) => Promise<CommandResult>;
         cancel: (runId: string) => Promise<{ success: boolean }>;

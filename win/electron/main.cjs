@@ -3337,11 +3337,18 @@ ipc.handle("db:save-chat", wrap("db", async (event, session) =>
   storage.saveChat(session),
 ));
 
-ipc.handle("db:delete-chat", wrap("db", async (event, id) =>
-  storage.deleteChat(String(id)),
-));
+ipc.handle("db:delete-chat", wrap("db", async (event, id) => {
+  const result = storage.deleteChat(String(id));
+  const dir = chatDirPath(id);
+  if (dir) fs.rmSync(dir, { recursive: true, force: true });
+  return result;
+}));
 
-ipc.handle("db:clear-chats", wrap("db", async () => storage.clearChats()));
+ipc.handle("db:clear-chats", wrap("db", async () => {
+  const result = storage.clearChats();
+  fs.rmSync(chatsRoot(), { recursive: true, force: true });
+  return result;
+}));
 
 ipc.handle("db:search-chats", wrap("db", async (event, query) => ({
   success: true,
@@ -3482,18 +3489,57 @@ function boxFor(root, options) {
     dataDir: app.getPath("userData"),
     network: options?.network === true,
     writable: options?.writable !== false,
+    ...(options?.extras ? { extras: options.extras } : {}),
   };
 }
 
 // A command runs in the conversation's own project folder, which the main process looks up; the
 // renderer names a workspace and cannot pick a folder. With `background` it starts as a task and
 // returns at once; otherwise it runs in the foreground and can be moved to the background later.
+// A chat has no project, so it gets a folder of its own under the app data, made on first use and removed with
+// the chat. Commands there always run in the sandbox, with no network and the embedded Python on PATH.
+function chatsRoot() {
+  return path.join(app.getPath("userData"), "chats");
+}
+
+function chatDirPath(chatId) {
+  const id = String(chatId || "");
+  return /^[w-]{1,128}$/.test(id) ? path.join(chatsRoot(), id) : null;
+}
+
+function pythonDir() {
+  const candidates = [path.join(process.resourcesPath || "", "python"), path.join(__dirname, "..", "vendor", "python")];
+  return candidates.find((dir) => fs.existsSync(path.join(dir, "python.exe"))) || null;
+}
+
+ipc.handle("chats:folder", wrap("chats", async (event, chatId, open) => {
+  const dir = chatDirPath(chatId);
+  if (!dir) return { success: false, error: "That chat has no folder." };
+  fs.mkdirSync(dir, { recursive: true });
+  if (open) await shell.openPath(dir);
+  return { success: true, path: dir };
+}));
+
 ipc.handle(
   "commands:run",
   wrap("commands", async (event, workspaceId, runId, command, options) => {
-    const root = rootsFor(workspaceId)[0];
+    const real = rootsFor(workspaceId)[0];
+    const chatDir = !real && options?.chatFolder === true ? chatDirPath(options?.chatId) : null;
+    const root = real || chatDir;
     if (!root) {
       return { success: false, error: "Commands run inside a project, and this conversation has none." };
+    }
+    if (chatDir) {
+      fs.mkdirSync(chatDir, { recursive: true });
+      const python = pythonDir();
+      options = {
+        ...options,
+        sandbox: true,
+        outsideSandbox: false,
+        network: false,
+        writable: true,
+        extras: python ? { readOnly: [python], path: [python] } : undefined,
+      };
     }
     const chatId = String(options?.chatId || workspaceId || "default");
     if (options?.background) {

@@ -52,7 +52,8 @@ const runCommand: ToolSpec = {
     openWorldHint: true,
   },
   available: (environment) =>
-    Boolean(environment.hasFolder && environment.canRunCommands) && !environment.readOnlyTools,
+    Boolean((environment.hasFolder && environment.canRunCommands) || environment.chatFolder) &&
+    !environment.readOnlyTools,
   run: (args, ctx) => runInBox(args, ctx, false),
 };
 
@@ -71,7 +72,8 @@ const requestOutsideSandbox: ToolSpec = {
   required: ["command", "reason"],
   usage: '{"command": "npm install", "reason": "needs the network"} → asks, then runs it outside the sandbox',
   annotations: { ...runCommand.annotations, outsideSandbox: true },
-  available: runCommand.available,
+  available: (environment) =>
+    Boolean(environment.hasFolder && environment.canRunCommands) && !environment.readOnlyTools,
   run: (args, ctx) => runInBox(args, ctx, true),
 };
 
@@ -128,6 +130,7 @@ async function runInBox(
         chatId: ctx.chatId,
         background,
         ...sandboxOptions(ctx.permissionMode, outside),
+        chatFolder: Boolean(ctx.environment?.chatFolder),
       })
       .finally(() => {
         ctx.signal.removeEventListener("abort", stop);

@@ -90,6 +90,11 @@ function wrap(spawn, options) {
 
   const file = path.isAbsolute(spawn.file) ? spawn.file : require("./shells.cjs").findOnPath(spawn.file, spawn.env) || spawn.file;
   const env = scrubEnv(spawn.env);
+  const extras = options.extras || {};
+  if (extras.path?.length) {
+    const key = Object.keys(env).find((name) => name.toLowerCase() === "path") || "PATH";
+    env[key] = [...extras.path, env[key]].filter(Boolean).join(path.delimiter);
+  }
   env.TEMP = path.join(scratch, "tmp");
   env.TMP = env.TEMP;
   env.npm_config_cache = path.join(scratch, "cache", "npm");
@@ -99,7 +104,7 @@ function wrap(spawn, options) {
   const spec = {
     identity: identity(project, writable),
     cwd: spawn.cwd,
-    readOnly: toolchain ? [...toolchain] : toolchainFolders(file),
+    readOnly: [...(toolchain ? toolchain : toolchainFolders(file)), ...(extras.readOnly || [])],
     readWrite: writable ? [project, scratch] : [scratch],
     network: Boolean(network),
     env: Object.entries(env),

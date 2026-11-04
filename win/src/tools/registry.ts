@@ -38,6 +38,8 @@ export interface ToolEnvironment {
   hasSkills?: boolean;
   /** Whether that folder is a git repository and git is installed to read it. */
   hasGit?: boolean;
+  /** A chat with no project: commands run in a folder of the chat's own, always sandboxed. */
+  chatFolder?: boolean;
   /** Whether commands can run in that folder. Code only. */
   canRunCommands?: boolean;
   /** Whether the image engine and an image model are both installed. */

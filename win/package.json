@@ -18,7 +18,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none vite\" \"wait-on http://127.0.0.1:5173 && electron .\"",
-    "electron:build": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --publish never",
+    "fetch:python": "node scripts/fetch-python.cjs",
+    "electron:build": "npm run fetch:python && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --publish never",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -67,6 +68,10 @@
       {
         "from": "../shared/pricing/prices.json",
         "to": "prices.json"
+      },
+      {
+        "from": "vendor/python",
+        "to": "python"
       },
       {
         "from": "sandbox/target/release/draggy-sandbox.exe",

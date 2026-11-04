@@ -343,6 +343,7 @@ export default function AppShell({
     codeExecution: false,
     canRunCommands: mode === "code" && Boolean(window.electronAPI?.commands),
     libraryReady: mode === "chat" && libraryReady && effectiveSettings.libraryEnabled,
+    chatFolder: mode === "chat" && !active.rootPath && Boolean(window.electronAPI?.commands),
     hasFolder: Boolean(active.rootPath),
     projectRoot: active.rootPath ?? undefined,
     hasSkills: skills.length > 0,

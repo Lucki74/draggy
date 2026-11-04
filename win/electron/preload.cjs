@@ -219,6 +219,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onProgress: (callback) => subscribe("library-progress", callback),
   },
 
+  chats: {
+    folder: (chatId, open) => ipcRenderer.invoke("chats:folder", chatId, open === true),
+  },
   commands: {
     run: (workspaceId, runId, command, options) =>
       ipcRenderer.invoke("commands:run", workspaceId, runId, command, options),
