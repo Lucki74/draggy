@@ -128,7 +128,9 @@ pub fn bubblewrap_args(spec: &SandboxSpec) -> Vec<String> {
 pub fn seatbelt_profile(spec: &SandboxSpec) -> String {
     let mut out =
         String::from("(version 1)\n(deny default)\n(allow process-fork)\n(allow process-exec)\n");
-    out.push_str("(allow sysctl-read)\n(allow mach-lookup)\n(allow signal (target self))\n");
+    out.push_str(
+        "(allow sysctl-read)\n(allow mach-lookup)\n(allow signal (target self))\n(allow file-read-metadata)\n",
+    );
     for system in [
         "/usr",
         "/bin",
@@ -206,6 +208,79 @@ mod tests {
         assert!(!profile.contains("file-write* (subpath \"/opt/node\")"));
         assert!(!profile.contains("network"));
         assert!(seatbelt_profile(&spec(true)).contains("(allow network*)"));
+    }
+
+    /// The golden policy both launchers must generate: shared/fixtures/sandbox/policy.json, also read by Swift tests.
+    fn golden_cases() -> Vec<(SandboxSpec, Vec<String>, Vec<String>)> {
+        let raw = include_str!("../../../../shared/fixtures/sandbox/policy.json");
+        let doc: serde_json::Value = serde_json::from_str(raw).expect("policy.json parses");
+        doc["cases"]
+            .as_array()
+            .expect("cases")
+            .iter()
+            .map(|case| {
+                let s = &case["spec"];
+                let strings = |v: &serde_json::Value| -> Vec<String> {
+                    v.as_array()
+                        .expect("array")
+                        .iter()
+                        .map(|x| x.as_str().expect("string").to_string())
+                        .collect()
+                };
+                let paths = |v: &serde_json::Value| -> Vec<PathBuf> {
+                    strings(v).into_iter().map(PathBuf::from).collect()
+                };
+                let env = s["env"]
+                    .as_array()
+                    .expect("env")
+                    .iter()
+                    .map(|pair| {
+                        let p = strings(pair);
+                        (p[0].clone(), p[1].clone())
+                    })
+                    .collect();
+                let spec = SandboxSpec {
+                    project: PathBuf::from(s["project"].as_str().expect("project")),
+                    cwd: PathBuf::from(s["cwd"].as_str().expect("cwd")),
+                    read_only: paths(&s["readOnly"]),
+                    read_write: paths(&s["readWrite"]),
+                    network: s["network"].as_bool().expect("network"),
+                    env,
+                    command: strings(&s["command"]),
+                };
+                (
+                    spec,
+                    strings(&case["bubblewrap"]),
+                    strings(&case["seatbelt"]),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn golden_bubblewrap_args_match_the_fixture() {
+        for (spec, bwrap, _) in golden_cases() {
+            assert_eq!(bubblewrap_args(&spec), bwrap);
+        }
+    }
+
+    #[test]
+    fn golden_seatbelt_profile_matches_the_fixture() {
+        for (spec, _, seatbelt) in golden_cases() {
+            let profile = seatbelt_profile(&spec);
+            let lines: Vec<&str> = profile.lines().collect();
+            let expected: Vec<&str> = seatbelt.iter().map(String::as_str).collect();
+            assert_eq!(lines, expected);
+        }
+    }
+
+    #[test]
+    fn scrubbed_env_never_reaches_the_wrapped_command() {
+        let env = scrub_env(vec![
+            ("PATH".to_string(), "/usr/bin".to_string()),
+            ("GITHUB_TOKEN".to_string(), "x".to_string()),
+        ]);
+        assert_eq!(env, vec![("PATH".to_string(), "/usr/bin".to_string())]);
     }
 
     #[test]

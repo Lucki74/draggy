@@ -22,14 +22,18 @@ pub struct Spec {
 }
 
 pub fn load(path: &str) -> Result<Spec, String> {
-    let text = std::fs::read_to_string(path).map_err(|error| format!("cannot read the spec: {error}"))?;
+    let text =
+        std::fs::read_to_string(path).map_err(|error| format!("cannot read the spec: {error}"))?;
     let spec: Spec = serde_json::from_str(&text).map_err(|error| format!("bad spec: {error}"))?;
     if spec.command_line.trim().is_empty() {
         return Err("the spec has no command".into());
     }
     let name_ok = !spec.identity.is_empty()
         && spec.identity.len() <= 48
-        && spec.identity.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-');
+        && spec
+            .identity
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-');
     if !name_ok {
         return Err("bad identity name".into());
     }

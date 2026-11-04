@@ -14,6 +14,7 @@ export const PERMISSION_MODES: { id: PermissionMode; label: string; hint: string
   { id: "plan", label: "permissionPlan", hint: "permissionPlanHint" },
   { id: "ask", label: "permissionAsk", hint: "permissionAskHint" },
   { id: "acceptEdits", label: "permissionAcceptEdits", hint: "permissionAcceptEditsHint" },
+  { id: "turbo", label: "permissionTurbo", hint: "permissionTurboHint" },
   { id: "auto", label: "permissionAuto", hint: "permissionAutoHint" },
 ];
 

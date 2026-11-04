@@ -998,7 +998,7 @@ export interface McpServerState {
 
 /** How much a turn may do on its own. A workspace holds one of these, and every tool call is
  * measured against it. */
-export type PermissionMode = "plan" | "ask" | "acceptEdits" | "auto";
+export type PermissionMode = "plan" | "ask" | "acceptEdits" | "turbo" | "auto";
 
 export type WorkspaceKind = "chat" | "project";
 

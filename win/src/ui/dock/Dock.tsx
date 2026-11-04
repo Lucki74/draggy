@@ -14,6 +14,9 @@ export interface DockProps {
   onMovePane: (fromIndex: number, toIndex: number) => void;
   onSplitPane?: (pane: PaneId) => void;
   onUnsplit?: () => void;
+  /** Whether the active tab fills the chat area. */
+  isMaximized?: boolean;
+  onToggleMaximize?: (pane: PaneId) => void;
   onStartResize?: (e: React.PointerEvent) => void;
   paneTitles?: Partial<Record<PaneId, string>>;
   paneIcons?: Partial<Record<PaneId, IconName>>;
@@ -44,6 +47,8 @@ export function Dock({
   onSplitPane,
   onUnsplit,
   onStartResize,
+  isMaximized = false,
+  onToggleMaximize,
   paneTitles = {},
   paneIcons = {},
   newMenu = [],
@@ -60,10 +65,15 @@ export function Dock({
         e.preventDefault();
         onClosePane(active);
       }
+      // Escape restores a maximized tab; the Stop button in a running turn keeps its own Escape.
+      if (e.key === "Escape" && isMaximized && active && onToggleMaximize) {
+        e.preventDefault();
+        onToggleMaximize(active);
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [active, onClosePane]);
+  }, [active, onClosePane, isMaximized, onToggleMaximize]);
 
 
 
@@ -86,12 +96,14 @@ export function Dock({
       data-region="dock"
       tabIndex={-1}
       className={`${
-        isOverlay
+        isMaximized
+          ? "absolute inset-0 z-30 flex bg-surface-base"
+          : isOverlay
           ? "absolute inset-y-0 end-0 z-30 flex shadow-2xl bg-surface-base border-s border-rule"
           : "flex h-full flex-shrink-0 relative"
       } ${className}`}
     >
-      {onStartResize && (
+      {onStartResize && !isMaximized && (
         <div
           onPointerDown={onStartResize}
           className="w-1.5 cursor-col-resize hover:bg-rule-strong active:bg-text-secondary flex-shrink-0 select-none z-10 transition-colors"
@@ -100,8 +112,8 @@ export function Dock({
       )}
 
       <div
-        className="flex flex-col border-s border-rule h-full overflow-hidden bg-surface-canvas"
-        style={{ width: `${width}px` }}
+        className={`flex flex-col border-s border-rule h-full overflow-hidden bg-surface-canvas ${isMaximized ? "flex-1 min-w-0" : ""}`}
+        style={isMaximized ? undefined : { width: `${width}px` }}
       >
         <div className="h-9 px-2 flex items-center justify-between border-b border-rule bg-surface-base select-none flex-shrink-0 gap-1 overflow-x-auto">
           <div
@@ -205,6 +217,14 @@ export function Dock({
               ))}
             {onNewPane && newMenu.length > 0 && (
               <IconButton name={choosing ? "x" : "plus"} size="dense" label={t("terminalNew")} onClick={() => setChoosing((open) => !open)} />
+            )}
+            {onToggleMaximize && (
+              <IconButton
+                name={isMaximized ? "arrows-in-simple" : "arrows-out-simple"}
+                size="dense"
+                label={isMaximized ? t("restorePane") : t("maximizePane")}
+                onClick={() => onToggleMaximize(active)}
+              />
             )}
             {panes.length > 1 && (
               <IconButton

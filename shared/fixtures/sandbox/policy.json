@@ -1,0 +1,109 @@
+{
+  "area": "sandbox",
+  "description": "Golden policy for one SandboxSpec: the bubblewrap argument list (Linux) and the sandbox-exec Seatbelt profile (macOS) that core/crates/tools/src/sandbox.rs and macos/Draggy/Services/SandboxPolicy.swift must both generate, line for line.",
+  "cases": [
+    {
+      "name": "project and scratch writable, toolchain read-only, network off",
+      "spec": {
+        "project": "/work/app",
+        "cwd": "/work/app",
+        "readOnly": ["/opt/node"],
+        "readWrite": ["/work/app", "/scratch/chat-1"],
+        "network": false,
+        "env": [["PATH", "/usr/bin:/bin"], ["HOME", "/home/u"]],
+        "command": ["npm", "test"]
+      },
+      "bubblewrap": [
+        "--unshare-all", "--die-with-parent", "--new-session",
+        "--ro-bind-try", "/usr", "/usr",
+        "--ro-bind-try", "/bin", "/bin",
+        "--ro-bind-try", "/sbin", "/sbin",
+        "--ro-bind-try", "/lib", "/lib",
+        "--ro-bind-try", "/lib64", "/lib64",
+        "--ro-bind-try", "/etc", "/etc",
+        "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp",
+        "--ro-bind-try", "/opt/node", "/opt/node",
+        "--bind", "/work/app", "/work/app",
+        "--bind", "/scratch/chat-1", "/scratch/chat-1",
+        "--chdir", "/work/app", "--clearenv",
+        "--setenv", "PATH", "/usr/bin:/bin",
+        "--setenv", "HOME", "/home/u",
+        "--", "npm", "test"
+      ],
+      "seatbelt": [
+        "(version 1)",
+        "(deny default)",
+        "(allow process-fork)",
+        "(allow process-exec)",
+        "(allow sysctl-read)",
+        "(allow mach-lookup)",
+        "(allow signal (target self))",
+        "(allow file-read-metadata)",
+        "(allow file-read* (subpath \"/usr\"))",
+        "(allow file-read* (subpath \"/bin\"))",
+        "(allow file-read* (subpath \"/sbin\"))",
+        "(allow file-read* (subpath \"/System\"))",
+        "(allow file-read* (subpath \"/Library\"))",
+        "(allow file-read* (subpath \"/private/etc\"))",
+        "(allow file-read* (subpath \"/dev\"))",
+        "(allow file-read* (subpath \"/private/var/db\"))",
+        "(allow file-read* (subpath \"/opt/node\"))",
+        "(allow file-read* file-write* (subpath \"/work/app\"))",
+        "(allow file-read* file-write* (subpath \"/scratch/chat-1\"))",
+        "(allow file-write* (literal \"/dev/null\"))"
+      ]
+    },
+    {
+      "name": "same folders with network on",
+      "spec": {
+        "project": "/work/app",
+        "cwd": "/work/app",
+        "readOnly": ["/opt/node"],
+        "readWrite": ["/work/app", "/scratch/chat-1"],
+        "network": true,
+        "env": [["PATH", "/usr/bin:/bin"], ["HOME", "/home/u"]],
+        "command": ["npm", "test"]
+      },
+      "bubblewrap": [
+        "--unshare-all", "--die-with-parent", "--new-session", "--share-net",
+        "--ro-bind-try", "/usr", "/usr",
+        "--ro-bind-try", "/bin", "/bin",
+        "--ro-bind-try", "/sbin", "/sbin",
+        "--ro-bind-try", "/lib", "/lib",
+        "--ro-bind-try", "/lib64", "/lib64",
+        "--ro-bind-try", "/etc", "/etc",
+        "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp",
+        "--ro-bind-try", "/opt/node", "/opt/node",
+        "--bind", "/work/app", "/work/app",
+        "--bind", "/scratch/chat-1", "/scratch/chat-1",
+        "--chdir", "/work/app", "--clearenv",
+        "--setenv", "PATH", "/usr/bin:/bin",
+        "--setenv", "HOME", "/home/u",
+        "--", "npm", "test"
+      ],
+      "seatbelt": [
+        "(version 1)",
+        "(deny default)",
+        "(allow process-fork)",
+        "(allow process-exec)",
+        "(allow sysctl-read)",
+        "(allow mach-lookup)",
+        "(allow signal (target self))",
+        "(allow file-read-metadata)",
+        "(allow file-read* (subpath \"/usr\"))",
+        "(allow file-read* (subpath \"/bin\"))",
+        "(allow file-read* (subpath \"/sbin\"))",
+        "(allow file-read* (subpath \"/System\"))",
+        "(allow file-read* (subpath \"/Library\"))",
+        "(allow file-read* (subpath \"/private/etc\"))",
+        "(allow file-read* (subpath \"/dev\"))",
+        "(allow file-read* (subpath \"/private/var/db\"))",
+        "(allow file-read* (subpath \"/opt/node\"))",
+        "(allow file-read* file-write* (subpath \"/work/app\"))",
+        "(allow file-read* file-write* (subpath \"/scratch/chat-1\"))",
+        "(allow file-write* (literal \"/dev/null\"))",
+        "(allow network*)"
+      ]
+    }
+  ]
+}

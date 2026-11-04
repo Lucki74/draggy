@@ -5,18 +5,24 @@ use std::ptr::{null, null_mut};
 
 use windows_sys::Win32::Foundation::{GetLastError, LocalFree, HANDLE, WAIT_OBJECT_0};
 use windows_sys::Win32::Security::Authorization::ConvertStringSidToSidW;
-use windows_sys::Win32::Security::Isolation::{CreateAppContainerProfile, DeriveAppContainerSidFromAppContainerName};
+use windows_sys::Win32::Security::Isolation::{
+    CreateAppContainerProfile, DeriveAppContainerSidFromAppContainerName,
+};
 use windows_sys::Win32::Security::{FreeSid, PSID, SECURITY_CAPABILITIES, SID_AND_ATTRIBUTES};
-use windows_sys::Win32::System::Console::{GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE};
+use windows_sys::Win32::System::Console::{
+    GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+};
 use windows_sys::Win32::System::JobObjects::{
-    AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject,
-    JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+    SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
 };
 use windows_sys::Win32::System::Threading::{
-    CreateProcessW, DeleteProcThreadAttributeList, GetExitCodeProcess, InitializeProcThreadAttributeList, ResumeThread,
-    TerminateProcess, UpdateProcThreadAttribute, WaitForSingleObject, CREATE_NO_WINDOW, CREATE_SUSPENDED,
-    CREATE_UNICODE_ENVIRONMENT, EXTENDED_STARTUPINFO_PRESENT, INFINITE, LPPROC_THREAD_ATTRIBUTE_LIST,
-    PROCESS_INFORMATION, STARTUPINFOEXW,
+    CreateProcessW, DeleteProcThreadAttributeList, GetExitCodeProcess,
+    InitializeProcThreadAttributeList, ResumeThread, TerminateProcess, UpdateProcThreadAttribute,
+    WaitForSingleObject, CREATE_NO_WINDOW, CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT,
+    EXTENDED_STARTUPINFO_PRESENT, INFINITE, LPPROC_THREAD_ATTRIBUTE_LIST, PROCESS_INFORMATION,
+    STARTUPINFOEXW,
 };
 
 use crate::grant::{self, wide};
@@ -34,9 +40,16 @@ const EXIT_JOB: i32 = 74;
 const NETWORK_CAPABILITIES: [&str; 3] = ["S-1-15-3-1", "S-1-15-3-2", "S-1-15-3-3"];
 
 pub fn run(spec: &Spec) -> i32 {
-    for folder in spec.read_only.iter().chain(&spec.read_write).chain(Some(&spec.cwd)) {
+    for folder in spec
+        .read_only
+        .iter()
+        .chain(&spec.read_write)
+        .chain(Some(&spec.cwd))
+    {
         if !grant::enforceable(folder) {
-            eprintln!("sandbox: {folder} is not on an NTFS or ReFS volume, so it cannot be isolated");
+            eprintln!(
+                "sandbox: {folder} is not on an NTFS or ReFS volume, so it cannot be isolated"
+            );
             return EXIT_VOLUME;
         }
     }
@@ -44,7 +57,14 @@ pub fn run(spec: &Spec) -> i32 {
     let mut sid: PSID = null_mut();
     // SAFETY: `name` is NUL terminated and `sid` receives an allocated SID.
     unsafe {
-        let code = CreateAppContainerProfile(name.as_ptr(), name.as_ptr(), name.as_ptr(), null(), 0, &mut sid);
+        let code = CreateAppContainerProfile(
+            name.as_ptr(),
+            name.as_ptr(),
+            name.as_ptr(),
+            null(),
+            0,
+            &mut sid,
+        );
         if code != 0 {
             // The profile already exists from an earlier run, so derive its SID instead.
             let derived = DeriveAppContainerSidFromAppContainerName(name.as_ptr(), &mut sid);
@@ -54,7 +74,10 @@ pub fn run(spec: &Spec) -> i32 {
             }
         }
     }
-    for (folders, mask) in [(&spec.read_only, grant::READ), (&spec.read_write, grant::MODIFY)] {
+    for (folders, mask) in [
+        (&spec.read_only, grant::READ),
+        (&spec.read_write, grant::MODIFY),
+    ] {
         for folder in folders {
             if let Err(code) = grant::allow(folder, sid, mask) {
                 // A toolchain folder the user cannot change is left as is; the project itself must be granted.
@@ -80,18 +103,28 @@ fn start(spec: &Spec, sid: PSID) -> i32 {
             let text = wide(text);
             // SAFETY: the string is NUL terminated; each SID is freed with LocalFree after the process starts.
             unsafe { ConvertStringSidToSidW(text.as_ptr(), &mut capability) };
-            capabilities.push(SID_AND_ATTRIBUTES { Sid: capability, Attributes: GROUP_ENABLED });
+            capabilities.push(SID_AND_ATTRIBUTES {
+                Sid: capability,
+                Attributes: GROUP_ENABLED,
+            });
         }
     }
     let security = SECURITY_CAPABILITIES {
         AppContainerSid: sid,
-        Capabilities: if capabilities.is_empty() { null_mut() } else { capabilities.as_mut_ptr() },
+        Capabilities: if capabilities.is_empty() {
+            null_mut()
+        } else {
+            capabilities.as_mut_ptr()
+        },
         CapabilityCount: capabilities.len() as u32,
         Reserved: 0,
     };
     let mut env = spec.env.clone();
     // CreateProcess fails with error 203 for a container unless LOCALAPPDATA is set.
-    if !env.iter().any(|(name, _)| name.eq_ignore_ascii_case("LOCALAPPDATA")) {
+    if !env
+        .iter()
+        .any(|(name, _)| name.eq_ignore_ascii_case("LOCALAPPDATA"))
+    {
         if let Ok(value) = std::env::var("LOCALAPPDATA") {
             env.push(("LOCALAPPDATA".into(), value));
         }
@@ -117,7 +150,10 @@ fn start(spec: &Spec, sid: PSID) -> i32 {
                 null(),
             ) != 0;
         if !ready {
-            eprintln!("sandbox: cannot set the container attributes (error {})", GetLastError());
+            eprintln!(
+                "sandbox: cannot set the container attributes (error {})",
+                GetLastError()
+            );
             return EXIT_START;
         }
         let mut startup: STARTUPINFOEXW = std::mem::zeroed();
@@ -128,7 +164,10 @@ fn start(spec: &Spec, sid: PSID) -> i32 {
         startup.StartupInfo.hStdError = GetStdHandle(STD_ERROR_HANDLE);
         startup.lpAttributeList = list;
         let mut info: PROCESS_INFORMATION = std::mem::zeroed();
-        let flags = EXTENDED_STARTUPINFO_PRESENT | CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW;
+        let flags = EXTENDED_STARTUPINFO_PRESENT
+            | CREATE_SUSPENDED
+            | CREATE_UNICODE_ENVIRONMENT
+            | CREATE_NO_WINDOW;
         let created = CreateProcessW(
             null(),
             line.as_mut_ptr(),
@@ -164,7 +203,10 @@ fn start(spec: &Spec, sid: PSID) -> i32 {
         if !bound {
             // Without the Job object a killed launcher would leave the command running, so it never starts.
             TerminateProcess(info.hProcess, 1);
-            eprintln!("sandbox: cannot bind the command to a job (error {})", GetLastError());
+            eprintln!(
+                "sandbox: cannot bind the command to a job (error {})",
+                GetLastError()
+            );
             return EXIT_JOB;
         }
         ResumeThread(info.hThread);
@@ -179,8 +221,10 @@ fn start(spec: &Spec, sid: PSID) -> i32 {
 
 /// A UTF-16 environment block holding only the variables in the spec, sorted as Windows expects.
 fn env_block(env: &[(String, String)]) -> Vec<u16> {
-    let mut pairs: Vec<&(String, String)> =
-        env.iter().filter(|(name, _)| !name.is_empty() && !name.contains('=')).collect();
+    let mut pairs: Vec<&(String, String)> = env
+        .iter()
+        .filter(|(name, _)| !name.is_empty() && !name.contains('='))
+        .collect();
     pairs.sort_by_key(|(name, _)| name.to_ascii_uppercase());
     let mut block: Vec<u16> = Vec::new();
     for (name, value) in pairs {

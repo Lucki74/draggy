@@ -353,7 +353,7 @@
           "executes": true,
           "openWorld": true
         },
-        "target": "git status"
+        "target": "npm test"
       },
       "expected": {
         "decision": "ask",

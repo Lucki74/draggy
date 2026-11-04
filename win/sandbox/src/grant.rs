@@ -6,15 +6,16 @@ use std::ptr::{null, null_mut};
 
 use windows_sys::Win32::Foundation::{LocalFree, ERROR_SUCCESS};
 use windows_sys::Win32::Security::Authorization::{
-    GetNamedSecurityInfoW, SetEntriesInAclW, SetNamedSecurityInfoW, EXPLICIT_ACCESS_W, GRANT_ACCESS, SE_FILE_OBJECT,
-    TRUSTEE_IS_SID, TRUSTEE_IS_UNKNOWN,
+    GetNamedSecurityInfoW, SetEntriesInAclW, SetNamedSecurityInfoW, EXPLICIT_ACCESS_W,
+    GRANT_ACCESS, SE_FILE_OBJECT, TRUSTEE_IS_SID, TRUSTEE_IS_UNKNOWN,
 };
 use windows_sys::Win32::Security::{
     EqualSid, GetAce, ACCESS_ALLOWED_ACE, ACE_HEADER, ACL, CONTAINER_INHERIT_ACE,
     DACL_SECURITY_INFORMATION, OBJECT_INHERIT_ACE, PSID,
 };
 use windows_sys::Win32::Storage::FileSystem::{
-    GetVolumeInformationW, GetVolumePathNameW, DELETE, FILE_GENERIC_EXECUTE, FILE_GENERIC_READ, FILE_GENERIC_WRITE,
+    GetVolumeInformationW, GetVolumePathNameW, DELETE, FILE_GENERIC_EXECUTE, FILE_GENERIC_READ,
+    FILE_GENERIC_WRITE,
 };
 
 const ALLOWED_ACE: u8 = 0;
@@ -52,7 +53,10 @@ pub fn enforceable(path: &str) -> bool {
         }
     }
     let end = name.iter().position(|c| *c == 0).unwrap_or(name.len());
-    matches!(String::from_utf16_lossy(&name[..end]).as_str(), "NTFS" | "ReFS")
+    matches!(
+        String::from_utf16_lossy(&name[..end]).as_str(),
+        "NTFS" | "ReFS"
+    )
 }
 
 struct Dacl {

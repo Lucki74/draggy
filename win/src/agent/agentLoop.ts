@@ -795,6 +795,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     settings,
     workspaceId: request.workspaceId,
     chatId: request.chatId,
+    permissionMode: mode,
     correlationId,
     projectRoot: environment.projectRoot,
     environment,

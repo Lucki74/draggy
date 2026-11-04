@@ -3477,7 +3477,12 @@ ipc.handle("library:search", wrap("library", async (event, query, limit, model, 
 // a command outside. The network follows the permission mode.
 function boxFor(root, options) {
   if (options?.sandbox !== true || options?.outsideSandbox === true) return null;
-  return { project: root, dataDir: app.getPath("userData"), network: options?.network === true };
+  return {
+    project: root,
+    dataDir: app.getPath("userData"),
+    network: options?.network === true,
+    writable: options?.writable !== false,
+  };
 }
 
 // A command runs in the conversation's own project folder, which the main process looks up; the
