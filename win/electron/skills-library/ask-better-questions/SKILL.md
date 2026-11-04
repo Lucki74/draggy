@@ -19,7 +19,7 @@ Get the information that changes the outcome with the fewest interruptions. The 
 ## Steps
 
 1. List everything you do not know about the task. Write it as raw questions first, without filtering.
-2. Strike out the ones the workspace can answer. Use `search_files`, `read_file` and `explore` to look up conventions, existing patterns, config values and prior art. Questions the files answer should not reach the user.
+2. Strike out the ones the workspace can answer. Use `rg`, `read_file` and `explore` to look up conventions, existing patterns, config values and prior art. Questions the files answer should not reach the user.
 3. Strike out the ones with an obvious safe default and low cost if wrong. Note them as assumptions to state later.
 4. Of what is left, keep only the questions where the answer changes what you would build or where a wrong guess is expensive: goal and audience, scope boundaries, constraints, hard preferences, and anything irreversible.
 5. Sharpen each question. Make it answerable in a few words: offer two or three concrete options, name the one you would pick and why, and avoid open prompts like "what do you want?".

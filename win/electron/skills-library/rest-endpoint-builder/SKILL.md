@@ -20,7 +20,7 @@ Add a working endpoint that looks like it was written by the team that owns the 
 ## Steps
 
 1. Confirm the contract. State method, path, request fields, response fields and expected status codes. Use `ask_user` for anything the request leaves open, such as who may call it.
-2. Find the closest existing endpoint with `search_files` (a route of similar shape). Read it and its neighbours with `read_file`: router registration, handler, validation schema, service or data layer, tests.
+2. Find the closest existing endpoint with `rg` (a route of similar shape). Read it and its neighbours with `read_file`: router registration, handler, validation schema, service or data layer, tests.
 3. Note the conventions: where validation happens, how errors are thrown or returned, how auth is attached, how responses are serialized, naming of paths (plural nouns, casing).
 4. Write the validation first. Reject unknown or malformed input at the boundary and give field-level errors, using the project's validation approach.
 5. Put business logic in the service or domain layer the project already has, and keep the handler to parsing, calling and responding.

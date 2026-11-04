@@ -85,38 +85,6 @@ describe("the file tools", () => {
     expect(lifecycle().ended).toMatch(/^readFile /);
   });
 
-  it("list a folder", async () => {
-    stub({ list: { success: true, path: "C:\\projects\\thing", entries: [] } });
-    const { context, lifecycle } = harness();
-    context.projectRoot = "C:\\projects\\thing";
-
-    await runTool("list_directory", { path: "." }, context, EVERYTHING);
-
-    // "." names the project rather than showing a lone dot.
-    expect(lifecycle().began).toBe("listingFolder **thing**");
-    expect(lifecycle().ended).toBe("listedFolder **thing**");
-  });
-
-  it("move a file", async () => {
-    stub({ move: { success: true, path: "C:\\projects\\thing\\docs\\a.md", checkpointId: 1 } });
-    const { context, lifecycle } = harness();
-
-    await runTool("move_file", { from: "a.md", to: "docs/a.md" }, context, EVERYTHING);
-
-    expect(lifecycle().began).toMatch(/^movingFile /);
-    expect(lifecycle().ended).toMatch(/^movedFile /);
-  });
-
-  it("delete a file", async () => {
-    stub({ remove: { success: true, path: "C:\\projects\\thing\\a.md", checkpointId: 2 } });
-    const { context, lifecycle } = harness();
-
-    await runTool("delete_file", { path: "a.md" }, context, EVERYTHING);
-
-    expect(lifecycle().began).toMatch(/^deletingFile /);
-    expect(lifecycle().ended).toMatch(/^deletedFile /);
-  });
-
   it("keep their wording when they fail, and are marked as failed instead", async () => {
     stub({ read: { success: false, error: "No such file." } });
     const { context, steps, lifecycle } = harness();

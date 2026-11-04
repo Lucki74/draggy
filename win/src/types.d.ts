@@ -998,7 +998,7 @@ export interface McpServerState {
 
 /** How much a turn may do on its own. A workspace holds one of these, and every tool call is
  * measured against it. */
-export type PermissionMode = "plan" | "ask" | "acceptEdits" | "auto";
+export type PermissionMode = "plan" | "ask" | "acceptEdits" | "turbo" | "auto";
 
 export type WorkspaceKind = "chat" | "project";
 
@@ -1241,8 +1241,6 @@ export interface AppSettings {
   allowMaxInChat: boolean;
   /** Lets a slow model (under 3 tokens per second) think; off by default because thinking multiplies the wait. */
   slowModelThinking: boolean;
-  /** Lets an AMD card use the ROCm or HIP build ahead of Vulkan. On unless set to false. */
-  gpuRocm?: boolean;
   /** Lets colibri route to cached experts when the true ones are on disk: faster, and answers may change. */
   colibriLossy: boolean;
   webMode: "on" | "off";
@@ -1273,8 +1271,6 @@ export interface AppSettings {
   /** The level new code sessions start at. */
   codeDefaultEffort: EffortLevel;
   codeWebMode: "on" | "off";
-  /** The shell run_command uses when the model names none. "auto" is bash from Git for Windows, then PowerShell. */
-  defaultShell: "auto" | "bash" | "pwsh" | "powershell" | "cmd";
   /** What a new project starts at. */
   codePermissionMode: PermissionMode;
   libraryEnabled: boolean;
@@ -1416,7 +1412,7 @@ declare global {
       >;
       browserClose: () => Promise<{ ok: true }>;
 
-      createFile: (filename: string, content: string) => Promise<{ success: boolean; filepath?: string; filename?: string; error?: string }>;
+      createFile: (filename: string, content: string, chatId?: string) => Promise<{ success: boolean; filepath?: string; filename?: string; error?: string }>;
       openFile: (filepath: string) => Promise<string>;
       openCreatedFiles: () => Promise<string>;
       listCreatedFiles: () => Promise<{
@@ -1688,6 +1684,11 @@ declare global {
         onProgress: (callback: (progress: LibraryProgress) => void) => Unsubscribe;
       };
 
+      chats: {
+        /** Makes the chat's own folder if needed, and shows it in the file manager when asked. */
+        folder: (chatId: string, open?: boolean) => Promise<{ success: boolean; path?: string; error?: string }>;
+      };
+
       commands: {
         /** Runs a command in the workspace's own folder. The id lets it be stopped. */
         run: (
@@ -1704,6 +1705,15 @@ declare global {
             background?: boolean;
             /** Move it to the background at the time limit instead of stopping it. Default true. */
             autoDetach?: boolean;
+            /** Run in the sandbox. The main process ignores this for a chat folder, which is always boxed. */
+            sandbox?: boolean;
+            writable?: boolean;
+            network?: boolean;
+            outsideSandbox?: boolean;
+            /** One command as administrator, behind the Windows UAC prompt. YOLO only. */
+            elevated?: boolean;
+            /** A chat with no project: run in its own folder, in the sandbox, with the network off. */
+            chatFolder?: boolean;
           },
         ) => Promise<CommandResult>;
         cancel: (runId: string) => Promise<{ success: boolean }>;

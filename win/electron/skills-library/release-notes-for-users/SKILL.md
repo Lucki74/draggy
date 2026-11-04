@@ -26,7 +26,7 @@ Tell users what changed for them and what they must do. A good result opens with
 6. For fixes, say what used to go wrong in terms the user would recognise ("Large files no longer fail to upload"). Skip fixes to bugs no user could see.
 7. Check each statement against the code or ticket, not the title. If a title says "faster" without a number, do not invent one. Say what is known.
 8. Keep order by importance within each group. Keep the whole note to a screen or two. Add links to documentation or the full changelog for those who want depth.
-9. Verify names: feature names, menu paths and flags match the current product. Use `search_files` in the repo for the strings if there is doubt. Save with `create_file` if requested.
+9. Verify names: feature names, menu paths and flags match the current product. Use `rg` in the repo for the strings if there is doubt. Save with `create_file` if requested.
 10. Add upgrade notes when there is anything to do: backups, migrations, minimum versions, restart needs.
 11. Keep a consistent tense and form across items so the list scans: past tense for fixes, present for new abilities.
 

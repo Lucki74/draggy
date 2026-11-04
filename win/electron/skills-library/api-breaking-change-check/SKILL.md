@@ -19,14 +19,14 @@ Give a clear answer to "who breaks if this ships?". The result lists each change
 
 ## Steps
 
-1. Define the contract surface. Ask what outside code touches: package exports, REST or IPC endpoints, CLI, config files, stored data, events. Use `read_file` on the entry points and docs, and `search_files` for exports.
+1. Define the contract surface. Ask what outside code touches: package exports, REST or IPC endpoints, CLI, config files, stored data, events. Use `read_file` on the entry points and docs, and `rg` for exports.
 2. Get the change with `git_diff`, or read old and new versions of the files. For a released package, fetch the previous published API with `run_command` or `read_url` instead of trusting memory.
 3. Build a before and after list per item: name, parameters and types, return shape, thrown errors, defaults, ordering guarantees, side effects.
 4. Classify each difference:
    - Breaking: removed or renamed item, new required parameter, narrower accepted input, changed return type, changed error type or status code, changed default.
    - Behavioural: same signature, different result, timing, ordering, limits or rounding.
    - Safe: new optional parameter, new item, wider accepted input, new field in a response that clients ignore.
-5. Look for internal consumers with `search_files`. Update or list them. External consumers you cannot see are the real risk; say so.
+5. Look for internal consumers with `rg`. Update or list them. External consumers you cannot see are the real risk; say so.
 6. Check serialised forms: database columns, JSON keys, saved settings, cache entries, URLs. Old data must still load.
 7. Recommend: the version bump, a compatibility shim or deprecation alias if cheap, and the text for the changelog.
 8. Where possible run the old tests or examples against the new code with `run_command` to confirm the verdict.

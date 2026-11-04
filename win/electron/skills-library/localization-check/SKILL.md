@@ -19,7 +19,7 @@ Find the problems in a translated string set that a build will not catch: broken
 ## Steps
 
 1. **Set the scope.** Use `ask_user` for the locale (language and region), the product type, the audience, the tone wanted and which files hold the source and target strings.
-2. **Find the files.** Use `list_directory` and `search_files` to locate resource files for the source and target locales, and note the format and key naming.
+2. **Find the files.** Use `ls` and `rg` to locate resource files for the source and target locales, and note the format and key naming.
 3. **Read both sides.** Use `read_file` on the source and the target. Pair strings by key and list keys missing on either side.
 4. **Check placeholders.** For each pair, confirm that variables, tags and format markers appear in the target exactly as in the source, with no spaces added or names translated.
 5. **Check plurals and gender.** Compare the plural categories the locale needs against what the file provides. Look for strings that build sentences from pieces, which break grammar in other languages.

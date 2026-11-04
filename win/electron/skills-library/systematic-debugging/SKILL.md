@@ -24,7 +24,7 @@ For a quick bug with a clear cause, use `use_skill` with `debugging`. For a test
 
 1. **Write down the symptom.** State expected behaviour, actual behaviour and the exact error text. Use `ask_user` if either is unclear. Record the steps in `update_plan`.
 2. **Reproduce.** Run the failing command with `run_command` and keep the output. If it cannot be reproduced, say so and collect more data (versions, inputs, environment) before touching code.
-3. **Isolate.** Narrow the failing area: the first bad value in the data flow, the failing input, the newest change. Use `search_files` to find who writes the bad value. Read the code with `read_file`, not from memory.
+3. **Isolate.** Narrow the failing area: the first bad value in the data flow, the failing input, the newest change. Use `rg` to find who writes the bad value. Read the code with `read_file`, not from memory.
 4. **List hypotheses.** Write two or three causes, each with the observation that would confirm or kill it. Rank by evidence, not by how easy the fix looks.
 5. **Test one hypothesis at a time.** Add a temporary log, assertion or small `run_command` check that gives a yes or no. Change one thing per run. Note the result of each run.
 6. **State the root cause** in one sentence: where the bad state is created and why. If the answer is "it is null here", ask who made it null.

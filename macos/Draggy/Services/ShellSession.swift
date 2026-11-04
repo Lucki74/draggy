@@ -8,15 +8,22 @@ public final class ShellSession: Identifiable {
     public var output: String = ""
     public var isRunning: Bool = false
     public var workingDirectory: String
+    /// When set, the shell runs under sandbox-exec with this spec; nil keeps the unboxed shell.
+    public var sandbox: SandboxSpec?
 
     private var process: Process?
     private var inputPipe: Pipe?
     private var outputPipe: Pipe?
 
-    public init(shell: ShellInfo = ShellDetection.shared.defaultShell(), workingDirectory: String = FileManager.default.currentDirectoryPath) {
+    public init(
+        shell: ShellInfo = ShellDetection.shared.defaultShell(),
+        workingDirectory: String = FileManager.default.currentDirectoryPath,
+        sandbox: SandboxSpec? = nil
+    ) {
         self.id = UUID()
         self.shell = shell
         self.workingDirectory = workingDirectory
+        self.sandbox = sandbox
     }
 
     public func start() {
@@ -26,12 +33,21 @@ public final class ShellSession: Identifiable {
         let inPipe = Pipe()
         let outPipe = Pipe()
 
-        process.executableURL = URL(fileURLWithPath: shell.path)
-        process.arguments = ["-l"]
-        process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
-
         var env = ProcessInfo.processInfo.environment
         env["TERM"] = "xterm-256color"
+        var launch: (executable: String, arguments: [String]) = (shell.path, ["-l"])
+        if let sandbox {
+            guard SandboxPolicy.isAvailable() else {
+                output.append("The sandbox is not available, so the shell was not started.\n")
+                return
+            }
+            env = SandboxPolicy.scrubEnv(env)
+            launch = SandboxPolicy.wrap(sandbox, command: [shell.path, "-l"])
+        }
+
+        process.executableURL = URL(fileURLWithPath: launch.executable)
+        process.arguments = launch.arguments
+        process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
         process.environment = env
 
         process.standardInput = inPipe

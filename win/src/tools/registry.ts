@@ -1,5 +1,5 @@
 import type { TrackedImage } from "../images/imageTracker";
-import type { AppSettings, SearchStep, UserQuestion, UserReply } from "../types";
+import type { AppSettings, PermissionMode, SearchStep, UserQuestion, UserReply } from "../types";
 import type { ToolAnnotations } from "../agent/permissions";
 import type { PlanItem } from "../plan/plan";
 import { logRendererEvent } from "../logger";
@@ -38,8 +38,12 @@ export interface ToolEnvironment {
   hasSkills?: boolean;
   /** Whether that folder is a git repository and git is installed to read it. */
   hasGit?: boolean;
+  /** A chat with no project: commands run in a folder of the chat's own, always sandboxed. */
+  chatFolder?: boolean;
   /** Whether commands can run in that folder. Code only. */
   canRunCommands?: boolean;
+  /** YOLO on Windows: a command may ask for administrator rights, which Windows confirms itself. */
+  canElevate?: boolean;
   /** Whether the image engine and an image model are both installed. */
   imageReady?: boolean;
   /** Whether the chat model can read pictures, which is what lets it look at one of the chat's images. */
@@ -61,6 +65,8 @@ export interface ToolContext {
   workspaceId?: string;
   /** The conversation, so a change to a file can be traced back to it. */
   chatId?: string;
+  /** The permission mode of this turn; decides whether a command runs in the sandbox. */
+  permissionMode?: PermissionMode;
   /** The turn this call belongs to, for log lines in the main process. */
   correlationId?: string;
   /** The project folder, for the rules a folder deeper in may carry. */

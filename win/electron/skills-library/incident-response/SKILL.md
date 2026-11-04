@@ -24,7 +24,7 @@ A good response keeps a written timeline and a short status message ready for pe
 3. Start the timeline with `update_plan` entries or a file: each time, action and result. Record the time of every action you take.
 4. Check what changed first. Run `git log --since` and `git_status` with `run_command`, and ask about deploys, config pushes, flag flips, certificate expiry and provider status pages.
 5. Mitigate before diagnosing when a recent change is the likely cause: roll back, disable the flag, scale up, or fail over. Use `use_skill` with `rollback-runbook` when a release is the suspect.
-6. Read recent errors. Use `run_command` to tail logs or query the log tool, and `search_files` for the exact error string in the code.
+6. Read recent errors. Use `run_command` to tail logs or query the log tool, and `rg` for the exact error string in the code.
 7. Check the dependencies in order: database, cache, queue, third party APIs, DNS, certificates. Use `search_web` or `read_url` on provider status pages.
 8. Form one hypothesis at a time and test it with a read-only command. Do not run write or delete commands on production without the user's explicit yes.
 9. Draft the status message: what is affected, what we know, what we are doing, next update time. Keep it free of guesses about cause.

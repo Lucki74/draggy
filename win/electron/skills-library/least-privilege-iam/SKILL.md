@@ -20,10 +20,10 @@ A good result keeps the service working and shows the evidence for every permiss
 
 ## Steps
 
-1. Collect the policies. Use `search_files` for `Action`, `Resource`, `"*"`, `AdministratorAccess`, `roles/owner` and `iam_` in infrastructure code, or ask for an exported policy document. Read each with `read_file`.
+1. Collect the policies. Use `rg` for `Action`, `Resource`, `"*"`, `AdministratorAccess`, `roles/owner` and `iam_` in infrastructure code, or ask for an exported policy document. Read each with `read_file`.
 2. List identities (users, groups, roles, service accounts) and what each is used for. Note shared accounts and long-lived access keys.
 3. Flag broad grants: wildcard actions, wildcard resources, admin or owner roles, and `iam:*`, `PassRole`, `sts:AssumeRole` combined with broad resources, which allow escalation.
-4. Determine what the workload really calls. Read its code with `search_files` for SDK calls, or use the provider's access analysis (last-used data, access advisor). Check the provider's tool names with `read_url`.
+4. Determine what the workload really calls. Read its code with `rg` for SDK calls, or use the provider's access analysis (last-used data, access advisor). Check the provider's tool names with `read_url`.
 5. Write the minimal action list per resource. Scope resources by ARN or name, and add conditions (source network, tags, MFA) where the provider supports them.
 6. Split roles by function: read-only, deploy, runtime. A CI role should not have the runtime role's data access.
 7. Check trust policies: who can assume each role, and that third-party access uses an external id or equivalent.

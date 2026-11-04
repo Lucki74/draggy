@@ -14,6 +14,8 @@ import {
   movePane,
   filePathOf,
   terminalIdOf,
+  isPaneMaximized,
+  togglePaneMaximized,
   openPane,
   renameFilePane,
   splitPane,
@@ -126,6 +128,13 @@ export function Dock({
   const handleUnsplit = useCallback(() => {
     onLayoutChange(unsplit(layout));
   }, [layout, onLayoutChange]);
+
+  const handleToggleMaximize = useCallback(
+    (pane: PaneId) => {
+      onLayoutChange(togglePaneMaximized(layout, pane));
+    },
+    [layout, onLayoutChange],
+  );
 
   const paneTitles = useMemo(() => {
     const titles: Partial<Record<PaneId, string>> = {
@@ -255,6 +264,8 @@ export function Dock({
       onMovePane={handleMovePane}
       onSplitPane={handleSplitPane}
       onUnsplit={handleUnsplit}
+      isMaximized={isPaneMaximized(layout, layout.active ?? "plan")}
+      onToggleMaximize={handleToggleMaximize}
       onStartResize={onStartResize}
       isOverlay={isOverlay}
     />

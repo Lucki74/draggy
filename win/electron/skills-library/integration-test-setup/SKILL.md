@@ -22,7 +22,7 @@ For test doubles at the edges, use `use_skill` with `mock-and-stub-design`. For 
 
 ## Steps
 
-1. **Survey.** Use `list_directory`, `read_file` and `search_files` for the test runner, existing test folders, docker or compose files, scripts and env templates. Run the current tests with `run_command` to learn the baseline.
+1. **Survey.** Use `ls`, `read_file` and `rg` for the test runner, existing test folders, docker or compose files, scripts and env templates. Run the current tests with `run_command` to learn the baseline.
 2. **Decide the scope.** Pick the seams to cover: repository with database, HTTP routes with the app in process, message consumer. State what stays real and what is faked (payment provider, email, clock).
 3. **Pick the environment.** Prefer a disposable local database or container, an in-process server on a random port, or a temp directory. Never point tests at a shared, staging or production service. Ask with `ask_user` if connection details are missing.
 4. **Write setup and teardown.** Create the schema by running the real migrations. Start the app once per file or suite. Isolate each test with a transaction rolled back, a fresh schema, or unique names, and clean up in teardown even on failure.

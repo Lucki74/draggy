@@ -24,7 +24,7 @@ For finding the cause in the full project, use `use_skill` with `systematic-debu
 
 1. **Capture the failure signature.** Run the original with `run_command` and record the exact error text, exit code or wrong output. This is the test for "still fails the same way".
 2. **Script the check.** Write a small script with `create_file` that runs the case and exits non-zero only when the signature appears. Every later step uses it.
-3. **Copy to a scratch directory.** Work on a copy, never on the original project. Use `list_directory` to see what you are cutting.
+3. **Copy to a scratch directory.** Work on a copy, never on the original project. Use `ls` to see what you are cutting.
 4. **Cut big pieces first.** Remove half of the files, routes, config blocks, dependencies or input rows. Run the check. If it still fails, keep the cut; if not, restore and cut the other half. Halving beats removing line by line.
 5. **Cut finer.** Remove functions, options, fields, plugins and imports one at a time. Replace real data with literals. Replace services with constants.
 6. **Simplify values.** Shorten strings, reduce numbers to the smallest failing size, rename to plain names.

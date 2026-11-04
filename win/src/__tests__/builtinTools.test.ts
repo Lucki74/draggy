@@ -342,3 +342,29 @@ describe("browser input tools", () => {
     expect(browserDrag).toHaveBeenCalledWith({ x: 1, y: 2 }, { x: 3, y: 4 });
   });
 });
+
+describe("create_file in a chat with a folder", () => {
+  it("saves into that chat's folder", async () => {
+    const createFile = vi.fn().mockResolvedValue({ success: true, filepath: "C:/chats/chat-1/primes.py" });
+    vi.stubGlobal("window", { electronAPI: { createFile } });
+
+    const environment: ToolEnvironment = { ...ALL_ON, chatFolder: true };
+    const { context } = harness();
+    context.environment = environment;
+    context.chatId = "chat-1";
+    await runTool("create_file", { filename: "primes.py", content: "print(2)" }, context, environment);
+
+    expect(createFile).toHaveBeenCalledWith("primes.py", "print(2)", "chat-1");
+  });
+
+  it("keeps the plain call when the chat has no folder", async () => {
+    const createFile = vi.fn().mockResolvedValue({ success: true, filepath: "C:/out/a.md" });
+    vi.stubGlobal("window", { electronAPI: { createFile } });
+
+    const { context } = harness();
+    context.chatId = "chat-1";
+    await runTool("create_file", { filename: "a.md", content: "x" }, context, ALL_ON);
+
+    expect(createFile).toHaveBeenCalledWith("a.md", "x");
+  });
+});

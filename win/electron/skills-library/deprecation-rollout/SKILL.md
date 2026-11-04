@@ -20,9 +20,9 @@ Move every consumer to the replacement, then remove the old interface with no su
 ## Steps
 
 1. Define what is deprecated, what replaces it, and who the consumers are (internal code, other teams, external users). If there is no replacement, say what users should do instead, and confirm with `ask_user` that removal is truly wanted.
-2. Ship the replacement first. Check it covers every real use case of the old interface by reading the old callers with `search_files` and `read_file`. A gap found now is cheap.
+2. Ship the replacement first. Check it covers every real use case of the old interface by reading the old callers with `rg` and `read_file`. A gap found now is cheap.
 3. Mark the old interface in code: a deprecation annotation or doc tag, and a runtime warning where the language allows. The warning names the replacement, the version or date of removal and a link. Emit it once per process or per caller, not per call.
-4. Make usage visible. Add a counter or log line on the old path, keyed by caller or client where known, and for internal code list the call sites with `search_files`. Without this you cannot tell when removal is safe.
+4. Make usage visible. Add a counter or log line on the old path, keyed by caller or client where known, and for internal code list the call sites with `rg`. Without this you cannot tell when removal is safe.
 5. Migrate internal callers yourself with small changes (see `codemod-writer` for bulk changes), so the remaining usage is external.
 6. Communicate: the changelog entry, docs update with a migration example, and direct notice to known consumers. Draft these with the user. State the timeline with real dates, based on the project's own release and support policy.
 7. Set the removal gate in writing: the date has passed and measured use is zero or acceptably low. Review the counters at the date. If use remains, extend and contact the remaining users instead of removing.

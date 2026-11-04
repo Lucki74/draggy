@@ -47,8 +47,6 @@ fn install_styles() {
 
 fn main() -> glib::ExitCode {
     gio::resources_register_include!("draggy.gresource").expect("the bundled resources register");
-    // `DRAGGY_GPU_ROCM=0` stops an AMD card from taking the ROCm engine build ahead of Vulkan. On by default.
-    draggy_core::installer::set_gpu_rocm(!std::env::var("DRAGGY_GPU_ROCM").is_ok_and(|v| v == "0"));
     let app = adw::Application::builder().application_id(APP_ID).build();
     app.connect_startup(|_| install_styles());
     app.connect_activate(|app| {

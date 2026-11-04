@@ -19,7 +19,7 @@ Leave the user with a small, working system: one way to capture, one way to proc
 ## Steps
 
 1. **Learn the situation.** Use `ask_user` about what they take notes from (lectures, books, meetings, videos), on what tool (paper, laptop, app), how they use notes later (exams, writing, projects) and what goes wrong now.
-2. **Look at what exists.** If notes are on disk, use `list_directory` and `read_file` on a few to see names, structure and length.
+2. **Look at what exists.** If notes are on disk, use `ls` and `read_file` on a few to see names, structure and length.
 3. **Pick a capture style.** Match to the source. Structured lectures suit an outline. Dense reading suits question-and-answer or margin notes. Idea work suits short linked notes, one idea each. Fast talk suits keywords now and cleanup later.
 4. **Define the unit.** Decide what one note is: one lecture, one idea, one book chapter. State the rule in a sentence.
 5. **Set the naming and folders.** Choose a short, predictable name pattern with the date or course first. Keep folder depth at two levels. Create the layout with `create_file` or `run_command`.

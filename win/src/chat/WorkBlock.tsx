@@ -414,6 +414,48 @@ export interface WorkBlockProps {
   t: (key: string) => string;
 }
 
+/** A command step reads "Ran `command`": the command in backticks, an exit note after it. */
+function splitCommand(content: string): { head: string; command: string; tail: string } | null {
+  const start = content.indexOf("`");
+  const end = content.lastIndexOf("`");
+  if (start < 0 || end <= start) return null;
+  return { head: content.slice(0, start), command: content.slice(start + 1, end), tail: content.slice(end + 1) };
+}
+
+/** The command on one line, cut short; a caret opens the whole of it for a long or many-line command. */
+function CommandLine({ content, active }: { content: string; active: boolean }) {
+  const [open, setOpen] = useState(false);
+  const parts = splitCommand(content);
+  if (!parts) return null;
+  const firstLine = parts.command.split("\n")[0];
+  const more = parts.command.includes("\n") || parts.command.length > 90;
+
+  return (
+    <span className={`flex min-w-0 flex-1 gap-1 ${open ? "items-start" : "items-center"} ${active ? "" : "text-text-primary"}`}>
+      <span className="flex-shrink-0 whitespace-pre">{parts.head}</span>
+      {open ? (
+        <code className="min-w-0 flex-1 whitespace-pre-wrap break-all rounded-sm bg-surface-raised px-1.5 py-0.5 font-mono text-[12px]">
+          {parts.command}
+        </code>
+      ) : (
+        <code className="min-w-0 truncate rounded-sm bg-surface-raised px-1.5 font-mono text-[12px]">{firstLine}</code>
+      )}
+      {parts.tail && <span className="flex-shrink-0 whitespace-pre">{parts.tail}</span>}
+      {more && (
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-label={open ? "Collapse command" : "Show full command"}
+          className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary"
+        >
+          <Icon name="caret-right" size={12} className={`transition-transform ${open ? "rotate-90" : ""}`} />
+        </button>
+      )}
+    </span>
+  );
+}
+
 export function WorkBlock({
   step,
   isGenerating = false,
@@ -559,15 +601,19 @@ export function WorkBlock({
             className={failed ? "text-danger" : ""}
           />
         </span>
-        <span className={`markdown-inline min-w-0 ${isActive ? "" : "text-text-primary"}`}>
-          <ReactMarkdown
-            remarkPlugins={REMARK_PLUGINS}
-            rehypePlugins={REHYPE_PLUGINS}
-            components={INLINE_COMPONENTS}
-          >
-            {step.content}
-          </ReactMarkdown>
-        </span>
+        {step.runId && step.fileContent && splitCommand(step.content) ? (
+          <CommandLine content={step.content} active={isActive} />
+        ) : (
+          <span className={`markdown-inline min-w-0 ${isActive ? "" : "text-text-primary"}`}>
+            <ReactMarkdown
+              remarkPlugins={REMARK_PLUGINS}
+              rehypePlugins={REHYPE_PLUGINS}
+              components={INLINE_COMPONENTS}
+            >
+              {step.content}
+            </ReactMarkdown>
+          </span>
+        )}
 
         {/* Failed step keeps original description so failure is explicit rather than silent. */}
         {failed && <span className="text-[12px] text-danger">{t("stepFailed")}</span>}

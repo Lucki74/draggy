@@ -18,11 +18,11 @@ Give the user a filing system they can keep up: few folders, clear names, a back
 ## Steps
 
 1. Ask with `ask_user` whether the system is digital, paper or both, how many documents there are, and who shares access.
-2. If the user points to a folder, scan it with `list_directory` and note file types, names and obvious duplicates.
+2. If the user points to a folder, scan it with `ls` and note file types, names and obvious duplicates.
 3. Propose top-level categories of about eight or fewer, such as identity, home, money, insurance, work, health admin, vehicles and manuals.
 4. Choose a naming pattern with the date first in year-month-day order, then the source and the topic, for example 2025-03-14 insurer policy renewal.
 5. Show the user the structure and a few renames before changing anything. Ask for confirmation.
-6. After approval, move and rename files with `move_file` in small batches, and report each batch.
+6. After approval, move and rename files with `mv` in small batches, and report each batch.
 7. Flag duplicates and ask before deleting any. Do not delete anything on the user's behalf.
 8. Build the keep list. Ask the user to confirm retention periods for tax, property and insurance papers with the official body or a professional, since rules differ by country and change.
 9. Mark papers to keep in original form, such as birth certificates and deeds, and store scans in addition.

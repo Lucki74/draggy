@@ -18,8 +18,8 @@ Route each change to the people who know that code, without creating a bottlenec
 
 ## Steps
 
-1. Find out which host is in use: `git remote -v` with `run_command`. GitHub, GitLab and Bitbucket each read the file from a slightly different place and use slightly different syntax, so confirm details against the host's current docs with `read_url` before writing. Check whether a file already exists with `search_files` for `CODEOWNERS`.
-2. Map the repository. Use `list_directory` on the root and the main source folders, and group paths by area: apps, shared libraries, infrastructure, docs, CI config.
+1. Find out which host is in use: `git remote -v` with `run_command`. GitHub, GitLab and Bitbucket each read the file from a slightly different place and use slightly different syntax, so confirm details against the host's current docs with `read_url` before writing. Check whether a file already exists with `rg` for `CODEOWNERS`.
+2. Map the repository. Use `ls` on the root and the main source folders, and group paths by area: apps, shared libraries, infrastructure, docs, CI config.
 3. Mine real ownership from history. For each area, run `git shortlog -sne --since="12 months ago" -- <path>` with `run_command`. Note who commits and who reviews most. Do not assign owners from guesswork or from names in a README that may be stale.
 4. Ask with `ask_user` for the owner handles to use: user names or team names on the host, and who is the fallback owner for everything else. Never invent a handle.
 5. Write the file with `create_file`. Put a default rule first (`* @org/maintainers`), then specific rules after it, because later matching lines win. Use team handles over individuals so reviews survive people leaving. Keep each line to one pattern and a short list of owners.

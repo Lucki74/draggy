@@ -826,18 +826,6 @@ function syncTitleBarTheme() {
   }
 }
 
-/** Hands the gpu.rocm choice to the engine code, which reads it when it picks a build. On unless the setting is off. */
-function applyRunnerSetting(rawSettings) {
-  let rocm;
-  try {
-    const parsed = typeof rawSettings === "string" ? JSON.parse(rawSettings) : rawSettings;
-    rocm = parsed?.gpuRocm !== false;
-  } catch {
-    rocm = true;
-  }
-  binaryManager.setRunnerOptions({ rocm });
-}
-
 function applyThemeSetting(rawSettings) {
   overlayColor = themes.accentColor(rawSettings);
   const setting = themes.themeSetting(rawSettings);
@@ -1169,7 +1157,6 @@ app.whenReady().then(() => {
   onboardingPlan = decideOnboarding();
   try {
     applyThemeSetting(storage.getValue("draggy_settings"));
-    applyRunnerSetting(storage.getValue("draggy_settings"));
   } catch (error) {
     log.warn("theme", `could not read the saved theme: ${error.message}`);
   }
@@ -2702,7 +2689,7 @@ ipc.handle("read-document", async (event, filename, data) => {
   }
 });
 
-ipc.handle("create-file", async (event, filename, content) => {
+ipc.handle("create-file", async (event, filename, content, chatId) => {
   try {
     const safeFilename = path.basename(String(filename));
 
@@ -2718,11 +2705,13 @@ ipc.handle("create-file", async (event, filename, content) => {
       };
     }
 
-    const dir = createdFilesDir();
+    const chatDir = chatId ? chatDirPath(chatId) : null;
+    if (chatId && !chatDir) return { success: false, error: "That chat has no folder." };
+    const dir = chatDir || createdFilesDir();
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
     const filepath = path.join(dir, safeFilename);
-    if (!isInsideCreatedFilesDir(path.resolve(filepath))) {
+    if (!chatDir && !isInsideCreatedFilesDir(path.resolve(filepath))) {
       return { success: false, error: "Refused to write outside the output folder." };
     }
 
@@ -2846,6 +2835,13 @@ const wrap = (scope, handler) => async (...args) => {
 /** The folders a conversation may reach: its workspace's and nothing else. The renderer names a
  * workspace, so it cannot ask for a folder it was never given. */
 function rootsFor(workspaceId) {
+  // `chat:<id>` is the folder of a chat that has no project, made when the chat first needs it.
+  if (typeof workspaceId === "string" && workspaceId.startsWith("chat:")) {
+    const dir = chatDirPath(workspaceId.slice(5));
+    if (!dir) return [];
+    fs.mkdirSync(dir, { recursive: true });
+    return [dir];
+  }
   const workspace = storage.getWorkspace(workspaceId);
   return workspace && workspace.rootPath ? [workspace.rootPath] : [];
 }
@@ -3337,11 +3333,18 @@ ipc.handle("db:save-chat", wrap("db", async (event, session) =>
   storage.saveChat(session),
 ));
 
-ipc.handle("db:delete-chat", wrap("db", async (event, id) =>
-  storage.deleteChat(String(id)),
-));
+ipc.handle("db:delete-chat", wrap("db", async (event, id) => {
+  const result = storage.deleteChat(String(id));
+  const dir = chatDirPath(id);
+  if (dir) fs.rmSync(dir, { recursive: true, force: true });
+  return result;
+}));
 
-ipc.handle("db:clear-chats", wrap("db", async () => storage.clearChats()));
+ipc.handle("db:clear-chats", wrap("db", async () => {
+  const result = storage.clearChats();
+  fs.rmSync(chatsRoot(), { recursive: true, force: true });
+  return result;
+}));
 
 ipc.handle("db:search-chats", wrap("db", async (event, query) => ({
   success: true,
@@ -3395,7 +3398,6 @@ ipc.handle("db:set", wrap("db", async (event, key, value) => {
     const changed = settingsLog.describeChange(before, value);
     if (Object.keys(changed).length > 0) log.info("settings", "settings saved", { changed });
     applyThemeSetting(value);
-    applyRunnerSetting(value);
   } else if (result.success) {
     log.info("settings", "setting saved", settingsLog.describeKeySave(key));
   }
@@ -3473,17 +3475,80 @@ ipc.handle("library:search", wrap("library", async (event, query, limit, model, 
   ),
 ));
 
+// A command runs in the sandbox only when the renderer asks for it, until the permission modes can approve
+// a command outside. The network follows the permission mode.
+function boxFor(root, options) {
+  if (options?.sandbox !== true || options?.outsideSandbox === true) return null;
+  return {
+    project: root,
+    dataDir: app.getPath("userData"),
+    network: options?.network === true,
+    writable: options?.writable !== false,
+    ...(options?.extras ? { extras: options.extras } : {}),
+  };
+}
+
 // A command runs in the conversation's own project folder, which the main process looks up; the
 // renderer names a workspace and cannot pick a folder. With `background` it starts as a task and
 // returns at once; otherwise it runs in the foreground and can be moved to the background later.
+// A chat has no project, so it gets a folder of its own under the app data, made on first use and removed with
+// the chat. Commands there always run in the sandbox, with no network and the embedded Python on PATH.
+function chatsRoot() {
+  return path.join(app.getPath("userData"), "chats");
+}
+
+function chatDirPath(chatId) {
+  const id = String(chatId || "");
+  return /^[\w-]{1,128}$/.test(id) ? path.join(chatsRoot(), id) : null;
+}
+
+function pythonDir() {
+  const candidates = [path.join(process.resourcesPath || "", "python"), path.join(__dirname, "..", "vendor", "python")];
+  return candidates.find((dir) => fs.existsSync(path.join(dir, "python.exe"))) || null;
+}
+
+/** The bundled Python on a chat command's PATH. PYTHONHOME keeps it off any Python installed on the
+ * machine, and the folder's own files import normally because the bundle has no ._pth file. */
+function pythonExtras(python) {
+  return { readOnly: [python], path: [python], env: { PYTHONHOME: python, PYTHONNOUSERSITE: "1" } };
+}
+
+ipc.handle("chats:folder", wrap("chats", async (event, chatId, open) => {
+  const dir = chatDirPath(chatId);
+  if (!dir) return { success: false, error: "That chat has no folder." };
+  fs.mkdirSync(dir, { recursive: true });
+  if (open) await shell.openPath(dir);
+  return { success: true, path: dir };
+}));
+
 ipc.handle(
   "commands:run",
   wrap("commands", async (event, workspaceId, runId, command, options) => {
-    const root = rootsFor(workspaceId)[0];
+    const real = rootsFor(workspaceId)[0];
+    const chatDir = !real && options?.chatFolder === true ? chatDirPath(options?.chatId) : null;
+    const root = real || chatDir;
     if (!root) {
       return { success: false, error: "Commands run inside a project, and this conversation has none." };
     }
+    if (chatDir) {
+      fs.mkdirSync(chatDir, { recursive: true });
+      const python = pythonDir();
+      options = {
+        ...options,
+        sandbox: true,
+        outsideSandbox: false,
+        network: false,
+        writable: true,
+        extras: python ? pythonExtras(python) : undefined,
+      };
+    }
     const chatId = String(options?.chatId || workspaceId || "default");
+    // YOLO only: one command as administrator, behind the Windows UAC prompt. The app stays unelevated.
+    if (options?.elevated === true && real) {
+      const result = await require("./elevate.cjs").runElevated({ command, cwd: real, timeoutMs: options?.timeoutMs });
+      if (result.output) sendTo(BrowserWindow.fromWebContents(event.sender), "commands:output", { runId, chunk: result.output });
+      return result;
+    }
     if (options?.background) {
       const started = tasks().start({
         chatId,
@@ -3491,6 +3556,7 @@ ipc.handle(
         command,
         shell: options?.shell,
         defaultShell: options?.defaultShell,
+        sandbox: boxFor(root, options),
       });
       if (started.error) return { success: false, error: started.error };
       return { success: true, background: true, taskId: started.task.id, task: started.task, shell: started.task.shell, ...(started.notice ? { notice: started.notice } : {}) };
@@ -3506,6 +3572,7 @@ ipc.handle(
       stateKey: chatId,
       tasks: tasks(),
       autoDetach: options?.autoDetach !== false,
+      sandbox: boxFor(root, options),
       onOutput: (chunk) => sendTo(BrowserWindow.fromWebContents(event.sender), "commands:output", { runId, chunk }),
     });
   }),

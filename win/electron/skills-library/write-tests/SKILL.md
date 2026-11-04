@@ -18,7 +18,7 @@ Add tests that fail when the behaviour breaks and pass when it works, written in
 
 ## Steps
 
-1. Find the framework and conventions. Read package.json, pyproject.toml, Cargo.toml, go.mod or the build file, and use `search_files` for existing test files (`.test.`, `_test.`, `test_`, `spec`).
+1. Find the framework and conventions. Read package.json, pyproject.toml, Cargo.toml, go.mod or the build file, and use `rg` for existing test files (`.test.`, `_test.`, `test_`, `spec`).
 2. Read two or three existing tests near the code under test with `read_file`. Copy their structure: file location and naming, imports, fixtures and helpers, mocking style, assertion style.
 3. Find the command that runs tests (package scripts, Makefile, CI config).
 4. Decide what to test:

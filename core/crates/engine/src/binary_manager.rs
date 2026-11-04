@@ -424,20 +424,11 @@ pub struct RunnerOptions {
     pub rocm: bool,
 }
 
-static ROCM_ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
 impl RunnerOptions {
-    /// The options the shell last set with [`set_runner_options`]. Everything is off until it does.
+    /// ROCm and HIP are always allowed, ahead of Vulkan.
     pub fn current() -> Self {
-        Self {
-            rocm: ROCM_ENABLED.load(Ordering::Relaxed),
-        }
+        Self { rocm: true }
     }
-}
-
-/// Records the user's GPU backend choices (`gpu.rocm`) for the engine installer and updater.
-pub fn set_runner_options(options: RunnerOptions) {
-    ROCM_ENABLED.store(options.rocm, Ordering::Relaxed);
 }
 
 /// Picks the GPU backend the engine folder can run, with the options the shell set.

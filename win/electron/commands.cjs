@@ -6,6 +6,7 @@ const { SHELL_IDS, findOnPath, shellInvocation } = require("./shells.cjs");
 const { log } = require("./logger.cjs");
 const crypto = require("crypto");
 const taskText = require("./taskText.cjs");
+const sandbox = require("./sandbox.cjs");
 
 /** Commands the model runs in a project: a real shell in the project folder, with no terminal to
  * wait on, stoppable, and output cut to a size a model can read. */
@@ -80,7 +81,7 @@ function resetState(stateKey) {
  * `tasks` (the task manager) lets a command be handed over to run in the background; `autoDetach`
  * does that at the time limit instead of stopping the command. `stateKey` names the chat whose folder
  * and environment carry over from one command to the next. */
-function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatId, stateKey, tasks, autoDetach }) {
+function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatId, stateKey, tasks, autoDetach, sandbox: boxed }) {
   const text = String(command || "");
   if (!text.trim()) return Promise.resolve({ success: false, error: "No command was given." });
   if (text.length > MAX_COMMAND_CHARS) {
@@ -90,14 +91,14 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatI
     return Promise.resolve({ success: false, error: "The project folder is not available." });
   }
 
-  const plain = shellInvocation(text, shell, { defaultShell });
+  const plain = shellInvocation(text, shell, { defaultShell, sandboxed: Boolean(boxed) });
   if (plain.error) return Promise.resolve({ success: false, error: plain.error });
 
   // The shell reports its final folder and environment after the command, under a marker that only
   // this run knows, so the command's own output cannot pass for the report.
   const marker = stateKey && taskText.supportsState(plain.shell) ? `DG${crypto.randomBytes(6).toString("hex")}` : null;
   const invocation = marker
-    ? shellInvocation(text + taskText.stateEpilogue(plain.shell, marker), shell, { defaultShell })
+    ? shellInvocation(text + taskText.stateEpilogue(plain.shell, marker), shell, { defaultShell, sandboxed: Boolean(boxed) })
     : plain;
   if (invocation.error) return Promise.resolve({ success: false, error: invocation.error });
 
@@ -189,8 +190,14 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatI
     log.info("proc.command", "command spawning", { shell: invocation.shell, chars: text.length, timeoutMs: limit });
     log.debug("proc.command", "invocation", { file: path.basename(invocation.file), args: invocation.args.length });
 
+    const spawn = { file: invocation.file, args: invocation.args, cwd: folder, env: childEnv, verbatim: invocation.verbatim };
+    const launch = boxed ? sandbox.wrap(spawn, { ...boxed, chatKey: chatId }) : spawn;
+    if (launch.error) {
+      finish({ success: false, error: launch.error });
+      return;
+    }
     entry.handle = spawnStream(
-      { file: invocation.file, args: invocation.args, cwd: folder, env: childEnv, verbatim: invocation.verbatim },
+      launch,
       {
         onStdout: collect,
         onStderr: collect,

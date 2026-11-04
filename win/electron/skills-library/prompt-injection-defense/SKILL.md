@@ -19,7 +19,7 @@ Reduce the damage an attacker can do through text the app feeds to a model. The 
 
 ## Steps
 
-1. Ask with `ask_user` what the app does, which models and tools it uses, who can supply text, and what the worst outcome would be. Read the prompt-building code with `read_file` and `search_files`.
+1. Ask with `ask_user` what the app does, which models and tools it uses, who can supply text, and what the worst outcome would be. Read the prompt-building code with `read_file` and `rg`.
 2. Map every place text enters a prompt: user input, retrieved documents, web pages, tool results, file contents, emails, names and comments in data. Mark each as trusted or untrusted. Assume anything a third party can write is untrusted.
 3. Map what the model can do: each tool, each permission, each data source in reach. Note which actions are destructive, expensive, private or outward facing, such as sending a message or making a request to a URL.
 4. Apply least power. Remove tools the task does not need. Make read tools read only. Scope file, network and data access to what the task requires. Do not give one agent both untrusted input and a powerful tool when you can split them.

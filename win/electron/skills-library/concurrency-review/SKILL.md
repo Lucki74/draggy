@@ -19,7 +19,7 @@ Decide whether a change stays correct when two things run at once or in an unexp
 
 ## Steps
 
-1. Identify the concurrency model with `read_file` and `search_files`: threads, an event loop, worker processes, goroutines, actors, IPC between processes. The hazards differ per model.
+1. Identify the concurrency model with `read_file` and `rg`: threads, an event loop, worker processes, goroutines, actors, IPC between processes. The hazards differ per model.
 2. List shared state touched by the change: module-level variables, singletons, caches, files, database rows, global counters, objects passed between tasks.
 3. For each item write down who reads it, who writes it, and what protects it (lock, queue, single owner, immutability, transaction).
 4. Look for these hazards:

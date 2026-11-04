@@ -18,7 +18,7 @@ Every set of writes that must succeed or fail together is in one transaction, an
 
 ## Steps
 
-1. List the operations of the flow with `read_file` and `search_files`: each read and write, in order, including calls to other services. Mark the invariants that must hold, such as "stock never negative" or "order and its lines exist together".
+1. List the operations of the flow with `read_file` and `rg`: each read and write, in order, including calls to other services. Mark the invariants that must hold, such as "stock never negative" or "order and its lines exist together".
 2. Draw the boundary around the writes that protect one invariant. Put the reads that decide those writes inside it when the decision depends on the current value.
 3. Keep external calls out. HTTP requests, emails and file operations should happen before or after the transaction, or through an outbox record written inside it and processed later.
 4. Choose how to prevent lost updates: an atomic statement (`UPDATE ... SET qty = qty - 1 WHERE qty > 0`), optimistic locking with a version column, or an explicit row lock for read-then-write logic. Prefer the atomic statement where it fits.

@@ -20,7 +20,7 @@ Produce a list of removal candidates, each with the evidence that nothing reache
 ## Steps
 
 1. Check for tooling first. Use `read_file` on `package.json`, `pyproject.toml` or the build config and look for unused-code tools (knip, ts-prune, vulture, `go vet`, compiler warnings). Run the one that exists with `run_command` and keep its output as the starting list.
-2. If no tool exists, build candidates with `search_files`: take each exported symbol or top-level function and count references outside its own definition.
+2. If no tool exists, build candidates with `rg`: take each exported symbol or top-level function and count references outside its own definition.
 3. For every candidate, check the references that tools miss:
    - Dynamic lookups by string (`obj[name]`, `getattr`, `require(variable)`).
    - Registration by convention: route files, plugin folders, migrations, command handlers, test discovery.

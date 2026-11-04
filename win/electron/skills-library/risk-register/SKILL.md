@@ -18,7 +18,7 @@ A short, ranked list of specific risks for this project, each with a signal that
 
 ## Steps
 
-1. Read the material: the plan, spec or design with `read_file`, and the code areas affected with `search_files`. Risks come from specifics, so do not start from a generic list.
+1. Read the material: the plan, spec or design with `read_file`, and the code areas affected with `rg`. Risks come from specifics, so do not start from a generic list.
 2. Ask `ask_user` for context you cannot see: hard dates, team size and availability, external dependencies, what failure would cost, who is affected.
 3. Walk the plan step by step and ask at each one: what assumption is it making, what does it depend on, who or what outside our control is involved, and what is new to this team. Each answer is a candidate risk.
 4. Sweep these areas for anything missed: people and availability, external services and vendors, data and migrations, performance and scale, security and privacy, compatibility, tooling, and unclear requirements.

@@ -18,7 +18,7 @@ Every failure from the API has the same body shape, a correct status code and a 
 
 ## Steps
 
-1. Survey what exists. Use `search_files` for error handlers, thrown error classes and `res.status` or equivalent calls. Read the central handler with `read_file`. List the distinct shapes in use.
+1. Survey what exists. Use `rg` for error handlers, thrown error classes and `res.status` or equivalent calls. Read the central handler with `read_file`. List the distinct shapes in use.
 2. Check for a standard to follow. Many teams use the problem-details format for HTTP APIs. Check the current RFC with `read_url` before citing field names, and prefer it unless the project has a strong convention.
 3. Define the shape. Typical fields are a stable machine `code`, a human `message`, an HTTP `status`, an optional `details` list for field errors and a `requestId` for support. Keep it small.
 4. Build a catalogue of codes: one per distinct client-actionable situation (`validation_failed`, `not_found`, `conflict`, `rate_limited`, `unauthorized`). Avoid a code per internal exception class.

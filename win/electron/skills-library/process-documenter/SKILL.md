@@ -20,7 +20,7 @@ A document that matches what really happens and is clear enough for a new person
 ## Steps
 
 1. Frame it. Ask with `ask_user` for the process name, its trigger, its end result, who runs it and how often. Ask for the reader: new hire, auditor, or the author's future self.
-2. Collect the real flow. Ask the user to describe the last time it was run, step by step, including waits and rework. If tickets, emails or files exist, read them with `read_file` or `search_files` to see what happened.
+2. Collect the real flow. Ask the user to describe the last time it was run, step by step, including waits and rework. If tickets, emails or files exist, read them with `read_file` or `rg` to see what happened.
 3. Mark the start and end. The start is the trigger event; the end is the state that proves the process finished.
 4. List roles. For each step name who does it. Use roles ("approver") plus current holders in brackets so the page survives staff changes.
 5. Write the steps as numbered actions starting with a verb. Each has an input, an output and a place (tool, folder, system). If a step has more than one decision, give each branch its own line.

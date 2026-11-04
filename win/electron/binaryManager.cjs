@@ -99,15 +99,9 @@ const RUNNER_TABLE = [
   { runnerType: "rocm", needsNvidia: false, rocm: true, folders: ["hip", "rocm"], marker: "ggml-hip.dll" },
 ];
 
-/** The user's GPU backend choices (gpu.rocm). Everything is off until the main process sets it from settings. */
-let runnerOptions = { rocm: false };
-function setRunnerOptions(options = {}) {
-  runnerOptions = { rocm: options.rocm === true };
-}
-
 /** Picks the GPU backend the engine folder can run. Sub-folder layouts come from Ollama installs, flat ones from llama.cpp releases.
- * `options.rocm` (gpu.rocm) lets HIP in, ahead of Vulkan. Off, an Ollama `rocm` folder cannot change the runner. */
-function detectGpuRunner(llamaDir, vramGB = 0, options = runnerOptions) {
+ * HIP goes ahead of Vulkan unless a caller passes `{ rocm: false }` (the shared fixtures do). */
+function detectGpuRunner(llamaDir, vramGB = 0, options = { rocm: true }) {
   const found = (runnerDir, dllName, runnerType) => ({
     runnerDir,
     backendDll: dllName ? path.join(runnerDir, dllName) : null,
@@ -116,9 +110,9 @@ function detectGpuRunner(llamaDir, vramGB = 0, options = runnerOptions) {
 
   // AMD and Intel report VRAM too; without an NVIDIA driver a CUDA runner cannot load.
   const cudaUsable = vramGB > 0 && hasNvidiaDriver();
-  const rows = options.rocm
-    ? [...RUNNER_TABLE].sort((a, b) => (a.needsNvidia ? 0 : a.rocm ? 1 : 2) - (b.needsNvidia ? 0 : b.rocm ? 1 : 2))
-    : RUNNER_TABLE.filter((row) => !row.rocm);
+  const rows = !options.rocm
+    ? RUNNER_TABLE.filter((row) => !row.rocm)
+    : [...RUNNER_TABLE].sort((a, b) => (a.needsNvidia ? 0 : a.rocm ? 1 : 2) - (b.needsNvidia ? 0 : b.rocm ? 1 : 2));
 
   // CUDA beats Vulkan on NVIDIA in every layout, so a stray vulkan folder must not win over a flat CUDA build.
   for (const row of rows) {
@@ -250,7 +244,7 @@ function hasNvidiaDriver() {
 /** Chooses release assets for this machine: the engine archive, plus the CUDA runtime when it is not
  * bundled. CUDA 13 goes to Blackwell cards (RTX 50) with a new enough driver: the 12.x builds carry no
  * native code for them. Older cards stay on 12, since 13 dropped the oldest architectures. */
-function pickReleaseAssets(assets, { vramGB = 0, arch = os.arch(), nvidia = false, cuda13 = false, rocm = runnerOptions.rocm } = {}) {
+function pickReleaseAssets(assets, { vramGB = 0, arch = os.arch(), nvidia = false, cuda13 = false, rocm = true } = {}) {
   const byName = (pattern) => assets.find((asset) => pattern.test(asset.name));
   const arm = arch === "arm64";
   const withVariant = (picked) => (picked.main ? { ...picked, variant: variantOf(picked.main.name) } : picked);
@@ -473,7 +467,6 @@ module.exports = {
   recommendedReleaseAsset,
   validateDownloadUrl,
   detectGpuRunner,
-  setRunnerOptions,
   RUNNER_TABLE,
   getEngineEnvironment,
   ensureEngineReady,

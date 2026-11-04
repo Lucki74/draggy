@@ -21,7 +21,7 @@ Make Tailwind markup readable and consistent without losing its benefits. A good
 ## Steps
 
 1. Check the version and config. Read `package.json` and the Tailwind config or CSS entry with `read_file`. Configuration moved between major versions, so check the docs for the installed version with `read_url` before editing config.
-2. Find repeated class strings with `search_files`. Look for identical or near-identical long class lists, for example buttons, cards and inputs, across files.
+2. Find repeated class strings with `rg`. Look for identical or near-identical long class lists, for example buttons, cards and inputs, across files.
 3. Find arbitrary values (`w-[137px]`, `text-[#3a3a3a]`) and count their repeats. Values used more than a couple of times belong in the theme.
 4. Find conflicts in single elements: two padding utilities, `flex` with `block`, two text colors. Only one wins, decided by CSS order, not by the order in the string.
 5. Extract repeated patterns into a component (preferred in a component framework) rather than a CSS rule. Use `@apply` sparingly and only for things like base element styles.

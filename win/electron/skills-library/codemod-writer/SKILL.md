@@ -19,11 +19,11 @@ Apply one well-defined change to every place it belongs and to no place it does 
 
 ## Steps
 
-1. Write the change as a rule with before and after examples, including the odd cases. Collect real instances with `search_files` and read a sample with `read_file`. Note how many variants of the pattern exist.
+1. Write the change as a rule with before and after examples, including the odd cases. Collect real instances with `rg` and read a sample with `read_file`. Note how many variants of the pattern exist.
 2. Choose the tool. Prefer a syntax-aware one for the language (a vendor-supplied codemod, `jscodeshift`, `ts-morph`, `libcst`, `comby`, `ast-grep` or the language's own refactoring tool). Check which are installed with `run_command`, and read current docs with `read_url` before relying on an API. Use plain regex only when the pattern is a simple, unambiguous token.
 3. Write the script to a file with `write_file`, outside the source tree or in a `scripts/` folder. Keep it small and make it idempotent: running it twice must not change the result of the first run.
 4. Test it on fixtures before the real code. Write input and expected output files for each variant and for each case it must leave alone (strings, comments, lookalike names). Run with `run_command`.
-5. Add a dry-run mode that prints the files and counts without writing. Run it on the repo and compare the count with the `search_files` count from step 1. A difference means skipped or unexpected sites. Print each skipped site with file and line.
+5. Add a dry-run mode that prints the files and counts without writing. Run it on the repo and compare the count with the `rg` count from step 1. A difference means skipped or unexpected sites. Print each skipped site with file and line.
 6. Run for real on a clean working tree, in batches by folder if the diff is big. After each batch, run formatter, typecheck and tests with `run_command` and review a sample with `git_diff`.
 7. Handle leftovers by hand, or extend the script for the next variant and rerun on the remaining files. Keep manual edits in a separate commit from script output.
 8. Search again for the old pattern. Remove the script from the repo if it has no further use, or keep it with a note on when it was run.

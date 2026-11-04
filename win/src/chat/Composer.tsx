@@ -418,6 +418,16 @@ export function Composer({
             icon: <Icon name="folder-simple-plus" size={16} />,
             onSelect: () => onOpenSettings("library"),
         },
+        ...(surface === "code"
+            ? []
+            : [
+                  {
+                      id: "chat-folder",
+                      label: t("openChatFolder"),
+                      icon: <Icon name="folder-open" size={16} />,
+                      onSelect: () => void window.electronAPI?.chats?.folder(chat.id, true),
+                  } satisfies MenuEntry,
+              ]),
         {
             id: "extensions",
             label: t("extensions"),

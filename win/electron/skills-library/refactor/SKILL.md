@@ -18,7 +18,7 @@ Change structure, never behaviour. Every step leaves the code working, and the s
 
 ## Steps
 
-1. Read the code and its callers. Use `search_files` for usages and `explore` for broader questions.
+1. Read the code and its callers. Use `rg` for usages and `explore` for broader questions.
 2. Find the tests that cover the code and run them with `run_command` to confirm they pass now. If coverage is thin and the code is risky, propose characterisation tests first, which pin down current behaviour even when it is odd.
 3. State the goal in one line: what will be easier after this (reading, testing, changing X).
 4. For more than a couple of steps, write the plan with `update_plan`.
@@ -27,7 +27,7 @@ Change structure, never behaviour. Every step leaves the code working, and the s
    - Extract a function from a long block that does one identifiable thing.
    - Replace duplicated logic with one shared function, but only when the copies mean the same thing.
    - Simplify conditionals with early returns, guard clauses, named booleans, or lookup tables instead of long if-else chains.
-   - Remove dead code, unused parameters and stale comments, confirming they are unused with `search_files`.
+   - Remove dead code, unused parameters and stale comments, confirming they are unused with `rg`.
    - Separate pure logic from I/O so it can be tested.
    - Move code to where it belongs and update imports.
 6. Make one kind of change at a time, then run the tests again.

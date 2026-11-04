@@ -18,7 +18,7 @@ Give the user a small file that answers three questions at a glance: where have 
 ## Steps
 
 1. Ask with `ask_user` for the format: CSV that opens in a spreadsheet, or a Markdown table. Ask for the number of active applications and the expected pace.
-2. Check for an existing file with `list_directory` and `read_file`, and import its rows when the user has one.
+2. Check for an existing file with `ls` and `read_file`, and import its rows when the user has one.
 3. Define the columns, kept to nine or fewer: company, role, link, date applied, source, status, contact, next step, next-step date. Add a notes column only if the user wants it.
 4. Define the status list: saved, applied, screen, interview, offer, rejected, withdrawn. Use these words only, so filters work.
 5. Create the file with `create_file` and add the user's current applications. Mark unknown dates as blank, not guessed.

@@ -19,8 +19,8 @@ Make the ignore rules match what the project really produces, and get wrongly tr
 
 ## Steps
 
-1. Read the current rules: `read_file` on every `.gitignore` found by `search_files` with pattern `.gitignore` plus `.git/info/exclude`. Also run `git config core.excludesFile` with `run_command`, since a global file can hide or add rules.
-2. Detect the stack with `list_directory` on the root: look for package.json, Cargo.toml, pyproject.toml, a Gradle or .NET project and so on. List what each toolchain writes: dependency folders, build output, caches, coverage reports.
+1. Read the current rules: `read_file` on every `.gitignore` found by `rg` with pattern `.gitignore` plus `.git/info/exclude`. Also run `git config core.excludesFile` with `run_command`, since a global file can hide or add rules.
+2. Detect the stack with `ls` on the root: look for package.json, Cargo.toml, pyproject.toml, a Gradle or .NET project and so on. List what each toolchain writes: dependency folders, build output, caches, coverage reports.
 3. See what is tracked that should not be: `git ls-files -ci --exclude-standard` lists tracked files that match an ignore rule. Then scan for likely offenders by name: `git ls-files | grep -E "\.env|\.pem|\.key|dist/|build/|node_modules|\.log$|\.DS_Store"`.
 4. See what is untracked but unignored: `git status --short --ignored` and read through the `??` entries.
 5. Explain any rule that fails. Use `git check-ignore -v <path>` to print which rule matched, or the fact that none did. This settles most "it is not working" cases in one call.

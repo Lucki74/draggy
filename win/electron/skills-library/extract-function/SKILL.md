@@ -27,7 +27,7 @@ A block with one clear job becomes a function with a name that says that job, in
 5. Check control flow inside the block: `return`, `break`, `continue`, `throw`, `await`, `yield`. A return inside the block would now return from the new function only. Convert it into a returned signal or choose a different block.
 6. Check for mutation. If the block modifies an argument in place, decide whether the new function should keep doing that or return a new value, and keep the behaviour the same.
 7. Write the new function with `edit_file`: place it near its caller, give it the name from step 1, keep types if the language has them, and replace the block with a call.
-8. If the same block appears elsewhere, find the copies with `search_files`. Replace only the ones that are truly identical in meaning, and run tests after each.
+8. If the same block appears elsewhere, find the copies with `rg`. Replace only the ones that are truly identical in meaning, and run tests after each.
 9. Run tests, typecheck and linter with `run_command`. Review with `git_diff` that only the extraction and the call changed.
 
 ## Gotchas

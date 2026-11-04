@@ -118,13 +118,9 @@ export const NO_BROWSING_PROMPT = `Web access is turned off for this conversatio
 
 export const NATIVE_TOOL_PROMPT = `Call tools via the tool interface, not in prose. Invoke one tool at a time, wait for results before proceeding, and answer directly once sufficient information is gathered. Always provide your final response to the user outside of internal reasoning. When you say you will use a tool, call it in the same reply; never end a reply by describing what you are about to do.`;
 
-/** How to write the files create_file makes, which only Chat has. */
-export const FILE_FORMAT_PROMPT = `When creating files with create_file:
-Provide semantic HTML (for custom styling like colors, font sizes, alignments, widths, borders) or Markdown/CSV.
-- Word (.docx): HTML (h1-h6, p, lists, tables, inline styles) or Markdown. Use for editable documents.
-- Excel (.xlsx): HTML table (with col widths, colors, borders) or CSV.
-- PowerPoint (.pptx): HTML (sections/divs per slide, h1/h2, lists, background colors) or Markdown with slide headings.
-- PDF (.pdf): HTML (full styling, page breaks) or Markdown. Use for final, printable, or archive documents.`;
+/** What create_file is for, which only Chat has. How to write each document format lives in the
+ * docx, xlsx, pptx and pdf skills, which are always on, so the model loads them before it writes. */
+export const FILE_FORMAT_PROMPT = `create_file writes a file the user can open. Before you make a Word, Excel, PowerPoint or PDF file, call use_skill with docx, xlsx, pptx or pdf and follow it. Other files take their raw text or code.`;
 
 export const BROWSING_WORKFLOW_PROMPT = `BROWSER INTERACTION WORKFLOW: when you need to interact with a website rather than just read it:
 1. browser_navigate to open the page
@@ -230,8 +226,8 @@ const FULL_TOOL_PROMPT = `Using tools well:
 const FULL_EDIT_PROMPT = `Editing files, in more detail:
 - Before edit_file, read the region you will change with a few lines around it, so the lines you pass match exactly once.
 - Keep each edit small and in one place. Several edit_file calls are safer than rewriting a large file with write_file.
-- To change something used in many places, search_files for every use first, then edit the definition and each use.
-Example: renaming formatDate means search_files for "formatDate", edit the definition, edit each caller, then read the changed lines back.`;
+- To change something used in many places, search for every use first with a command such as rg or grep, then edit the definition and each use.
+Example: renaming formatDate means searching for "formatDate", editing the definition, editing each caller, then reading the changed lines back.`;
 
 const FULL_PLAN_PROMPT = `The checklist, in more detail: keep each item short and concrete ("Add the settings field", not "Work on settings"), and mark an item done as soon as it is, not all at the end. When the work changes, change the plan too rather than leaving stale items.`;
 

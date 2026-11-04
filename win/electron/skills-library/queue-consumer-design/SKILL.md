@@ -18,7 +18,7 @@ A consumer that processes each message effectively once, survives crashes and ba
 
 ## Steps
 
-1. Identify the broker and its guarantees. Read the code and config with `read_file` and `search_files`, and check the broker's documentation with `read_url`: delivery semantics (at most once or at least once), visibility timeout or ack deadline, ordering scope, redelivery and dead-letter features.
+1. Identify the broker and its guarantees. Read the code and config with `read_file` and `rg`, and check the broker's documentation with `read_url`: delivery semantics (at most once or at least once), visibility timeout or ack deadline, ordering scope, redelivery and dead-letter features.
 2. Define the message contract: type, version, an id that is unique per logical event, and the minimum data needed. Treat the schema as a public API and tolerate unknown fields.
 3. Choose acknowledgement timing. Acknowledge only after the work and its side effects are durably done. If the work can exceed the visibility timeout, extend it periodically or split the work.
 4. Make processing idempotent. With at-least-once delivery, duplicates are normal. Record processed ids with a unique constraint, or make the effect naturally repeatable. Use `use_skill` with `idempotency-keys` for the pattern.

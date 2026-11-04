@@ -18,7 +18,7 @@ Report the real price a buyer would see now, with its conditions, and keep a sma
 
 ## Steps
 
-1. Get the link and the exact variant with `ask_user` (size, colour, plan, region). Check whether a log file already exists with `list_directory` and read it with `read_file` to see previous entries.
+1. Get the link and the exact variant with `ask_user` (size, colour, plan, region). Check whether a log file already exists with `ls` and read it with `read_file` to see previous entries.
 2. Open the page with `browser_navigate`. Use `browser_snapshot` to find the price block, the stock message and any option selectors. Dismiss banners using `use_skill` with `cookie-banner-handling`.
 3. Select the variant the user wants with `browser_click` or `browser_select_option`, then re-read the price, since many pages update it after a choice. Do not add anything to a cart.
 4. Read the price with `browser_get_text`. Separate the current price from a struck-through earlier price, a monthly instalment, a bundle price, a member-only price and a price before tax or shipping. Report the one a normal visitor pays now, and list the others.

@@ -19,7 +19,7 @@ Produce new PDF files with exactly the pages the user wants in the order they wa
 
 ## Steps
 
-1. Inventory the inputs with `list_directory`. For each PDF get the page count and whether it is encrypted, using `run_command` with a PDF library or `run_command` with a PDF tool that is installed. Check availability before assuming one.
+1. Inventory the inputs with `ls`. For each PDF get the page count and whether it is encrypted, using `run_command` with a PDF library or `run_command` with a PDF tool that is installed. Check availability before assuming one.
 2. Resolve encryption. A file with an open password needs it from the user via `ask_user`. Do not try to break protection.
 3. Write the page map as a plain table: output file, source file, source pages, rotation. Use the PDF's real page index, counted from the first sheet, not the number printed on the page. Show the map and the expected page count of each output.
 4. Get approval with `ask_user`, especially for the order and for any pages dropped.

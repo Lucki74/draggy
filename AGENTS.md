@@ -41,6 +41,12 @@ npm run electron:dev
 Vite and Electron together with hot reload on port 5173. Terminate any stale Vite process holding the port before retrying.
 
 ```bash
+npm run dev:test
+```
+
+Serves the real app in a browser at `http://127.0.0.1:5173/test`, wired to the real main-process code and to a llama-server you start with `TEST_MODEL=<path to a .gguf>` (also `TEST_NGL` and `TEST_LLAMA_PORT`, default 8099). Only this script turns it on (`DRAGGY_TEST_HARNESS=1`, `scripts/testHarness.ts`). `npm run electron:dev` and builds never serve `/test`. Stop the server and the llama-server when you finish.
+
+```bash
 npm run electron:build
 ```
 
@@ -78,7 +84,7 @@ Logging rules, enforced by tests (`electron/logGuardrails.test.js`, `src/__tests
 
 Single instance enforcement: `main.cjs` claims `app.requestSingleInstanceLock()`. Closing the main window exits the entire application and terminates child processes (`electron/shutdown.test.js`).
 
-One local engine runs at a time. `electron/engineHost.cjs` hands the slot between llama.cpp and colibri (`electron/colibriProcess.cjs`), and both listen on `127.0.0.1` only (`electron/engineHost.test.js`, `electron/colibriProcess.test.js`). In the Rust core, `engine_host.rs` routes a model format to its engine (`engine_for_format`), `supervisor.rs` runs a colibri or MLX process, and `mlx_runtime.rs` is Apple silicon only; an MLX model never falls back to llama.cpp. The runner table is pinned by `shared/fixtures/runner-table.json`; `gpu.rocm` (on by default) lets an AMD card take the ROCm build.
+One local engine runs at a time. `electron/engineHost.cjs` hands the slot between llama.cpp and colibri (`electron/colibriProcess.cjs`), and both listen on `127.0.0.1` only (`electron/engineHost.test.js`, `electron/colibriProcess.test.js`). In the Rust core, `engine_host.rs` routes a model format to its engine (`engine_for_format`), `supervisor.rs` runs a colibri or MLX process, and `mlx_runtime.rs` is Apple silicon only; an MLX model never falls back to llama.cpp. The runner table is pinned by `shared/fixtures/runner-table.json`; an AMD card takes the ROCm build whenever one is published, and no setting turns that off.
 
 Everything the app downloads and later runs is checked against a SHA-256 first: the colibri release against its `SHA256SUMS.txt`, the embeddable Python against a pinned hash (`electron/colibriBinary.cjs`), large-model files against the Hugging Face manifest (`electron/largeModelStore.cjs`), and the image engine against hashes built into the app.
 

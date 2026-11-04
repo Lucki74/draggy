@@ -22,7 +22,7 @@ To plan tests that use real components, use `use_skill` with `integration-test-s
 
 ## Steps
 
-1. **Read the unit and its dependencies.** Use `read_file` and `search_files` to list what the code calls outside itself. Mark each as: pure (no double), cheap and local (use real), slow or non-deterministic (replace), or owned by someone else (wrap).
+1. **Read the unit and its dependencies.** Use `read_file` and `rg` to list what the code calls outside itself. Mark each as: pure (no double), cheap and local (use real), slow or non-deterministic (replace), or owned by someone else (wrap).
 2. **Choose the boundary.** Replace at the edge you own: a small interface or adapter around the HTTP client, clock or file system, not deep calls scattered through the code. If none exists, add a thin one with `edit_file`.
 3. **Choose the kind of double.**
    - Stub: returns canned answers; use it when the test only needs inputs.

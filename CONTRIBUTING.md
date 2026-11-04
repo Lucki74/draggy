@@ -35,7 +35,7 @@ Tests run with no GPU and no Electron, so keep new logic testable by keeping it 
 
 ## Architecture and code boundaries
 
-The [wiki](https://draggy.org/wiki/development) describes the folder layout and the two boundaries that matter most:
+The [documentation](https://docs.draggy.org/development) describes the folder layout and the two boundaries that matter most:
 
 - `electron/preload.cjs` is the only bridge from the renderer to the filesystem, network, and database.
 - The session split: Draggy's own window runs under strict CSP on `defaultSession`, while external web pages run in the `persist:draggy-web` partition. Never merge the two or loosen the application CSP.
@@ -44,7 +44,7 @@ All child processes must run through `platform.spawnHidden` or `platform.execFil
 
 Pictures come from stable-diffusion.cpp's `sd-server`, a hidden child process on `127.0.0.1` (`electron/sdServer.cjs`, installed by `electron/sdBinaryManager.cjs`). Its tests run against a fake server started as a real child process, so they need no binary and no GPU. Keep it that way.
 
-Models too large for memory run on colibri, a second engine managed by `electron/colibriProcess.cjs` and installed by `electron/colibriBinary.cjs`. Its tests also use fakes (a stub gateway process, recorded hardware output in `electron/fixtures/hardware/`), so they need no engine, no GPU and no big download. Only one local engine runs at a time (`electron/engineHost.cjs`). The user-facing side is described on the wiki at [draggy.org/wiki](https://draggy.org/wiki).
+Models too large for memory run on colibri, a second engine managed by `electron/colibriProcess.cjs` and installed by `electron/colibriBinary.cjs`. Its tests also use fakes (a stub gateway process, recorded hardware output in `electron/fixtures/hardware/`), so they need no engine, no GPU and no big download. Only one local engine runs at a time (`electron/engineHost.cjs`). The user-facing side is described in the documentation at [docs.draggy.org](https://docs.draggy.org).
 
 ## House style
 

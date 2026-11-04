@@ -19,7 +19,7 @@ Deliver a query that returns exactly the rows the user wants on their database e
 ## Steps
 
 1. Identify the database engine. Syntax differs (LIMIT vs TOP, date functions, string concatenation, upserts). If unknown, ask, or write standard SQL and mark the engine-specific parts.
-2. Get the schema: table names, columns, types, keys. In a project, look for it with `search_files` (migrations, schema files, ORM models) before asking.
+2. Get the schema: table names, columns, types, keys. In a project, look for it with `rg` (migrations, schema files, ORM models) before asking.
 3. Clarify the grain of the result: one row per what?
 4. Write the query:
    - Use explicit JOIN ... ON, never comma joins. Choose INNER vs LEFT deliberately, since LEFT keeps rows without matches.

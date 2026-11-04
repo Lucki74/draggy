@@ -20,7 +20,7 @@ A good result fixes the cause with correct output encoding, and adds a CSP as a 
 
 ## Steps
 
-1. Find the sinks with `search_files`: `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `dangerouslySetInnerHTML`, `v-html`, `[innerHTML]`, `|safe`, `raw`, `eval(`, `new Function(`, `setTimeout("`.
+1. Find the sinks with `rg`: `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `dangerouslySetInnerHTML`, `v-html`, `[innerHTML]`, `|safe`, `raw`, `eval(`, `new Function(`, `setTimeout("`.
 2. For each sink read the code with `read_file` and trace the value to its origin. Mark user, database, URL parameter or hardcoded.
 3. Prefer safe APIs: `textContent`, framework default escaping, and `setAttribute` for known attributes. Replace with `edit_file`.
 4. If HTML must be rendered (rich text, markdown), sanitise on output with a maintained sanitiser such as DOMPurify configured with an allow list. Check its current docs with `read_url`.

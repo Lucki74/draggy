@@ -1780,6 +1780,7 @@
           "surface": "chat",
           "defaultOn": true,
           "modelInvocable": true,
+          "locked": true,
           "enabled": true
         },
         {
@@ -1797,8 +1798,8 @@
         {
           "id": "draggy-help",
           "name": "draggy-help",
-          "description": "Answers questions about how Draggy works and fixes problems with it by reading the official wiki at draggy.org/wiki. Use when the user hits an error, something in Draggy does not work, or they ask how to use a Draggy feature, setting, model, tool, skill or integration.",
-          "summary": "Fix Draggy problems from the official wiki",
+          "description": "Answers questions about how Draggy works and fixes problems with it by reading the official documentation at docs.draggy.org. Use when the user hits an error, something in Draggy does not work, or they ask how to use a Draggy feature, setting, model, tool, skill or integration.",
+          "summary": "Fix Draggy problems from docs.draggy.org",
           "source": "library",
           "category": "meta-agent",
           "surface": "both",
@@ -4169,6 +4170,7 @@
           "surface": "chat",
           "defaultOn": true,
           "modelInvocable": true,
+          "locked": true,
           "enabled": true
         },
         {
@@ -4361,6 +4363,7 @@
           "surface": "chat",
           "defaultOn": true,
           "modelInvocable": true,
+          "locked": true,
           "enabled": true
         },
         {
@@ -6845,6 +6848,7 @@
           "surface": "chat",
           "defaultOn": true,
           "modelInvocable": true,
+          "locked": true,
           "enabled": true
         },
         {

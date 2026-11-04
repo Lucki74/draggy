@@ -18,7 +18,7 @@ The app reads all configuration in one place, fails immediately with a clear mes
 
 ## Steps
 
-1. Inventory current usage. Use `search_files` for environment access (`process.env`, `os.environ`, `getenv`), config files and `.env` files. List each setting, its type, whether it is secret and where it is read.
+1. Inventory current usage. Use `rg` for environment access (`process.env`, `os.environ`, `getenv`), config files and `.env` files. List each setting, its type, whether it is secret and where it is read.
 2. Check for leaked secrets. Search the code and the git history through `run_command` for key-like strings, tokens and passwords in committed files and in `.env` files that were tracked. Do not print secret values in your report.
 3. Create one config module that reads every setting once at startup, parses it to the right type (numbers, booleans, durations, lists) and validates it with the project's schema library or hand-written checks.
 4. Fail fast and clearly. On a missing or invalid required setting, stop startup and name the variable and the expected format, never the secret value.

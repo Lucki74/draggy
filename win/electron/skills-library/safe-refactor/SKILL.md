@@ -20,8 +20,8 @@ End with the same behaviour in a better shape, and be able to show it. Each edit
 
 ## Steps
 
-1. State the target shape and the behaviour that must stay fixed. Read the code with `read_file` and find callers with `search_files`.
-2. Find the net. Locate tests covering the code with `search_files` and run them with `run_command`. Record the exact command and the baseline result, with the count of tests that ran.
+1. State the target shape and the behaviour that must stay fixed. Read the code with `read_file` and find callers with `rg`.
+2. Find the net. Locate tests covering the code with `rg` and run them with `run_command`. Record the exact command and the baseline result, with the count of tests that ran.
 3. Judge the net. For each path you will touch, ask whether a failing test would exist if you broke it. Where not, add a characterisation test that pins today's output, odd cases included. Keep it in a separate step and commit.
 4. Plan the edits with `update_plan` as a list of small moves, each of which compiles and passes alone. Order them so the risky move comes after the safe ones that prepare it.
 5. For each move, do the loop: edit with `edit_file`, run the same check with `run_command`, compare with the baseline. Green means continue. Red means revert that edit with `git_diff` as your guide and look for a smaller step.

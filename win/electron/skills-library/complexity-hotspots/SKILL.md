@@ -20,12 +20,12 @@ Find the small set of places where hard-to-read code meets frequent change, sinc
 
 ## Steps
 
-1. Set the scope with `list_directory`: source folders only. Exclude generated code, vendored code, build output, fixtures and lockfiles.
+1. Set the scope with `ls`: source folders only. Exclude generated code, vendored code, build output, fixtures and lockfiles.
 2. Measure churn with `run_command`: `git log --since="12 months ago" --name-only --pretty=format: | sort | uniq -c | sort -rn | head -40`. If the repo has no history, say so and rank on complexity alone.
 3. Measure complexity. Use a tool if the project has one (eslint `complexity` rule, radon, gocyclo, scc). Otherwise approximate with `run_command`: count lines per function, nesting depth and branch keywords for the top churned files.
 4. Cross the two lists. A file high on both is a hotspot. High complexity with no churn is stable and usually safe to leave. High churn with low complexity is just active.
 5. Read the top five with `read_file`. For each, name what makes it hard: long function, deep nesting, mixed responsibilities, many parameters, hidden global state, repeated near copies.
-6. Check test coverage of each hotspot with `search_files` for its tests, or the project's coverage command. Low coverage plus high churn moves it up the list.
+6. Check test coverage of each hotspot with `rg` for its tests, or the project's coverage command. Low coverage plus high churn moves it up the list.
 7. Propose one concrete first move per hotspot, such as extract this block, split this file by responsibility, or add characterisation tests.
 8. Check ownership with `git log --format=%an` on each hotspot via `run_command`. A hotspot touched by one person is a bus-factor risk as well as a code risk.
 9. Re-run the measurement for the top three after any refactor, to show whether the score moved. A change with no movement was not worth the churn.

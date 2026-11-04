@@ -17,7 +17,7 @@ Produce a small, clean SVG file that matches the style of the surrounding icons 
 
 ## Steps
 
-1. Find the set. If a project exists, use `search_files` for `.svg` and `viewBox`, then `read_file` on two or three icons. Note the viewBox, stroke width, cap and join style, corner radius, and whether icons are stroked or filled. With no set, default to a 24 by 24 viewBox, 1.5 or 2 stroke, round caps and joins.
+1. Find the set. If a project exists, use `rg` for `.svg` and `viewBox`, then `read_file` on two or three icons. Note the viewBox, stroke width, cap and join style, corner radius, and whether icons are stroked or filled. With no set, default to a 24 by 24 viewBox, 1.5 or 2 stroke, round caps and joins.
 2. State the metaphor in one line (for example "envelope with a check") and keep to two or three shapes. Use `ask_user` if the concept is ambiguous.
 3. Draw on whole or half coordinates inside a padding of 2 units. Use `rect`, `circle`, `line` and short `path` commands. Keep paths readable by hand; avoid long arbitrary curves.
 4. Use `fill="none"` with `stroke="currentColor"` for outline sets, or `fill="currentColor"` for solid sets. Never hard-code a color unless the user wants a multi-color illustration.

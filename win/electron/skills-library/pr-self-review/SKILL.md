@@ -23,7 +23,7 @@ Catch the cheap problems yourself so the reviewer spends time on design and risk
 1. Run `git_status` to see modified, staged and untracked files. Untracked files are easy to forget and easy to commit by accident.
 2. Run `git_diff` for unstaged and for staged changes. For a whole branch, use `run_command` with `git diff <base>...HEAD --stat` first, then read the full diff file by file.
 3. Read the diff only, top to bottom, before opening any full file. Mark each hunk: intended, incidental or unknown.
-4. Sweep for leftovers with `search_files` on the changed files: `console.log`, `print(`, `debugger`, `TODO`, `FIXME`, commented-out blocks, `.only` and `.skip` in tests, hard-coded paths or keys.
+4. Sweep for leftovers with `rg` on the changed files: `console.log`, `print(`, `debugger`, `TODO`, `FIXME`, commented-out blocks, `.only` and `.skip` in tests, hard-coded paths or keys.
 5. Check scope. Every hunk should serve the stated goal. Move formatting-only or unrelated edits to a separate commit.
 6. Check tests: for each behaviour change, find the test that would fail without it. Run the suite with `run_command`.
 7. Check the surroundings the diff does not show: callers of changed functions, docs and config that mention the old behaviour, changelog or translation files the project requires.

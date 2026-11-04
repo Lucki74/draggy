@@ -22,7 +22,7 @@ Create notes that help people decide to listen and help listeners find what they
 3. Write the summary in two to four sentences covering what the episode is about and who it helps. Do not copy the intro blurb.
 4. Mark topic changes in the transcript and make chapters: a short label of two to six words with the timestamp at the start of the first sentence of that topic. Use `run_command` to check that timestamps increase, use one format, and sit inside the total length.
 5. Pull three to five takeaways as concrete statements, not topic names. Keep any quote word-for-word and attribute it to the right speaker.
-6. Collect links and resources mentioned. Search the transcript with `search_files` for names of books, tools and sites. List only what was said; if the exact address is unknown, use `search_web` to find the official page, and mark it as found by search for the user to confirm.
+6. Collect links and resources mentioned. Search the transcript with `rg` for names of books, tools and sites. List only what was said; if the exact address is unknown, use `search_web` to find the official page, and mark it as found by search for the user to confirm.
 7. Add the standard footer the user wants, such as credits, how to subscribe or contact. Do not invent any.
 8. Save with `create_file` as `show-notes.md`.
 9. Re-read the notes against three random timestamps: open the transcript at each and confirm the label matches what is said there.

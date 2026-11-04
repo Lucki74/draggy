@@ -22,7 +22,7 @@ To run flows now against a local app, use `use_skill` with `webapp-testing`.
 
 ## Steps
 
-1. **Understand the product.** Read the README, routes and main screens with `read_file`, `list_directory` and `search_files`. Ask with `ask_user` what the app earns or loses money on, and what support gets complaints about.
+1. **Understand the product.** Read the README, routes and main screens with `read_file`, `ls` and `rg`. Ask with `ask_user` what the app earns or loses money on, and what support gets complaints about.
 2. **List candidate journeys.** Sign up and sign in, the core task, payment or save, search, settings that change data, error recovery. Write each as one sentence from the user's point of view.
 3. **Rank them.** Score impact if broken, usage, and how many parts the flow crosses. Keep the top group for e2e. Push the rest down to unit or integration tests.
 4. **Write each flow.** Fields: name, preconditions and data, numbered steps, expected result after each key step, and cleanup. One flow, one outcome.

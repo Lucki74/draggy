@@ -1,5 +1,5 @@
 name: Documentation
-description: Something in the docs, README or wiki is wrong, missing or out of date.
+description: Something in the docs, README or documentation site is wrong, missing or out of date.
 title: "[Docs]: "
 labels: ["documentation"]
 body:

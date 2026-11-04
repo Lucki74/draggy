@@ -28,7 +28,7 @@ describe("a command in each mode", () => {
 
   it("asks in ask mode and in accept-edits mode", () => {
     expect(ask("ask", "npm test")).toBe("ask");
-    expect(ask("acceptEdits", "git status")).toBe("ask");
+    expect(ask("acceptEdits", "git push")).toBe("ask");
   });
 
   it("runs without asking in auto mode", () => {
@@ -110,5 +110,38 @@ describe("what always allow remembers", () => {
     expect(grantsFor("write_file", "src/a.ts", { destructive: false })).toEqual([
       { tool: "write_file", target: "src/a.ts" },
     ]);
+  });
+});
+
+describe("commands inside the sandbox", () => {
+  const run = (mode: "ask" | "acceptEdits" | "turbo" | "auto", command: string, outsideSandbox = false) =>
+    decide({
+      mode,
+      tool: "run_command",
+      annotations: { ...COMMAND, outsideSandbox },
+      target: command,
+      shell: "bash",
+    }).decision;
+
+  it("lets a read only command run without asking", () => {
+    expect(run("ask", "git status")).toBe("allow");
+    expect(run("acceptEdits", "ls -la && git log --oneline")).toBe("allow");
+  });
+
+  it("asks about a command that can change something", () => {
+    expect(run("ask", "npm install")).toBe("ask");
+    expect(run("acceptEdits", "ls; rm -rf x")).toBe("ask");
+    expect(run("ask", "git push")).toBe("ask");
+    expect(run("ask", "find . -delete")).toBe("ask");
+  });
+
+  it("runs every command in turbo", () => {
+    expect(run("turbo", "rm -rf build")).toBe("allow");
+  });
+
+  it("asks before leaving the sandbox in every mode but yolo", () => {
+    expect(run("turbo", "git status", true)).toBe("ask");
+    expect(run("ask", "git status", true)).toBe("ask");
+    expect(run("auto", "git status", true)).toBe("allow");
   });
 });

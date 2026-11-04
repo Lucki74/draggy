@@ -19,7 +19,7 @@ Make the intent visible before acting. The user sees what will change and approv
 
 ## Steps
 
-1. Explore before planning. Use `explore`, `search_files` and `read_file` to learn where the change goes and what depends on it. A plan written blind is a guess.
+1. Explore before planning. Use `explore`, `rg` and `read_file` to learn where the change goes and what depends on it. A plan written blind is a guess.
 2. Write the plan with `update_plan`: five to eight steps, each naming files or commands, in order. Put the check that proves each step next to it.
 3. Mark the risky steps: deletions, overwrites, anything that cannot be undone, network calls that change remote state, and anything outside the working folder.
 4. Show the plan and ask with `ask_user` for approval on the marked steps. State what is assumed, offer the default, and let the user change the scope. If every step is safe and reversible, say the plan and proceed.

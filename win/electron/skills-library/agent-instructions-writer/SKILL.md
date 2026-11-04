@@ -18,7 +18,7 @@ Give an agent the few facts and rules it cannot learn by looking around: how to 
 
 ## Steps
 
-1. Look before writing. Use `list_directory`, `search_files` and `read_file` on the readme, build files, test config, CI files and any existing instruction files. Note the real commands for install, build, test, lint and run.
+1. Look before writing. Use `ls`, `rg` and `read_file` on the readme, build files, test config, CI files and any existing instruction files. Note the real commands for install, build, test, lint and run.
 2. Ask with `ask_user` for what the files cannot show: rules of the team, areas that must not change, review and commit conventions, which actions need approval, and recurring mistakes to prevent.
 3. Write the commands first, in a short list, copied from the project and run with `run_command` to confirm they work. Add flags for quiet output and for running a single test.
 4. Write the invariants: the few rules that tests or reviewers enforce and that are easy to miss, with the reason. For example, a generated file that must not be edited by hand, or a naming scheme.

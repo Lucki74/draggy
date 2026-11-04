@@ -20,7 +20,7 @@ Explain how a change will be built so that reviewers can find flaws before code 
 ## Steps
 
 1. Gather inputs: the spec or request with `read_file`, any earlier decisions, and the constraints the user names. Ask `ask_user` for missing goals, scale expectations they care about, and the review audience.
-2. Study the current system. Use `explore`, `search_files` and `read_file` to find the modules, data stores, entry points and conventions the change touches. Write a short "current state" section from what you saw, with file paths.
+2. Study the current system. Use `explore`, `rg` and `read_file` to find the modules, data stores, entry points and conventions the change touches. Write a short "current state" section from what you saw, with file paths.
 3. State goals and non-goals in a few lines each, and any measurable target the user gave. Do not invent numbers.
 4. Describe the proposed design at the right level: components and their responsibilities, how data flows between them, and where the new code lives. Add a simple diagram as text or a mermaid block when it clarifies flow.
 5. Specify the data: new or changed tables, fields, file formats, and how existing data moves to the new shape. Include ownership of each piece of state.

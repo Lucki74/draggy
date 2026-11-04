@@ -20,16 +20,16 @@ Replace one-off values with a short list of named tokens so a visual change happ
 
 ## Steps
 
-1. Find the existing values. Use `search_files` for hex colors, `rgb(`, `hsl(`, pixel spacing and font sizes in styles and components. Note the styling approach (plain CSS, CSS modules, Tailwind config, CSS-in-JS) with `list_directory` and `read_file`.
+1. Find the existing values. Use `rg` for hex colors, `rgb(`, `hsl(`, pixel spacing and font sizes in styles and components. Note the styling approach (plain CSS, CSS modules, Tailwind config, CSS-in-JS) with `ls` and `read_file`.
 2. Count how often each value appears. Group near-duplicates, for example five grays within a few lightness points, and pick one per group.
 3. Define primitives first: the raw scale (colors by hue and step, spacing steps, type sizes). Keep it short, and write it where the project already keeps global styles. CSS custom properties work in any stack.
 4. Add a semantic layer that maps purpose to primitive: text, text-muted, surface, border, accent, danger. Components reference only these names.
 5. Create the token file with `create_file`, or extend the existing one with `edit_file`.
 6. Migrate usages in batches, one component group at a time, with `edit_file`. After each batch run the build or tests with `run_command`.
-7. Replace leftovers found by a final `search_files` pass, and leave a documented exception only where a value is truly one-off, such as a brand logo color.
+7. Replace leftovers found by a final `rg` pass, and leave a documented exception only where a value is truly one-off, such as a brand logo color.
 8. Confirm the UI looks unchanged by comparing `browser_screenshot` captures before and after, for a few key pages.
 9. Document the naming rule in the token file's header comment: tier prefixes, allowed steps, and when to add a new token.
-10. Add a check that blocks new raw hex values in component files, such as a lint rule or a `search_files` script run in CI, if the project has CI.
+10. Add a check that blocks new raw hex values in component files, such as a lint rule or a `rg` script run in CI, if the project has CI.
 
 ## Gotchas
 

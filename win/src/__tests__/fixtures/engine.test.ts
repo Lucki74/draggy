@@ -337,6 +337,7 @@ function runAssets(input: Input): unknown {
           arch: input.arch,
           nvidia: input.nvidia,
           cuda13: input.cuda13,
+          rocm: input.rocm === true,
         });
         return { main: picked.main?.name ?? null, extra: picked.extra?.name ?? null, variant: picked.variant ?? null };
       });

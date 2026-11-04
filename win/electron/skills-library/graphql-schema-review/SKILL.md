@@ -18,7 +18,7 @@ A schema that is clear to clients, evolves without breaking them and cannot be t
 
 ## Steps
 
-1. Find the schema files and resolvers. Use `search_files` for SDL files, type definitions and resolver maps, then `read_file` them. Note whether the schema is written first or generated from code.
+1. Find the schema files and resolvers. Use `rg` for SDL files, type definitions and resolver maps, then `read_file` them. Note whether the schema is written first or generated from code.
 2. Check naming and structure: consistent casing, nouns for types, verb-led mutation names, mutations that take a single input type and return a payload type with the changed object and any user errors.
 3. Check nullability. Fields that can fail or be missing should be nullable so one failure does not null the whole parent. Fields that always exist should be non-null. Look for schemas where everything is one or the other.
 4. Check lists. Large collections should use cursor-based connections with a bounded `first` argument instead of plain lists. Look at how page sizes are capped.

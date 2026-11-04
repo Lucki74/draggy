@@ -18,7 +18,7 @@ Give the editor a sequence of passes, each with a clear target, so the cut impro
 ## Steps
 
 1. Ask with `ask_user` for the goal and length, the audience, the platform, the editing software, how much footage there is and whether a script or storyboard exists. Read them with `read_file` if so.
-2. Take stock of the footage. Use `list_directory` to see the files, and `run_command` with `ffprobe` to read durations and formats if installed. Flag mixed frame rates, resolutions or audio setups, since they cause problems at export.
+2. Take stock of the footage. Use `ls` to see the files, and `run_command` with `ffprobe` to read durations and formats if installed. Flag mixed frame rates, resolutions or audio setups, since they cause problems at export.
 3. Plan the organisation pass: copy to a project folder, rename by scene and take, create bins, mark the best takes. Keep the originals untouched and a backup in a second place.
 4. Plan the assembly pass: lay the best takes in story order with no trimming finesse. Judge only whether the story works. Cut anything that does not move it.
 5. Plan the tightening pass: remove dead air, repeats and weak lines. Set the pacing, with shorter shots where energy is wanted and longer where the viewer needs to feel something. Check the first fifteen seconds with fresh eyes.

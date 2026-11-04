@@ -17,12 +17,12 @@ Produce a lean outline of brand rules that a new designer, writer or contractor 
 
 ## Steps
 
-1. Collect what exists. Use `list_directory` and `search_files` for logos, fonts, CSS tokens and past decks if files are available, then `read_file` the key ones. Ask with `ask_user` for anything that lives elsewhere.
+1. Collect what exists. Use `ls` and `rg` for logos, fonts, CSS tokens and past decks if files are available, then `read_file` the key ones. Ask with `ask_user` for anything that lives elsewhere.
 2. Sort findings into decided, used but undocumented, and missing. Only the first two go in as rules. The third becomes an "Open decisions" list.
 3. Draft sections in this order: purpose and audience, personality in three words, voice and tone (with two before and after sentences), logo (versions, clear space, minimum size, misuse), color (roles and values), typography (families, sizes, usage), imagery (subject, crop, treatment), layout basics, and contact for questions.
 4. For each rule write a do and a don't. A rule with no counter-example gets ignored. Describe the examples in text if images are not available, and name the file to add.
 5. Keep length in check: aim for 4 to 8 pages of content. Move long tables to an appendix.
-6. Save with `create_file` as `brand-guidelines.md`. Before saving, check that every color, font and size appears exactly as in the source files, using `search_files` to confirm.
+6. Save with `create_file` as `brand-guidelines.md`. Before saving, check that every color, font and size appears exactly as in the source files, using `rg` to confirm.
 7. End with a maintenance note: who owns the document and when it is reviewed. Leave the owner blank if unknown.
 8. Add a one-page quick reference at the top: logo, two main colors, two fonts, three voice rules. Most readers stop there.
 9. Ask the user to test the draft by giving it to someone unfamiliar with the brand, and list what that person got wrong.

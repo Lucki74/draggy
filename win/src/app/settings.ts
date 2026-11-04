@@ -50,7 +50,6 @@ export const defaultSettings: AppSettings = {
   codeEffort: EFFORT_DEFAULT,
   codeDefaultEffort: EFFORT_DEFAULT,
   codeWebMode: "on",
-  defaultShell: "auto",
   codePermissionMode: "acceptEdits",
   libraryEnabled: true,
   embedModel: "",
