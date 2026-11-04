@@ -35,20 +35,21 @@ SwiftUI app on macOS, and a native GTK 4 app on Linux.
 
 Compared with LM Studio, Jan or Ollama, the difference is the coding agent: it
 reads, edits and runs commands in a project folder, shows every change as a diff
-you can undo, and works under one of four permission modes. Large
+you can undo, and works under one of five permission modes. Large
 Mixture-of-Experts models that do not fit in memory can still run from your drive.
 
-Documentation lives on the wiki at [draggy.org/wiki](https://draggy.org/wiki):
+Documentation lives at [docs.draggy.org](https://docs.draggy.org):
 installation details, hardware requirements, features, troubleshooting, and
 architecture in English, French, Spanish, and Russian. Start with
-[Installation](https://draggy.org/wiki/installation), or
-[Building and architecture](https://draggy.org/wiki/development) to work on the code.
+[Installation](https://docs.draggy.org/installation), or
+[Building and architecture](https://docs.draggy.org/development) to work on the code.
 
 ## Features
 
 - Local GGUF models via llama.cpp.
 - GPU acceleration: CUDA, Metal, Vulkan, ROCm.
-- Coding agent with undoable diffs.
+- Coding agent with undoable diffs. On Windows its commands run in a sandbox.
+- A folder and bundled Python for every chat.
 - Separate chat and code workspaces.
 - Sandboxed browser and web search.
 - Document generation.
@@ -66,7 +67,7 @@ architecture in English, French, Spanish, and Russian. Start with
 Installers for Windows (`.exe`), macOS (`.zip`), and Linux (`.deb`, `.rpm`) are available from [draggy.org](https://draggy.org) and the
 [Releases page](https://github.com/Lucki74/draggy/releases/latest). On first launch,
 Draggy suggests a model sized for your hardware and downloads it directly. See
-[Installation](https://draggy.org/wiki/installation) for system requirements and platform setup details.
+[Installation](https://docs.draggy.org/installation) for system requirements and platform setup details.
 
 Image generation is optional and installed from Settings, under Models. The engine is a separate download of 17 to 900 MB depending on the build, and a model needs about 2 GB of video memory for Stable Diffusion 1.5 or 6 GB for Z-Image Turbo. With less, the weights stay in system memory.
 
@@ -107,11 +108,11 @@ xcodebuild -scheme Draggy -configuration Debug
 cargo build --release -p draggy-linux
 ```
 
-See [Building and architecture](https://draggy.org/wiki/development) for repository layout, [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, and [RELEASING.md](RELEASING.md) for release workflows.
+See [Building and architecture](https://docs.draggy.org/development) for repository layout, [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, and [RELEASING.md](RELEASING.md) for release workflows.
 
 ## Logging and diagnostics
 
-Operational events write to `app.log` in the application data folder, while detailed traces write to `debug.log`. Prompts and text payloads are hashed for privacy. See [Troubleshooting](https://draggy.org/wiki/troubleshooting) for log locations across platforms.
+Operational events write to `app.log` in the application data folder, while detailed traces write to `debug.log`. Prompts and text payloads are hashed for privacy. See [Troubleshooting](https://docs.draggy.org/troubleshooting) for log locations across platforms.
 
 ## Known rough edges
 

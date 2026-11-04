@@ -139,6 +139,18 @@ describe("which skills a side offers", () => {
     }
   });
 
+  it("keeps the document skills on and out of the user's reach", () => {
+    const library = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "..", "..", "electron", "skills-library", "library.json"), "utf8"),
+    ) as { skills: { id: string; on: boolean; locked?: boolean }[] };
+
+    for (const id of ["docx", "xlsx", "pptx", "pdf", "draggy-help"]) {
+      const entry = library.skills.find((skill) => skill.id === id);
+      expect(entry?.on, id).toBe(true);
+      expect(entry?.locked, id).toBe(true);
+    }
+  });
+
   it("only ever tells the model to use tools that exist", () => {
     const toolsDir = path.join(__dirname, "..", "tools");
     const tools = new Set(

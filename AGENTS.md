@@ -41,6 +41,12 @@ npm run electron:dev
 Vite and Electron together with hot reload on port 5173. Terminate any stale Vite process holding the port before retrying.
 
 ```bash
+npm run dev:test
+```
+
+Serves the real app in a browser at `http://127.0.0.1:5173/test`, wired to the real main-process code and to a llama-server you start with `TEST_MODEL=<path to a .gguf>` (also `TEST_NGL` and `TEST_LLAMA_PORT`, default 8099). Only this script turns it on (`DRAGGY_TEST_HARNESS=1`, `scripts/testHarness.ts`). `npm run electron:dev` and builds never serve `/test`. Stop the server and the llama-server when you finish.
+
+```bash
 npm run electron:build
 ```
 

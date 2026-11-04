@@ -86,12 +86,7 @@ const NO_BROWSING_PROMPT: &str = r##"Web access is turned off for this conversat
 
 const NATIVE_TOOL_PROMPT: &str = r##"Call tools via the tool interface, not in prose. Invoke one tool at a time, wait for results before proceeding, and answer directly once sufficient information is gathered. Always provide your final response to the user outside of internal reasoning. When you say you will use a tool, call it in the same reply; never end a reply by describing what you are about to do."##;
 
-const FILE_FORMAT_PROMPT: &str = r##"When creating files with create_file:
-Provide semantic HTML (for custom styling like colors, font sizes, alignments, widths, borders) or Markdown/CSV.
-- Word (.docx): HTML (h1-h6, p, lists, tables, inline styles) or Markdown. Use for editable documents.
-- Excel (.xlsx): HTML table (with col widths, colors, borders) or CSV.
-- PowerPoint (.pptx): HTML (sections/divs per slide, h1/h2, lists, background colors) or Markdown with slide headings.
-- PDF (.pdf): HTML (full styling, page breaks) or Markdown. Use for final, printable, or archive documents."##;
+const FILE_FORMAT_PROMPT: &str = r##"create_file writes a file the user can open. Before you make a Word, Excel, PowerPoint or PDF file, call use_skill with docx, xlsx, pptx or pdf and follow it. Other files take their raw text or code."##;
 
 const BROWSING_WORKFLOW_PROMPT: &str = r##"BROWSER INTERACTION WORKFLOW: when you need to interact with a website rather than just read it:
 1. browser_navigate to open the page
