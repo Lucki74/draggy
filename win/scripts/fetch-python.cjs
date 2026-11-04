@@ -24,9 +24,18 @@ function download(url, file) {
   });
 }
 
+/** The embeddable build ships a ._pth file that makes Python ignore the script's folder, so
+ * `from helper import x` fails for a file next to the script. Without it Python starts normally;
+ * the app sets PYTHONHOME to keep it on this folder's standard library. */
+function dropPathFile() {
+  for (const name of fs.readdirSync(target)) {
+    if (name.endsWith("._pth")) fs.rmSync(path.join(target, name));
+  }
+}
+
 async function main() {
   if (process.platform !== "win32") return;
-  if (fs.existsSync(path.join(target, "python.exe"))) return;
+  if (fs.existsSync(path.join(target, "python.exe"))) return dropPathFile();
   fs.mkdirSync(target, { recursive: true });
   const zip = path.join(target, "python.zip");
   await download(URL, zip);
@@ -39,6 +48,7 @@ async function main() {
     env: { ...process.env, PY_ZIP: zip, PY_DIR: target },
   });
   fs.rmSync(zip);
+  dropPathFile();
   console.log(`Python ${VERSION} ready in ${target}`);
 }
 

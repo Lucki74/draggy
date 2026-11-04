@@ -20,7 +20,7 @@ Build a light habit of reflection that makes study better. Each entry takes a fe
 
 1. **Understand the aim.** Use `ask_user` for the subject, how often the user studies, the tool they prefer (paper, a note app, a file in a folder) and how many minutes they will give to the journal.
 2. **Set the format.** Keep it to five prompts: what I studied, what I can now do or explain, what is still unclear, how I felt about it (focus, difficulty), and what I will do next time. Cap each answer at one to three lines.
-3. **Create the file.** Use `create_file` for a journal file with a header and an entry template. If the user has a notes folder, check the layout with `list_directory` and follow its naming.
+3. **Create the file.** Use `create_file` for a journal file with a header and an entry template. If the user has a notes folder, check the layout with `ls` and follow its naming.
 4. **Run the first entry together.** After a study session, ask the five prompts one at a time with `ask_user`. Write the answers as the first entry with the date.
 5. **Push for specifics.** If the user writes "learned about loops", ask "which kind, and what could you not do yesterday that you can today". Specific entries are useful ones.
 6. **Turn unclear points into tasks.** For each unclear item, write a concrete next action: a question to look up, an example to try, a person to ask.

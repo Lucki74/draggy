@@ -21,12 +21,12 @@ Every comment gets a decision (apply, adjust, decline with reason, or ask) and a
 
 1. Collect the comments into a numbered list with file, line and text. If they are on a web page, use `read_url`. If the user pasted them, restate each in one line.
 2. Group them: bugs, requested behaviour changes, style, questions, and praise or FYI. Handle bugs first.
-3. For each comment, read the code it points at with `read_file`, plus its callers via `search_files`. Decide before editing:
+3. For each comment, read the code it points at with `read_file`, plus its callers via `rg`. Decide before editing:
    - Valid: apply it.
    - Valid but better fixed another way: apply your version and say why.
    - Unclear: draft a question for the reviewer and ask the user to send it.
    - Wrong or out of scope: decline with evidence such as a test, a doc line or a caller.
-4. When a comment names a pattern ("this should not mutate the input"), run `search_files` for the same pattern across the diff and fix every instance, including those the reviewer did not quote.
+4. When a comment names a pattern ("this should not mutate the input"), run `rg` for the same pattern across the diff and fix every instance, including those the reviewer did not quote.
 5. Make edits with `edit_file`. Keep each change small enough to map to one comment so the reviewer can re-check it.
 6. Run the relevant tests with `run_command` after the batch. Run `git_diff` to confirm nothing outside the comments moved.
 7. Write one reply per comment, quoting the number, stating what changed or why not, and pointing at the line or commit.

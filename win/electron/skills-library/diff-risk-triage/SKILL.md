@@ -28,7 +28,7 @@ Spend review attention in proportion to risk. The result is an ordered reading p
    - Config, migrations, CI, dependency manifests, permissions: read carefully whatever their size.
 3. Score source files for risk: touches money, auth, data deletion or migration; concurrency or caching; public interface; error handling; code with a bug history (`git log` on the file via `run_command`); large changed share of a file; low test coverage.
 4. Read the heads of the top-risk files with `read_file` to confirm the placement. Move a file up if it contains more than the stat suggested.
-5. Look for the hidden parts. Search with `search_files` for added `TODO`, new dependencies, disabled tests, changed feature flags and widened permissions across the whole diff.
+5. Look for the hidden parts. Search with `rg` for added `TODO`, new dependencies, disabled tests, changed feature flags and widened permissions across the whole diff.
 6. Write the reading order: ten or fewer must-read items first, then skims, then tool checks. Add one line per item saying what to look for.
 7. Say whether the diff should be split. If it mixes a refactor with behaviour changes, recommend separate PRs.
 8. Estimate review time per bucket in minutes. If the must-read bucket exceeds an hour, recommend splitting the PR or involving a second reviewer on a named subset.

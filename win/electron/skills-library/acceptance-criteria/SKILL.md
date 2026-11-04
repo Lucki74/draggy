@@ -19,7 +19,7 @@ A short list of statements about behaviour that a person or an automated test ca
 
 ## Steps
 
-1. Read the story, linked spec and any related code with `read_file` and `search_files`. Find how the feature behaves today and how similar features are checked in existing tests.
+1. Read the story, linked spec and any related code with `read_file` and `rg`. Find how the feature behaves today and how similar features are checked in existing tests.
 2. Restate the user value in one line: who, what they can do, why. If two readers could interpret the story differently, ask the single clarifying question with `ask_user`.
 3. Write the main flow as criteria in the form: given a starting state, when the user or system does something, then a specific observable result occurs. One behaviour per criterion.
 4. Add one criterion for each alternative flow and each failure: invalid input, missing permission, empty data, duplicate action, service unavailable, interrupted operation. State what the user sees or what state the data ends in.
@@ -27,7 +27,7 @@ A short list of statements about behaviour that a person or an automated test ca
 6. Include non-functional criteria only when the user gave a requirement: a response time, supported platforms, accessibility needs. Use their numbers. If none exist, ask or leave them out.
 7. Check each criterion with three questions: could a test fail it, does it say what happens and not how it is built, and is it independent of the others. Rewrite any that fail.
 8. Remove vague words (fast, easy, intuitive, properly, works) and replace them with an observable result or a threshold the user approved.
-9. Confirm the list with `ask_user`, flagging the ones you inferred. Then add it to the ticket text, or save it with `create_file` in the format the project uses (check for a template with `search_files`).
+9. Confirm the list with `ask_user`, flagging the ones you inferred. Then add it to the ticket text, or save it with `create_file` in the format the project uses (check for a template with `rg`).
 10. Mark which criteria suit automation and which need a manual check, so the test plan is clear.
 
 ## Gotchas

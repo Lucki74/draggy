@@ -20,7 +20,7 @@ A description a reviewer can act on without asking questions: what the PR does a
 
 1. Find the base branch with `run_command` (`git remote show origin`, or check for main, master or develop).
 2. Run `git log --oneline <base>..HEAD` for the commits, then `git diff <base>...HEAD --stat` and the full diff with `run_command`. Read the diff.
-3. Look for a PR template with `search_files`: `.github/pull_request_template.md` or `.github/PULL_REQUEST_TEMPLATE/`. If one exists, fill it in instead of the structure below.
+3. Look for a PR template with `rg`: `.github/pull_request_template.md` or `.github/PULL_REQUEST_TEMPLATE/`. If one exists, fill it in instead of the structure below.
 4. Find linked issues in the commit messages or the branch name.
 5. Write the description:
    - Title: what the PR does, in the project's convention. Check recent titles with `gh pr list --state merged --limit 10` if gh is available.

@@ -19,7 +19,7 @@ Ship working functionality that looks like the rest of the project: built from e
 ## Steps
 
 1. Understand the request. Restate what the feature does from the user's point of view, including edge cases and what is out of scope. If a decision is the user's (behaviour, UI wording, a data model with lasting consequences), ask with `ask_user` before building. Otherwise pick sensible defaults and state them.
-2. Understand the code. Read AGENTS.md or CONTRIBUTING.md for rules. Find the closest existing feature to copy patterns from (routing, components, state, validation, error handling, tests) with `search_files` and `explore`. List every place that must change: data, logic, interface, configuration, translations, documentation, tests.
+2. Understand the code. Read AGENTS.md or CONTRIBUTING.md for rules. Find the closest existing feature to copy patterns from (routing, components, state, validation, error handling, tests) with `rg` and `explore`. List every place that must change: data, logic, interface, configuration, translations, documentation, tests.
 3. Plan. Write small, checkable steps with `update_plan`, for example:
    - Add the field to the model and migration
    - Validate it in the API

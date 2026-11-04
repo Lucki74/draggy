@@ -26,7 +26,7 @@ For a full stack trace use `use_skill` with `crash-dump-reading`; for large logs
 2. **Find the first error.** Scroll to the earliest error line. Later ones are often caused by it. Ignore warnings unless they appear right before.
 3. **Split the message** into parts: tool, error code or class, subject (file, package, symbol, port), and the condition ("not found", "denied", "already in use", "unexpected token").
 4. **Say it plainly** in one or two sentences, without repeating the jargon.
-5. **Find the real source.** Use `read_file` and `search_files` on the named file, config or import. Check the common causes for that condition: wrong path or case, missing install, version mismatch, wrong working directory, permissions, port taken, bad syntax just before the reported line.
+5. **Find the real source.** Use `read_file` and `rg` on the named file, config or import. Check the common causes for that condition: wrong path or case, missing install, version mismatch, wrong working directory, permissions, port taken, bad syntax just before the reported line.
 6. **Check documentation for that exact version.** For an error code, use `search_web` or `read_url` on the tool's own docs. Do not trust a remembered fix for a different version.
 7. **Give the smallest fix.** Prefer a config or code change over a workaround. Apply it with `edit_file` if the user wants.
 8. **Verify.** Run the original command again and confirm the error is gone and no new one replaced it.

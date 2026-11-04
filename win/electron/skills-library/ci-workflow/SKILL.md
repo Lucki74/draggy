@@ -17,7 +17,7 @@ A pipeline that runs the same checks the project runs locally, fails with a read
 
 ## Steps
 
-1. Learn the project with `read_file` and `search_files`:
+1. Learn the project with `read_file` and `rg`:
    - the check commands it already uses locally (scripts in package.json, Makefile targets, tox or nox, cargo, go test). CI should run the same commands, not new ones.
    - runtime versions: .nvmrc, engines, .python-version, rust-toolchain, go.mod.
    - existing workflows in .github/workflows or .gitlab-ci.yml, to extend rather than duplicate.

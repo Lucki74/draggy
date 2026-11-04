@@ -20,7 +20,7 @@ Decide which parts can separate cleanly, in what order, and what has to change f
 ## Steps
 
 1. State the reason for splitting in a sentence. Valid reasons are independent deploys, different scaling, team ownership or isolating risk. If the reason is "microservices are modern", stop and discuss modules inside the same deployable first.
-2. Map the code with `explore`, `list_directory` and `search_files`: top-level areas, their imports of each other, shared utilities, and global state. Build a dependency table of who calls whom and how many times.
+2. Map the code with `explore`, `ls` and `rg`: top-level areas, their imports of each other, shared utilities, and global state. Build a dependency table of who calls whom and how many times.
 3. Map the data. List tables, collections and files per area and who writes each. A boundary that shares writable tables is not a boundary yet.
 4. Add change history with `run_command` and `git log --name-only`: areas that change together belong together, and areas that rarely co-change are candidates to separate.
 5. Score candidates: few inbound dependencies, clear owned data, an interface that can be written as a short list of calls, and a pain that the split solves. Pick the best first candidate.

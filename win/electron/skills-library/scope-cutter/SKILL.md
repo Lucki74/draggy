@@ -23,7 +23,7 @@ Find the smallest version that still does the one job the user cares about, ship
 2. State the core value in one sentence: what must be true for this to be worth shipping. If the user cannot say it, work it out with them before cutting anything.
 3. Ask for the constraint that forces the cut: a date, a person count, a budget. Use their figure. If there is none, ask what a good first release would be and by when.
 4. Classify each item: must (the core sentence fails without it), should (valuable, can follow), could (nice), and drop (nobody asked for it). Challenge every must by asking what breaks for a real user if it is missing.
-5. Check dependencies. Use `search_files` and `read_file` to see what code the cut items touch. If a "later" item changes a data model, an API shape or a public contract, cutting it can force a rewrite. Keep the cheap seam in now, not the feature.
+5. Check dependencies. Use `rg` and `read_file` to see what code the cut items touch. If a "later" item changes a data model, an API shape or a public contract, cutting it can force a rewrite. Keep the cheap seam in now, not the feature.
 6. Prefer cutting breadth over depth: fewer cases, platforms, roles or settings, done properly, rather than every case done badly. Replace automation with a manual step where the volume is low.
 7. Do not cut the riskiest unknown just because it is hard. Risk that is deferred still arrives, later and larger. Move it earlier or run a `tech-spike`.
 8. Estimate before and after if the user wants numbers, and use `use_skill` with `estimate-work` for the figures.

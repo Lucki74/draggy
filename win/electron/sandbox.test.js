@@ -70,4 +70,19 @@ describe("wrap", () => {
     const result = sandbox.wrap({ file: "cmd.exe", args: [], cwd: workdir, env: {} }, { project, dataDir: workdir });
     expect(result.error).toMatch(/outside the project/);
   });
+
+  it("passes extra variables to the command and puts extra folders on its PATH", () => {
+    if (!sandbox.available()) return;
+    const project = path.join(workdir, "proj");
+    const python = path.join(workdir, "python");
+    fs.mkdirSync(project);
+    fs.mkdirSync(python);
+    const extras = { readOnly: [python], path: [python], env: { PYTHONHOME: python } };
+    const result = sandbox.wrap({ file: "cmd.exe", args: [], cwd: project, env: { PATH: "C:\\Windows" } }, { project, dataDir: workdir, extras });
+    const spec = JSON.parse(fs.readFileSync(result.args[0], "utf8"));
+    const env = Object.fromEntries(spec.env);
+    expect(env.PYTHONHOME).toBe(python);
+    expect(env.PATH.startsWith(python)).toBe(true);
+    expect(spec.readOnly).toContain(python);
+  });
 });

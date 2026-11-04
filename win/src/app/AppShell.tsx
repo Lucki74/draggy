@@ -199,7 +199,7 @@ export default function AppShell({
 
   useEffect(() => {
     const stop = window.electronAPI?.files?.onChanged?.((change: { workspaceId?: string }) => {
-      if (change.workspaceId && active && change.workspaceId !== active.id) return;
+      if (change.workspaceId && active && change.workspaceId !== active.id && !change.workspaceId.startsWith("chat:")) return;
       setFileRevision((r) => r + 1);
     });
     return () => {
@@ -342,6 +342,8 @@ export default function AppShell({
     browserActions: effectiveSettings.browserActions !== false,
     codeExecution: false,
     canRunCommands: mode === "code" && Boolean(window.electronAPI?.commands),
+    canElevate:
+      mode === "code" && active.permissionMode === "auto" && Boolean(window.electronAPI?.commands) && /Windows/i.test(navigator.userAgent),
     libraryReady: mode === "chat" && libraryReady && effectiveSettings.libraryEnabled,
     chatFolder: mode === "chat" && !active.rootPath && Boolean(window.electronAPI?.commands),
     hasFolder: Boolean(active.rootPath),
@@ -833,13 +835,27 @@ export default function AppShell({
     [currentDockLayout, updateDockLayout],
   );
 
-  const handleOpenFiles = useCallback(() => {
+  // A chat with no project keeps its files in its own folder; the dock reads it as the `chat:<id>` workspace.
+  const [chatFiles, setChatFiles] = useState<{ chatId: string; path: string } | null>(null);
+  const chatFilesHere = chatFiles && chatFiles.chatId === currentChatId ? chatFiles : null;
+  const dockWorkspaceId = chatFilesHere && !active.rootPath ? `chat:${chatFilesHere.chatId}` : active.id;
+  const dockRootPath = chatFilesHere && !active.rootPath ? chatFilesHere.path : active.rootPath;
+
+  const handleOpenFiles = useCallback(async () => {
     if (active.rootPath) {
       updateDockLayout(openPane(currentDockLayout, "files"));
-    } else {
-      setViewMode("files");
+      return;
     }
-  }, [active.rootPath, currentDockLayout, updateDockLayout]);
+    if (mode === "chat" && currentChatId && window.electronAPI?.chats?.folder) {
+      const folder = await window.electronAPI.chats.folder(currentChatId, false);
+      if (folder?.success && folder.path) {
+        setChatFiles({ chatId: currentChatId, path: folder.path });
+        updateDockLayout(openPane(currentDockLayout, "files"));
+        return;
+      }
+    }
+    setViewMode("files");
+  }, [active.rootPath, currentChatId, currentDockLayout, mode, updateDockLayout]);
 
   const handleOpenFile = useCallback(
     (path: string) => {
@@ -856,7 +872,6 @@ export default function AppShell({
   // Each shell is a dock tab. A Run button in a code block also lands here, with a command for a prompt.
   const { openShell } = useShellTabs({
     workspaceId: active.id,
-    defaultShell: settings.defaultShell,
     layout: currentDockLayout,
     onLayoutChange: updateDockLayout,
     onMessage: setViewToast,
@@ -1405,8 +1420,8 @@ export default function AppShell({
               planItems={currentSession?.plan}
               isRunning={runs.running.includes(currentChatId!)}
               width={currentDockLayout.width}
-              workspaceId={active.id}
-              rootPath={active.rootPath}
+              workspaceId={dockWorkspaceId}
+              rootPath={dockRootPath}
               gitStatus={gitStatus}
               t={t}
               onStartResize={startResizeRightPane}

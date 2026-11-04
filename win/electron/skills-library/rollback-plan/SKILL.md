@@ -27,7 +27,7 @@ A written way back that someone on call can follow at a bad hour. It names who d
    - Messages already sent, emails, charges and external API calls: cannot be recalled. Note the compensating action.
 3. Identify the one-way doors: the step after which going back means data loss or an outage. Mark that point in the plan, and add a check before it.
 4. Define triggers with numbers the team already watches: error rate, latency, failed jobs, support tickets, a failed health check, plus a time limit (for example, decide within 30 minutes of release). Name who may call it, and make it allowed without a meeting.
-5. Write the steps as commands and clicks in order, each with its expected result and how to verify. Use exact commands found via `search_files` in the deploy scripts or runbooks. Put them in a file with `create_file` if the user agrees.
+5. Write the steps as commands and clicks in order, each with its expected result and how to verify. Use exact commands found via `rg` in the deploy scripts or runbooks. Put them in a file with `create_file` if the user agrees.
 6. Check data compatibility both ways: can the old code read data written by the new code during the window? If not, plan feature flags, dual writes or a freeze.
 7. Rehearse. Run the steps in a staging environment or on a copy with `run_command`, including restoring the backup if the plan depends on one. Record the time taken.
 8. Plan the aftermath: communication to users and teams, a record of what happened, and what must be reconciled in data written during the window.

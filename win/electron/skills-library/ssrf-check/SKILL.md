@@ -20,7 +20,7 @@ A good defence validates the destination after name resolution, and the network 
 
 ## Steps
 
-1. Find outbound request code with `search_files` for `fetch(`, `axios`, `requests.get`, `http.Get`, `urlopen`, `curl`, `webhook`, `url` parameters and headless browser use. Read each with `read_file`.
+1. Find outbound request code with `rg` for `fetch(`, `axios`, `requests.get`, `http.Get`, `urlopen`, `curl`, `webhook`, `url` parameters and headless browser use. Read each with `read_file`.
 2. For each, trace whether any part of the URL (host, path, scheme, redirect) comes from a user, stored data or a third party.
 3. Prefer an allow list of known hosts. If arbitrary URLs are a product need (webhooks), use the checks below.
 4. Restrict schemes to `https` (and `http` only if required). Reject `file:`, `gopher:`, `ftp:` and others.

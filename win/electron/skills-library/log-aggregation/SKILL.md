@@ -20,12 +20,12 @@ A good setup logs one JSON object per event, carries an id through every hop, ne
 
 ## Steps
 
-1. Find current logging with `search_files` for `console.log`, `logger`, `logging.` and `print(`, and note libraries in use with `read_file` on the dependency file.
+1. Find current logging with `rg` for `console.log`, `logger`, `logging.` and `print(`, and note libraries in use with `read_file` on the dependency file.
 2. Choose one logger per language and one JSON schema: timestamp in UTC, level, message, service, version, environment, request id, and error fields.
 3. Edit the logger setup with `edit_file`. Write to stdout and let the platform ship it; avoid log files inside containers.
 4. Add middleware that reads or creates a request id, puts it in the log context, returns it in a response header and forwards it on outbound calls.
 5. Define levels: error means a person may need to act, warn means unexpected but handled, info is business events, debug is off in production.
-6. Add redaction for passwords, tokens, authorization headers, card numbers and personal data. Search the code with `search_files` for places logging whole request bodies or objects.
+6. Add redaction for passwords, tokens, authorization headers, card numbers and personal data. Search the code with `rg` for places logging whole request bodies or objects.
 7. Pick a shipping path suited to the platform (agent, sidecar, platform drain). Check current docs with `read_url` for the chosen tool's config.
 8. Set retention by value: short for debug volume, longer for audit. Set sampling or drop rules for health check spam.
 9. Estimate volume with `run_command` on a sample of real logs (lines per minute, bytes per line) before enabling a metered service.

@@ -22,7 +22,7 @@ Turn a vague feeling into a board with a point of view. The user ends with a lis
 2. Turn feelings into eight to twelve concrete keywords: materials, light, era, texture, subject, motion. "Warm" becomes "late afternoon light, linen, brass".
 3. Pick four to six board panels: color, texture and material, type and lettering, photography or illustration style, layout and composition, and one for things to avoid.
 4. For each panel list what to search for and in which places (stock sites, museum archives, design galleries, the user's own photos). Use `search_web` to check that the sources exist and note their reuse terms; do not assume a free image is free for commercial use.
-5. If the user supplies images in a folder, run `list_directory` and `read_file` to view them, then group them into panels and flag outliers.
+5. If the user supplies images in a folder, run `ls` and `read_file` to view them, then group them into panels and flag outliers.
 6. Add a one-line note per reference: "borrow the spacing, not the color". Without that note the board is only decoration.
 7. Write the brief with `create_file` as `moodboard-brief.md`. If the user wants generated images as stand-ins, use `use_skill` with `image-prompt-writer` and mark them as placeholders.
 8. Run a cull pass: for each panel keep the strongest four to six items and remove anything that repeats another. Ask the user which three items feel most right and which feel wrong, and update the keywords from the answer.

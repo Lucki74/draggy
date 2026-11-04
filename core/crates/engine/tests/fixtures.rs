@@ -10,7 +10,7 @@ use std::sync::Mutex;
 
 use draggy_engine::binary_manager::{
     Asset, GpuProfile, RUNNER_TABLE, RunnerOptions, RunnerSpec, build_number,
-    detect_gpu_runner_with, engine_environment, engine_state, pick_release_assets,
+    detect_gpu_runner_with, engine_environment, engine_state, pick_release_assets_with,
     recommended_release_asset, validate_download_url, variant_of, why_picked,
 };
 use draggy_engine::command::{CommandOutput, CommandRunner, ProcessSpec};
@@ -472,11 +472,15 @@ fn run_assets(input: &Value) -> Value {
                 nvidia: input["nvidia"].as_bool().unwrap_or(false),
                 cuda13: input["cuda13"].as_bool().unwrap_or(false),
             };
-            let picked = pick_release_assets(
+            let options = RunnerOptions {
+                rocm: input["rocm"].as_bool().unwrap_or(false),
+            };
+            let picked = pick_release_assets_with(
                 os_of(platform_name),
                 arch_of(input["arch"].as_str().unwrap_or("x64")),
                 &assets,
                 &profile,
+                options,
             );
             json!({
                 "main": picked.main.map(|a| a.name.clone()),

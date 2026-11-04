@@ -19,7 +19,7 @@ Give a pairing that suits the content and medium, with sizes and spacing the use
 ## Steps
 
 1. Ask with `ask_user` what the text is (long reading, UI labels, headlines), the medium, the tone in two words, the languages and scripts needed, and any font already fixed by a brand.
-2. If the project exists, run `search_files` for `font-family` and `@font-face` to see what is already loaded. Reuse before adding.
+2. If the project exists, run `rg` for `font-family` and `@font-face` to see what is already loaded. Reuse before adding.
 3. Pick the body font first. It needs readable shapes at small sizes, a regular and a bold at least, and the character coverage the languages need. Then pick a heading font that contrasts in one way only: structure (serif with sans), width, or weight. Two display faces together fight.
 4. Check live with `search_web` and `read_url` that each font exists in the weights chosen, what its licence allows (web embedding, app embedding, print), and whether it is free. Do not quote licences from memory.
 5. Set a scale with `run_command` or by hand: a base size, a ratio such as 1.2 or 1.25, rounded to whole pixels. Give line height for body (about 1.4 to 1.6) and tighter for headings, plus a line length target near 45 to 75 characters.

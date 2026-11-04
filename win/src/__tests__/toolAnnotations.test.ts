@@ -20,9 +20,9 @@ describe("Tool annotations quality and directory compliance", () => {
     registerImageTools();
   });
 
-  it("registers all 50 tools", () => {
+  it("registers all 47 tools", () => {
     const tools = allTools();
-    expect(tools.length).toBe(50);
+    expect(tools.length).toBe(47);
   });
 
   it("declares all four hints as explicit booleans on every tool", () => {
@@ -93,22 +93,6 @@ describe("Tool annotations quality and directory compliance", () => {
       destructiveHint: false,
       idempotentHint: false,
       openWorldHint: true,
-    });
-
-    const deleteFile = byName.get("delete_file")!;
-    expect(deleteFile.annotations).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: true,
-      idempotentHint: false,
-      openWorldHint: false,
-    });
-
-    const moveFile = byName.get("move_file")!;
-    expect(moveFile.annotations).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: true,
-      idempotentHint: false,
-      openWorldHint: false,
     });
 
     const editFile = byName.get("edit_file")!;

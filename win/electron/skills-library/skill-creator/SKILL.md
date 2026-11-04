@@ -27,7 +27,7 @@ Turn a job the user does repeatedly into a skill Draggy loads at the right momen
 3. Write the body with a `# Title` line, then these `##` sections in this order:
    - Goal: one short paragraph on the outcome and what a good result looks like.
    - When to use: situations that call for the skill, one line each, naming near misses that belong to another skill and which one.
-   - Steps: numbered, concrete and checkable. Name tools in backticks, using only Draggy tools such as `read_file`, `search_files`, `list_directory`, `run_command`, `search_web`, `read_url`, `explore`, `use_skill`, `create_file`, `write_file`, `edit_file`, `git_diff` and `update_plan`.
+   - Steps: numbered, concrete and checkable. Name tools in backticks, using only Draggy tools such as `read_file`, `rg`, `ls`, `run_command`, `search_web`, `read_url`, `explore`, `use_skill`, `create_file`, `write_file`, `edit_file`, `git_diff` and `update_plan`.
    - Gotchas: three to six real failure modes of this task, from experience, with no filler.
    - Output: what the answer looks like, including format, length and where a file goes.
 4. Write for a capable model with no context. Avoid "as discussed" and define internal terms. Use plain verbs and concrete wording.

@@ -20,7 +20,7 @@ A good audit lists each entry point, what is validated, and where the data goes 
 
 ## Steps
 
-1. Inventory entry points with `explore` or `search_files`: route definitions, controllers, GraphQL resolvers, message consumers, webhook handlers, CLI arguments, file readers and environment reads.
+1. Inventory entry points with `explore` or `rg`: route definitions, controllers, GraphQL resolvers, message consumers, webhook handlers, CLI arguments, file readers and environment reads.
 2. For each, read the handler with `read_file` and write down every field it reads: body, query, path, header, cookie, file.
 3. Check for an explicit schema (zod, joi, pydantic, JSON Schema, bean validation). Flag handlers that read fields directly without one.
 4. Check types and shapes: strings that must be numbers, arrays where one value is expected, nested objects, and extra unexpected keys that get copied into a model (mass assignment).

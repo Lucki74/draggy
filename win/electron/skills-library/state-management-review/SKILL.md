@@ -20,7 +20,7 @@ Every piece of state has one owner, one place it is written and a clear reason i
 
 ## Steps
 
-1. Inventory the stores and hooks. Use `search_files` for store creation, context providers, `useState` in top-level components, URL parameter reads and local storage access. Read the main ones with `read_file`.
+1. Inventory the stores and hooks. Use `rg` for store creation, context providers, `useState` in top-level components, URL parameter reads and local storage access. Read the main ones with `read_file`.
 2. Classify each piece of state into a kind: server data (fetched, cached), URL state (filters, page, selected id), form state, UI state (open panels, hover), and truly global client state (session, theme).
 3. For server data, check whether a fetching and cache layer manages it or whether it is copied into a store by hand. Hand-copied server data is the usual source of stale views.
 4. Look for duplicates: the same value stored twice, a list plus a separate "selected item" copy instead of a selected id, or a count stored next to the list it counts.

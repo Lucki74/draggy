@@ -17,8 +17,8 @@ Help the user understand a project well enough to work in it. A good tour is pro
 
 ## Steps
 
-1. Top level: run `list_directory` on the root. Read the README, AGENTS.md or CONTRIBUTING.md, and the manifest (package.json, pyproject.toml, Cargo.toml, go.mod, pom.xml, *.csproj) with `read_file` for the language, framework, scripts and dependencies.
-2. Entry points: find where execution starts, such as main files, app bootstrap, server setup, CLI entry, routes and index files. `search_files` helps ("main(", "createServer", "app.listen", "@app.route").
+1. Top level: run `ls` on the root. Read the README, AGENTS.md or CONTRIBUTING.md, and the manifest (package.json, pyproject.toml, Cargo.toml, go.mod, pom.xml, *.csproj) with `read_file` for the language, framework, scripts and dependencies.
+2. Entry points: find where execution starts, such as main files, app bootstrap, server setup, CLI entry, routes and index files. `rg` helps ("main(", "createServer", "app.listen", "@app.route").
 3. Structure: list the main folders and what each holds, one level deeper where it matters.
 4. Follow one real flow end to end. Pick the core use case (a request, a command, a button press) and follow it through the files, reading only what that path touches.
 5. For questions that would take many reads, ask `explore` ("Where is authentication checked?") and use its answer as a lead to verify.

@@ -20,7 +20,7 @@ A good result uses a slow, salted, purpose-built hash with tuned cost and a path
 
 ## Steps
 
-1. Find the code with `search_files` for `password`, `hash`, `bcrypt`, `argon`, `scrypt`, `pbkdf2`, `md5`, `sha1`, `sha256`, `crypt`. Read the user model and login code with `read_file`.
+1. Find the code with `rg` for `password`, `hash`, `bcrypt`, `argon`, `scrypt`, `pbkdf2`, `md5`, `sha1`, `sha256`, `crypt`. Read the user model and login code with `read_file`.
 2. Identify the current algorithm, the cost settings and where the salt comes from. Look at the stored hash format in the schema or a seed file; the prefix often shows the scheme.
 3. Check live guidance with `read_url` (the OWASP Password Storage Cheat Sheet) for the currently recommended algorithm and parameters, since recommendations change. Do not recall parameter values from memory.
 4. Reject plain text, reversible encryption, unsalted hashes and fast general hashes (MD5, SHA-1, SHA-256 alone) for passwords.

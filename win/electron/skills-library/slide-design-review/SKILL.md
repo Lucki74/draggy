@@ -17,12 +17,12 @@ Find the design problems that make a deck hard to follow in a room, and give fix
 
 ## Steps
 
-1. Get the slides. Use `list_directory` and `read_file` for exported images or text. For a pptx or pdf, use `run_command` to export pages as images if a converter is installed, otherwise ask the user for exports. Say which slides you could not see.
+1. Get the slides. Use `ls` and `read_file` for exported images or text. For a pptx or pdf, use `run_command` to export pages as images if a converter is installed, otherwise ask the user for exports. Say which slides you could not see.
 2. Ask with `ask_user` for the room, the audience and the time: a screen across a hall needs larger type than a document read on a laptop.
 3. Take the deck-level pass first. Check for one template, consistent title position, consistent type sizes, a limited palette, and the same style of image and icon throughout.
 4. Then the slide pass. For each slide ask: what is the one idea, can it be read in five seconds, what is the largest element and is it the right one. Check body text size (nothing below about 24pt for a live room), line count, contrast against the background, and whether an image sits behind text.
 5. Check charts: labelled directly, axes start sensibly, color is not the only differentiator, and the title states the finding.
-6. Check practicalities with `search_files` or `read_file`: missing alt text, fonts that may not exist on the presenting machine, low-resolution images.
+6. Check practicalities with `rg` or `read_file`: missing alt text, fonts that may not exist on the presenting machine, low-resolution images.
 7. Rank findings: fix first, then fix if time, then taste. Group repeats ("seven slides use paragraphs") into one finding with the slide numbers.
 8. Check the opening and closing slides on their own: the title slide should state the topic and speaker, and the last slide should hold the one thing the audience should do or remember, not a bare "Thank you".
 9. Suggest one master-slide change that fixes the most slides at once, such as larger body size or a fixed title position.

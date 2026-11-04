@@ -77,10 +77,29 @@ const requestOutsideSandbox: ToolSpec = {
   run: (args, ctx) => runInBox(args, ctx, true),
 };
 
+const runAsAdmin: ToolSpec = {
+  name: "run_as_admin",
+  group: "shell",
+  description:
+    "Run one command as administrator, for something that needs it, like installing a service or editing a protected setting. Windows shows its own prompt and the user can decline. Use run_command for everything else.",
+  parameters: {
+    command: { type: "string", description: "The command line to run, as it would be typed in cmd." },
+    reason: { type: "string", description: "One line telling the user why administrator rights are needed." },
+    timeout_seconds: runCommand.parameters.timeout_seconds,
+  },
+  required: ["command", "reason"],
+  usage: '{"command": "sc query spooler", "reason": "reads a protected service"} → Windows asks, then it runs as administrator',
+  annotations: { ...runCommand.annotations, outsideSandbox: true },
+  available: (environment) =>
+    Boolean(environment.hasFolder && environment.canRunCommands && environment.canElevate) && !environment.readOnlyTools,
+  run: (args, ctx) => runInBox({ ...args, background: false }, ctx, true, true),
+};
+
 async function runInBox(
   args: Record<string, unknown>,
   ctx: Parameters<ToolSpec["run"]>[1],
   outside: boolean,
+  elevated = false,
 ): Promise<string> {
   {
     const command = String(args.command).trim();
@@ -125,11 +144,11 @@ async function runInBox(
     const result = await api
       .run(ctx.workspaceId, runId, command, {
         shell,
-        defaultShell: ctx.settings.defaultShell === "auto" ? undefined : ctx.settings.defaultShell,
         timeoutMs: seconds * 1000,
         chatId: ctx.chatId,
         background,
         ...sandboxOptions(ctx.permissionMode, outside),
+        ...(elevated ? { elevated: true } : {}),
         chatFolder: Boolean(ctx.environment?.chatFolder),
       })
       .finally(() => {
@@ -211,6 +230,6 @@ function sandboxOptions(mode: string | undefined, outside: boolean) {
 }
 
 export function registerCommandTools(): void {
-  registerTools([runCommand, requestOutsideSandbox]);
+  registerTools([runCommand, requestOutsideSandbox, runAsAdmin]);
   registerTaskTools();
 }

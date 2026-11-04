@@ -58,3 +58,25 @@ describe("finding Git for Windows", () => {
     expect(shells.findWindowsPosixShell("bash", env, exists)).toBe(path.join("/opt", "Git", "bin", "bash.exe"));
   });
 });
+
+describe("the shell inside the Windows sandbox", () => {
+  const find = () => "/tools/bash";
+
+  it("runs the default in cmd even when bash is installed", () => {
+    const result = shells.shellInvocation("dir", undefined, { platform: "win32", find, sandboxed: true });
+
+    expect(result.shell).toBe("cmd");
+    expect(result.notice).toBeUndefined();
+  });
+
+  it("moves a shell that cannot start there to cmd and says so", () => {
+    const result = shells.shellInvocation("ls", "bash", { platform: "win32", find, sandboxed: true });
+
+    expect(result.shell).toBe("cmd");
+    expect(result.notice).toMatch(/bash/);
+  });
+
+  it("leaves the choice alone outside the sandbox", () => {
+    expect(shells.shellInvocation("ls", undefined, { platform: "win32", find }).shell).toBe("bash");
+  });
+});

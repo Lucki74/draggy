@@ -230,8 +230,8 @@ const FULL_TOOL_PROMPT = `Using tools well:
 const FULL_EDIT_PROMPT = `Editing files, in more detail:
 - Before edit_file, read the region you will change with a few lines around it, so the lines you pass match exactly once.
 - Keep each edit small and in one place. Several edit_file calls are safer than rewriting a large file with write_file.
-- To change something used in many places, search_files for every use first, then edit the definition and each use.
-Example: renaming formatDate means search_files for "formatDate", edit the definition, edit each caller, then read the changed lines back.`;
+- To change something used in many places, search for every use first with a command such as rg or grep, then edit the definition and each use.
+Example: renaming formatDate means searching for "formatDate", editing the definition, editing each caller, then reading the changed lines back.`;
 
 const FULL_PLAN_PROMPT = `The checklist, in more detail: keep each item short and concrete ("Add the settings field", not "Work on settings"), and mark an item done as soon as it is, not all at the end. When the work changes, change the plan too rather than leaving stale items.`;
 

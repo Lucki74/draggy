@@ -20,7 +20,7 @@ A good result states what each block does so the next person can change it.
 
 ## Steps
 
-1. Read the current config. Use `list_directory` on the nginx config folder and `read_file` on `nginx.conf` and included site files.
+1. Read the current config. Use `ls` on the nginx config folder and `read_file` on `nginx.conf` and included site files.
 2. Ask or detect the upstream: host, port, protocol and whether the app expects forwarded headers.
 3. Write a `server` block with `server_name`, `listen`, and `location` blocks. Use `create_file` for a new site file rather than growing `nginx.conf`.
 4. Proxy with `proxy_pass` and set `Host`, `X-Real-IP`, `X-Forwarded-For` and `X-Forwarded-Proto`. Check the trailing slash behaviour of `proxy_pass` before writing the path.

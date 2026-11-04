@@ -18,12 +18,12 @@ Leave the user with receipts and paperwork in a tidy, searchable folder structur
 ## Steps
 
 1. Ask with `ask_user` where the files are, what kinds exist (photos, PDFs, emails saved as files), the years covered, and whether personal and business papers are mixed.
-2. Look at the folder with `list_directory`. Count files by type and year, and list a sample of names. Do not open private files beyond what is needed to name them.
+2. Look at the folder with `ls`. Count files by type and year, and list a sample of names. Do not open private files beyond what is needed to name them.
 3. Propose the structure: year, then month or category, for example a folder per year with subfolders by type such as household, medical, work and warranty. Keep it to two levels.
 4. Propose the file name pattern: date first as year-month-day so names sort in order, then vendor, then a short note and the amount. Show three examples.
 5. Ask the user to approve the structure and the pattern before moving anything.
 6. Create the folders with `create_file` placeholders or by moving the first file into a new path.
-7. Move files with `move_file` in small batches. Copy first if the user wants to keep the original layout. Never delete.
+7. Move files with `mv` in small batches. Copy first if the user wants to keep the original layout. Never delete.
 8. For files whose date or vendor cannot be read from the name, list them in an unsorted folder and ask the user.
 9. Write a log with `create_file`: old path, new path, date moved. Offer it as a CSV.
 10. Count the files before and after, and confirm the totals match.

@@ -20,7 +20,7 @@ A good runbook has been walked through against the real deploy setup, not writte
 
 ## Steps
 
-1. Find how the service is deployed. Use `search_files` for deploy scripts, CI workflows, Helm charts, `Procfile` and `fly.toml`, and read them with `read_file`.
+1. Find how the service is deployed. Use `rg` for deploy scripts, CI workflows, Helm charts, `Procfile` and `fly.toml`, and read them with `read_file`.
 2. Identify the last known good version: a git tag, an image digest, a release id. Use `run_command` with `git tag --sort=-creatordate` to list tags.
 3. If this is an emergency, stop the spread first: pause the rollout, scale new instances to zero or disable the flag, then plan the full return.
 4. Write the code rollback commands for this platform. Check the platform docs with `read_url` for the exact command, since flags differ and change.

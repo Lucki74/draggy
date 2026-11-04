@@ -19,7 +19,7 @@ A one-page description of a typical buyer or user that guides real decisions abo
 
 ## Steps
 
-1. Ask with `ask_user` what the product is, who buys today (if anyone), and what evidence exists: interview notes, tickets, reviews, sales call notes, survey data. Open files they name with `read_file` and `search_files`.
+1. Ask with `ask_user` what the product is, who buys today (if anyone), and what evidence exists: interview notes, tickets, reviews, sales call notes, survey data. Open files they name with `read_file` and `rg`.
 2. Decide how many personas. One primary persona is the default. Add a second only when two groups need different things, and say which one wins when they conflict.
 3. Pull facts from the evidence into five areas: role and context (what they do, team, constraints), goals (what success looks like for them), pains (what blocks them now, in their words), how they decide (who else is involved, what they compare, what they fear), and where they spend time (tools, communities, media).
 4. Copy two or three real quotes from the material. Mark them as quotes and remove names.

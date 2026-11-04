@@ -20,8 +20,8 @@ A good result starts cleanly from a fresh checkout, keeps data across restarts, 
 
 ## Steps
 
-1. List what the app needs. Use `search_files` for connection strings, `process.env` or `os.environ` reads, and `.env.example`, and read the README with `read_file`.
-2. Check for an existing `compose.yaml` or `docker-compose.yml` with `list_directory`. Edit it instead of adding a second file.
+1. List what the app needs. Use `rg` for connection strings, `process.env` or `os.environ` reads, and `.env.example`, and read the README with `read_file`.
+2. Check for an existing `compose.yaml` or `docker-compose.yml` with `ls`. Edit it instead of adding a second file.
 3. Run `run_command` with `docker compose version` to confirm Compose v2 is installed. Check the live docs with `read_url` before using any newer key you are unsure of.
 4. Define one service per process. Pin image tags to a specific minor version instead of `latest`, and look the current tags up on the registry page with `read_url` rather than guessing.
 5. Give every stateful service a named volume, and mount it at the data directory the image documents, not at a guessed path.

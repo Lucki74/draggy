@@ -1241,8 +1241,6 @@ export interface AppSettings {
   allowMaxInChat: boolean;
   /** Lets a slow model (under 3 tokens per second) think; off by default because thinking multiplies the wait. */
   slowModelThinking: boolean;
-  /** Lets an AMD card use the ROCm or HIP build ahead of Vulkan. On unless set to false. */
-  gpuRocm?: boolean;
   /** Lets colibri route to cached experts when the true ones are on disk: faster, and answers may change. */
   colibriLossy: boolean;
   webMode: "on" | "off";
@@ -1273,8 +1271,6 @@ export interface AppSettings {
   /** The level new code sessions start at. */
   codeDefaultEffort: EffortLevel;
   codeWebMode: "on" | "off";
-  /** The shell run_command uses when the model names none. "auto" is bash from Git for Windows, then PowerShell. */
-  defaultShell: "auto" | "bash" | "pwsh" | "powershell" | "cmd";
   /** What a new project starts at. */
   codePermissionMode: PermissionMode;
   libraryEnabled: boolean;
@@ -1416,7 +1412,7 @@ declare global {
       >;
       browserClose: () => Promise<{ ok: true }>;
 
-      createFile: (filename: string, content: string) => Promise<{ success: boolean; filepath?: string; filename?: string; error?: string }>;
+      createFile: (filename: string, content: string, chatId?: string) => Promise<{ success: boolean; filepath?: string; filename?: string; error?: string }>;
       openFile: (filepath: string) => Promise<string>;
       openCreatedFiles: () => Promise<string>;
       listCreatedFiles: () => Promise<{
@@ -1714,6 +1710,8 @@ declare global {
             writable?: boolean;
             network?: boolean;
             outsideSandbox?: boolean;
+            /** One command as administrator, behind the Windows UAC prompt. YOLO only. */
+            elevated?: boolean;
             /** A chat with no project: run in its own folder, in the sandbox, with the network off. */
             chatFolder?: boolean;
           },

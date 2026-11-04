@@ -21,7 +21,7 @@ Replace a guess with evidence. A spike answers one written question within a fix
 
 1. Write the question as a single sentence that can be answered yes or no, or with a number. "Can the parser handle files over the largest size we have?" is a question. "Look into parsers" is not. Confirm it with `ask_user` if it is ambiguous.
 2. Set the time box with the user (a few hours is typical) and a success rule: what result means go, and what means no-go. Write both down before starting.
-3. Read what is known. Use `read_url` and `search_web` for official docs, release notes and known issues, and check the version in use. Use `search_files` and `read_file` for how the project already handles similar things.
+3. Read what is known. Use `read_url` and `search_web` for official docs, release notes and known issues, and check the version in use. Use `rg` and `read_file` for how the project already handles similar things.
 4. Choose the cheapest experiment that can fail. Prefer a small script, a test or a one-file prototype over wiring into the real app. Create it in a scratch folder with `create_file`, outside shipped source.
 5. Run it with `run_command` using realistic input, not toy data. Record exact commands, versions and results as you go, including failures.
 6. Probe the edges that decide the answer: the largest input, the slowest path, the platform quirks, the auth or licence limits. Measure real figures from your runs instead of quoting claims from marketing pages.

@@ -21,7 +21,7 @@ A user who makes a mistake sees one clear message next to the field, fixes it qu
 ## Steps
 
 1. Read the form component and its submit handler with `read_file`. List each field, its rules, where the rules are enforced (client, server or both) and how errors are shown.
-2. Check what the server returns on invalid input using `search_files` for the handler. The client must be able to map a server error to a field.
+2. Check what the server returns on invalid input using `rg` for the handler. The client must be able to map a server error to a field.
 3. Choose timing per field. Validate on blur for most fields, and revalidate on every change once a field has shown an error. Validate the whole form on submit and move focus to the first invalid field.
 4. Write messages that say what to do: "Enter an email like name@example.com", not "Invalid input". Put each message directly under its field.
 5. Keep the user's data. On a failed submit do not clear fields, and do not disable the submit button without saying why.

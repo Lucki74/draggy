@@ -423,14 +423,10 @@ AVAILABLE TOOLS
 13. browser_get_text: {} → the text of the current browser page, or {"ref": "e5"} → the text of that element
 14. browser_close: {} → closes the browser session
 15. read_file: {"path": "src/App.tsx"} → the text of the file
-16. list_directory: {"path": "src"} → the files and folders in it
-17. search_files: {"text": "createTaskManager"} → the files and lines it appears on
-18. edit_file: {"path": "src/App.tsx", "find": "const x = 1;", "replace": "const x = 2;"} → edits the file in place
-19. write_file: {"path": "src/new.ts", "content": "export const x = 1;\\n"} → writes the file
-20. move_file: {"from": "notes.md", "to": "docs/notes.md"} → moves the file
-21. delete_file: {"path": "old-notes.md"} → moves the file to the recycle bin
-22. update_plan: {"steps": "[x] Read the config\\n[>] Change the port\\n[ ] Run the tests"} → shows the user where you are
-23. ask_user: {"question": "Which database should I use?", "options": "SQLite\\nPostgres"} → the option the user picked
+16. edit_file: {"path": "src/App.tsx", "find": "const x = 1;", "replace": "const x = 2;"} → edits the file in place
+17. write_file: {"path": "src/new.ts", "content": "export const x = 1;\\n"} → writes the file
+18. update_plan: {"steps": "[x] Read the config\\n[>] Change the port\\n[ ] Run the tests"} → shows the user where you are
+19. ask_user: {"question": "Which database should I use?", "options": "SQLite\\nPostgres"} → the option the user picked
 
 To use a tool, output EXACTLY this JSON format inside <tool> tags and nothing else:
 <tool>
@@ -640,8 +636,8 @@ Using tools well:
 Editing files, in more detail:
 - Before edit_file, read the region you will change with a few lines around it, so the lines you pass match exactly once.
 - Keep each edit small and in one place. Several edit_file calls are safer than rewriting a large file with write_file.
-- To change something used in many places, search_files for every use first, then edit the definition and each use.
-Example: renaming formatDate means search_files for "formatDate", edit the definition, edit each caller, then read the changed lines back.
+- To change something used in many places, search for every use first with a command such as rg or grep, then edit the definition and each use.
+Example: renaming formatDate means searching for "formatDate", editing the definition, editing each caller, then reading the changed lines back.
 
 The checklist, in more detail: keep each item short and concrete ("Add the settings field", not "Work on settings"), and mark an item done as soon as it is, not all at the end. When the work changes, change the plan too rather than leaving stale items."
 `;

@@ -18,7 +18,7 @@ Produce a spec that matches what the API really does and passes a validator, so 
 
 ## Steps
 
-1. Check which OpenAPI version the project uses or wants, and whether the spec is generated from code or written by hand. Search with `search_files` for existing spec files and framework decorators. Check current spec details with `read_url` if a feature is in question.
+1. Check which OpenAPI version the project uses or wants, and whether the spec is generated from code or written by hand. Search with `rg` for existing spec files and framework decorators. Check current spec details with `read_url` if a feature is in question.
 2. Inventory the routes. Read the router and handlers with `read_file` and list method, path, path and query parameters, request body, responses and auth for each.
 3. Define reusable components first: schemas for each resource, shared parameters (id, page, limit), the security scheme and one error schema. Reference them with `$ref` instead of copying.
 4. Write each operation with a unique `operationId`, a short summary, tags, parameters, a request body where relevant and every response the code can return.

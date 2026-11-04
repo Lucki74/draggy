@@ -20,7 +20,7 @@ When this code fails at night, the person on call can find the failing case from
 
 ## Steps
 
-1. Find the log calls with `search_files` (`logger.`, `console.`, `log.`, `print(`, `slog`). For a diff, restrict to changed files with `git_diff`. Read the project's logging helper and levels with `read_file`.
+1. Find the log calls with `rg` (`logger.`, `console.`, `log.`, `print(`, `slog`). For a diff, restrict to changed files with `git_diff`. Read the project's logging helper and levels with `read_file`.
 2. For each call, answer: who reads this, in which situation, and what do they do with it? A line nobody can act on is noise.
 3. Check levels. Errors mean something failed and needs attention. Warnings mean degraded but working. Info marks lifecycle events, kept sparse. Debug is for developers and off by default.
 4. Check context on each failure log: operation name, identifier of the record or request, the error with its cause chain, and relevant inputs by id rather than by content.

@@ -20,7 +20,7 @@ A good plan also handles the shared database, which both versions use at once.
 
 ## Steps
 
-1. Find the current deploy method and platform with `search_files` and `read_file` on workflows, manifests and load balancer config. Ask with `ask_user` if the traffic router is not obvious.
+1. Find the current deploy method and platform with `rg` and `read_file` on workflows, manifests and load balancer config. Ask with `ask_user` if the traffic router is not obvious.
 2. Choose the strategy: blue green (switch all traffic at once), canary (percentage steps) or both. Base it on the routing features available. Check the platform docs with `read_url` for the exact feature.
 3. List shared state: database, caches, file storage, queues, sessions. Both versions will touch them at the same time.
 4. Apply expand and contract to the schema: add new columns first, deploy code that works with both shapes, backfill, then remove the old shape in a later release.

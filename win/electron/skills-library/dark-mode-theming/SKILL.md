@@ -20,7 +20,7 @@ The page matches the user's chosen theme, falls back to the system preference an
 
 ## Steps
 
-1. Find how colors are defined with `search_files`: custom properties, a Tailwind config, a theme object in JS or hardcoded hex values. Read the main style entry with `read_file`.
+1. Find how colors are defined with `rg`: custom properties, a Tailwind config, a theme object in JS or hardcoded hex values. Read the main style entry with `read_file`.
 2. If colors are hardcoded, move them behind semantic variables first. A theme cannot be added cleanly over raw hex values.
 3. Define the dark palette as a second set of values for the same variable names. Do not invert the light palette mechanically. Re-pick surfaces, borders and text so contrast holds, and check text against backgrounds.
 4. Choose the switching mechanism: `prefers-color-scheme` media query for system default, plus an attribute on the root element (such as `data-theme`) for the user override.

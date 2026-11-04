@@ -19,7 +19,7 @@ Find the problems that make a workbook give wrong answers, rank them by how much
 
 ## Steps
 
-1. Work on a copy. Use `list_directory` to find the file and `run_command` to copy it to a new name. Open nothing in write mode on the original.
+1. Work on a copy. Use `ls` to find the file and `run_command` to copy it to a new name. Open nothing in write mode on the original.
 2. Map the workbook with `run_command`: sheet names, visible or hidden state, used range, number of formulas and constants per sheet, defined names, external links, and any macros present. Print it as a short table.
 3. Trace the flow. Identify the input sheets, the calculation sheets and the outputs. Draw it as a line of text: Inputs to Calc to Summary. Ask the user with `ask_user` what the key outputs are and what they should roughly equal.
 4. Scan for errors. List every cell with an error value (`#REF!`, `#DIV/0!`, `#N/A`, `#VALUE!`, `#NAME?`) and trace each one back to its first cause, since one bad cell spreads down a chain.

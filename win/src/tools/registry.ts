@@ -42,6 +42,8 @@ export interface ToolEnvironment {
   chatFolder?: boolean;
   /** Whether commands can run in that folder. Code only. */
   canRunCommands?: boolean;
+  /** YOLO on Windows: a command may ask for administrator rights, which Windows confirms itself. */
+  canElevate?: boolean;
   /** Whether the image engine and an image model are both installed. */
   imageReady?: boolean;
   /** Whether the chat model can read pictures, which is what lets it look at one of the chat's images. */

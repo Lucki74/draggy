@@ -17,7 +17,7 @@ Produce an API that clients can predict: consistent with what the project alread
 
 ## Steps
 
-1. Start from the existing API. Read the current routes, handlers and schemas (OpenAPI files, GraphQL SDL, route definitions) with `search_files` and `read_file`. New endpoints must match what exists: naming, casing (camelCase or snake_case), error format, pagination and authentication. Consistency beats textbook purity.
+1. Start from the existing API. Read the current routes, handlers and schemas (OpenAPI files, GraphQL SDL, route definitions) with `rg` and `read_file`. New endpoints must match what exists: naming, casing (camelCase or snake_case), error format, pagination and authentication. Consistency beats textbook purity.
 2. Apply these REST conventions where the project has no stronger one:
    - **Resources:** plural nouns, such as `/orders`, `/orders/{id}`, `/orders/{id}/items`. Actions that do not map to CRUD become sub-resources, or verbs used sparingly: `POST /orders/{id}/cancel`.
    - **Methods:** GET reads (safe, no side effects), POST creates or triggers, PUT replaces, PATCH updates part of a resource, DELETE removes. PUT and DELETE are idempotent.

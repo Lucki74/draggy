@@ -21,7 +21,7 @@ Give an honest range the user can plan around, built from the parts of the work 
 
 1. Pin down what is being estimated: the done state, in one or two sentences. If the finish line is unclear, call `ask_user` for it. Estimating a fuzzy target gives a fuzzy number.
 2. Ask what unit and audience the estimate has: hours for one person, working days for a team, or a rough size (small, medium, large). Match it.
-3. Look at the code. Use `search_files`, `read_file` and `explore` to find the files, modules and tests involved and how similar changes were done before. Count what you find: files touched, call sites, tests to update.
+3. Look at the code. Use `rg`, `read_file` and `explore` to find the files, modules and tests involved and how similar changes were done before. Count what you find: files touched, call sites, tests to update.
 4. Break the work into parts of about a half day or less where possible: design, implementation per area, tests, migration, docs, review feedback, release steps. Use `update_plan` to keep the list visible.
 5. Give each part a low and a high figure. The high figure is what happens when the first guess is wrong, not a worst case disaster. Wide ranges on a part mean it holds an unknown.
 6. Mark unknowns separately: anything you could not verify (an API behaviour, a library limit, unfamiliar code). Check what you can with `read_url` or `search_web`. For unknowns that stay open, propose a `tech-spike` and estimate that instead.

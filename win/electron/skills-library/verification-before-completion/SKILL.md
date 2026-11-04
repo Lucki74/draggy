@@ -25,7 +25,7 @@ Replace "it should work" with evidence. Every acceptance condition gets a check 
 3. Check what changed with `git_status` and `git_diff`. Every changed file should trace to a condition. A change with no condition is either scope creep or a missing condition.
 4. Run the checks with `run_command` after the final edit. Capture the exit code and the lines that show pass or fail, with the summary line as a bonus.
 5. Test the negative side where it matters: feed one bad input, or confirm the old behaviour is gone.
-6. Look for leftovers with `search_files`: debug prints, `TODO` you added, skipped tests, temporary files.
+6. Look for leftovers with `rg`: debug prints, `TODO` you added, skipped tests, temporary files.
 7. Fill a table of condition, check run, result. Any condition without a passing check is reported as unverified, not as probably fine.
 8. If a check fails, fix the cause and rerun every check, since the fix can break a condition that passed before.
 9. Before the final answer, reread the original request once and compare it to the table, so a condition that was never listed does not slip through.

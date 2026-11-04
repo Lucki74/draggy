@@ -20,7 +20,7 @@ A good pipeline is short, fails early, and tells you which version runs where.
 
 ## Steps
 
-1. Read the current process: workflows with `search_files` under CI folders, scripts, and the README release notes. Use `read_file` on each.
+1. Read the current process: workflows with `rg` under CI folders, scripts, and the README release notes. Use `read_file` on each.
 2. Decide the trigger: tag push, merge to main, or manual dispatch. Match it with the team's branching style.
 3. Pick a versioning rule and apply it automatically: semantic version from tags, or commit hash plus date. Write the version into the artifact and the running app so it can be queried.
 4. Build once. Produce one artifact (image, package, bundle) and push it to a registry with an immutable tag and a digest. Never rebuild for production.

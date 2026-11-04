@@ -826,18 +826,6 @@ function syncTitleBarTheme() {
   }
 }
 
-/** Hands the gpu.rocm choice to the engine code, which reads it when it picks a build. On unless the setting is off. */
-function applyRunnerSetting(rawSettings) {
-  let rocm;
-  try {
-    const parsed = typeof rawSettings === "string" ? JSON.parse(rawSettings) : rawSettings;
-    rocm = parsed?.gpuRocm !== false;
-  } catch {
-    rocm = true;
-  }
-  binaryManager.setRunnerOptions({ rocm });
-}
-
 function applyThemeSetting(rawSettings) {
   overlayColor = themes.accentColor(rawSettings);
   const setting = themes.themeSetting(rawSettings);
@@ -1169,7 +1157,6 @@ app.whenReady().then(() => {
   onboardingPlan = decideOnboarding();
   try {
     applyThemeSetting(storage.getValue("draggy_settings"));
-    applyRunnerSetting(storage.getValue("draggy_settings"));
   } catch (error) {
     log.warn("theme", `could not read the saved theme: ${error.message}`);
   }
@@ -2702,7 +2689,7 @@ ipc.handle("read-document", async (event, filename, data) => {
   }
 });
 
-ipc.handle("create-file", async (event, filename, content) => {
+ipc.handle("create-file", async (event, filename, content, chatId) => {
   try {
     const safeFilename = path.basename(String(filename));
 
@@ -2718,11 +2705,13 @@ ipc.handle("create-file", async (event, filename, content) => {
       };
     }
 
-    const dir = createdFilesDir();
+    const chatDir = chatId ? chatDirPath(chatId) : null;
+    if (chatId && !chatDir) return { success: false, error: "That chat has no folder." };
+    const dir = chatDir || createdFilesDir();
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
     const filepath = path.join(dir, safeFilename);
-    if (!isInsideCreatedFilesDir(path.resolve(filepath))) {
+    if (!chatDir && !isInsideCreatedFilesDir(path.resolve(filepath))) {
       return { success: false, error: "Refused to write outside the output folder." };
     }
 
@@ -2846,6 +2835,13 @@ const wrap = (scope, handler) => async (...args) => {
 /** The folders a conversation may reach: its workspace's and nothing else. The renderer names a
  * workspace, so it cannot ask for a folder it was never given. */
 function rootsFor(workspaceId) {
+  // `chat:<id>` is the folder of a chat that has no project, made when the chat first needs it.
+  if (typeof workspaceId === "string" && workspaceId.startsWith("chat:")) {
+    const dir = chatDirPath(workspaceId.slice(5));
+    if (!dir) return [];
+    fs.mkdirSync(dir, { recursive: true });
+    return [dir];
+  }
   const workspace = storage.getWorkspace(workspaceId);
   return workspace && workspace.rootPath ? [workspace.rootPath] : [];
 }
@@ -3402,7 +3398,6 @@ ipc.handle("db:set", wrap("db", async (event, key, value) => {
     const changed = settingsLog.describeChange(before, value);
     if (Object.keys(changed).length > 0) log.info("settings", "settings saved", { changed });
     applyThemeSetting(value);
-    applyRunnerSetting(value);
   } else if (result.success) {
     log.info("settings", "setting saved", settingsLog.describeKeySave(key));
   }
@@ -3504,12 +3499,18 @@ function chatsRoot() {
 
 function chatDirPath(chatId) {
   const id = String(chatId || "");
-  return /^[w-]{1,128}$/.test(id) ? path.join(chatsRoot(), id) : null;
+  return /^[\w-]{1,128}$/.test(id) ? path.join(chatsRoot(), id) : null;
 }
 
 function pythonDir() {
   const candidates = [path.join(process.resourcesPath || "", "python"), path.join(__dirname, "..", "vendor", "python")];
   return candidates.find((dir) => fs.existsSync(path.join(dir, "python.exe"))) || null;
+}
+
+/** The bundled Python on a chat command's PATH. PYTHONHOME keeps it off any Python installed on the
+ * machine, and the folder's own files import normally because the bundle has no ._pth file. */
+function pythonExtras(python) {
+  return { readOnly: [python], path: [python], env: { PYTHONHOME: python, PYTHONNOUSERSITE: "1" } };
 }
 
 ipc.handle("chats:folder", wrap("chats", async (event, chatId, open) => {
@@ -3538,10 +3539,16 @@ ipc.handle(
         outsideSandbox: false,
         network: false,
         writable: true,
-        extras: python ? { readOnly: [python], path: [python] } : undefined,
+        extras: python ? pythonExtras(python) : undefined,
       };
     }
     const chatId = String(options?.chatId || workspaceId || "default");
+    // YOLO only: one command as administrator, behind the Windows UAC prompt. The app stays unelevated.
+    if (options?.elevated === true && real) {
+      const result = await require("./elevate.cjs").runElevated({ command, cwd: real, timeoutMs: options?.timeoutMs });
+      if (result.output) sendTo(BrowserWindow.fromWebContents(event.sender), "commands:output", { runId, chunk: result.output });
+      return result;
+    }
     if (options?.background) {
       const started = tasks().start({
         chatId,

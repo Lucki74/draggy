@@ -22,7 +22,7 @@ Replace "make it faster" with numbers that stay true over time. A good result ha
 
 1. Pick the pages that matter: the home page, the main app screen and one heavy content page. Ask with `ask_user` if the user has not named them, and ask the target audience's device and network class.
 2. Build for production with `run_command` using the project's build script. Never measure a dev server.
-3. Measure the baseline: file sizes of emitted assets with `list_directory` or `run_command`, and for live pages the transferred bytes by type (script, style, image, font) from the browser. Use `browser_navigate` and `browser_console` to read resource timing entries.
+3. Measure the baseline: file sizes of emitted assets with `ls` or `run_command`, and for live pages the transferred bytes by type (script, style, image, font) from the browser. Use `browser_navigate` and `browser_console` to read resource timing entries.
 4. Record timing metrics too: time to first byte, largest contentful paint, total blocking time. Take at least three runs and use the median.
 5. Propose budgets slightly better than today, not aspirational ones. Common shapes are a cap on total JavaScript, on image bytes per page, on request count and on one or two timing metrics. Check current guidance on thresholds with `search_web` or `read_url` before quoting numbers.
 6. Add enforcement where the project already runs checks: a bundler size limit, a script in `package.json` or a CI step. Use `read_file` on the config, then `edit_file` to add it.

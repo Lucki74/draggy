@@ -18,7 +18,7 @@ Find the places where an attacker could log in as someone else, stay logged in t
 
 ## Steps
 
-1. Map the flow. Use `search_files` for login, signup, logout, reset, token, session, cookie and middleware names, then `read_file` the auth module. Draw the sequence in notes: credentials in, session or token out, how each later request is checked.
+1. Map the flow. Use `rg` for login, signup, logout, reset, token, session, cookie and middleware names, then `read_file` the auth module. Draw the sequence in notes: credentials in, session or token out, how each later request is checked.
 2. Passwords: check hashing uses a slow password hash from a maintained library with per-user salt, and that nothing logs or returns the password. Check current recommended parameters with `read_url` instead of recalling numbers.
 3. Sessions and cookies: check `HttpOnly`, `Secure`, `SameSite`, expiry, rotation of the session id after login, and invalidation on logout and password change.
 4. Tokens: if JWTs are used, check the algorithm is pinned and not taken from the header, signature is verified, expiry and audience are checked, secrets are strong and not in code, and refresh tokens can be revoked.

@@ -4,7 +4,7 @@ import { CapabilityIcons } from "../providers/CapabilityIcons";
 import { formatBytes } from "../formatBytes";
 import { Icon } from "../ui/icons/Icon";
 import { fill } from "../onboarding/text";
-import { Badge, Block, ConfirmDialog, Group, Page, Row, Select, Toggle } from "./Controls";
+import { Badge, Block, ConfirmDialog, Group, Page, Row, Select } from "./Controls";
 import ModelSearch from "./ModelSearch";
 import CompactLimitField from "./CompactLimitField";
 import DownloadsMenu from "./DownloadsMenu";
@@ -180,12 +180,6 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
             options={IMAGE_RESOLUTIONS.map(([width, height, ratio]) => ({ id: `${width}x${height}`, label: `${width} × ${height} (${ratio})` }))}
             onChange={(imageResolution) => onUpdate({ imageResolution })}
           />
-        </Row>
-      </Group>
-
-      <Group title={t("gpuBackendGroup")}>
-        <Row label={t("gpuRocmSetting")} description={t("gpuRocmHint")}>
-          <Toggle label={t("gpuRocmSetting")} checked={settings.gpuRocm !== false} onChange={(gpuRocm) => onUpdate({ gpuRocm })} />
         </Row>
       </Group>
 

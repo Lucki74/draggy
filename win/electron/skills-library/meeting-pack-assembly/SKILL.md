@@ -18,7 +18,7 @@ Produce one pack a reader can open and follow in agenda order, with the latest v
 
 ## Steps
 
-1. Find the inputs. Use `list_directory` on the meeting folder and read the agenda with `read_file`. Ask with `ask_user` for the agenda if it is not in the folder.
+1. Find the inputs. Use `ls` on the meeting folder and read the agenda with `read_file`. Ask with `ask_user` for the agenda if it is not in the folder.
 2. Build a checklist table: agenda item number, title, expected paper, file found, modified date, status. Mark items with no file and files that match no item.
 3. Detect version problems. Group files by stem (`budget_v2`, `budget_final`, `budget_final2`) and show the candidates with dates. Ask the user which is current for each group. Never pick by the word "final".
 4. Convert non-PDF files to PDF with `run_command` if a converter is installed (check first). Tell the user about files you could not convert and ask what to do.

@@ -19,7 +19,7 @@ A document short enough to read in five minutes and precise enough that two deve
 
 ## Steps
 
-1. Collect the input: the user's description, linked tickets, related code and existing docs. Use `read_file` and `search_files` to find current behaviour that the spec must fit or change. Quote what you find rather than describing it from memory.
+1. Collect the input: the user's description, linked tickets, related code and existing docs. Use `read_file` and `rg` to find current behaviour that the spec must fit or change. Quote what you find rather than describing it from memory.
 2. Write the problem in two to four sentences: who has it, what they do today, why that hurts. If you cannot, call `ask_user` for the missing piece.
 3. List goals and non-goals. Non-goals are things a reasonable reader might expect that are deliberately out. They stop scope creep later.
 4. Describe behaviour as scenarios in plain sentences: who does what, what the system does in response. Cover the main flow first, then each alternative flow.
@@ -28,7 +28,7 @@ A document short enough to read in five minutes and precise enough that two deve
 7. Add an interface sketch only where behaviour depends on it: API shape, UI states, file format. Keep it to the minimum a reader needs.
 8. List open questions as a separate section, each with the person who can answer. Give your default answer for each so work is not blocked.
 9. Re-read as the implementer. Mark every sentence a builder would need to guess at, then fix it or move it to open questions.
-10. Save with `create_file` at the project's docs location (look with `list_directory` for `docs`, `specs` or `rfcs`) and match existing naming. Summarise the three biggest decisions in chat.
+10. Save with `create_file` at the project's docs location (look with `ls` for `docs`, `specs` or `rfcs`) and match existing naming. Summarise the three biggest decisions in chat.
 
 ## Gotchas
 

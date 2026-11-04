@@ -20,7 +20,7 @@ A good fix names exact origins, and the user understands that CORS is a browser 
 
 ## Steps
 
-1. Find CORS code and proxy config with `search_files` for `Access-Control`, `cors(`, `CORS_`, `allowedOrigins` and `add_header` in nginx files. Read each with `read_file`.
+1. Find CORS code and proxy config with `rg` for `Access-Control`, `cors(`, `CORS_`, `allowedOrigins` and `add_header` in nginx files. Read each with `read_file`.
 2. List which origins should be allowed: the production site, staging, local development. Ask the user if unclear.
 3. Check how the allowed origin is chosen. Flag: `*`, an origin copied from the request without checking a list, regex without anchors, and `endsWith` or `includes` checks.
 4. Check credentials. `Access-Control-Allow-Credentials: true` must pair with an exact origin, never a wildcard. Confirm whether cookies are even used.

@@ -18,7 +18,7 @@ Answer one question fast: is the site basically working? The test covers the pag
 
 ## Steps
 
-1. Ask with `ask_user` for the base address and the environment. Ask for the five to ten pages or flows that matter: home, a content page, search, sign-in page (not signing in), a product or article, contact form (not submitting), and the page that was just changed. Check whether a test list exists in the repository with `search_files` for names like `smoke` or `health`.
+1. Ask with `ask_user` for the base address and the environment. Ask for the five to ten pages or flows that matter: home, a content page, search, sign-in page (not signing in), a product or article, contact form (not submitting), and the page that was just changed. Check whether a test list exists in the repository with `rg` for names like `smoke` or `health`.
 2. Write the plan with `update_plan`: one line per page with what "pass" means, for example "title contains the product name, main heading visible, no console errors".
 3. For each page, open it with `browser_navigate`. Wait for it with `browser_wait`. Read the title and main heading with `browser_get_text` or `browser_snapshot`.
 4. Check `browser_console` for errors and failed resource messages. Note the request failures that matter: scripts, styles, API calls.

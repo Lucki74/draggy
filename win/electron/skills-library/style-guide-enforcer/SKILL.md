@@ -21,7 +21,7 @@ Make a document consistent with one stated set of rules. A good result applies o
 
 1. Identify the guide. Ask with `ask_user` which one applies, its edition, and whether there is a company addendum. If the user supplies a file, `read_file` it fully. For a published guide, do not rely on memory: find the rule text with `search_web` or `read_url`, or ask the user to paste the relevant sections.
 2. Extract the rules that matter for this document type into a working checklist: capitalisation, headings, numbers and dates, punctuation, abbreviations, names and titles, spelling variant, citations, terminology, tone. Note which rules are mandatory and which are advice.
-3. Read the target text with `read_file`. For a folder of documents, use `search_files` for recurring terms and patterns (a banned word, a date format) to find every instance.
+3. Read the target text with `read_file`. For a folder of documents, use `rg` for recurring terms and patterns (a banned word, a date format) to find every instance.
 4. Scan for deviations section by section. For each, record location, the text, the rule, and the corrected form. Group repeats of the same deviation into one line with a count.
 5. Check terminology consistency across the document: one spelling of each product name, one form of each term, hyphenation applied the same way each time. Build a short term list as you go.
 6. Judge ambiguous cases. Where the guide allows two options, accept the one the document already uses consistently. Where the guide is silent, do not invent a rule; mention it as a question.

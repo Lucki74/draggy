@@ -21,7 +21,7 @@ Give each component one job, a small honest props surface and state that lives a
 ## Steps
 
 1. Read the component with `read_file`. Note its props, its state and effects, and which JSX blocks are repeated or conditionally swapped.
-2. Run `search_files` for the component name to see every caller and which props they actually pass. Props nobody passes are candidates for removal.
+2. Run `rg` for the component name to see every caller and which props they actually pass. Props nobody passes are candidates for removal.
 3. List each piece of state and ask who reads it. If only one child reads it, move it down. If two siblings read it, lift it to their nearest common parent and no higher.
 4. Mark values that can be computed from props or other state. Compute them during render instead of storing them and syncing with an effect.
 5. Find seams for splitting: a block with its own state, a block repeated in a list, a block that could be reused elsewhere. Do not split by line count alone.

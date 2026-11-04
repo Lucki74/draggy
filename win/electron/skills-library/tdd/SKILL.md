@@ -22,7 +22,7 @@ For adding tests to code that already works, use `use_skill` with `write-tests`.
 
 ## Steps
 
-1. **Find the test setup.** Use `list_directory` and `read_file` to find the runner, the test folder, naming and one existing test. Run the suite once with `run_command` to confirm it is green before you start.
+1. **Find the test setup.** Use `ls` and `read_file` to find the runner, the test folder, naming and one existing test. Run the suite once with `run_command` to confirm it is green before you start.
 2. **List the behaviours.** Write 3 to 8 small cases in `update_plan`, simplest first, including one edge case and one error case. Ask with `ask_user` if a rule is unclear.
 3. **Red.** Write the next test only. Run it with `run_command` and read the failure. It must fail for the right reason (missing behaviour), not a typo or an import error. If it passes, the test is wrong or the feature already exists.
 4. **Green.** Write the least code that passes, even if it is a constant. Run the test again, then the whole file.

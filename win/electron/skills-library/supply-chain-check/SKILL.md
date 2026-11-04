@@ -24,7 +24,7 @@ A good check gives a clear adopt, avoid or replace call on each package with the
 2. Compare the registry name with the repository and with the name the user meant. Look for lookalikes and swapped letters.
 3. Read the source repository with `read_url`: activity, number of maintainers, open security issues, whether the published package matches a tag.
 4. Inspect install-time code. For npm check `scripts` (`preinstall`, `install`, `postinstall`) in the manifest. For Python look at `setup.py` side effects.
-5. Download the package without running it, such as `npm pack` in an empty directory through `run_command`, and read what it contains with `list_directory` and `search_files` for network calls, `eval`, obfuscated blobs and credential reads.
+5. Download the package without running it, such as `npm pack` in an empty directory through `run_command`, and read what it contains with `ls` and `rg` for network calls, `eval`, obfuscated blobs and credential reads.
 6. Count the transitive dependencies the package would bring in and prefer smaller trees. Ask whether the standard library or a few lines of code would do.
 7. Check the project's lockfile with `read_file`: it is committed, and CI installs from it with a command that fails on drift (`npm ci`, `pip install --require-hashes`).
 8. Check CI configuration: third party actions pinned to a full commit hash, minimal token permissions, no secrets exposed to pull requests from forks, and a protected release branch.

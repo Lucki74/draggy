@@ -18,7 +18,7 @@ Capture one decision so a developer a year from now can see what was chosen, wha
 
 ## Steps
 
-1. Find the project's convention. Use `list_directory` and `search_files` for folders like `docs/adr`, `docs/decisions` or `architecture`. Read the newest record with `read_file` and copy its template, numbering and tone. If none exists, create `docs/adr/0001-<slug>.md` with a plain Context, Decision, Consequences layout.
+1. Find the project's convention. Use `ls` and `rg` for folders like `docs/adr`, `docs/decisions` or `architecture`. Read the newest record with `read_file` and copy its template, numbering and tone. If none exists, create `docs/adr/0001-<slug>.md` with a plain Context, Decision, Consequences layout.
 2. Take the next free number. List the folder and add one to the highest. Never reuse or renumber.
 3. Get the facts. Ask with `ask_user` only for what you cannot find: what was decided, who decided, when, and what the alternatives were. Read the code or PR discussion for evidence of the current state.
 4. Write Context: the forces at play, in a few sentences. Constraints, deadlines, what hurts today, what the team knows. Stay neutral and factual.

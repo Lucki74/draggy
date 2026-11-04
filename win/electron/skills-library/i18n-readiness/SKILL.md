@@ -19,9 +19,9 @@ Move every user-visible string and locale-dependent format into a translation sy
 
 ## Steps
 
-1. Check whether an i18n library or message files already exist. Use `search_files` for translation function calls, locale folders and library imports. Follow the existing convention if there is one.
+1. Check whether an i18n library or message files already exist. Use `rg` for translation function calls, locale folders and library imports. Follow the existing convention if there is one.
 2. If none exists, pick a library with the user, matching the framework. Check its current documentation with `read_url` or `search_web` before writing setup code, since APIs change.
-3. Find hardcoded text with `search_files`: JSX text nodes, `title`, `placeholder`, `alt`, `aria-label` attributes, toast messages, validation errors and strings in non-UI code that reach the UI.
+3. Find hardcoded text with `rg`: JSX text nodes, `title`, `placeholder`, `alt`, `aria-label` attributes, toast messages, validation errors and strings in non-UI code that reach the UI.
 4. Extract in batches. Give keys that describe meaning and place, not the English text. Keep whole sentences in one message with named placeholders instead of joining pieces.
 5. Handle plurals and gender with the library's plural syntax. Do not write `count === 1 ? ... : ...` in code, since many languages have more than two forms.
 6. Replace manual date, number, currency and list formatting with the platform `Intl` formatters, passing the active locale.

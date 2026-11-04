@@ -5,6 +5,7 @@ import type { PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import license from "rollup-plugin-license";
 import { loadRnnoiseWasm } from "./scripts/rnnoiseWasm";
+import { testHarness } from "./scripts/testHarness";
 
 // onnxruntime-web may be nested under transformers.js or hoisted, so check both. The .mjs glue and
 // .wasm must come from one install or it aborts.
@@ -94,7 +95,7 @@ function rendererLicenses(): PluginOption {
 }
 
 export default defineConfig({
-  plugins: [react(), onnxRuntimeAssets(), rnnoiseAsset(), rendererLicenses()],
+  plugins: [react(), onnxRuntimeAssets(), rnnoiseAsset(), rendererLicenses(), testHarness()],
   base: "./",
   /** One React copy for every window. The splash and the main window load different entry URLs, and
    * a late re-optimization gives them different pre-bundle hashes, which is an "Invalid hook call". */

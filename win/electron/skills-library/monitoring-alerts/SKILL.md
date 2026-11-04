@@ -20,7 +20,7 @@ A good alert set is small, each alert has an owner and a first step, and silence
 
 ## Steps
 
-1. Find what exists. Use `search_files` for alert rule files, `prometheus`, `datadog`, `grafana` and `alertmanager`, and read them with `read_file`.
+1. Find what exists. Use `rg` for alert rule files, `prometheus`, `datadog`, `grafana` and `alertmanager`, and read them with `read_file`.
 2. Ask with `ask_user` what the user journeys are and what the service promises: availability, latency, freshness. Do not invent targets.
 3. Pick signals per service: request rate, error rate, latency percentiles, saturation (CPU, memory, disk, connections, queue depth). Add job freshness for batch work.
 4. Write symptom alerts first (error ratio, slow requests, failed checkouts). Add cause alerts (disk filling) only when they give lead time.

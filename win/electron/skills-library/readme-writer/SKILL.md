@@ -19,7 +19,7 @@ A newcomer understands the project in a minute and has it running in ten. A good
 
 ## Steps
 
-1. Survey the repo. `list_directory` on the root, then `read_file` on the manifest (package.json, pyproject.toml, Cargo.toml, go.mod and so on), the existing README, CONTRIBUTING, license, CI config and any `docs` folder. Find the entry points, scripts and required runtime versions.
+1. Survey the repo. `ls` on the root, then `read_file` on the manifest (package.json, pyproject.toml, Cargo.toml, go.mod and so on), the existing README, CONTRIBUTING, license, CI config and any `docs` folder. Find the entry points, scripts and required runtime versions.
 2. Ask with `ask_user` for what the code cannot tell you: who the project is for, its status (experimental, stable, archived), the license intent and where users should get help.
 3. Write the opening: the project name, one sentence on what it does and for whom, then two or three sentences on what makes it worth using. State the status honestly.
 4. Write the install section from the manifest and the CI config. Give the prerequisites with versions as the project declares them (engines, python_requires, toolchain files), not from memory.
@@ -27,7 +27,7 @@ A newcomer understands the project in a minute and has it running in ten. A good
 6. Add a minimal usage example that you ran, with the real output or result. Prefer the smallest example that shows the main use.
 7. Add short sections as needed: configuration, how to run tests (confirm with `run_command`), project layout if it is not obvious, and links to docs.
 8. Add contributing and license lines that point to the real files. If there is no license file, tell the user rather than claiming one.
-9. Check every link and path with `search_files` or `read_url`. Remove sections you cannot fill with real content: empty badges, a roadmap with no items, an acknowledgements stub. Write the file with `create_file` or `edit_file`.
+9. Check every link and path with `rg` or `read_url`. Remove sections you cannot fill with real content: empty badges, a roadmap with no items, an acknowledgements stub. Write the file with `create_file` or `edit_file`.
 10. Put the quickest path first: a reader who only wants to try it should reach a result before reading configuration.
 11. Check the rendering: headings, code fences and relative links display correctly on the host's preview.
 

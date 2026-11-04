@@ -19,7 +19,7 @@ Turn vague "we should clean that up" into a short, current list where each item 
 
 ## Steps
 
-1. Find the existing ledger. Use `search_files` for `DEBT`, `tech-debt`, `TODO(` and a `docs/` folder. Extend a file that exists instead of starting a second one. If none exists, agree a location with the user, such as `docs/tech-debt.md`.
+1. Find the existing ledger. Use `rg` for `DEBT`, `tech-debt`, `TODO(` and a `docs/` folder. Extend a file that exists instead of starting a second one. If none exists, agree a location with the user, such as `docs/tech-debt.md`.
 2. Collect candidates from the user's list, review notes, `TODO` and `FIXME` markers, hotspot output and recurring bug areas in `git log` (use `run_command`).
 3. Keep only real debt: a known compromise in code that costs time, risk or money now. Drop wishes, taste and plain bugs; bugs go to the tracker.
 4. Write each entry with these fields:
@@ -33,7 +33,7 @@ Turn vague "we should clean that up" into a short, current list where each item 
 5. Rank by cost now plus risk, divided by size. Put items that block planned work first.
 6. Edit the ledger file with `edit_file` or `create_file`. Keep each entry to about six lines.
 7. Prune: remove paid entries, merge duplicates, and mark entries older than a review period as needing a decision (still real, or drop).
-8. Link each entry to the ticket, ADR or commit that explains the original trade-off, using `search_files` or `git log` through `run_command`, so the context survives staff changes.
+8. Link each entry to the ticket, ADR or commit that explains the original trade-off, using `rg` or `git log` through `run_command`, so the context survives staff changes.
 9. Set a review rhythm with the user, such as each quarter, and put the next review date at the top of the ledger.
 
 ## Gotchas

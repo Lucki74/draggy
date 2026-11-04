@@ -20,7 +20,7 @@ A good health design never causes an outage by itself.
 
 ## Steps
 
-1. Find the framework and any existing route with `search_files` for `/health`, `/healthz`, `/ready` and read the server entry with `read_file`.
+1. Find the framework and any existing route with `rg` for `/health`, `/healthz`, `/ready` and read the server entry with `read_file`.
 2. Find how the platform checks: Dockerfile `HEALTHCHECK`, compose, Kubernetes probes, load balancer settings. Read those files so the endpoint matches the paths and timings.
 3. Create a liveness route that checks only the process: event loop responsive, returns 200 fast, touches no dependency.
 4. Create a readiness route that checks what this instance needs to serve: database ping, cache, required config loaded, migrations done. Keep each check on a short timeout.

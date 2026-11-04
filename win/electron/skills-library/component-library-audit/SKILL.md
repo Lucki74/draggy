@@ -20,9 +20,9 @@ Show what the library really contains and how it is used, then propose consolida
 
 ## Steps
 
-1. Map the library. Use `list_directory` on the components folder and `read_file` on the index or export file to get the public surface. Note the styling method and any docs or story files.
+1. Map the library. Use `ls` on the components folder and `read_file` on the index or export file to get the public surface. Note the styling method and any docs or story files.
 2. Build an inventory: component name, file, props, variants and whether it has tests and docs. Keep it as a table in your notes.
-3. Count real usage per component with `search_files` for imports and JSX tags across the app. Count call sites, not files, and note which props each caller passes.
+3. Count real usage per component with `rg` for imports and JSX tags across the app. Count call sites, not files, and note which props each caller passes.
 4. Group by purpose. Find components that do the same job under different names (`Button`, `ActionButton`, `PrimaryBtn`), and components whose APIs differ for the same concept (`isDisabled`, `disabled`, `inactive`).
 5. Check the states each interactive component handles: hover, focus, active, disabled, loading, error. Note gaps.
 6. Check accessibility basics per component: native element used, accessible name, keyboard support. Use `use_skill` with `accessibility` for depth on the worst ones.

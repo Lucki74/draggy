@@ -194,7 +194,7 @@ function createTaskManager({
     if (!cwd || !fs.existsSync(cwd)) return { error: "The project folder is not available." };
     if (running(chatId).length >= MAX_RUNNING_PER_CHAT) return { error: capError(chatId) };
 
-    const invocation = shellInvocation(line, shell, { defaultShell });
+    const invocation = shellInvocation(line, shell, { defaultShell, sandboxed: Boolean(boxed) });
     if (invocation.error) return { error: invocation.error };
 
     // A pseudo-terminal cannot go through the launcher, so a sandboxed task runs on pipes.

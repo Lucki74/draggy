@@ -91,14 +91,14 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatI
     return Promise.resolve({ success: false, error: "The project folder is not available." });
   }
 
-  const plain = shellInvocation(text, shell, { defaultShell });
+  const plain = shellInvocation(text, shell, { defaultShell, sandboxed: Boolean(boxed) });
   if (plain.error) return Promise.resolve({ success: false, error: plain.error });
 
   // The shell reports its final folder and environment after the command, under a marker that only
   // this run knows, so the command's own output cannot pass for the report.
   const marker = stateKey && taskText.supportsState(plain.shell) ? `DG${crypto.randomBytes(6).toString("hex")}` : null;
   const invocation = marker
-    ? shellInvocation(text + taskText.stateEpilogue(plain.shell, marker), shell, { defaultShell })
+    ? shellInvocation(text + taskText.stateEpilogue(plain.shell, marker), shell, { defaultShell, sandboxed: Boolean(boxed) })
     : plain;
   if (invocation.error) return Promise.resolve({ success: false, error: invocation.error });
 

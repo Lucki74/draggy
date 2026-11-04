@@ -20,14 +20,14 @@ A list of tasks small enough to finish in a sitting or a day, each one testable 
 ## Steps
 
 1. Read the source: the spec, issue or description with `read_file`. If the finish line is not clear, call `ask_user` for it before splitting anything.
-2. Find the real shape of the work. Use `search_files`, `read_file` and `explore` to see which modules, tables, endpoints, screens and tests the change touches, so tasks map to actual places.
+2. Find the real shape of the work. Use `rg`, `read_file` and `explore` to see which modules, tables, endpoints, screens and tests the change touches, so tasks map to actual places.
 3. Define the thinnest end-to-end slice first: the smallest path through all layers that does something a user could see. This is task one.
 4. Slice the rest vertically, by behaviour or case, not by layer. "User can reset a password by email" beats "build the endpoint", "build the form", "build the email" as three separate tasks that only work together.
 5. Add the supporting tasks that vertical slices still need: schema migrations, feature flags, test fixtures, docs, cleanup of the old path. Give each its own entry.
 6. For every task write: a verb-first title, one sentence of scope, a done check (the test, command or visible behaviour that proves it), and a size of small, medium or large. Split any large task again.
 7. Mark dependencies by task number. Look for hidden ones: a task that needs a config value, a shared type, an API owned by someone else, or a decision not made yet. Put decisions as their own tasks.
 8. Order the list so the first unblocked tasks reduce the biggest uncertainty. Note which tasks can run in parallel.
-9. Put the list into `update_plan` for the session. If the user wants tickets or a file, write it with `create_file` in the format the team uses (check `.github` or `docs` with `list_directory` for templates).
+9. Put the list into `update_plan` for the session. If the user wants tickets or a file, write it with `create_file` in the format the team uses (check `.github` or `docs` with `ls` for templates).
 10. Check coverage: every part of the goal from step 1 is traceable to at least one task, and no task lacks a done check.
 
 ## Gotchas

@@ -95,6 +95,7 @@ function wrap(spawn, options) {
     const key = Object.keys(env).find((name) => name.toLowerCase() === "path") || "PATH";
     env[key] = [...extras.path, env[key]].filter(Boolean).join(path.delimiter);
   }
+  Object.assign(env, extras.env);
   env.TEMP = path.join(scratch, "tmp");
   env.TMP = env.TEMP;
   env.npm_config_cache = path.join(scratch, "cache", "npm");

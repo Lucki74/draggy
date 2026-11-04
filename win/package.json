@@ -13,6 +13,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:test": "cross-env DRAGGY_TEST_HARNESS=1 BROWSER=none vite",
     "build": "tsc -b && vite build && node scripts/main-licenses.mjs",
     "typecheck": "tsc -b",
     "lint": "eslint .",
