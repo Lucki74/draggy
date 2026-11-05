@@ -16,7 +16,7 @@ description: [What this skill does, in one sentence]. Use when [the situations a
 
 ## Steps
 
-1. [Gather: what to read or ask first. Name the tool in backticks, for example `read_file`, `search_files`, `search_web`.]
+1. [Gather: what to read or ask first. Name the tool in backticks, for example `read_file`, `rg`, `search_web`.]
 2. [Do the work. Keep each step concrete and checkable.]
 3. [Verify the result against the Goal before answering.]
 

@@ -21,12 +21,12 @@ Identify the one rule or inherited constraint that produces the wrong layout, an
 ## Steps
 
 1. Get a precise symptom: which element, which viewport width, what you expect and what you see. Use `ask_user` if the report is vague.
-2. Reproduce it. If the page runs locally, open it with `browser_navigate` and capture it with `browser_screenshot`. Otherwise read the markup and styles with `read_file` and `search_files`.
+2. Reproduce it. If the page runs locally, open it with `browser_navigate` and capture it with `browser_screenshot`. Otherwise read the markup and styles with `read_file` and `rg`.
 3. Read the page's structure with `browser_snapshot` or the HTML, and walk up from the broken element to its ancestors. Note each ancestor's `display`, `position`, `overflow`, `height` and `transform`.
 4. Check the layout mode that governs the element. For flex children look at `flex`, `min-width`, `align-self` and the parent's `flex-direction` and `flex-wrap`. For grid items look at the track definitions and `grid-area`. For positioned elements find the containing block.
 5. Inspect computed values in the live page with `browser_console` if available, for example reading `getComputedStyle(el)` for the suspect properties and `el.getBoundingClientRect()` for sizes.
 6. Form one hypothesis and test it by changing one property with `edit_file` (or a temporary rule). Reload and compare. Revert if it does nothing.
-7. Remove temporary debug outlines and borders. Search with `search_files` for leftovers.
+7. Remove temporary debug outlines and borders. Search with `rg` for leftovers.
 8. Re-check the neighbouring layouts that share the changed rule, and a narrow and a wide viewport.
 9. If the cause is a missing or wrong reset (box-sizing, default margins on headings, inherited line height), fix it once globally and note which pages it touches.
 10. Write down the rule you changed and the reason in a one-line comment only if the cause is surprising, such as a flex child minimum width.

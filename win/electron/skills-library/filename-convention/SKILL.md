@@ -19,7 +19,7 @@ Agree a rule people will follow, that sorts correctly, tells you what a file is 
 ## Steps
 
 1. Learn the context with `ask_user`: who creates the files, who looks for them, what types (reports, invoices, photos), whether a folder tree already exists, and what goes wrong today.
-2. Sample existing names. Use `list_directory` and look at 30 names. Note the patterns people already use, which is the best base for a rule that will stick.
+2. Sample existing names. Use `ls` and look at 30 names. Note the patterns people already use, which is the best base for a rule that will stick.
 3. Choose the fields from what people search by. Candidates are date, project or client, document type, short description, version. Keep at most four, and drop any that the folder path already holds.
 4. Fix the formats. Put dates first as `YYYY-MM-DD` so alphabetical order is time order. Pick one separator between fields (underscore) and one inside fields (hyphen). Choose a case. Avoid spaces, accents and the characters `\ / : * ? " < > |`.
 5. Decide versioning. Use `v01`, `v02` for drafts, and one word for the end state, or rely on the system's history if the files live in a cloud drive that keeps versions. Ban `final`, `final2` and `latest`.

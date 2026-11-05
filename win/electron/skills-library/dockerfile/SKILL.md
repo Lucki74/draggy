@@ -17,7 +17,7 @@ Produce a Dockerfile that builds fast on repeat, ships a small image and runs wi
 
 ## Steps
 
-1. Learn the app. Read the manifest and scripts with `read_file` for: language and runtime version, how dependencies are installed, the build command, the start command, the port, required environment variables, and any system packages needed (use `search_files` for things like sharp, psycopg, libvips). Check for an existing Dockerfile or .dockerignore.
+1. Learn the app. Read the manifest and scripts with `read_file` for: language and runtime version, how dependencies are installed, the build command, the start command, the port, required environment variables, and any system packages needed (use `rg` for things like sharp, psycopg, libvips). Check for an existing Dockerfile or .dockerignore.
 2. Build a good image:
    1. **Pin the base:** an official image with a specific version, slim or alpine only if compatible (musl can break native modules). Examples: `node:22-bookworm-slim`, `python:3.12-slim`, `golang:1.23` for build and `gcr.io/distroless/static` or `debian:bookworm-slim` for run.
    2. **Multi-stage:** a build stage with compilers and dev dependencies, a runtime stage with only what runs.

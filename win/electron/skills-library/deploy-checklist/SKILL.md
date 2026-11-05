@@ -22,8 +22,8 @@ A good checklist is built from this diff, not copied from a generic template.
 
 1. Read the change: `git_diff` against the last released tag, or `run_command` with `git log --oneline <tag>..HEAD`. List files that touch schema, config, infra, dependencies and public API.
 2. Ask with `ask_user` what the deploy target is, who is on call, and whether traffic is low at the planned time, only if the repository does not say.
-3. Find migrations with `search_files` for `migrations` and `ALTER`. Mark any that lock tables or cannot be reversed.
-4. Find new environment variables with `search_files` on `process.env` and `os.environ` in the diff. List where each must be set before the deploy.
+3. Find migrations with `rg` for `migrations` and `ALTER`. Mark any that lock tables or cannot be reversed.
+4. Find new environment variables with `rg` on `process.env` and `os.environ` in the diff. List where each must be set before the deploy.
 5. Find feature flags and mark the default state in production.
 6. Write Before: tests green, build artifact identified by version, backups taken if data changes, config set, on call informed, rollback path confirmed.
 7. Write During: the order of steps (migration, then app, or the reverse), what to watch, and the minutes to wait between stages.

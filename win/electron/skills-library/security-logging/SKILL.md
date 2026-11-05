@@ -20,7 +20,7 @@ A good setup records enough to investigate an incident, and nothing that creates
 
 ## Steps
 
-1. Find existing logging with `search_files` for `logger`, `audit`, `log.` and framework middleware, and read how events are formed with `read_file`.
+1. Find existing logging with `rg` for `logger`, `audit`, `log.` and framework middleware, and read how events are formed with `read_file`.
 2. List events to record: login success and failure, logout, password change and reset, multi-factor changes, permission or role changes, access denied, admin actions, data export, API key creation, and rejected input that looks hostile.
 3. Define a fixed schema per event: UTC timestamp, event type, actor id, actor address, target object, action, result, request id, and reason for failure.
 4. Log identifiers, not secrets. Never write passwords, tokens, session ids, full card numbers or whole request bodies. Add redaction at the logger so a mistake cannot leak.

@@ -18,7 +18,7 @@ Protect the service and its users from bursts and abuse without blocking normal 
 
 ## Steps
 
-1. Find where requests enter. Use `search_files` for existing middleware, gateway or proxy configuration with `read_file`. A limit at the edge (gateway, CDN) may already exist and can be extended instead of rebuilt.
+1. Find where requests enter. Use `rg` for existing middleware, gateway or proxy configuration with `read_file`. A limit at the edge (gateway, CDN) may already exist and can be extended instead of rebuilt.
 2. Decide what is being protected: capacity, cost (expensive queries, paid third-party calls), or abuse (guessing passwords, scraping). The goal sets the limit and the key.
 3. Choose the key. Authenticated user or API key where available, IP address for anonymous routes, and a combination for login (account plus IP). If a proxy or load balancer sits in front, read the client address from the trusted forwarded header only, using the proxy count the deployment really has.
 4. Choose the algorithm: fixed window is simple but allows double bursts at window edges, sliding window is smoother, token bucket allows controlled bursts. Pick one and say why.

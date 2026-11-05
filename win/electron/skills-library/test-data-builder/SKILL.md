@@ -22,7 +22,7 @@ To set up the environment around the tests, use `use_skill` with `integration-te
 
 ## Steps
 
-1. **Find the pain.** Use `search_files` for repeated literals and fixture files, and `read_file` on two or three long tests. Run the suite with `run_command` to get a baseline.
+1. **Find the pain.** Use `rg` for repeated literals and fixture files, and `read_file` on two or three long tests. Run the suite with `run_command` to get a baseline.
 2. **Identify the models.** List the objects tests build most (user, order, config, request). Read their types or schemas so defaults are valid, including required relations.
 3. **Write one builder per model.** Give it a function or class that returns a valid object with plain, boring defaults, and accepts a partial override. Nested objects get their own builders. Create the file with `create_file` in the test helpers folder.
 4. **Make intent visible.** Add named variants only for meaningful states (`expiredSubscription`), not for every field. Unique values (ids, emails) come from a counter, not from random numbers.

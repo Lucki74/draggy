@@ -20,7 +20,7 @@ Produce a plan another person, or the same agent after a context reset, can exec
 ## Steps
 
 1. Read the spec once, fully. List its requirements as a numbered checklist you will map the plan back to. If a requirement is vague enough that two builders would code it differently, call `ask_user` with that one question.
-2. Look at the code before naming anything. Use `search_files` and `read_file` to find the modules, functions, tests and config the change touches. Use `explore` when the area spans many directories. Record each path you confirmed exists.
+2. Look at the code before naming anything. Use `rg` and `read_file` to find the modules, functions, tests and config the change touches. Use `explore` when the area spans many directories. Record each path you confirmed exists.
 3. Find the project's check commands (test, typecheck, lint, build) from `package.json`, a Makefile or CI config with `read_file`. Run the quickest one with `run_command` to learn whether the baseline is green.
 4. Pick the thinnest vertical slice that proves the approach end to end. Make it step 1, even if it is ugly. Later steps widen it.
 5. Order the remaining steps so each one leaves the project building and its tests passing. Put schema or interface changes before the code that uses them. Put risky or unknown work early.

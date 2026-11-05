@@ -19,7 +19,7 @@ For each operation that can fail, know what the caller sees, what the user sees 
 
 ## Steps
 
-1. List the fallible operations in the target with `read_file` and `search_files`: I/O, network calls, parsing, database access, subprocesses, JSON and number conversion, anything that throws or returns an error value.
+1. List the fallible operations in the target with `read_file` and `rg`: I/O, network calls, parsing, database access, subprocesses, JSON and number conversion, anything that throws or returns an error value.
 2. For each one, trace the failure path to the end: who catches it, what they do, and what reaches the user or the process exit code.
 3. Flag these patterns:
    - Empty catch blocks, or catch that logs and continues as if nothing happened.

@@ -20,7 +20,7 @@ Leave the user with a clear statement of the problem, two or three genuinely dif
 ## Steps
 
 1. Restate the idea in one or two sentences and ask the user to correct it. Do not propose anything yet.
-2. Check what exists. If a project is open, use `list_directory`, `search_files` and `read_file` for related code, constraints, conventions and prior attempts. Facts found here replace questions you would otherwise ask.
+2. Check what exists. If a project is open, use `ls`, `rg` and `read_file` for related code, constraints, conventions and prior attempts. Facts found here replace questions you would otherwise ask.
 3. Find the real goal. Ask with `ask_user`, one question at a time, starting with the one whose answer changes the most: who uses this, what happens today without it, what would make it a success, what is fixed (deadline, stack, budget).
 4. Stop asking once an answer would not change the options. Three to five questions is typical. Write down any assumption you are making instead of asking a sixth time.
 5. Generate approaches that differ in kind, not in polish: buy versus build, simple and manual versus automated, extend existing code versus new module, small first version versus full design. Aim for two or three. Include the do-nothing or minimal option when it is honest.

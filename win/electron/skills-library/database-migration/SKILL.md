@@ -18,7 +18,7 @@ Change the schema or data without breaking running code, losing rows or locking 
 ## Steps
 
 1. Understand the setup:
-   - The migration tool: Prisma, Drizzle, TypeORM, Knex, Sequelize, Alembic, Django, Rails, Flyway, Liquibase, golang-migrate, sqlx, EF Core, or plain SQL files. Find it with `search_files` and read two recent migrations with `read_file` to match their style.
+   - The migration tool: Prisma, Drizzle, TypeORM, Knex, Sequelize, Alembic, Django, Rails, Flyway, Liquibase, golang-migrate, sqlx, EF Core, or plain SQL files. Find it with `rg` and read two recent migrations with `read_file` to match their style.
    - The database engine and version, and whether the change will run against production data with live traffic.
    - The size of the affected tables, if known. Big tables change what is safe.
 2. Choose the safe pattern:

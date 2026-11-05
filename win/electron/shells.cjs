@@ -88,6 +88,13 @@ function shellInvocation(command, requested, options = {}) {
   let shell = SHELL_IDS.includes(requested) ? requested : "default";
   let notice;
 
+  // Inside the Windows sandbox only cmd starts: Git's bash dies loading its DLLs and PowerShell cannot
+  // enter the project folder, because the folders above it are not readable to the container.
+  if (windows && options.sandboxed && shell !== "cmd") {
+    if (shell !== "default") notice = `${shell} does not run inside the sandbox, so the command ran in cmd.`;
+    shell = "cmd";
+  }
+
   if (shell === "default") {
     if (windows) {
       // The Default shell setting first, then bash when Git for Windows has it, then PowerShell.

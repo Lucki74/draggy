@@ -19,7 +19,7 @@ Find problems that would hurt users or maintainers, not restate the code or impo
 ## Steps
 
 1. Get the change. With git, run `git_status` to see what changed, then `git_diff` for unstaged changes and `git_diff` with staged set for staged ones. For a branch, run `git diff main...HEAD` (or the right base branch) with `run_command`. Without git, or for specific files, use `read_file` on the files the user named.
-2. Read enough surrounding code to understand each change: the callers of a changed function (`search_files` for its name), the types it uses, and the existing tests. Use `explore` for wider questions such as where something is used across the project. Read AGENTS.md or CONTRIBUTING.md for the project's conventions.
+2. Read enough surrounding code to understand each change: the callers of a changed function (`rg` for its name), the types it uses, and the existing tests. Use `explore` for wider questions such as where something is used across the project. Read AGENTS.md or CONTRIBUTING.md for the project's conventions.
 3. Look for problems in this order:
    - **Correctness:** wrong conditions, off-by-one, null or undefined paths, unhandled errors, wrong async ordering or a missing await, race conditions, incorrect state updates, broken edge cases (empty lists, zero, very large input, unicode, time zones).
    - **Security and data:** injection, missing authorisation checks, secrets in code, unsafe deserialisation, path traversal, data loss or corruption, irreversible operations without confirmation.

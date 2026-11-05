@@ -22,11 +22,11 @@ The old name is gone from everywhere it should be and untouched where it must st
 
 1. Pin the exact old and new names, including casing variants (`camelCase`, `PascalCase`, `snake_case`, `kebab-case`, `UPPER_CASE`) that the project uses for the same concept.
 2. Classify the old name before touching it. Is it local, exported, part of a public API, serialised to disk or a database, a URL, a CLI flag, an environment variable, or shown in logs and UI? External and persisted names need a migration plan, not a find and replace.
-3. Search with `search_files` using the exact name with word boundaries and each casing variant. Include source, tests, docs, config, scripts, CI files, templates and translations. Record the count of hits per file type.
+3. Search with `rg` using the exact name with word boundaries and each casing variant. Include source, tests, docs, config, scripts, CI files, templates and translations. Record the count of hits per file type.
 4. Check what the search misses: names built from parts (`"get" + Name`), reflection, string keys, generated code, and files outside the repo that depend on the name.
 5. Run the tests and typecheck with `run_command` for a baseline.
-6. Apply the change. For a file move, use `move_file`, then fix imports. For symbols, change the definition first, then each reference with `edit_file`, and prefer the language's own rename tool through `run_command` where one exists.
-7. Rerun the baseline commands. Then search again with `search_files` for each old variant. Every remaining hit should be a reviewed exception, such as a changelog entry, a migration or a compatibility alias.
+6. Apply the change. For a file move, use `mv`, then fix imports. For symbols, change the definition first, then each reference with `edit_file`, and prefer the language's own rename tool through `run_command` where one exists.
+7. Rerun the baseline commands. Then search again with `rg` for each old variant. Every remaining hit should be a reviewed exception, such as a changelog entry, a migration or a compatibility alias.
 8. If the name is public or persisted, add the compatibility step: an alias that forwards, a read of both old and new stored keys, or a deprecation notice. Use `use_skill` with `deprecation-rollout` for the removal schedule.
 
 ## Gotchas

@@ -31,6 +31,8 @@ export interface DockLayout {
   file?: string | null;
   diffFile?: string | null;
   split?: PaneId | null;
+  /** Tabs shown over the whole chat area; each tab keeps its own state. */
+  maximized?: PaneId[];
 }
 
 const MIN_DOCK_WIDTH = 260;
@@ -171,4 +173,16 @@ export function setDockWidth(layout: DockLayout, width: number): DockLayout {
 /** Returns true when the dock contains at least one open pane. */
 export function isDockOpen(layout: DockLayout): boolean {
   return layout.panes.length > 0 && layout.active !== null;
+}
+
+/** True when this tab fills the chat area. */
+export function isPaneMaximized(layout: DockLayout, pane: PaneId): boolean {
+  return layout.maximized?.includes(pane) ?? false;
+}
+
+/** Flips a tab between filling the chat area and its normal dock width. */
+export function togglePaneMaximized(layout: DockLayout, pane: PaneId): DockLayout {
+  const current = layout.maximized ?? [];
+  const next = current.includes(pane) ? current.filter((one) => one !== pane) : [...current, pane];
+  return { ...layout, maximized: next };
 }

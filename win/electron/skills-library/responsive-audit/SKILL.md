@@ -20,7 +20,7 @@ Find the places where a layout fails as the viewport changes: overflow, clipped 
 
 ## Steps
 
-1. Establish the target: which devices or minimum width the project supports. Check the project's docs or CSS breakpoints with `search_files` for `@media` and container queries. Ask with `ask_user` only if nothing states it.
+1. Establish the target: which devices or minimum width the project supports. Check the project's docs or CSS breakpoints with `rg` for `@media` and container queries. Ask with `ask_user` only if nothing states it.
 2. Confirm the page has `<meta name="viewport" content="width=device-width, initial-scale=1">`. Without it phones render a desktop-width page.
 3. Open the page with `browser_navigate`. Take a `browser_screenshot` at roughly 360, 390, 768, 1024 and 1440 pixel widths. If the browser tools cannot resize, use the page's own device emulation or report which widths you could not test.
 4. At each width look for: horizontal scrolling (check `document.documentElement.scrollWidth` against `innerWidth` via `browser_console`), text clipped or overlapping, images beyond their container, fixed-width elements, and navigation that is unreachable.

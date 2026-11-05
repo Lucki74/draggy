@@ -83,6 +83,22 @@ describe("where the command tool is offered", () => {
   });
 });
 
+describe("running as administrator", () => {
+  const names = (environment: ToolEnvironment) => availableTools(environment).map((tool) => tool.name);
+
+  it("is offered only when YOLO on Windows allows it", () => {
+    expect(names(CODE)).not.toContain("run_as_admin");
+    expect(names({ ...CODE, canElevate: true })).toContain("run_as_admin");
+  });
+
+  it("asks the main process for an elevated run", async () => {
+    const { calls } = stubCommands(async () => ({ success: true, exitCode: 0, output: "ok" }));
+    const { context } = harness();
+    await runTool("run_as_admin", { command: "whoami /groups", reason: "needs admin" }, { ...context, permissionMode: "auto" }, { ...CODE, canElevate: true });
+    expect(calls[0].options).toMatchObject({ elevated: true, outsideSandbox: true });
+  });
+});
+
 describe("running one", () => {
   it("runs in the conversation's workspace and hands the model the output", async () => {
     const { calls } = stubCommands(async () => ({

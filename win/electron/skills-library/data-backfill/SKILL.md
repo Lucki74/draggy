@@ -18,7 +18,7 @@ Every existing record that should have the new or corrected value ends up with i
 
 ## Steps
 
-1. Define the rule in one sentence: which records are selected, how the new value is computed, and what to do with records that cannot be computed. Read the schema and the code that writes the field with `read_file` and `search_files`, so the backfill and live writes follow the same rule.
+1. Define the rule in one sentence: which records are selected, how the new value is computed, and what to do with records that cannot be computed. Read the schema and the code that writes the field with `read_file` and `rg`, so the backfill and live writes follow the same rule.
 2. Make live writes correct first. New and updated records must already carry the right value, or the backfill chases a moving target. Deploy that change before the run.
 3. Count the target set with a read-only query through `run_command`: total rows, rows needing change, rows that are null, odd or very large. Keep these numbers.
 4. Write the job as a script file with `write_file`. Properties it needs:

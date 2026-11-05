@@ -19,7 +19,7 @@ A lint setup people trust: every rule that fires points at something worth fixin
 
 ## Steps
 
-1. Find the tooling. Use `list_directory` and `read_file` on the root for config files (`eslint.config.*`, `.eslintrc*`, `ruff.toml`, `.golangci.yml`, `.editorconfig`, `.prettierrc`) and the lint script in the package manifest. Note which tool formats and which one lints.
+1. Find the tooling. Use `ls` and `read_file` on the root for config files (`eslint.config.*`, `.eslintrc*`, `ruff.toml`, `.golangci.yml`, `.editorconfig`, `.prettierrc`) and the lint script in the package manifest. Note which tool formats and which one lints.
 2. Run the linter with `run_command` and save the full output. Count findings per rule (use JSON output when the tool has it). This is the baseline.
 3. Read the top ten rules by count. For each, sample five hits with `read_file` and decide: real defect, style only, or false positive.
 4. Pick the action per rule:

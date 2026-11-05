@@ -20,7 +20,7 @@ Icons that share one grid, stroke style and sizing, take their color from text, 
 
 ## Steps
 
-1. Inventory current icons with `search_files`: `.svg` files, inline `<svg>` blocks, icon font classes, image tags pointing at icons and imports from icon packages. Count each source.
+1. Inventory current icons with `rg`: `.svg` files, inline `<svg>` blocks, icon font classes, image tags pointing at icons and imports from icon packages. Count each source.
 2. Pick one delivery method and one source set. Options are inline SVG components (best for color control and tree shaking), an SVG sprite with `<use>`, or files used as images (no color inheritance). Explain the tradeoff to the user and let them choose.
 3. Define the grid and sizes: one `viewBox` (commonly 24 by 24), a small set of rendered sizes, and consistent stroke width or fill style.
 4. Clean each SVG. Remove fixed width and height, set `fill` or `stroke` to `currentColor`, remove inline `style`, ids that can collide and editor metadata. Run an SVG optimizer with `run_command` if the project has one, and review the output.

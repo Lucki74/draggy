@@ -1093,7 +1093,9 @@ const createFile: ToolSpec = {
       });
     }
 
-    const result = await api()?.createFile(filename, content);
+    // A chat with a folder keeps its files there, beside the commands that use them.
+    const chatDir = ctx.environment?.chatFolder && ctx.chatId ? ctx.chatId : null;
+    const result = chatDir ? await api()?.createFile(filename, content, chatDir) : await api()?.createFile(filename, content);
 
 
     if (!result?.success) {

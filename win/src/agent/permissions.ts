@@ -1,5 +1,5 @@
 import type { PermissionMode } from "../types";
-import { commandCovered, commandGrantTargets, dialectFor } from "./commandRules";
+import { commandCovered, commandGrantTargets, commandSegments, dialectFor } from "./commandRules";
 
 /** Whether a tool call may run. One pure function for built-in and MCP tools, with flags mirroring
  * MCP's own annotations, so there is one answer everywhere. */
@@ -18,6 +18,8 @@ export interface ToolAnnotations {
   /** Runs a command on the user's computer, which can do anything the user can. Asked about in
    * every mode but auto, unless each command in it was allowed before. */
   executes?: boolean;
+  /** Runs outside the sandbox. Never allowed without a question, whatever the mode but YOLO. */
+  outsideSandbox?: boolean;
 
   /** Explicit hints matching MCP and directory requirements. */
   readOnlyHint?: boolean;
@@ -89,6 +91,34 @@ export function addGrant(grants: Grant[], grant: Grant): Grant[] {
   return [...kept, grant];
 }
 
+/** Commands that only read. The sandbox mount does the real enforcing; this list only decides when
+ * the question can be skipped. */
+const READ_ONLY_COMMANDS = new Set([
+  "dir", "type", "ls", "cat", "head", "tail", "pwd", "echo", "wc", "find", "grep", "rg", "tree",
+  "where", "which", "whoami", "hostname", "get-childitem", "get-content", "select-string",
+  "get-location", "findstr", "sort", "uniq", "stat", "file", "du", "more", "cd", "set-location",
+]);
+const READ_ONLY_GIT = new Set([
+  "status", "log", "diff", "show", "branch", "blame", "ls-files", "rev-parse", "remote", "describe",
+]);
+
+function readOnlySegment(segment: string): boolean {
+  const words = segment.trim().split(/\s+/);
+  const head = (words[0] ?? "").toLowerCase();
+  if (head === "git") {
+    const sub = words.slice(1).find((word) => !word.startsWith("-"));
+    return !!sub && READ_ONLY_GIT.has(sub.toLowerCase());
+  }
+  if (head === "find" && words.some((w) => /^-(delete|exec|execdir|ok)$/i.test(w))) return false;
+  return READ_ONLY_COMMANDS.has(head);
+}
+
+/** True when every command in the line is on the read-only list. Opaque lines are not. */
+export function commandReadOnly(command: string | null | undefined, shell: string | null = null): boolean {
+  const segments = commandSegments(command, dialectFor(shell));
+  return !!segments && segments.length > 0 && segments.every(readOnlySegment);
+}
+
 export function decide(query: PermissionQuery): Verdict {
   const { mode, tool, annotations = {}, target = null, grants = [], shell = null } = query;
   const isReadOnly = annotations.readOnlyHint ?? annotations.readOnly;
@@ -114,6 +144,14 @@ export function decide(query: PermissionQuery): Verdict {
   // A command can do anything, so accepting edits does not cover it; only an earlier "always"
   // for every command in the line does.
   if (annotations.executes) {
+    if (!annotations.outsideSandbox) {
+      if (mode === "turbo") {
+        return { decision: "allow", reason: "Turbo runs commands inside the project sandbox." };
+      }
+      if (commandReadOnly(target, shell)) {
+        return { decision: "allow", reason: "This command only reads, inside the sandbox." };
+      }
+    }
     const allowed = grants
       .filter((grant) => grant.tool === tool && grant.target)
       .map((grant) => grant.target as string);
@@ -139,6 +177,10 @@ export function decide(query: PermissionQuery): Verdict {
 
   if (grants.some((grant) => grantCovers(grant, tool, target))) {
     return { decision: "allow", reason: "The user has already allowed this." };
+  }
+
+  if (mode === "turbo") {
+    return { decision: "allow", reason: "Turbo has no limits inside the project folder." };
   }
 
   if (mode === "acceptEdits" && !isDestructive) {

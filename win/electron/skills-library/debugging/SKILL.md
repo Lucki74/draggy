@@ -33,7 +33,7 @@ Find why the code misbehaves and fix that cause, not the place where it finally 
 4. Fix the cause.
    - Change the code where the wrong value or decision originates, not where it finally explodes.
    - Keep the fix minimal and in the project's style. Do not refactor unrelated code in the same change.
-   - Search for the same mistake elsewhere with `search_files`.
+   - Search for the same mistake elsewhere with `rg`.
 5. Prove it.
    - When the project has tests, add or update one that fails without the fix and passes with it.
    - Run that test, then the related suite, with `run_command`.

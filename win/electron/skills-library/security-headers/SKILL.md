@@ -21,7 +21,7 @@ A good result is checked on the live response, applied at one layer, and rolled 
 ## Steps
 
 1. Fetch the real headers with `run_command`: `curl -sI https://<host>/` and one API path. Record them as the baseline.
-2. Find where headers are set now with `search_files` for `helmet`, `add_header`, `Header set`, `X-Frame-Options`, `Strict-Transport-Security` and middleware, and read the files.
+2. Find where headers are set now with `rg` for `helmet`, `add_header`, `Header set`, `X-Frame-Options`, `Strict-Transport-Security` and middleware, and read the files.
 3. Choose one layer to own the headers (app middleware, reverse proxy or CDN) so values do not duplicate or conflict.
 4. Set `Strict-Transport-Security` with a short `max-age` first. Raise it after the whole site, including subdomains, works over HTTPS. Do not add `preload` until sure.
 5. Set `X-Content-Type-Options: nosniff`, and correct `Content-Type` with charset on responses.

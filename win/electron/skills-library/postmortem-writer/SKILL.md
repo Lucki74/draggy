@@ -19,7 +19,7 @@ A good postmortem names systems and decisions, never people as the cause, and en
 
 ## Steps
 
-1. Collect sources. Use `read_file` on notes and exports, `run_command` with `git log` around the incident window, and `search_files` for related alert or config files.
+1. Collect sources. Use `read_file` on notes and exports, `run_command` with `git log` around the incident window, and `rg` for related alert or config files.
 2. Ask with `ask_user` for anything missing: start and end times with time zone, user impact, who was involved by role, and what was changed to fix it.
 3. Build the timeline in order, one line per event with a timestamp: detection, first response, each action, mitigation, recovery. Mark each entry as fact or inference.
 4. Quantify impact from data the user gives: duration, affected users or requests, failed jobs, money or data effects. Leave a visible blank instead of estimating.

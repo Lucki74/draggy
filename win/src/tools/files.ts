@@ -16,7 +16,9 @@ function nameOf(filePath: string): string {
   return parts[parts.length - 1] || filePath;
 }
 
+/** A chat with no project reaches its own folder, which the main process names `chat:<id>`. */
 function workspaceOf(ctx: ToolContext): string {
+  if (ctx.environment?.chatFolder && ctx.chatId) return `chat:${ctx.chatId}`;
   return ctx.workspaceId || "default";
 }
 
@@ -66,7 +68,7 @@ const readFile: ToolSpec = {
     openWorld: false,
     openWorldHint: false,
   },
-  available: (environment) => Boolean(environment.hasFolder),
+  available: (environment) => Boolean(environment.hasFolder || environment.chatFolder),
   run: async (args, ctx) => {
     const target = String(args.path);
     const stepId = ctx.newId();
@@ -97,135 +99,6 @@ const readFile: ToolSpec = {
     const rules = await folderRules(ctx, result.path || target);
 
     return `TOOL RESULT (read_file) ${result.path}:\n${result.text}${rules}`;
-  },
-};
-
-const listDirectory: ToolSpec = {
-  name: "list_directory",
-  group: "files",
-  description:
-    "List what is in a folder of the project. Use it to find your way around before reading files.",
-  parameters: {
-    path: {
-      type: "string",
-      description:
-        "Folder to list, relative to the project folder. Leave empty for the project folder itself.",
-    },
-  },
-  required: [],
-  usage: '{"path": "src"} → the files and folders in it',
-  annotations: {
-    readOnly: true,
-    readOnlyHint: true,
-    destructive: false,
-    destructiveHint: false,
-    idempotent: true,
-    idempotentHint: true,
-    openWorld: false,
-    openWorldHint: false,
-  },
-  available: (environment) => Boolean(environment.hasFolder),
-  run: async (args, ctx) => {
-    const target = String(args.path || ".");
-    // "." reads as nothing in the timeline; the project's own name says which folder.
-    const folderLabel = nameOf(target === "." && ctx.projectRoot ? ctx.projectRoot : target);
-    const stepId = ctx.newId();
-
-    ctx.pushStep({
-      id: stepId,
-      type: "reading",
-      content: `${ctx.t("listingFolder")} **${folderLabel}**`,
-      isComplete: false,
-    });
-
-    const result = await api()?.list(workspaceOf(ctx), target);
-
-    if (!result?.success || !result.entries) {
-      ctx.patchStep(stepId, { isComplete: true, type: "error" });
-      ctx.syncSteps();
-      return `TOOL RESULT (list_directory): ${result?.error || NO_BRIDGE}`;
-    }
-
-    ctx.patchStep(stepId, {
-      isComplete: true,
-      filepath: result.path,
-      content: `${ctx.t("listedFolder")} **${folderLabel}**`,
-    });
-    ctx.syncSteps();
-
-    const lines = result.entries.map((entry) =>
-      entry.isDirectory ? `${entry.name}/` : `${entry.name} (${entry.size} bytes)`,
-    );
-
-    const tail = result.truncated ? "\n... and more, not listed." : "";
-
-    return `TOOL RESULT (list_directory) ${result.path}:\n${lines.join("\n")}${tail}`;
-  },
-};
-
-const searchFiles: ToolSpec = {
-  name: "search_files",
-  group: "files",
-  description:
-    "Find files in the project by name, by the text inside them, or both. Generated folders such as node_modules are skipped.",
-  parameters: {
-    name: {
-      type: "string",
-      description: "Part of a file name to match, for example .tsx or Button.",
-    },
-    text: {
-      type: "string",
-      description: "Exact text to find inside files.",
-    },
-  },
-  required: [],
-  usage: '{"text": "createTaskManager"} → the files and lines it appears on',
-  annotations: {
-    readOnly: true,
-    readOnlyHint: true,
-    destructive: false,
-    destructiveHint: false,
-    idempotent: true,
-    idempotentHint: true,
-    openWorld: false,
-    openWorldHint: false,
-  },
-  available: (environment) => Boolean(environment.hasFolder),
-  run: async (args, ctx) => {
-    const name = args.name ? String(args.name) : "";
-    const text = args.text ? String(args.text) : "";
-    const stepId = ctx.newId();
-
-    ctx.pushStep({
-      id: stepId,
-      type: "searching",
-      content: `${ctx.t("searchingFiles")} **${text || name}**`,
-      isComplete: false,
-    });
-
-    const result = await api()?.search(workspaceOf(ctx), { name, text });
-
-    if (!result?.success || !result.hits) {
-      ctx.patchStep(stepId, { isComplete: true, type: "error" });
-      ctx.syncSteps();
-      return `TOOL RESULT (search_files): ${result?.error || NO_BRIDGE}`;
-    }
-
-    ctx.patchStep(stepId, {
-      isComplete: true,
-      content: `${ctx.t("fileMatches")} **${result.hits.length}**`,
-    });
-    ctx.syncSteps();
-
-    if (result.hits.length === 0) {
-      return "TOOL RESULT (search_files): Nothing matched. Try a shorter piece of text, or look at the folder listing.";
-    }
-
-    const lines = result.hits.map((hit) =>
-      hit.line ? `${hit.path}:${hit.line}: ${hit.text}` : hit.path,
-    );
-
-    return `TOOL RESULT (search_files):\n${lines.join("\n")}`;
   },
 };
 
@@ -261,7 +134,7 @@ const editFile: ToolSpec = {
     openWorld: false,
     openWorldHint: false,
   },
-  available: (environment) => Boolean(environment.hasFolder),
+  available: (environment) => Boolean(environment.hasFolder || environment.chatFolder),
   run: async (args, ctx) => {
     const target = String(args.path);
     const stepId = ctx.newId();
@@ -374,124 +247,10 @@ const writeFile: ToolSpec = {
   },
 };
 
-const moveFile: ToolSpec = {
-  name: "move_file",
-  group: "files",
-  description:
-    "Move or rename a file inside the project folder. The destination must not already exist.",
-  parameters: {
-    from: { type: "string", description: "The file as it is now." },
-    to: { type: "string", description: "Where it should be instead." },
-  },
-  required: ["from", "to"],
-  usage: '{"from": "notes.md", "to": "docs/notes.md"} → moves the file',
-  annotations: {
-    readOnly: false,
-    readOnlyHint: false,
-    destructive: true,
-    destructiveHint: true,
-    idempotent: false,
-    idempotentHint: false,
-    openWorld: false,
-    openWorldHint: false,
-  },
-  available: (environment) => Boolean(environment.hasFolder),
-  run: async (args, ctx) => {
-    const from = String(args.from);
-    const to = String(args.to);
-    const stepId = ctx.newId();
-
-    ctx.pushStep({
-      id: stepId,
-      type: "edit_file",
-      content: `${ctx.t("movingFile")} **${nameOf(from)}** → **${nameOf(to)}**`,
-      isComplete: false,
-      filename: nameOf(to),
-    });
-
-    const result = await api()?.move(workspaceOf(ctx), from, to, ctx.chatId);
-
-    if (!result?.success) {
-      ctx.patchStep(stepId, { isComplete: true, type: "error" });
-      ctx.syncSteps();
-      return `TOOL RESULT (move_file): ${result?.error || NO_BRIDGE}`;
-    }
-
-    ctx.patchStep(stepId, {
-      isComplete: true,
-      filepath: result.path,
-      checkpointId: result.checkpointId,
-      change: "moved",
-      content: `${ctx.t("movedFile")} **${nameOf(from)}** → **${nameOf(to)}**`,
-    });
-    ctx.syncSteps();
-
-    return `TOOL RESULT (move_file): Moved to ${result.path}.`;
-  },
-};
-
-const deleteFile: ToolSpec = {
-  name: "delete_file",
-  group: "files",
-  description:
-    "Delete a file from the project folder. It goes to the recycle bin, and the user can undo it.",
-  parameters: {
-    path: { type: "string", description: "Path to the file." },
-  },
-  required: ["path"],
-  usage: '{"path": "old-notes.md"} → moves the file to the recycle bin',
-  annotations: {
-    readOnly: false,
-    readOnlyHint: false,
-    destructive: true,
-    destructiveHint: true,
-    idempotent: false,
-    idempotentHint: false,
-    openWorld: false,
-    openWorldHint: false,
-  },
-  available: (environment) => Boolean(environment.hasFolder),
-  run: async (args, ctx) => {
-    const target = String(args.path);
-    const stepId = ctx.newId();
-
-    ctx.pushStep({
-      id: stepId,
-      type: "edit_file",
-      content: `${ctx.t("deletingFile")} **${nameOf(target)}**`,
-      isComplete: false,
-      filename: nameOf(target),
-    });
-
-    const result = await api()?.remove(workspaceOf(ctx), target, ctx.chatId);
-
-    if (!result?.success) {
-      ctx.patchStep(stepId, { isComplete: true, type: "error" });
-      ctx.syncSteps();
-      return `TOOL RESULT (delete_file): ${result?.error || NO_BRIDGE}`;
-    }
-
-    ctx.patchStep(stepId, {
-      isComplete: true,
-      filepath: result.path,
-      checkpointId: result.checkpointId,
-      change: "deleted",
-      content: `${ctx.t("deletedFile")} **${nameOf(target)}**`,
-    });
-    ctx.syncSteps();
-
-    return `TOOL RESULT (delete_file): ${result.path} is in the recycle bin. Tell the user, in case it was not what they meant.`;
-  },
-};
-
 export const FILE_TOOLS: ToolSpec[] = [
   readFile,
-  listDirectory,
-  searchFiles,
   editFile,
   writeFile,
-  moveFile,
-  deleteFile,
 ];
 
 export function registerFileTools(): void {

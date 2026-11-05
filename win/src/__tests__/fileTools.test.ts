@@ -26,6 +26,8 @@ const WITHOUT_FOLDER: ToolEnvironment = {
   libraryReady: false,
 };
 
+const IN_CHAT_FOLDER: ToolEnvironment = { ...WITHOUT_FOLDER, chatFolder: true };
+
 function harness() {
   const steps: SearchStep[] = [];
 
@@ -100,12 +102,8 @@ describe("when a conversation has no folder", () => {
     const names = availableTools(WITH_FOLDER).map((tool) => tool.name).sort();
 
     expect(names).toEqual([
-      "delete_file",
       "edit_file",
-      "list_directory",
-      "move_file",
       "read_file",
-      "search_files",
       "write_file",
     ]);
   });
@@ -113,15 +111,11 @@ describe("when a conversation has no folder", () => {
 
 describe("what each tool says it does", () => {
   it("marks the ones that only look", () => {
-    for (const name of ["read_file", "list_directory", "search_files"]) {
+    for (const name of ["read_file"]) {
       expect(annotationsFor(name).readOnly, name).toBe(true);
     }
   });
 
-  it("marks the ones that can lose something", () => {
-    expect(annotationsFor("delete_file").destructive).toBe(true);
-    expect(annotationsFor("move_file").destructive).toBe(true);
-  });
 
   it("leaves an edit as neither, since every one is checkpointed", () => {
     expect(annotationsFor("edit_file").readOnly).toBeFalsy();
@@ -168,64 +162,19 @@ describe("reading", () => {
   });
 });
 
-describe("listing and searching", () => {
-  it("shows folders apart from files", async () => {
-    stubFiles({
-      list: {
-        success: true,
-        path: "C:\\projects\\thing",
-        entries: [
-          { name: "src", path: "x", isDirectory: true, size: 0, modified: 0 },
-          { name: "notes.md", path: "y", isDirectory: false, size: 12, modified: 0 },
-        ],
-      },
-    });
-
-    const { context } = harness();
-    const result = await runTool("list_directory", {}, context, WITH_FOLDER);
-
-    expect(result).toContain("src/");
-    expect(result).toContain("notes.md (12 bytes)");
+describe("a chat folder", () => {
+  it("offers reading and editing but not writing or the git tools", () => {
+    expect(availableTools(IN_CHAT_FOLDER).map((tool) => tool.name).sort()).toEqual(["edit_file", "read_file"]);
   });
 
-  it("gives a line number with every text match", async () => {
-    stubFiles({
-      search: {
-        success: true,
-        hits: [
-          {
-            path: "C:\\projects\\thing\\src\\App.tsx",
-            name: "App.tsx",
-            line: 42,
-            text: "const answer = 1;",
-          },
-        ],
-      },
-    });
+  it("names the folder after the chat, not the workspace", async () => {
+    const calls = stubFiles({ edit: { success: true, path: "p", checkpointId: 3, replaced: 1 } });
 
     const { context } = harness();
-    const result = await runTool(
-      "search_files",
-      { text: "answer" },
-      context,
-      WITH_FOLDER,
-    );
+    context.environment = IN_CHAT_FOLDER;
+    await runTool("edit_file", { path: "notes.md", find: "a", replace: "b" }, context, IN_CHAT_FOLDER);
 
-    expect(result).toContain("App.tsx:42: const answer = 1;");
-  });
-
-  it("says plainly when nothing matched", async () => {
-    stubFiles({ search: { success: true, hits: [] } });
-
-    const { context } = harness();
-    const result = await runTool(
-      "search_files",
-      { text: "nothing" },
-      context,
-      WITH_FOLDER,
-    );
-
-    expect(result).toMatch(/Nothing matched/);
+    expect(calls[0].args[0]).toBe("chat:chat-1");
   });
 });
 
@@ -351,35 +300,6 @@ describe("writing, moving and deleting", () => {
     expect(steps).toHaveLength(1);
     expect(steps[0]).toMatchObject({ type: "edit_file", isComplete: true, change: "created", before: "", after: "a\nb" });
     expect(steps[0].content).toContain("createdFile");
-  });
-
-  it("moves a file and says where it went", async () => {
-    stubFiles({ move: { success: true, path: "docs/notes.md", checkpointId: 2 } });
-
-    const { context } = harness();
-    const result = await runTool(
-      "move_file",
-      { from: "notes.md", to: "docs/notes.md" },
-      context,
-      WITH_FOLDER,
-    );
-
-    expect(result).toContain("docs/notes.md");
-  });
-
-  it("says a deletion went to the bin, and to mention it", async () => {
-    stubFiles({ remove: { success: true, path: "old.md", checkpointId: 5 } });
-
-    const { context } = harness();
-    const result = await runTool(
-      "delete_file",
-      { path: "old.md" },
-      context,
-      WITH_FOLDER,
-    );
-
-    expect(result).toMatch(/recycle bin/);
-    expect(result).toMatch(/Tell the user/);
   });
 
   it("survives a build with no file bridge at all", async () => {

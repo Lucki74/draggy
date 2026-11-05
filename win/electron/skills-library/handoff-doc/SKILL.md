@@ -20,7 +20,7 @@ A document the next owner can read in 15 minutes and then act on. It covers what
 ## Steps
 
 1. Scope it. Ask with `ask_user` what is being handed over, to whom, the last working day, and whether the author can be reached after. The answer to the last question decides how much detail is needed.
-2. Inventory what exists. Use `list_directory`, `search_files` and `read_file` on the project folder, notes and task lists the user points to. List each system, folder, account name (not passwords), dashboard and recurring task, with where it lives.
+2. Inventory what exists. Use `ls`, `rg` and `read_file` on the project folder, notes and task lists the user points to. List each system, folder, account name (not passwords), dashboard and recurring task, with where it lives.
 3. Write the status in a few lines: what is done, what is in flight and what is next, each with a date.
 4. List open threads. For each: the person involved, what was promised, the last contact date and the next step. Check message history or notes rather than relying on memory.
 5. Write recurring duties with schedule: what happens daily, weekly, monthly or yearly, and the consequence if missed.

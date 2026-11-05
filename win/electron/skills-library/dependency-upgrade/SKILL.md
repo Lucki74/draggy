@@ -27,7 +27,7 @@ Bring dependencies up to date without leaving the project broken. A good result 
    2. Security fixes.
    3. Each major upgrade on its own, especially frameworks, build tools, test runners and type definitions.
 3. For each major upgrade:
-   - Read the official changelog or migration guide (`read_url` when web access is available) and list the breaking changes that affect this project. Use `search_files` for the APIs involved.
+   - Read the official changelog or migration guide (`read_url` when web access is available) and list the breaking changes that affect this project. Use `rg` for the APIs involved.
    - Upgrade that package, and its companions such as a framework's plugins, only.
    - Apply the required code changes with `edit_file`, following the migration guide and any official codemod.
    - Run install, type check, lint, build and tests with `run_command`. Fix failures before moving on.

@@ -1972,6 +1972,7 @@
       "category": "documents-files",
       "surface": "chat",
       "on": true,
+      "locked": true,
       "summary": "Create a Word document",
       "tags": [
         "word",
@@ -1999,11 +2000,11 @@
       "surface": "both",
       "on": true,
       "locked": true,
-      "summary": "Fix Draggy problems from the official wiki",
+      "summary": "Fix Draggy problems from docs.draggy.org",
       "tags": [
         "draggy",
         "help",
-        "wiki",
+        "docs",
         "troubleshooting",
         "support"
       ]
@@ -4598,6 +4599,7 @@
       "category": "documents-files",
       "surface": "chat",
       "on": true,
+      "locked": true,
       "summary": "Create a PDF",
       "tags": [
         "pdf",
@@ -4805,6 +4807,7 @@
       "category": "documents-files",
       "surface": "chat",
       "on": true,
+      "locked": true,
       "summary": "Create a slide deck",
       "tags": [
         "slides",
@@ -7514,6 +7517,7 @@
       "category": "spreadsheets",
       "surface": "chat",
       "on": true,
+      "locked": true,
       "summary": "Create a spreadsheet",
       "tags": [
         "excel",

@@ -19,7 +19,7 @@ Turn a raw machine transcript into readable text without changing what was said.
 
 1. Ask with `ask_user` which style is wanted: verbatim (keep fillers and false starts), light clean (remove ums, stutters, repeated words) or full edit (tighten and join sentences). Default to light clean. Ask whether timestamps stay.
 2. Read the file with `read_file` and note the format: plain text, SRT, VTT or a speaker-tagged export. Copy the original to a new name with `run_command` so the source stays intact; work on the copy.
-3. Build a glossary first. Collect proper nouns, product names, acronyms and jargon the user gives, and search the transcript with `search_files` for likely mis-hearings of each (sound-alikes). Ask the user to confirm the ones you are unsure about.
+3. Build a glossary first. Collect proper nouns, product names, acronyms and jargon the user gives, and search the transcript with `rg` for likely mis-hearings of each (sound-alikes). Ask the user to confirm the ones you are unsure about.
 4. Fix speaker labels. Identify the speakers from names said in the text or from the user, and keep one label per person across the file. If a turn is unclear, mark `[speaker?]`.
 5. Fix mechanics: sentence breaks, capitalisation, punctuation, paragraphs at topic changes. Remove fillers only if the chosen style says so.
 6. Handle numbers, dates and names with care. Change them only when the context makes the correction certain; otherwise keep the original and add a bracketed flag like `[check: 15 or 50?]`.

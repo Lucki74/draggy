@@ -19,7 +19,7 @@ Replace an old component one slice at a time while the product keeps running. At
 
 ## Steps
 
-1. Map the old component with `explore` and `search_files`: entry points, callers, data it owns, side effects, and what it promises in behaviour. Write the contract in plain words.
+1. Map the old component with `explore` and `rg`: entry points, callers, data it owns, side effects, and what it promises in behaviour. Write the contract in plain words.
 2. Choose the seam: a single place all callers pass through, such as a facade function, an interface, a route prefix or a proxy. If no seam exists, creating one is the first change and ships alone, forwarding everything to the old code.
 3. Slice the work by something measurable: one route, one customer segment, one feature, one record type. Order slices from low risk and high learning to high risk. Write the order with `update_plan`.
 4. Build the new implementation for the first slice behind the seam. Route by a switch the team controls (flag, config value, percentage), default to the old path.

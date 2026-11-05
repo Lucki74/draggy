@@ -20,7 +20,7 @@ A good review is ranked, cites the file and field, and separates breakage from p
 
 ## Steps
 
-1. Find the manifests with `search_files` for `kind: Deployment` and similar, or `list_directory` on the deploy folder. For Helm, render first with `helm template` through `run_command` and review the output.
+1. Find the manifests with `rg` for `kind: Deployment` and similar, or `ls` on the deploy folder. For Helm, render first with `helm template` through `run_command` and review the output.
 2. Read each workload with `read_file`. Note the kind, replicas, image reference and namespace.
 3. Check images: a pinned tag or digest, not `latest`, and a sensible `imagePullPolicy`.
 4. Check resources: `requests` and `limits` for CPU and memory exist, and memory limit is not below what the app uses at peak.

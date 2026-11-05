@@ -20,7 +20,7 @@ Keep animations at the display's frame rate by changing only what the compositor
 
 ## Steps
 
-1. Find the animation. Use `search_files` for `transition`, `animation`, `@keyframes`, `requestAnimationFrame`, scroll listeners and animation library calls. Read the matching code with `read_file`.
+1. Find the animation. Use `rg` for `transition`, `animation`, `@keyframes`, `requestAnimationFrame`, scroll listeners and animation library calls. Read the matching code with `read_file`.
 2. List the properties being animated. Opacity and transforms are cheap. Width, height, top, left, margin and box shadow force layout or paint each frame.
 3. Check scripts that run during the animation: scroll or resize handlers that read layout values (`offsetHeight`, `getBoundingClientRect`) and then write styles, which forces repeated layout.
 4. Reproduce in the browser with `browser_navigate`. Use `browser_console` to sample frame times with `requestAnimationFrame` deltas during the interaction, and report how many frames exceed the budget.

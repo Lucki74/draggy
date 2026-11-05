@@ -23,7 +23,7 @@ Prove that every action available to a mouse user can be done from the keyboard,
 1. Define the flows to test: the main task a visitor does, plus every overlay, menu and form on the page. Ask with `ask_user` if the page is large.
 2. Open the page with `browser_navigate`. Start from the top and press Tab with `browser_press_key`, taking a `browser_screenshot` or `browser_snapshot` every few presses to see where focus is.
 3. Record the order. It should follow the visual and reading order. Note elements that are skipped, visited twice or reached out of order.
-4. Check visibility: each focused element needs a clear focus indicator with enough contrast. Flag any `outline: none` without a replacement, found with `search_files`.
+4. Check visibility: each focused element needs a clear focus indicator with enough contrast. Flag any `outline: none` without a replacement, found with `rg`.
 5. Operate widgets: Enter or Space for buttons and links, arrow keys inside menus, tabs, radio groups and listboxes, Escape to close overlays.
 6. Test overlays: focus moves into a dialog on open, stays inside while open, and returns to the trigger on close. Content behind should not be reachable.
 7. Look for traps and dead ends: a widget that captures Tab with no exit, a hover-only menu, a skip link that is missing or broken, and page areas that scroll but cannot be focused.

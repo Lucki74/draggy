@@ -18,7 +18,7 @@ Report only real, reachable issues, each with a concrete attack scenario. A long
 
 1. Set the scope.
    - Changes only: run `git_status` and `git_diff`, or the branch diff with `run_command`.
-   - Whole project: start from the attack surface. That means HTTP routes and handlers, CLI arguments, file uploads and parsing, IPC or message handlers, webhooks, authentication, database access, shell and process execution, deserialisation and templates. Find them with `search_files` and `explore`.
+   - Whole project: start from the attack surface. That means HTTP routes and handlers, CLI arguments, file uploads and parsing, IPC or message handlers, webhooks, authentication, database access, shell and process execution, deserialisation and templates. Find them with `rg` and `explore`.
 2. Read the [checklist](checklist.md) with `use_skill` and file "checklist.md" for what to look for.
 3. For each candidate issue, establish four things:
    - Source: where untrusted data enters (request, file, environment, another service).
@@ -26,7 +26,7 @@ Report only real, reachable issues, each with a concrete attack scenario. A long
    - Path: that the data can reach the sink without adequate validation or encoding. Read the code in between.
    - Impact: what an attacker gains, such as data read or changed, code execution, account takeover or denial of service.
 4. Drop the candidate if the path is blocked (parameterised, validated, not reachable).
-5. Search for secrets with `search_files`: keys, tokens, passwords and private keys in the repository, including config and test files.
+5. Search for secrets with `rg`: keys, tokens, passwords and private keys in the repository, including config and test files.
 6. If the ecosystem has an audit command (npm audit, pip-audit, cargo audit), run it with `run_command` and report high-severity findings that affect code actually used.
 7. Check security-relevant configuration: CORS, cookies (Secure, HttpOnly, SameSite), CSP, disabled TLS verification, debug mode in production.
 

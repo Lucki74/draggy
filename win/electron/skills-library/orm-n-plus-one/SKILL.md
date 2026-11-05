@@ -20,7 +20,7 @@ One request issues a small, predictable number of queries regardless of list siz
 
 1. Pick the endpoint or page. Turn on query logging or the ORM's debug output for a local run, using `run_command` to start the app or a test. Record the number and text of queries for one request.
 2. Spot the pattern: one query for the list, then one query per item for a related record or count. Increase the list size and confirm that the query count grows with it.
-3. Find the source in code. Use `search_files` to locate the loop, serializer, template or resolver that touches the relation, and `read_file` to see where the lazy access happens. It is often hidden in a serializer, a property method or a template.
+3. Find the source in code. Use `rg` to locate the loop, serializer, template or resolver that touches the relation, and `read_file` to see where the lazy access happens. It is often hidden in a serializer, a property method or a template.
 4. Choose the fix for each relation:
    - A to-one relation: join or eager load it in the original query.
    - A to-many relation: load in a second batched query by the collected ids (select-in style) instead of a huge join that multiplies rows.

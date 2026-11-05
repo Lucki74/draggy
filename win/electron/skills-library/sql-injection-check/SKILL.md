@@ -20,7 +20,7 @@ A good fix uses parameters for values and allow lists for identifiers, and is co
 
 ## Steps
 
-1. Find the database layer with `search_files` for `SELECT `, `INSERT `, `UPDATE `, `DELETE `, `execute(`, `query(`, `raw(`, `$queryRawUnsafe`, `text(` and `.format(` near SQL.
+1. Find the database layer with `rg` for `SELECT `, `INSERT `, `UPDATE `, `DELETE `, `execute(`, `query(`, `raw(`, `$queryRawUnsafe`, `text(` and `.format(` near SQL.
 2. List every site that builds a query from variables: template strings, `+` concatenation, `%` formatting, `f` strings.
 3. Read each site with `read_file` and trace backwards: where does each variable come from. Mark ones that can come from a request, file, queue or another user's stored data.
 4. Rewrite values as bound parameters using the driver's placeholder style (`?`, `$1`, `:name`, `%s` as a parameter marker, not formatting). Use `edit_file`.

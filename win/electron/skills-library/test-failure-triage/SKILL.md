@@ -24,7 +24,7 @@ For a single test that passes sometimes, use `use_skill` with `flaky-test-fixer`
 
 1. **Get the full list.** Run the suite with `run_command` using a compact reporter, or read the CI log with `read_file`. Record counts: total, failed, skipped. Save output to a file so you can search it.
 2. **Check the base.** Find out if the failures exist without your change: run the same tests on the base commit using a clean checkout or stash, or check the last green CI run. Failures that exist there are not yours.
-3. **Group by message.** Use `search_files` on the output for the first error line of each failure. Group identical or near identical messages: same import error, same missing file, same timeout, same assertion on one function.
+3. **Group by message.** Use `rg` on the output for the first error line of each failure. Group identical or near identical messages: same import error, same missing file, same timeout, same assertion on one function.
 4. **Name a cause per group.** Look at the most common group first. Read the failing test and the code it exercises with `read_file`. Check `git_diff` for a change that fits.
 5. **Decide the side.** The code is wrong if the test describes a still valid requirement. The test is wrong only if the requirement changed on purpose. The environment is wrong if the failure involves paths, permissions, versions, missing services or platform differences.
 6. **Order the fixes.** Start with groups that block others (build errors, import failures, broken setup), then the largest group, then the single ones. Record this in `update_plan`.

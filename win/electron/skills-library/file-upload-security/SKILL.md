@@ -20,7 +20,7 @@ A good design treats the filename, the type and the content as untrusted, and se
 
 ## Steps
 
-1. Find the upload code with `search_files` for `multipart`, `upload`, `multer`, `FormData`, `request.files`, `save(` and storage SDK calls. Read each handler with `read_file`.
+1. Find the upload code with `rg` for `multipart`, `upload`, `multer`, `FormData`, `request.files`, `save(` and storage SDK calls. Read each handler with `read_file`.
 2. Set a hard maximum size at the proxy and the app, and a file count limit. Stream to storage, not into memory.
 3. Allow only the extensions and media types the feature needs, by allow list. Compare the declared type, the extension and the real content (magic bytes) and reject mismatches.
 4. Ignore the client filename. Generate a random name, keep the extension from your own allow list, and store the original name as metadata only.

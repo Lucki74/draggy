@@ -19,8 +19,8 @@ Review with checks that fit the stack. The result is a short checklist for this 
 
 ## Steps
 
-1. Identify the stack from the diff and the repo: extensions, manifest files, framework imports, runtime version. Use `git_diff`, `list_directory` and `read_file`. Note the language version, since idioms and pitfalls change.
-2. Read the project's own rules first with `search_files`: `AGENTS.md`, `CONTRIBUTING.md`, lint configs, style guides. These override any generic list.
+1. Identify the stack from the diff and the repo: extensions, manifest files, framework imports, runtime version. Use `git_diff`, `ls` and `read_file`. Note the language version, since idioms and pitfalls change.
+2. Read the project's own rules first with `rg`: `AGENTS.md`, `CONTRIBUTING.md`, lint configs, style guides. These override any generic list.
 3. Build the checklist from the language's known weak points. Examples to adapt, not to recite:
    - Dynamic languages: undefined or None access, mutable default arguments, truthiness traps, implicit type coercion.
    - Typed languages: unchecked casts, escape hatches such as `any`, `unsafe` or raw pointers, ignored error returns.

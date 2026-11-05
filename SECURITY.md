@@ -93,7 +93,7 @@ is exactly the report I want.
   that needs your machine already unlocked.
 - Bugs in llama.cpp, a model, or an extension server; those belong upstream.
 - Windows SmartScreen on first install: expected, since builds are not code
-  signed yet (see [Installation](https://draggy.org/wiki/installation)).
+  signed yet (see [Installation](https://docs.draggy.org/installation)).
 
 ## After a report
 

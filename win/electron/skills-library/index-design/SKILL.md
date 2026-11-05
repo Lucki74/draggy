@@ -19,7 +19,7 @@ Add the fewest indexes that make the important queries fast, and remove the ones
 
 ## Steps
 
-1. Collect the real queries. Use `search_files` for the table name in the code and ORM calls, and check the slow query log or monitoring if available. List filters, joins, sort order and how often each runs.
+1. Collect the real queries. Use `rg` for the table name in the code and ORM calls, and check the slow query log or monitoring if available. List filters, joins, sort order and how often each runs.
 2. Inspect existing indexes through the schema files with `read_file`, or with the database's index listing via `run_command`. Note duplicates and indexes that are prefixes of another.
 3. For each important query, list the columns by role: equality filters, range filters, sort columns, join keys.
 4. Order composite index columns: equality columns first, then the sort columns, then range columns. The index serves queries that use a leftmost prefix of its columns.

@@ -18,7 +18,7 @@ Find the barriers that stop people using the interface with a keyboard, a screen
 
 ## Steps
 
-1. Find the UI code with `search_files` and `read_file`. Note the framework, the component style and whether the project has component tests.
+1. Find the UI code with `rg` and `read_file`. Note the framework, the component style and whether the project has component tests.
 2. If the project has them, run automated checks with `run_command`: eslint-plugin-jsx-a11y, axe through Playwright or jest-axe tests, pa11y, or the Lighthouse CLI.
 3. Review the code against this list, even when the tools pass:
    - **Semantics:** a real `button` for actions and `a href` for navigation, headings in order, landmarks (header, nav, main), lists as lists, tables with `th` and `scope`.

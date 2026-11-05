@@ -20,7 +20,7 @@ A good job can be run again by hand after a failure without causing damage.
 
 ## Steps
 
-1. Find existing schedules with `search_files` for `crontab`, `schedule:`, `cron`, `CronJob` and scheduler libraries, and read them with `read_file`.
+1. Find existing schedules with `rg` for `crontab`, `schedule:`, `cron`, `CronJob` and scheduler libraries, and read them with `read_file`.
 2. Write the schedule in the scheduler's syntax and say it in words back to the user. Check the cron expression with the docs via `read_url` if the scheduler has quirks.
 3. Set the time zone explicitly. State whether it uses UTC and what happens on daylight saving changes for a local time.
 4. Make the work idempotent: key writes by a run or business date, use upserts, and record processed ids so a rerun does nothing twice.

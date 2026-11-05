@@ -106,7 +106,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   browserGetText: (options) => ipcRenderer.invoke("browser-get-text", options),
   browserClose: () => ipcRenderer.invoke("browser-close"),
 
-  createFile: (filename, content) => ipcRenderer.invoke("create-file", filename, content),
+  createFile: (filename, content, chatId) => ipcRenderer.invoke("create-file", filename, content, chatId),
   openFile: (filepath) => ipcRenderer.invoke("open-file", filepath),
   openCreatedFiles: () => ipcRenderer.invoke("open-created-files"),
   listCreatedFiles: () => ipcRenderer.invoke("list-created-files"),
@@ -219,6 +219,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onProgress: (callback) => subscribe("library-progress", callback),
   },
 
+  chats: {
+    folder: (chatId, open) => ipcRenderer.invoke("chats:folder", chatId, open === true),
+  },
   commands: {
     run: (workspaceId, runId, command, options) =>
       ipcRenderer.invoke("commands:run", workspaceId, runId, command, options),

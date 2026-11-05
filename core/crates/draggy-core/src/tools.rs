@@ -236,6 +236,7 @@ impl FileTools {
             timeout_ms: Some(seconds * 1000.0),
             base_env: None,
             cancel: halt.clone(),
+            sandbox: None,
         };
         let outcome = tokio::runtime::Builder::new_current_thread()
             .enable_all()

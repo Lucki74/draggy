@@ -12,11 +12,14 @@ const MAX_TIMEOUT_SECONDS = 600;
 /** How much of a running command's output the step holds before it ends. */
 const LIVE_OUTPUT_CHARS = 20000;
 
+const OUTSIDE_NOTE =
+  " Use this only when the command failed inside the sandbox for lack of access, or needs the network, a folder outside the project or the rest of the computer. The user is asked first.";
+
 const runCommand: ToolSpec = {
   name: "run_command",
   group: "shell",
   description:
-    "Run a command in the project folder, the way a developer types it in a terminal: git, gh, npm, pnpm, cargo, python, tests, builds and linters. Returns what it printed and its exit code. The folder and environment variables it ends with carry over to the next command. A command that outlasts its time limit keeps running as a background task instead of being stopped. Pass flags that avoid prompts.",
+    "Run a command in a sandbox that can reach the project folder and nothing else on this computer, the way a developer types it in a terminal: git, gh, npm, pnpm, cargo, python, tests, builds and linters. Returns what it printed and its exit code. The folder and environment variables it ends with carry over to the next command. A command that outlasts its time limit keeps running as a background task instead of being stopped. Pass flags that avoid prompts.",
   parameters: {
     command: { type: "string", description: "The command line to run, as it would be typed." },
     shell: {
@@ -49,8 +52,56 @@ const runCommand: ToolSpec = {
     openWorldHint: true,
   },
   available: (environment) =>
+    Boolean((environment.hasFolder && environment.canRunCommands) || environment.chatFolder) &&
+    !environment.readOnlyTools,
+  run: (args, ctx) => runInBox(args, ctx, false),
+};
+
+const requestOutsideSandbox: ToolSpec = {
+  name: "request_outside_sandbox",
+  group: "shell",
+  description:
+    "Ask the user to let one command run outside the sandbox, with access to the whole computer and the network." + OUTSIDE_NOTE,
+  parameters: {
+    command: { type: "string", description: "The command line to run, as it would be typed." },
+    reason: { type: "string", description: "One line telling the user why the sandbox is not enough." },
+    shell: runCommand.parameters.shell,
+    timeout_seconds: runCommand.parameters.timeout_seconds,
+    background: runCommand.parameters.background,
+  },
+  required: ["command", "reason"],
+  usage: '{"command": "npm install", "reason": "needs the network"} → asks, then runs it outside the sandbox',
+  annotations: { ...runCommand.annotations, outsideSandbox: true },
+  available: (environment) =>
     Boolean(environment.hasFolder && environment.canRunCommands) && !environment.readOnlyTools,
-  run: async (args, ctx) => {
+  run: (args, ctx) => runInBox(args, ctx, true),
+};
+
+const runAsAdmin: ToolSpec = {
+  name: "run_as_admin",
+  group: "shell",
+  description:
+    "Run one command as administrator, for something that needs it, like installing a service or editing a protected setting. Windows shows its own prompt and the user can decline. Use run_command for everything else.",
+  parameters: {
+    command: { type: "string", description: "The command line to run, as it would be typed in cmd." },
+    reason: { type: "string", description: "One line telling the user why administrator rights are needed." },
+    timeout_seconds: runCommand.parameters.timeout_seconds,
+  },
+  required: ["command", "reason"],
+  usage: '{"command": "sc query spooler", "reason": "reads a protected service"} → Windows asks, then it runs as administrator',
+  annotations: { ...runCommand.annotations, outsideSandbox: true },
+  available: (environment) =>
+    Boolean(environment.hasFolder && environment.canRunCommands && environment.canElevate) && !environment.readOnlyTools,
+  run: (args, ctx) => runInBox({ ...args, background: false }, ctx, true, true),
+};
+
+async function runInBox(
+  args: Record<string, unknown>,
+  ctx: Parameters<ToolSpec["run"]>[1],
+  outside: boolean,
+  elevated = false,
+): Promise<string> {
+  {
     const command = String(args.command).trim();
     const shell = (SHELL_IDS as readonly string[]).includes(String(args.shell)) ? String(args.shell) : undefined;
     const seconds = Math.min(Math.max(Number(args.timeout_seconds) || 120, 1), MAX_TIMEOUT_SECONDS);
@@ -93,10 +144,12 @@ const runCommand: ToolSpec = {
     const result = await api
       .run(ctx.workspaceId, runId, command, {
         shell,
-        defaultShell: ctx.settings.defaultShell === "auto" ? undefined : ctx.settings.defaultShell,
         timeoutMs: seconds * 1000,
         chatId: ctx.chatId,
         background,
+        ...sandboxOptions(ctx.permissionMode, outside),
+        ...(elevated ? { elevated: true } : {}),
+        chatFolder: Boolean(ctx.environment?.chatFolder),
       })
       .finally(() => {
         ctx.signal.removeEventListener("abort", stop);
@@ -160,15 +213,23 @@ const runCommand: ToolSpec = {
     const status = result.timedOut
       ? `The command was still running after ${seconds} seconds and was stopped.`
       : `Exit code ${result.exitCode}.`;
-    const outside = result.outside
+    const outsideNote = result.outside
       ? `\nIt ended in ${result.outside}, outside the project, so the next command starts in the project folder.`
       : "";
 
-    return `TOOL RESULT (run_command): ${status}${result.truncated ? " The middle of the output was cut." : ""}${outside}\n\n${output || "(no output)"}`;
-  },
-};
+    return `TOOL RESULT (run_command): ${status}${result.truncated ? " The middle of the output was cut." : ""}${outsideNote}\n\n${output || "(no output)"}`;
+  }
+}
+
+/** Ask first and Accept edits mount the project read only with no network; Turbo writes and has
+ * the network; YOLO and an approved request run outside the sandbox. */
+function sandboxOptions(mode: string | undefined, outside: boolean) {
+  if (outside || mode === "auto") return { outsideSandbox: true as const };
+  const open = mode === "turbo";
+  return { sandbox: true as const, writable: open, network: open };
+}
 
 export function registerCommandTools(): void {
-  registerTools([runCommand]);
+  registerTools([runCommand, requestOutsideSandbox, runAsAdmin]);
   registerTaskTools();
 }

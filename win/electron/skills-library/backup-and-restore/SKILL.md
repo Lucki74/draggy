@@ -20,7 +20,7 @@ A backup that has not been restored is a hope. A good plan includes the restore 
 
 ## Steps
 
-1. Inventory what holds state with `search_files` for database config, volume mounts, upload paths and object storage names, and read deploy files with `read_file`.
+1. Inventory what holds state with `rg` for database config, volume mounts, upload paths and object storage names, and read deploy files with `read_file`.
 2. Ask with `ask_user` for the recovery point objective (how much data loss is acceptable) and recovery time objective (how long can it be down). Do not invent them.
 3. Choose the method per store: database dumps or continuous log archiving, volume snapshots, object versioning. Check the exact tool options in current docs via `read_url`.
 4. Set the schedule from the recovery point objective, and the retention in tiers: daily recent, weekly, monthly. Ask what the business needs to keep, and what privacy rules say about deleting.

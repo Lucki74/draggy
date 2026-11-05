@@ -18,7 +18,7 @@ Tell the reader what actually changed between two documents so they can review t
 
 ## Steps
 
-1. Identify the pair. Use `list_directory` if names are ambiguous and `ask_user` to confirm which is the older base and which is the newer. Check modified dates as a hint, not a proof.
+1. Identify the pair. Use `ls` if names are ambiguous and `ask_user` to confirm which is the older base and which is the newer. Check modified dates as a hint, not a proof.
 2. Convert both to comparable plain text. For docx or pdf, extract with `run_command`, keeping headings, list items and table cells on separate lines. Save both texts so the comparison can be rerun.
 3. Normalise noise that is not content: whitespace runs, smart versus straight quotes, soft hyphens, page numbers, repeated headers, and automatic date or field values. Tell the user what you normalised.
 4. Align by structure first. Split on headings and compare section by section, matching sections by title, so that an inserted chapter does not shift everything after it.

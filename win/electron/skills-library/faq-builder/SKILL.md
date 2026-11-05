@@ -18,7 +18,7 @@ Cut repeat questions by answering the ones people actually ask. A good FAQ uses 
 
 ## Steps
 
-1. Collect the source questions. `read_file` or `search_files` through the tickets, emails, chat exports or forum threads the user provides. If there are none, ask with `ask_user` for the ten questions the team answers most. Do not make questions up.
+1. Collect the source questions. `read_file` or `rg` through the tickets, emails, chat exports or forum threads the user provides. If there are none, ask with `ask_user` for the ten questions the team answers most. Do not make questions up.
 2. Extract each question as a user would phrase it. Strip names and any personal data before they enter the document. Record how many times each appears when counts are available.
 3. Merge duplicates. Questions that differ in wording but need the same answer become one entry, titled in the most common wording. Keep a note of alternative phrasings for search.
 4. Group into four to eight categories by what the person is trying to do (getting started, billing, account, shipping), not by internal team names. Put the biggest or most urgent group first.

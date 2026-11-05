@@ -21,7 +21,7 @@ A good procedure changes one thing at a time and verifies from a second terminal
 ## Steps
 
 1. Ask with `ask_user` for the host, the OS, the current login method and whether there is console access from the provider. Console access is the safety net.
-2. On the user's machine, check for an existing key with `list_directory` on `~/.ssh`. Prefer ed25519; create one with `ssh-keygen` through `run_command` only if none exists and the user agrees. Use a passphrase.
+2. On the user's machine, check for an existing key with `ls` on `~/.ssh`. Prefer ed25519; create one with `ssh-keygen` through `run_command` only if none exists and the user agrees. Use a passphrase.
 3. Install the public key on the server with `ssh-copy-id` or append it to `authorized_keys`, with correct permissions: directory 700, file 600, owned by the user.
 4. Test key login in a new terminal. Do not close the original session.
 5. Create a non-root user with sudo for admin work if one does not exist, and test sudo.

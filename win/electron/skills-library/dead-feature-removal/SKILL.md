@@ -20,11 +20,11 @@ After the removal nothing in the repository, the data model or the docs refers t
 ## Steps
 
 1. Confirm the decision and scope with `ask_user`: which feature, what happens to existing users and their data, and whether there is a date. Removal of user data is a product decision, not yours.
-2. Find the footprint. Use `search_files` for the feature's name, its route paths, flag names, table names, event names, translation keys, CSS classes and test names. Use `explore` for entry points you did not think of. List each hit by area.
+2. Find the footprint. Use `rg` for the feature's name, its route paths, flag names, table names, event names, translation keys, CSS classes and test names. Use `explore` for entry points you did not think of. List each hit by area.
 3. Sort the footprint into layers, outermost first: UI and entry points, API routes and jobs, business logic, data access, schema and stored data, config and flags, tests, docs and translations.
 4. Check what depends on it from outside the feature: other features that call its code, shared helpers it owns, scheduled jobs, webhooks and external clients. Anything shared stays and gets a new owner.
 5. Take a baseline: build, typecheck and tests with `run_command`.
-6. Remove layer by layer, outermost first. For each layer: delete with `delete_file` or `edit_file`, then run build and tests with `run_command`, fix what the removal exposes, and keep the layer in its own commit-sized change.
+6. Remove layer by layer, outermost first. For each layer: delete with `rm` or `edit_file`, then run build and tests with `run_command`, fix what the removal exposes, and keep the layer in its own commit-sized change.
 7. Handle data last, as a separate migration with its own plan (see `database-migration`). Prefer to archive before dropping. Keep the schema removal out of the same release as the code removal.
 8. Search again for every name from step 2 and for orphaned imports, unused dependencies and empty files. Remaining hits should be intentional, such as changelog lines.
 9. Update docs, translations (every language file), help text and the changelog.

@@ -23,7 +23,7 @@ For a flaky test only, use `use_skill` with `flaky-test-fixer`. For general root
 ## Steps
 
 1. **Describe the bad outcome** exactly: which value or state is wrong, and what the correct one would be.
-2. **Find the shared state.** Use `search_files` to list who reads and writes it: globals, fields, files, database rows, caches, UI state, counters. Read each site with `read_file`.
+2. **Find the shared state.** Use `rg` to list who reads and writes it: globals, fields, files, database rows, caches, UI state, counters. Read each site with `read_file`.
 3. **List the sequences.** Write the steps of each actor as numbered lines, then find an interleaving that gives the bad outcome. Typical shapes: check then act, read then write, start then await then use, two writers, cancel arriving after complete.
 4. **Force it.** Make the bad order happen: add a deliberate delay at the gap, run many in parallel with `run_command`, use a barrier in a test, or lower worker counts. A reproduction on demand is the proof.
 5. **Pick the remedy.** In order of preference:

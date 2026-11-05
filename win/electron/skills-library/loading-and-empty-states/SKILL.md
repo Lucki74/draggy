@@ -26,7 +26,7 @@ A data view always shows something truthful and useful: that it is loading, that
 4. Handle refetch separately from first load. Keep showing the old data with a subtle busy cue instead of replacing it with a skeleton.
 5. Decide on delays: show a loading indicator only after a short wait, such as a few hundred milliseconds, and keep it visible for a minimum time to avoid a flicker. Choose values with the user and test them.
 6. Reserve space. Give skeleton rows the same height as real rows, and reserve image dimensions.
-7. Implement with `edit_file`. Add the states to any existing component tests or storybook-style fixtures with `search_files` to find them.
+7. Implement with `edit_file`. Add the states to any existing component tests or storybook-style fixtures with `rg` to find them.
 8. Verify in the browser with `browser_navigate`. Force each state by throttling, blocking the request or returning an empty list, and take a `browser_screenshot` of each.
 9. Add the paginated and infinite-list cases: loading more at the end, an error on the next page without losing earlier items, and a clear end-of-list signal.
 10. Write the user-facing copy for each state with the user, and keep it short, specific and free of blame.

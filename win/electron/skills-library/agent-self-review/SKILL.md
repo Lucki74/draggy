@@ -23,7 +23,7 @@ Catch your own mistakes before the user does. The review works from the request 
 3. Check each requirement against the artefact. For each, find the line or section that satisfies it. Mark any requirement with no match.
 4. Hunt for stray changes: files touched that the task did not need, debug output left in, renamed things, formatting churn. Revert them or explain them.
 5. Hunt for edge cases: empty input, very large input, missing files, failure of a called service, concurrent use, other platforms. Pick the three most likely and trace them through the code or text.
-6. Check claims. Every statement of fact in your answer (a number, a behaviour, a function's existence) needs a source you looked at. Use `search_files` or `read_file` to confirm the ones you are less sure of.
+6. Check claims. Every statement of fact in your answer (a number, a behaviour, a function's existence) needs a source you looked at. Use `rg` or `read_file` to confirm the ones you are less sure of.
 7. Run what can be run: tests, type checks or the program itself with `run_command`. A review without execution is partial; say so if you could not run anything.
 8. Read the answer you are about to give as the user would. Is the main point first? Is anything promised that was not done? Are caveats stated?
 9. Fix the problems you found. List what you fixed in a line each, and list any you could not fix with the reason.

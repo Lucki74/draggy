@@ -20,13 +20,13 @@ A good review names each resource that will be destroyed or replaced and why, an
 
 ## Steps
 
-1. Find the files with `list_directory` and `search_files` for `resource "` and `module "`. Read the backend and provider blocks first with `read_file`.
+1. Find the files with `ls` and `rg` for `resource "` and `module "`. Read the backend and provider blocks first with `read_file`.
 2. Check provider and module version constraints. Look up current provider docs with `read_url` when an argument looks renamed or deprecated.
 3. Run `terraform fmt -check` and `terraform validate` with `run_command`. Run `terraform init -backend=false` first if the project is not initialised.
 4. If a plan file or output exists, read it. If not, ask the user before running `terraform plan`, because it reads real credentials and real state.
 5. List every line marked destroy or replace (`-/+`). For each, find the argument that forces it and say whether it is a rename, an immutable field or a tag change.
 6. Check stateful resources (databases, buckets, disks, keys) for `prevent_destroy`, deletion protection, and backup settings.
-7. Search for secrets with `search_files` on `password`, `secret`, `token` and `access_key`. Values should come from variables marked `sensitive` or a secrets manager.
+7. Search for secrets with `rg` on `password`, `secret`, `token` and `access_key`. Values should come from variables marked `sensitive` or a secrets manager.
 8. Check security groups, bucket policies and IAM for `0.0.0.0/0`, `*` actions and public access flags.
 9. Check state: remote backend, locking, encryption, and that state is not committed to git.
 10. Check that variables have types and validation, outputs do not leak secrets, and `count` or `for_each` keys are stable values, not list positions.

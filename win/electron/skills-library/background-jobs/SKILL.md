@@ -18,7 +18,7 @@ Requests return fast and the heavy work finishes reliably elsewhere. A good resu
 
 ## Steps
 
-1. Find the slow work. Use `search_files` and `read_file` on the handler. Mark what the response truly depends on and what can happen after it.
+1. Find the slow work. Use `rg` and `read_file` on the handler. Mark what the response truly depends on and what can happen after it.
 2. Check what job infrastructure exists (a queue library, a scheduler, a worker process). Reuse it. If none exists, compare options with the user and check current docs through `read_url` before choosing.
 3. Define the job: a name, and a payload containing ids and parameters, never large objects or secrets. The worker loads fresh data by id when it runs.
 4. Make the job idempotent. Assume it will run more than once. Use a status column, a unique constraint or a dedupe key so a second run does not repeat the effect.

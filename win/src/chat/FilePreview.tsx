@@ -158,6 +158,7 @@ export function FilePreview({
   );
 
   const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(LINE_HEIGHT * 30);
   const lastScrollTopRef = useRef(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -216,9 +217,9 @@ export function FilePreview({
       return { isWindowed: false, startLine: 0, endLine: totalLines };
     }
     const start = Math.max(0, Math.floor(scrollTop / LINE_HEIGHT) - OVERSCAN);
-    const end = Math.min(totalLines, Math.ceil((scrollTop + 600) / LINE_HEIGHT) + OVERSCAN);
+    const end = Math.min(totalLines, Math.ceil((scrollTop + viewportHeight) / LINE_HEIGHT) + OVERSCAN);
     return { isWindowed: true, startLine: start, endLine: end };
-  }, [totalLines, scrollTop]);
+  }, [totalLines, scrollTop, viewportHeight]);
 
   const visibleText = useMemo(() => {
     if (!visibleRange.isWindowed) return content;
@@ -228,8 +229,11 @@ export function FilePreview({
   const topSpacerHeight = visibleRange.startLine * LINE_HEIGHT;
   const bottomSpacerHeight = Math.max(0, (totalLines - visibleRange.endLine) * LINE_HEIGHT);
 
+  // The window must cover the real scroller height, not a fixed 600px guess, or rows go blank.
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    const top = event.currentTarget.scrollTop;
+    const el = event.currentTarget;
+    const top = el.scrollTop;
+    if (el.clientHeight > 0 && el.clientHeight !== viewportHeight) setViewportHeight(el.clientHeight);
     if (totalLines > 100 && Math.abs(top - lastScrollTopRef.current) > LINE_HEIGHT * 6) {
       lastScrollTopRef.current = top;
       setScrollTop(top);
@@ -375,6 +379,7 @@ export function FilePreview({
       <div
         onScroll={handleScroll}
         className={`${fullHeight ? "h-full flex-1 min-h-0" : "max-h-96"} overflow-auto bg-surface-base text-text-primary font-mono text-[13px]`}
+        style={{ overflowAnchor: "none" }}
       >
         {visibleRange.isWindowed && topSpacerHeight > 0 && (
           <div style={{ height: `${topSpacerHeight}px` }} />
@@ -391,6 +396,8 @@ export function FilePreview({
             // This box scrolls. Left to itself the highlighter's own <pre>
             // scrolls too, which is a second bar inside the first.
             overflow: "visible",
+            // Swapping spacer heights would otherwise trigger scroll anchoring, which jumps the view.
+            overflowAnchor: "none",
           }}
           CodeTag={CodeWithCaret}
         >
@@ -494,6 +501,7 @@ export function FilePreview({
   return (
     <div
       onScroll={handleScroll}
+      style={{ overflowAnchor: "none" }}
       className={`flex flex-col ${fullHeight ? "h-full flex-1 min-h-0" : "max-h-96"} overflow-auto bg-[var(--bg-base)] p-4`}
     >
       {visibleRange.isWindowed && topSpacerHeight > 0 && (

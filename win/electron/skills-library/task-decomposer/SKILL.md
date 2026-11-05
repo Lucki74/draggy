@@ -20,7 +20,7 @@ Turn one big request into a list of small steps that can each be finished and ch
 ## Steps
 
 1. State the end result in one sentence, as something that can be observed: "the export button downloads a CSV with all rows", not "improve export". If you cannot write that sentence, ask with `ask_user`.
-2. Look at the current state before planning. Use `explore` or `search_files` to find the code, files or data involved, so the steps name real things.
+2. Look at the current state before planning. Use `explore` or `rg` to find the code, files or data involved, so the steps name real things.
 3. List the outcomes the task needs, not the activities. Group by result: "login works", "data migrated", "docs updated".
 4. For each outcome, list the steps to get there. A step should be small enough to finish in one sitting and to have one clear check.
 5. Write the done check for every step: a command that passes, a file that exists, a page that shows a value, or a question the user answers yes to.

@@ -23,7 +23,7 @@ To write the tests themselves, hand over to `use_skill` with `write-tests`. To c
 ## Steps
 
 1. **Get coverage.** Look in package.json or the build files with `read_file` for a coverage script. Run it with `run_command`. If none exists, ask with `ask_user` before adding tooling; otherwise read tests and code by hand.
-2. **Find the report.** Locate the summary or lcov file with `list_directory` or `search_files`. Read per-file numbers and the uncovered line ranges.
+2. **Find the report.** Locate the summary or lcov file with `ls` or `rg`. Read per-file numbers and the uncovered line ranges.
 3. **Map gaps to behaviour.** For each low-coverage file, `read_file` the uncovered ranges and say what the code does there: error handling, parsing, money or date math, permission checks, retries, cleanup.
 4. **Rank by risk.** Score each gap on how bad a bug would be (data loss, wrong result, security), how often the code runs, and how recently it changed. Use `git_diff` or `run_command` with git log for recent churn.
 5. **Drop the noise.** Remove generated code, trivial getters, type-only files, thin wrappers and code only reached through frameworks.

@@ -21,7 +21,7 @@ A good model is small enough to finish, names concrete attacks against concrete 
 ## Steps
 
 1. Ask with `ask_user` what the system does, who uses it, and what would hurt most if lost or abused. Skip questions the repository already answers.
-2. Read the code or docs with `read_file`, and use `explore` or `search_files` for routes, queues, scheduled jobs, webhooks and outbound calls to list entry points.
+2. Read the code or docs with `read_file`, and use `explore` or `rg` for routes, queues, scheduled jobs, webhooks and outbound calls to list entry points.
 3. List assets: data (credentials, personal data, payment data), capabilities (admin actions, sending email) and availability.
 4. List actors: anonymous visitor, signed in user, other tenant, admin, internal service, third party, a compromised dependency.
 5. Draw the data flow in text: actor to component to store, and mark each trust boundary where the data crosses between privilege levels or networks.

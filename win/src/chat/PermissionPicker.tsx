@@ -32,7 +32,11 @@ export default function PermissionPicker({
       checked: option.id === mode,
       disabled,
       title: disabled ? t("needsToolModel") : undefined,
-      onSelect: () => onPick(option.id),
+      onSelect: () => {
+        // YOLO leaves the sandbox, so entering it takes one explicit yes.
+        if (option.id === "auto" && mode !== "auto" && !window.confirm(t("permissionYoloConfirm"))) return;
+        onPick(option.id);
+      },
     };
   });
 

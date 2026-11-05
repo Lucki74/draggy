@@ -57,3 +57,4 @@ macos/Draggy/Resources/Info.plist
 macos/Packages/DraggyCore/DraggyCoreFFI.xcframework/
 macos/Packages/DraggyCore/Sources/DraggyCore/draggy_core.swift
 macos/Packages/DraggyCore/.build/
+vendor/

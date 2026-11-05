@@ -20,13 +20,13 @@ Answer "can we ship this" from current data and the project's real audience. A g
 
 ## Steps
 
-1. Pin down the target. Look for a `browserslist` entry in `package.json` or a config file with `search_files`, and for any support policy in the docs. If none exists, ask with `ask_user` which browsers and versions matter.
+1. Pin down the target. Look for a `browserslist` entry in `package.json` or a config file with `rg`, and for any support policy in the docs. If none exists, ask with `ask_user` which browsers and versions matter.
 2. Name the exact feature, not the topic: the property and value, the API method, or the HTML attribute.
 3. Look up current support. Use `read_url` or `search_web` on a maintained compatibility source such as MDN or caniuse. Do not answer from memory, since support changes every release.
 4. Compare the data with the target list. Note the first version that supports the feature, partial support notes, and flags or prefixes required.
 5. Check the project's tooling: does the transpiler or autoprefixer already handle it? Read the build config with `read_file`.
 6. Choose a strategy. If the feature is purely visual, let it degrade. If the page breaks without it, provide a fallback, use feature detection (`@supports` or checking the API exists), or add a polyfill from a maintained source.
-7. If the code is already written, find every use with `search_files` and write the guarded version with `edit_file`.
+7. If the code is already written, find every use with `rg` and write the guarded version with `edit_file`.
 8. If the page can run, confirm in the available browser with `browser_navigate` and note you tested only that engine.
 9. For JavaScript, check both syntax (transpiled by the build) and runtime APIs (not transpiled), because only the first is handled by compilers.
 10. Record the answer with the date and sources in the PR or notes so the question does not get re-researched next quarter.

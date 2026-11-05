@@ -22,7 +22,7 @@ For plain example tests, use `use_skill` with `write-tests`.
 
 ## Steps
 
-1. **Find the target and the library.** Read the function with `read_file`. Check the project for a property library (fast-check, Hypothesis, proptest, QuickCheck style) with `search_files` in the manifest. If none exists, ask with `ask_user` before adding a dependency. Check current API names with `read_url` on the library docs; do not rely on memory.
+1. **Find the target and the library.** Read the function with `read_file`. Check the project for a property library (fast-check, Hypothesis, proptest, QuickCheck style) with `rg` in the manifest. If none exists, ask with `ask_user` before adding a dependency. Check current API names with `read_url` on the library docs; do not rely on memory.
 2. **List properties.** Typical families:
    - Round trip: decode(encode(x)) equals x.
    - Idempotence: doing it twice equals doing it once.

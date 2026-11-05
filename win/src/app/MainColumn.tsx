@@ -176,7 +176,7 @@ export function MainColumn({
                     onLeave={onLeaveTalk}
                 />
             ) : currentChatId ? (
-                <div ref={observeWorkArea} className="flex-1 flex min-h-0 min-w-0">
+                <div ref={observeWorkArea} className="flex-1 flex min-h-0 min-w-0 relative">
                     <div className="flex-1 min-w-[340px] flex">
                         <OpenDiffContext.Provider value={onOpenDiff ?? null}>
                         <OpenFileContext.Provider value={active.rootPath ? onSelectFile : null}>

@@ -20,13 +20,13 @@ Turn a pile of loose files into a structure the user can navigate, without losin
 ## Steps
 
 1. Scope it. Use `ask_user` if the target folder is unclear, and confirm that subfolders are in or out of scope. Never start in a system folder, a home directory root, or a folder that holds a git repository or app install.
-2. Survey. Use `list_directory` on the folder, then `run_command` for a count by extension and the oldest and newest modified dates. Note the 20 largest files, since they often decide the scheme.
+2. Survey. Use `ls` on the folder, then `run_command` for a count by extension and the oldest and newest modified dates. Note the 20 largest files, since they often decide the scheme.
 3. Spot units that must stay together: a folder with a project file plus assets, a set of files with the same stem (`report.docx` and `report_files/`), photo sets with sidecar files. Treat each as one item.
 4. Propose a scheme of at most two levels, such as `Documents/2025`, `Images`, `Installers`, `Archives`, `To-review`. Pick the axis (type, date or project) from what the files show and what the user said. Show the scheme and a count per target folder.
 5. Build the dry run with `run_command` (or `run_command`): a table of source path, target path, and a reason. List collisions where two files would land on the same name. Write the table to a file with `create_file` in the folder's parent, not inside it.
 6. Use `ask_user` to get approval of the scheme and the table. Ask about the odd files you could not place.
-7. Apply with `move_file`, or one `run_command` loop for large counts. Never overwrite: on a collision, append a counter to the incoming name. Append every move to a log file as `old path -> new path`.
-8. Verify. Use `list_directory` on the result and compare the file count with the survey. Report the count of items moved, skipped and left in `To-review`.
+7. Apply with `mv`, or one `run_command` loop for large counts. Never overwrite: on a collision, append a counter to the incoming name. Append every move to a log file as `old path -> new path`.
+8. Verify. Use `ls` on the result and compare the file count with the survey. Report the count of items moved, skipped and left in `To-review`.
 9. Hand over the maintenance rule so the folder stays tidy after you leave.
    - Suggest one inbox folder where new files land, and a monthly five-minute sort.
    - Name the two or three rules that decided placement, so the user can repeat them.

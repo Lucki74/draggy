@@ -46,10 +46,11 @@ describe("no console window ever appears", () => {
   });
 
   it("never starts PowerShell on its own: Norton and others block a hidden one started by an app", () => {
-    // Only the run_command tool may, when the model asks and the user has approved that command.
+    // Only the run_command tool may, when the model asks and the user has approved that command. elevate.cjs
+    // is the one other: run_as_admin needs PowerShell to start the UAC prompt, and Windows asks the user each time.
     const offenders = sourceFiles()
       // shells.cjs holds the run_command shell list, which is where the commands.cjs exemption moved. shellHost.cjs opens the terminal the user asks for. taskText.cjs only names the shells whose state report it can read.
-      .filter((file) => !["commands.cjs", "shells.cjs", "shellHost.cjs", "taskText.cjs"].includes(file.name) && /["'`]powershell(\.exe)?["'`]|EncodedCommand|ExecutionPolicy/i.test(file.text))
+      .filter((file) => !["commands.cjs", "elevate.cjs", "shells.cjs", "shellHost.cjs", "taskText.cjs"].includes(file.name) && /["'`]powershell(\.exe)?["'`]|EncodedCommand|ExecutionPolicy/i.test(file.text))
       .map((file) => file.name);
     expect(offenders).toEqual([]);
   });

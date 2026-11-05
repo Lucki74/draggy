@@ -300,7 +300,7 @@ export const FR: Record<string, string> = {
   "skill:document-comparison": "Compare deux versions d'un document et signale les changements significatifs, séparés du bruit de mise en forme, avec les ajouts, suppressions et passages déplacés.",
   "skill:document-organizer": "Conçoit un système simple de dossiers et de nommage pour les papiers du foyer, numériques ou physiques, avec une courte liste de ce qu'il faut garder, où et combien de temps, vérifiée auprès de sources officielles.",
   "skill:docx-template-fill": "Remplit les champs d'un modèle Word à partir d'une ligne ou d'un tableau de données, avec un fichier par enregistrement, et vérifie qu'aucun champ n'est resté vide ni la mise en page cassée.",
-  "skill:draggy-help": "Répond aux questions sur le fonctionnement de Draggy et résout les problèmes en lisant le wiki officiel sur draggy.org/wiki.",
+  "skill:draggy-help": "Répond aux questions sur le fonctionnement de Draggy et résout les problèmes en lisant la documentation officielle sur docs.draggy.org.",
   "skill:duplicate-file-finder": "Trouve les fichiers strictement identiques par taille et hash de contenu, les regroupe et propose quelle copie garder avant toute suppression.",
   "skill:e2e-test-plan": "Choisit les quelques parcours utilisateur qui méritent un test de bout en bout et écrit chacun en étapes avec résultats attendus, besoins en données et sélecteurs stables, prêt à automatiser ou à exécuter à la main.",
   "skill:email-sequence-marketing": "Conçoit une séquence d'e-mails marketing, comme bienvenue, nurturing ou onboarding, avec un objectif par e-mail, le calendrier, les objets, les textes et un désabonnement clair, pour des abonnés consentants.",

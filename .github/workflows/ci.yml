@@ -42,4 +42,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Test and build the sandbox launcher
+        working-directory: win/sandbox
+        run: cargo test -q && cargo build --release
+
+
       - run: npm run check

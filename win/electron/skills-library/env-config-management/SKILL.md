@@ -20,7 +20,7 @@ A good result fails fast at startup with a clear message when a value is missing
 
 ## Steps
 
-1. Inventory reads with `search_files` for `process.env`, `os.environ`, `getenv` and `import.meta.env`. Build a table of name, file, default and purpose.
+1. Inventory reads with `rg` for `process.env`, `os.environ`, `getenv` and `import.meta.env`. Build a table of name, file, default and purpose.
 2. Inspect committed files: `.env*`, config files, CI workflows and Dockerfiles. Check `.gitignore` covers real env files with `read_file`.
 3. Scan history for committed secrets with `run_command` such as `git log -p -S` on suspicious names. If a real secret appears, stop and flag rotation.
 4. Group values: public config, per-environment config, secrets. Only the last group needs a secret store.
