@@ -9,7 +9,8 @@ import WorkingStatus from "./WorkingStatus";
 import WorkBlock from "./WorkBlock";
 import WorkGroup from "./WorkGroup";
 import { TaskChip } from "./TaskChip";
-import { isWorkStep, touchedFiles } from "./workSummary";
+import { isWorkStep, processFoldLength, touchedFiles } from "./workSummary";
+import ProcessFold from "./ProcessFold";
 import { OpenFileContext } from "./openFileContext";
 import { useTranscriptView } from "./transcriptView";
 import TurnActions from "./TurnActions";
@@ -158,7 +159,7 @@ export function AssistantTurn({
       ? `prose-${proseId}`
       : "prose-body";
 
-  const renderStep = (step: SearchStep) => {
+  const renderStep = (step: SearchStep, inChain = false) => {
     // Prose the model wrote before a tool call, rendered exactly like reply body.
     if (step.type === "text") {
       if (!step.content.trim()) return null;
@@ -189,6 +190,7 @@ export function AssistantTurn({
       return (
         <ThinkingRow
           key={step.id}
+          inline={inChain}
           step={step}
           live={live}
           isGenerating={isGenerating}
@@ -231,11 +233,9 @@ export function AssistantTurn({
 
   const files = touchedFiles(steps);
 
-  // Steps that draw nothing never split a group. Finished thinking draws nothing in the normal view.
+  // Steps that draw nothing never split a group.
   const invisible = (step: SearchStep) =>
-    (step.type === "text" && !step.content.trim()) ||
-    (step.type === "thinking" &&
-      (!step.content || (step.isComplete && view === "normal")));
+    (step.type === "text" && !step.content.trim()) || (step.type === "thinking" && !step.content);
 
   // Consecutive tool steps fold into one work block; prose, reasoning, notes and questions stand alone.
   const isWork = (step: SearchStep) => isWorkStep(step) && step.type !== "steer";
@@ -249,9 +249,19 @@ export function AssistantTurn({
     else segments.push([step]);
   }
 
+  // Reasoning and tool calls from the start of the turn go in one chain: open while it runs, folded under a summary after.
+  const runningNow = live && isGenerating && isLast;
+  const candidate = view === "normal" ? processFoldLength(segments) : 0;
+  const foldedSegments = segments.slice(0, candidate);
+  const foldLength = foldedSegments.some((segment) => isWork(segment[0])) ? candidate : 0;
+  // Outside the chain, finished reasoning draws nothing in the normal view.
+  const rest = segments
+    .slice(foldLength)
+    .filter((segment) => !(segment[0].type === "thinking" && segment[0].isComplete && view === "normal"));
+
   const renderSegment = (segment: SearchStep[]) =>
     isWork(segment[0]) ? (
-      <WorkGroup key={segment[0].id}>{segment.map(renderStep)}</WorkGroup>
+      <WorkGroup key={segment[0].id}>{segment.map((step) => renderStep(step))}</WorkGroup>
     ) : (
       renderStep(segment[0])
     );
@@ -304,7 +314,14 @@ export function AssistantTurn({
         onCopy={copyAsMarkdown}
       >
         {[
-          ...segments.map(renderSegment),
+          ...(foldLength > 0
+            ? [
+                <ProcessFold key="process" steps={foldedSegments.flat()} live={runningNow} language={settings.language} t={t}>
+                  {foldedSegments.flat().map((step) => renderStep(step, true))}
+                </ProcessFold>,
+              ]
+            : []),
+          ...rest.map(renderSegment),
           isLast && isGenerating ? <BrowserConsentCard key="consent" t={t} /> : null,
           (!isFailed || hasGeneratedText) && !bodyInStep ? (
             <div key={bodyKey} className={isFailed ? "mb-3" : undefined}>

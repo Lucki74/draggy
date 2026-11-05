@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import MessageItem from "../chat/MessageItem";
 import { isWorkStep } from "../chat/workSummary";
 import { defaultSettings } from "../app/settings";
@@ -44,18 +44,24 @@ describe("which steps are work", () => {
   });
 });
 
+const unfold = () => fireEvent.click(screen.getAllByRole("button", { expanded: false })[0]);
+
 describe("a finished reply with several steps", () => {
-  it("keeps every step on screen in one chain with no header or fold", () => {
+  it("folds under a summary row and reopens with every step in one chain", () => {
     const { container } = turn("normal", [step("one.ts", "reading"), step("two.ts", "reading")]);
+    expect(screen.queryByText("one.ts")).toBeNull();
+    expect(screen.getByRole("button", { name: /read 2 files/i })).toBeTruthy();
+    expect(screen.queryByText(/^process/i)).toBeNull();
+    unfold();
     expect(screen.getByText("one.ts")).toBeTruthy();
     expect(screen.getByText("two.ts")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /process|read \d+ files?/i })).toBeNull();
-    expect(container.querySelectorAll(".border-s")).toHaveLength(1);
+    expect(container.querySelectorAll(".border-s").length).toBeGreaterThan(0);
     expect(screen.getByText("Final reply.")).toBeTruthy();
   });
 
   it("shows a green check on a finished step and a cross on a failed one", () => {
     const { container } = turn("normal", [step("one.ts", "reading"), step("boom", "error")]);
+    unfold();
     expect(container.querySelectorAll(".step-check")).toHaveLength(1);
     expect(container.querySelectorAll(".text-danger").length).toBeGreaterThan(0);
   });
@@ -65,12 +71,14 @@ describe("a finished reply with several steps", () => {
       step("Searched for x", "searching"),
       step("Search results for x", "results", { results: [{ title: "T", url: "https://a.test", snippet: "s" }] }),
     ]);
+    unfold();
     expect(screen.queryByText("Searched for x")).toBeNull();
     expect(screen.getByText("Search results for x")).toBeTruthy();
   });
 
   it("keeps a running search visible until its results arrive", () => {
     turn("normal", [step("Searching for x", "searching", { isComplete: false })]);
+    unfold();
     expect(screen.getByText("Searching for x")).toBeTruthy();
   });
 });

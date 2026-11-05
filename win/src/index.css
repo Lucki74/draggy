@@ -1005,3 +1005,17 @@ kbd {
     animation: none;
   }
 }
+
+.step-fade {
+  animation: step-fade 0.24s linear backwards;
+}
+@keyframes step-fade {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-fade {
+    animation: none;
+  }
+}

@@ -19,7 +19,15 @@ const reply = (steps: SearchStep[]): Message => ({
   steps,
 });
 
-const show = (steps: SearchStep[], view: TranscriptView = "normal") =>
+// A finished turn folds its steps under a summary row; these tests read the steps, so open it.
+const show = (steps: SearchStep[], view: TranscriptView = "normal") => {
+  const result = showFolded(steps, view);
+  const fold = screen.queryByTestId("process-fold")?.querySelector("button");
+  if (fold) fireEvent.click(fold);
+  return result;
+};
+
+const showFolded = (steps: SearchStep[], view: TranscriptView = "normal") =>
   render(
     <TranscriptViewContext.Provider value={view}>
     <MessageItem
@@ -264,8 +272,8 @@ describe("an edited file step", () => {
       </OpenDiffContext.Provider>,
     );
 
-    // A lone step shows as its own row, with no group to open.
-    expect(screen.queryByRole("button", { name: "Deleted 1 file" })).toBeNull();
+    // The turn folds under its summary; opening it shows the row.
+    fireEvent.click(screen.getByRole("button", { name: "Deleted 1 file" }));
     expect(screen.getByText("format.ts")).toBeTruthy();
     for (const name of ["Open changes", "Open", "Undo"]) {
       expect(screen.queryByRole("button", { name })).toBeNull();

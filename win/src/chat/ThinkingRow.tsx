@@ -11,6 +11,8 @@ export interface ThinkingRowProps {
   step: SearchStep;
   live: boolean;
   isGenerating: boolean;
+  /** Inside the step chain: muted text between the tool rows, always shown. */
+  inline?: boolean;
   t: (key: string) => string;
 }
 
@@ -26,14 +28,28 @@ function useElapsed(from: number, running: boolean) {
 }
 
 // Reasoning as a disclosure row: the spark and a running count while it thinks, "Thought for 4s" after.
-export function ThinkingRow({ step, live, isGenerating, t }: ThinkingRowProps) {
+export function ThinkingRow({ step, live, isGenerating, inline = false, t }: ThinkingRowProps) {
   const thinking = !step.isComplete;
   const [mountedAt] = useState(() => step.startedAt ?? Date.now());
   const elapsed = useElapsed(mountedAt, thinking && isGenerating);
   const view = useTranscriptView();
 
   // Normal view shows reasoning only while it happens.
-  if (!step.content || (!thinking && view === "normal")) return null;
+  if (!step.content || (!inline && !thinking && view === "normal")) return null;
+
+  if (inline) {
+    return (
+      <div key={step.id} className="step-rise mb-3 text-[14px] leading-6 text-text-secondary markdown-body [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
+        {live && thinking ? (
+          <StreamingMarkdown source={normalizeMath(step.content)} streaming={isGenerating} animateOnMount={isGenerating} />
+        ) : (
+          <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
+            {normalizeMath(step.content)}
+          </ReactMarkdown>
+        )}
+      </div>
+    );
+  }
 
   const done =
     step.thoughtTime !== undefined && step.thoughtTime < 1

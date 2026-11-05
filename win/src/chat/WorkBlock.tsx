@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Button, EmberCaret, Icon, Spark } from "../ui";
 import ReactMarkdown from "react-markdown";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
@@ -19,6 +19,7 @@ import { FilePreview } from "./FilePreview";
 import ImageCard from "./ImageCard";
 import { loadLabel, type LoadStage } from "./loadLabel";
 import { stepTotals } from "./workSummary";
+import { stepView } from "./stepView";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
 /** The state of a step: the ember spark while it runs, then a green check, or a red cross. */
@@ -566,6 +567,7 @@ export function WorkBlock({
   // A file read opens from its step; a folder listing has no file to open. File changes show only their diff.
   const openable = !isActive && step.filepath && step.type === "reading" && step.filename;
   const totals = isActive ? null : stepTotals(step);
+  const view = stepView(step);
   const openStep = () =>
     openInCanvas ? openInCanvas(step.filepath!) : window.electronAPI?.openFile?.(step.filepath!);
 
@@ -588,7 +590,9 @@ export function WorkBlock({
     <div key={step.id} className="step-rise mb-3.5">
       <div className="flex items-center gap-2 min-h-6 text-[13px] text-text-secondary">
         <StepMark active={isActive} failed={failed} />
-        {step.runId && step.fileContent && splitCommand(step.content) ? (
+        {view ? (
+          <span className="min-w-0">{view.name}</span>
+        ) : step.runId && step.fileContent && splitCommand(step.content) ? (
           <CommandLine content={step.content} active={isActive} />
         ) : (
           <span className="markdown-inline min-w-0">
@@ -606,7 +610,7 @@ export function WorkBlock({
         {failed && <span className="text-[12px] text-danger">{t("stepFailed")}</span>}
 
         <span className="ms-auto flex items-center gap-3 flex-shrink-0 ps-2">
-          {totals && (
+          {totals && !view && (
             <span className="font-mono text-[12px] tabular-nums whitespace-nowrap">
               <span className="text-ok">+{totals.added}</span> <span className="text-danger">-{totals.removed}</span>
             </span>
@@ -643,6 +647,17 @@ export function WorkBlock({
           )}
         </span>
       </div>
+      {view && (
+        <dl className="ms-5 mt-0.5 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3.5 gap-y-0.5 font-mono text-[12.5px] leading-[1.6]">
+          {view.args.map(([key, value]) => (
+            <Fragment key={key}>
+              <dt className="text-text-tertiary">{key}</dt>
+              <dd className="m-0 whitespace-pre-wrap break-words text-text-primary">{value}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      )}
+      {view?.result && !isActive && <div className="step-rise ms-5 mt-1 text-[13px] text-text-tertiary">{view.result}</div>}
       {payload}
     </div>
   );
