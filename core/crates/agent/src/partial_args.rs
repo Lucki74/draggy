@@ -153,16 +153,16 @@ impl PartialArgsScanner {
     }
 
     fn unit(&mut self, code: u16) {
-        if let Some(high) = self.high {
-            if (0xDC00..=0xDFFF).contains(&code) {
-                self.high = None;
-                let c = char::decode_utf16([high, code])
-                    .next()
-                    .and_then(Result::ok)
-                    .unwrap_or('\u{FFFD}');
-                self.sink(&c.to_string());
-                return;
-            }
+        if let Some(high) = self.high
+            && (0xDC00..=0xDFFF).contains(&code)
+        {
+            self.high = None;
+            let c = char::decode_utf16([high, code])
+                .next()
+                .and_then(Result::ok)
+                .unwrap_or('\u{FFFD}');
+            self.sink(&c.to_string());
+            return;
         }
         if (0xD800..=0xDBFF).contains(&code) {
             self.flush_high();
