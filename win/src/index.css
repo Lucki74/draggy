@@ -976,8 +976,8 @@ kbd {
 
 /* A long argument fades at its top edge while it grows, and new text eases in. */
 .live-args-fade {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 1.5rem);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 1.5rem);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 28px);
 }
 @media (prefers-reduced-motion: reduce) {
   .live-args-fade {

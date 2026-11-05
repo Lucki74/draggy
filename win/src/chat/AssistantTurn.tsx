@@ -264,9 +264,10 @@ export function AssistantTurn({
     );
 
   // A finished turn folds its process in the normal view; the verbose view keeps everything open.
-  const candidate = !isGenerating && view === "normal" ? processFoldLength(segments) : 0;
+  const runningNow = live && isGenerating && isLast;
+  const candidate = view === "normal" ? processFoldLength(segments) : 0;
   const folded = segments.slice(0, candidate);
-  const foldLength = folded.reduce((sum, segment) => sum + segment.length, 0) >= 2 ? candidate : 0;
+  const foldLength = folded.reduce((sum, segment) => sum + segment.length, 0) >= (runningNow ? 1 : 2) ? candidate : 0;
 
   return (
     <>
@@ -318,7 +319,7 @@ export function AssistantTurn({
         {[
           ...(foldLength > 0
             ? [
-                <ProcessFold key="process" steps={folded.flat()} t={t}>
+                <ProcessFold key="process" steps={folded.flat()} live={runningNow} t={t}>
                   {folded.map(renderSegment)}
                 </ProcessFold>,
               ]
