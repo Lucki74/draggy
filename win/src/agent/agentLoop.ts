@@ -56,6 +56,7 @@ import {
 
 import { WORK_RECAP_HEADING, buildResumeMessage, describeCompletedWork, joinContinuation, stripWorkRecap } from "./resume";
 import { detectRepetition } from "./repetition";
+import { runCalls, runsInParallel } from "./parallelCalls";
 import { announcesAction } from "./announcement";
 import { ggufModelName } from "../ai/engineAdapter";
 import { engineFailure, engineUnreachable } from "../ai/engineErrors";
@@ -68,6 +69,7 @@ import {
   describeToolsForPrompt,
   runTool,
   toolDefinitions,
+  toolGroup,
   withoutTools,
 } from "../tools/registry";
 import type { ToolContext, ToolDefinition, ToolEnvironment } from "../tools/registry";
@@ -1273,6 +1275,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         // The pill's level, for a provider that takes one; the engine's body stays as it always was.
         ...(hasThinkingCapability && isRemote(model) ? { thinking_level: effort.sent } : {}),
         ...(nativeTools ? { tools: definitions } : {}),
+        // llama-server answers with one call per reply unless told otherwise; a provider's models already do several.
+        ...(nativeTools && !isRemote(model) ? { parallel_tool_calls: true } : {}),
       });
 
       // A dropped connection or an engine that is still starting is tried again before the turn fails.
@@ -1762,13 +1766,19 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       if (nativeTools) {
         wire.push({ role: "assistant", content: rawChunk, ...kept, tool_calls: pendingCalls });
 
-        for (const call of pendingCalls) {
-          if (signal.aborted) break;
-          const result = await runGuardedTool(
-            call.function?.name || "",
-            call.function?.arguments || {},
-          );
-          if (signal.aborted) break;
+        // Calls that only read go out together; anything else waits its turn, so a write is never reordered past a read.
+        const results = await runCalls(pendingCalls, {
+          parallel: (call) => {
+            const callName = call.function?.name || "";
+            return runsInParallel(callName, annotationsFor(callName), toolGroup(callName));
+          },
+          run: (call) => runGuardedTool(call.function?.name || "", call.function?.arguments || {}),
+          stopped: () => signal.aborted,
+        });
+
+        for (const [index, call] of pendingCalls.entries()) {
+          const result = results[index];
+          if (signal.aborted || result === undefined) break;
           toolsRan = true;
           lastToolResult = result;
           wire.push({
