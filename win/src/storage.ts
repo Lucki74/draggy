@@ -34,6 +34,10 @@ const UNFINISHED_IMAGE = new Set(["loading-model", "queued", "generating"]);
 
 /** A picture whose job died with the app reads as stopped, not drawing forever with a Stop that reaches nothing. */
 function settleSteps<T extends { steps?: SearchStep[] }>(holder: T): T {
+  // A call that was still being written never ran, so it is not kept.
+  if (holder.steps?.some((step) => step.type === "tool_call" || step.liveArgs)) {
+    holder = { ...holder, steps: holder.steps.filter((step) => step.type !== "tool_call") };
+  }
   if (!holder.steps?.some((step) => step.image && UNFINISHED_IMAGE.has(step.image.status))) return holder;
   return {
     ...holder,

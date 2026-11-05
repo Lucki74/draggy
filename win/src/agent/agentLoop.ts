@@ -1,4 +1,5 @@
 import { imageIndex, trackImages } from "../images/imageTracker";
+import { PartialArgsScanner } from "./partialArgs";
 import {
   KEEP_ALIVE,
   beginLlamaWork,
@@ -759,7 +760,19 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
   const syncSteps = () => host.onSteps([...steps]);
 
+  // Rows for calls the model is still writing. The first real step after them takes their place.
+  const liveStepIds = new Set<string>();
+  const dropLive = (): boolean => {
+    if (liveStepIds.size === 0) return false;
+    for (let i = steps.length - 1; i >= 0; i--) {
+      if (liveStepIds.has(steps[i].id)) steps.splice(i, 1);
+    }
+    liveStepIds.clear();
+    return true;
+  };
+
   const pushStep = (step: SearchStep) => {
+    dropLive();
     steps.push(step);
     syncSteps();
   };
@@ -776,7 +789,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   };
 
   const finishIncompleteSteps = () => {
-    let changed = false;
+    let changed = dropLive();
     for (let i = steps.length - 1; i >= 0; i--) {
       if (!steps[i].isComplete) {
         if (steps[i].type === "loading") {
@@ -1321,6 +1334,28 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       let toolMatch: string | null = null;
       let maybeToolCall = false;
       let fileStepId: string | null = null;
+      // One live row and one scanner per call index, so each chunk scans only the new text.
+      const liveCalls = new Map<number, { stepId: string; scanner: PartialArgsScanner }>();
+      const showLive = (index: number, tool: string | undefined, argsText: string) => {
+        let live = liveCalls.get(index);
+        let created = false;
+        // A step pushed meanwhile (prose) clears the live rows; the row comes back with the next chunk.
+        if (!live || !liveStepIds.has(live.stepId)) {
+          created = true;
+          live = { stepId: generateId(), scanner: live?.scanner ?? new PartialArgsScanner() };
+          liveCalls.set(index, live);
+          liveStepIds.add(live.stepId);
+          patchStep(thinkStepId, { isComplete: true });
+          steps.push({ id: live.stepId, type: "tool_call", content: "", isComplete: false });
+        }
+        const parsed = argsText ? live.scanner.update(argsText) : null;
+        patchStep(live.stepId, {
+          ...(tool ? { tool } : {}),
+          ...(parsed ? { liveArgs: parsed } : {}),
+        });
+        // A new row shows at once; later chunks wait for the shared update interval.
+        if (created) syncSteps();
+      };
       let lastUpdateTime = performance.now();
       let lastEmittedLength = -1;
 
@@ -1469,6 +1504,17 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             }
           }
 
+          // The file card above already carries a create_file call. Every other call gets a live row.
+          if (streamingCalls) {
+            streamingCalls.forEach((call, index) => {
+              if (call.name === "create_file") return;
+              if (call.name || call.argsString) showLive(index, call.name || undefined, call.argsString);
+            });
+          } else if (!nativeTools && maybeToolCall && fileStepId === null && !liveCalls.has(0)) {
+            // A call written as text has no stream of its own to read, so it shows as pending.
+            showLive(0, undefined, "");
+          }
+
           if (!nativeTools && maybeToolCall) {
             toolMatch = detectToolCall(rawChunk);
             if (toolMatch) {
@@ -1509,7 +1555,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
             // The reply body only ever holds text from passes that are already
             // finished; whatever is being written now belongs to the timeline.
             showText(textContent);
-            if (fileStepId !== null) syncSteps();
+            if (fileStepId !== null || liveCalls.size > 0) syncSteps();
             host.onPatch(combine("", ""));
             emitLive(passChunks, firstTokenAt);
           }
@@ -1684,6 +1730,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       );
 
       if (!hasToolCall) {
+        if (dropLive()) syncSteps();
         if (fileStepId !== null) {
           const partial = steps.find((entry) => entry.id === fileStepId);
           // A file cut mid-way is kept, so a resume can say what was lost instead of losing it silently.
@@ -1832,6 +1879,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   const exhausted = !isFinished && loopCount >= loopLimit;
 
   if (exhausted) {
+    dropLive();
     for (let i = 0; i < steps.length; i++) {
       if (!steps[i].isComplete) steps[i] = { ...steps[i], isComplete: true };
     }

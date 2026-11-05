@@ -163,7 +163,7 @@ function stepView(step: SearchStep): StepView {
 function bodyOf(shown: Shown, attachments: Attachment[] | undefined): Body {
   const text = (shown.textContent ?? shown.content ?? "").trim();
   const thinking = (shown.thinkingContent ?? "").trim();
-  const steps = (shown.steps ?? []).map(stepView);
+  const steps = (shown.steps ?? []).filter((step) => step.type !== "tool_call").map(stepView);
 
   const notes: string[] = [];
   if (shown.failed) notes.push(`Failed: ${shown.error ?? "unknown error"}`);
