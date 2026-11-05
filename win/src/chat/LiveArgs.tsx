@@ -58,7 +58,7 @@ function TailBox({ text, open }: { text: string; open: boolean }) {
         const el = event.currentTarget;
         pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8;
       }}
-      className={`live-args-tail mt-1.5 h-[164px] overflow-y-auto overflow-x-hidden rounded-[8px] border border-rule bg-surface-base px-3 py-2.5 font-mono text-[12.5px] leading-[1.6] text-text-secondary whitespace-pre-wrap break-words [scrollbar-width:thin] ${open ? "live-args-fade" : ""}`}
+      className={`live-args-tail mt-1.5 h-[164px] overflow-y-auto overflow-x-hidden rounded-[8px] border border-rule bg-surface-base px-3 py-2.5 font-mono text-[12.5px] leading-[1.6] text-text-secondary whitespace-pre-wrap break-words ${open ? "live-args-fade" : ""}`}
     >
       {text}
     </div>

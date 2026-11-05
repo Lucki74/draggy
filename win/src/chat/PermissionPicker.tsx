@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { PERMISSION_MODES } from "../app/modes";
-import { Chip, Icon, Menu, type MenuEntry } from "../ui";
+import { Button, Chip, Dialog, Icon, Menu, type MenuEntry } from "../ui";
 import type { PermissionMode } from "../types";
 
 interface PermissionPickerProps {
@@ -21,7 +22,9 @@ export default function PermissionPicker({
   toolsUnavailable = false,
   t,
 }: PermissionPickerProps) {
-  const current = PERMISSION_MODES.find((one) => one.id === mode) ?? PERMISSION_MODES[1];
+  const [askYolo, setAskYolo] = useState(false);
+  const current =
+    PERMISSION_MODES.find((one) => one.id === mode) ?? PERMISSION_MODES[1];
 
   const items: MenuEntry[] = PERMISSION_MODES.map((option) => {
     const disabled = toolsUnavailable && option.id !== "plan";
@@ -34,36 +37,74 @@ export default function PermissionPicker({
       title: disabled ? t("needsToolModel") : undefined,
       onSelect: () => {
         // YOLO leaves the sandbox, so entering it takes one explicit yes.
-        if (option.id === "auto" && mode !== "auto" && !window.confirm(t("permissionYoloConfirm"))) return;
+        if (option.id === "auto" && mode !== "auto") {
+          setAskYolo(true);
+          return;
+        }
         onPick(option.id);
       },
     };
   });
 
   return (
-    <Menu
-      label={t("permissionMode")}
-      side="top"
-      className="w-72"
-      open={open}
-      onOpenChange={onOpenChange}
-      items={items}
-      trigger={(props) => (
-        <Chip
-          {...props}
-          dropdown
-          label={t(current.label)}
-          title={`${t("permissionMode")}: ${t(current.label)}${toolsUnavailable ? `. ${t("needsToolModel")}` : ""}`}
-          className={`max-w-[220px] ${mode === "auto" ? "!text-warn" : ""}`}
-          icon={
-            toolsUnavailable ? (
-              <span data-testid="no-tools-warning" role="img" aria-label={t("needsToolModel")} className="flex text-warn">
-                <Icon name="warning" size={16} />
-              </span>
-            ) : undefined
-          }
-        />
-      )}
-    />
+    <>
+      <Menu
+        label={t("permissionMode")}
+        side="top"
+        className="w-72"
+        open={open}
+        onOpenChange={onOpenChange}
+        items={items}
+        trigger={(props) => (
+          <Chip
+            {...props}
+            dropdown
+            label={t(current.label)}
+            title={`${t("permissionMode")}: ${t(current.label)}${toolsUnavailable ? `. ${t("needsToolModel")}` : ""}`}
+            className={`max-w-[220px] ${mode === "auto" ? "!text-warn" : ""}`}
+            icon={
+              toolsUnavailable ? (
+                <span
+                  data-testid="no-tools-warning"
+                  role="img"
+                  aria-label={t("needsToolModel")}
+                  className="flex text-warn"
+                >
+                  <Icon name="warning" size={16} />
+                </span>
+              ) : undefined
+            }
+          />
+        )}
+      />
+      <Dialog
+        open={askYolo}
+        onClose={() => setAskYolo(false)}
+        title={t("permissionAuto")}
+        description={t("permissionYoloConfirm")}
+        closeLabel={t("closeDialog")}
+        width={400}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setAskYolo(false)}
+              data-autofocus
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setAskYolo(false);
+                onPick("auto");
+              }}
+            >
+              {t("permissionAuto")}
+            </Button>
+          </>
+        }
+      />
+    </>
   );
 }
