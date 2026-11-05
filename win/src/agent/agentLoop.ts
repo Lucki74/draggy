@@ -771,8 +771,18 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     return true;
   };
 
+  const dropOldestLive = () => {
+    const index = steps.findIndex((entry) => liveStepIds.has(entry.id));
+    if (index === -1) return;
+    liveStepIds.delete(steps[index].id);
+    steps.splice(index, 1);
+  };
+
+  // A real step replaces the oldest live row, so a call never shows two rows. Prose and reasoning clear all.
+  const CLEARS_ALL_LIVE = new Set(["text", "thinking", "loading", "steer", "tool_call"]);
   const pushStep = (step: SearchStep) => {
-    dropLive();
+    if (CLEARS_ALL_LIVE.has(step.type)) dropLive();
+    else dropOldestLive();
     steps.push(step);
     syncSteps();
   };

@@ -2546,6 +2546,45 @@ describe("live tool_call steps", () => {
     expect(result.steps.some((s) => s.type === "tool_call")).toBe(false);
   });
 
+  it("keeps a live row for a second call until its own step appears", async () => {
+    const host = makeHost();
+    installFetch(
+      [
+        {
+          toolCallChunks: [
+            [{ index: 0, id: "call_p1", function: { name: "search_web", arguments: '{"query": "one"}' } }],
+            [{ index: 1, id: "call_p2", function: { name: "search_web", arguments: '{"query": "two"}' } }],
+          ],
+        },
+        { content: ["Done."] },
+      ],
+      ["tools"],
+    );
+    const result = await run([userMessage("two searches")], undefined, host).promise;
+    const snaps = host.recordedSteps;
+    expect(snaps.some((s) => s.filter((x) => x.type === "tool_call").length === 2)).toBe(true);
+    // Once a real step has replaced one row, the other row stays.
+    expect(
+      snaps.some((s) => s.filter((x) => x.type === "tool_call").length === 1 && s.some((x) => x.type !== "tool_call" && x.type !== "thinking")),
+    ).toBe(true);
+    expect(result.steps.some((s) => s.type === "tool_call")).toBe(false);
+  });
+
+  it("shows a pending row for a text-format call before its name is known", async () => {
+    const host = makeHost();
+    installFetch([{ content: ['<tool_call>{"name": "search_web", "arguments": {"query": "x'] }], []);
+    const controller = new AbortController();
+    const seen = host.host.onSteps;
+    host.host.onSteps = (next) => {
+      seen(next);
+      if (next.some((s) => s.type === "tool_call")) controller.abort();
+    };
+    await run([userMessage("go")], controller.signal, host).promise;
+    const live = host.recordedSteps.flat().find((s) => s.type === "tool_call");
+    expect(live).toBeDefined();
+    expect(live?.liveArgs).toBeUndefined();
+  });
+
   it("does not add a second row for a create_file call", async () => {
     const host = makeHost();
     installFetch(
