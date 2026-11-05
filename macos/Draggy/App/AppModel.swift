@@ -44,6 +44,11 @@ private final class EventSink: TurnObserver, @unchecked Sendable {
 }
 
 private func transcriptStep(_ record: StepRecord) -> Transcript.Step {
+    // A call still being written: the tool name over one key and value line per argument seen so far.
+    if let tool = record.toolName {
+        let lines = (record.liveArgs?.entries ?? []).map { "\($0.key): \($0.value.split(separator: "\n").first.map(String.init) ?? "")" }
+        return Transcript.Step(kind: record.kind, label: tool, isDone: false, detail: lines.joined(separator: "\n"))
+    }
     let firstLine = record.content?.split(separator: "\n", maxSplits: 1).first.map(String.init)
     let isThinking = record.kind == "thinking"
     let target = isThinking ? nil : record.filename ?? record.filepath ?? firstLine

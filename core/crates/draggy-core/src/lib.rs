@@ -47,7 +47,7 @@ pub use models::{
 };
 pub use observer::{ApprovalHandler, TurnObserver};
 pub use records::{
-    ApprovalChoice, ApprovalRecord, ImageRecord, LiveRecord, MessageRecord, MetricsRecord,
+    ApprovalChoice, ApprovalRecord, ImageRecord, LiveArgRecord, LiveArgsRecord, LiveRecord, MessageRecord, MetricsRecord,
     PermissionModeRecord, PlanStepRecord, SessionConfig, StepRecord, TaskRecord, TurnEventRecord,
     TurnOutcome, WebConfigRecord,
 };

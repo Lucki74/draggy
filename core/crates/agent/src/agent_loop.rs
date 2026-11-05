@@ -18,6 +18,7 @@ use crate::parsing::{
     ParsedToolCall, ToolParser, extract_file_streaming_args, extract_thought,
     has_tool_marker_across, parse_tool_call,
 };
+use crate::partial_args::PartialArgsScanner;
 use crate::permissions::{
     Decision, Grant, PermissionMode, PermissionQuery, ToolAnnotations, Verdict, add_grant, decide,
     denied_by_user, grants_for, refusal_for, target_from_args,
@@ -57,6 +58,8 @@ pub const FINAL_ANSWER_PROMPT: &str = "Please provide your final answer to the u
 
 const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "gif", "webp", "bmp"];
 const FILE_TOOLS: [&str; 2] = ["create_file", "write_file"];
+/// Step kinds that clear every live call row when they arrive.
+const CLEARS_ALL_LIVE: [&str; 5] = ["text", "thinking", "loading", "steer", "tool_call"];
 const MAX_IMAGE_CHARS: i64 = 4000;
 /// The workspace a conversation without one reads its skills from.
 const DEFAULT_WORKSPACE: &str = "default";
@@ -1344,6 +1347,8 @@ struct Pass {
     loading: bool,
     retry_step_id: Option<String>,
     file_step_id: Option<String>,
+    /// One live row and one scanner per call index, so each chunk scans only the new text.
+    live_calls: Vec<Option<(String, PartialArgsScanner)>>,
     raw: String,
     thinking_text: String,
     current_thought: String,
@@ -1399,6 +1404,8 @@ struct Turn<'a> {
     finished: bool,
     aborted: bool,
     patch_miss_logged: bool,
+    /// Rows for calls the model is still writing. The first real step after them takes their place.
+    live_ids: Vec<String>,
 }
 
 impl<'a> Turn<'a> {
@@ -1462,6 +1469,7 @@ impl<'a> Turn<'a> {
             finished: false,
             aborted: false,
             patch_miss_logged: false,
+            live_ids: Vec::new(),
         }
     }
 
@@ -1496,6 +1504,7 @@ impl<'a> Turn<'a> {
 
         let exhausted = !self.finished && self.loop_count >= self.loop_limit;
         if exhausted {
+            self.drop_live();
             for step in &mut self.steps {
                 if step.is_complete != Some(true) {
                     step.is_complete = Some(true);
@@ -1697,6 +1706,9 @@ impl<'a> Turn<'a> {
         self.emit(TurnEvent::OutOfContext(self.out_of_context));
 
         if !has_tool_call {
+            if self.drop_live() {
+                self.sync_steps();
+            }
             self.answer_without_tools(pass);
             return Ok(());
         }
@@ -1816,6 +1828,9 @@ impl<'a> Turn<'a> {
             };
             if let Some(args) = streaming_call {
                 self.show_file_progress(pass, &args);
+            }
+            if let Some(calls) = chunk.streaming_calls.as_ref() {
+                self.show_live_calls(pass, calls);
             }
 
             if !self.prepared.native_tools && pass.maybe_tool_call {
@@ -2476,7 +2491,7 @@ impl<'a> Turn<'a> {
 
     /// Marks any step still running as done, and drops the loading ones, which can no longer finish.
     fn finish_incomplete_steps(&mut self) {
-        let mut changed = false;
+        let mut changed = self.drop_live();
         let mut index = self.steps.len();
         while index > 0 {
             index -= 1;
@@ -2546,8 +2561,68 @@ impl<'a> Turn<'a> {
     }
 
     fn push_step(&mut self, step: SearchStep) {
+        // A real step replaces the oldest live row, so a call never shows two rows. Prose and reasoning clear all.
+        if CLEARS_ALL_LIVE.contains(&step.kind.as_str()) {
+            self.drop_live();
+        } else if !self.live_ids.is_empty() {
+            let id = self.live_ids.remove(0);
+            self.drop_step(&id);
+        }
         self.steps.push(step);
         self.sync_steps();
+    }
+
+    /// Removes every live call row. True when there was one.
+    fn drop_live(&mut self) -> bool {
+        if self.live_ids.is_empty() {
+            return false;
+        }
+        let ids = std::mem::take(&mut self.live_ids);
+        self.steps
+            .retain(|entry| !entry.id.as_deref().is_some_and(|id| ids.iter().any(|live| live == id)));
+        true
+    }
+
+    /// Shows the calls the model is still writing as rows with their arguments so far. Display only.
+    fn show_live_calls(&mut self, pass: &mut Pass, calls: &[crate::agent_loop::StreamingCall]) {
+        for (index, call) in calls.iter().enumerate() {
+            if FILE_TOOLS.contains(&call.name.as_str()) {
+                continue;
+            }
+            if pass.live_calls.len() <= index {
+                pass.live_calls.resize_with(index + 1, || None);
+            }
+            let known = pass.live_calls[index]
+                .as_ref()
+                .map(|(id, _)| id.clone())
+                .filter(|id| self.live_ids.contains(id));
+            let (id, mut scanner) = match (known, pass.live_calls[index].take()) {
+                (Some(_), Some(entry)) => entry,
+                (_, previous) => {
+                    // A step pushed meanwhile (prose) cleared the rows; the row comes back with the next chunk.
+                    let scanner = previous.map_or_else(PartialArgsScanner::new, |(_, scanner)| scanner);
+                    let id = self.next_id();
+                    self.live_ids.push(id.clone());
+                    let think = pass.think_step_id.clone();
+                    self.patch_step(&think, "isComplete", |step| step.is_complete = Some(true));
+                    self.steps.push(step(&id, "tool_call", "", false));
+                    self.sync_steps();
+                    (id, scanner)
+                }
+            };
+            let parsed = (!call.args_string.is_empty()).then(|| scanner.update(&call.args_string));
+            let name = call.name.clone();
+            self.patch_step(&id, "tool,liveArgs", |entry| {
+                if !name.is_empty() {
+                    entry.extra.insert("tool".into(), json!(name));
+                }
+                if let Some(parsed) = &parsed {
+                    entry.extra.insert("liveArgs".into(), live_args_json(parsed));
+                }
+            });
+            self.sync_steps();
+            pass.live_calls[index] = Some((id, scanner));
+        }
     }
 
     fn drop_step(&mut self, id: &str) {
@@ -2612,6 +2687,20 @@ impl<'a> Turn<'a> {
             provider_state: self.turn_state.clone(),
         }
     }
+}
+
+/// The arguments so far as the shape hosts read: pairs, whether the text broke, whether it closed.
+fn live_args_json(parsed: &crate::partial_args::PartialArgs) -> Value {
+    json!({
+        "entries": parsed.entries.iter().map(|entry| json!({
+            "key": entry.key,
+            "value": entry.value,
+            "kind": if entry.is_string { "string" } else { "json" },
+            "open": entry.open,
+        })).collect::<Vec<_>>(),
+        "invalid": parsed.invalid,
+        "complete": parsed.complete,
+    })
 }
 
 fn step(id: &str, kind: &str, content: &str, complete: bool) -> SearchStep {

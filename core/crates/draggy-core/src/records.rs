@@ -21,6 +21,46 @@ pub struct StepRecord {
     pub language: Option<String>,
     pub stdout: Option<String>,
     pub stderr: Option<String>,
+    /// On a live call row: the tool being written. Display only.
+    pub tool_name: Option<String>,
+    /// On a live call row: the arguments so far. Display only, never saved or sent to the model.
+    pub live_args: Option<LiveArgsRecord>,
+}
+
+/// One argument of a call that is still being written.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Default)]
+pub struct LiveArgRecord {
+    pub key: String,
+    pub value: String,
+    /// Still being written, so the newest text may be partial.
+    pub open: bool,
+}
+
+/// The arguments of a call as far as they have arrived.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Default)]
+pub struct LiveArgsRecord {
+    pub entries: Vec<LiveArgRecord>,
+    pub invalid: bool,
+    pub complete: bool,
+}
+
+fn live_args_of(step: &SearchStep) -> Option<LiveArgsRecord> {
+    let live = step.extra.get("liveArgs")?;
+    let entries = live
+        .get("entries")?
+        .as_array()?
+        .iter()
+        .map(|entry| LiveArgRecord {
+            key: entry.get("key").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+            value: entry.get("value").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+            open: entry.get("open").and_then(|v| v.as_bool()).unwrap_or(false),
+        })
+        .collect();
+    Some(LiveArgsRecord {
+        entries,
+        invalid: live.get("invalid").and_then(|v| v.as_bool()).unwrap_or(false),
+        complete: live.get("complete").and_then(|v| v.as_bool()).unwrap_or(false),
+    })
 }
 
 impl From<&SearchStep> for StepRecord {
@@ -35,6 +75,8 @@ impl From<&SearchStep> for StepRecord {
             language: step.language.clone(),
             stdout: step.stdout.clone(),
             stderr: step.stderr.clone(),
+            tool_name: step.extra.get("tool").and_then(|v| v.as_str()).map(str::to_string),
+            live_args: live_args_of(step),
         }
     }
 }

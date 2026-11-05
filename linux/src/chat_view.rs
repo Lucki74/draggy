@@ -41,6 +41,8 @@ type Toast = Rc<dyn Fn(&str)>;
 pub struct ReplyParts {
     body: gtk::Box,
     steps: gtk::Label,
+    /// Holds the steps in a box of fixed height that follows the newest line.
+    steps_box: gtk::ScrolledWindow,
     meta: gtk::Label,
     shown: RefCell<Option<String>>,
 }
@@ -985,7 +987,14 @@ fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
         .css_classes(["caption", "dim-label"])
         .build();
     row.append(&body);
-    row.append(&steps);
+    let steps_box = gtk::ScrolledWindow::builder()
+        .child(&steps)
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .propagate_natural_height(true)
+        .max_content_height(160)
+        .visible(false)
+        .build();
+    row.append(&steps_box);
     row.append(&meta);
     match entry.role {
         Role::User => {
@@ -997,6 +1006,7 @@ fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
     let parts = ReplyParts {
         body,
         steps,
+        steps_box,
         meta,
         shown: RefCell::new(None),
     };
@@ -1016,7 +1026,11 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
     }
     let steps: Vec<String> = entry.steps.iter().filter_map(step_label).collect();
     parts.steps.set_visible(!steps.is_empty());
+    parts.steps_box.set_visible(!steps.is_empty());
     parts.steps.set_text(&steps.join("\n"));
+    // Follow the newest line, as the Windows tail box does.
+    let bar = parts.steps_box.vadjustment();
+    bar.set_value(bar.upper() - bar.page_size());
     let mut meta = Vec::new();
     if let Some(note) = &entry.note {
         meta.push(note.clone());

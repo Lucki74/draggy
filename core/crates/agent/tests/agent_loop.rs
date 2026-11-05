@@ -2880,6 +2880,50 @@ fn a_file_being_written_emits_an_in_progress_step_and_finalises_it_on_completion
     );
 }
 
+fn streamed_search(args_so_far: &str) -> ModelChunk {
+    ModelChunk {
+        streaming_calls: Some(vec![StreamingCall {
+            id: Some("call_s_1".to_string()),
+            name: "search_web".to_string(),
+            args_string: args_so_far.to_string(),
+        }]),
+        ..ModelChunk::default()
+    }
+}
+
+#[test]
+fn a_call_being_written_shows_a_live_row_that_the_real_step_replaces() {
+    let mut h = Harness::new(FakeModel::with_passes(vec![
+        vec![
+            streamed_search("{\"query\": \"flex"),
+            streamed_search("{\"query\": \"flex gap\"}"),
+            ModelChunk {
+                tool_calls: vec![ToolCall {
+                    id: Some("call_s_1".to_string()),
+                    name: "search_web".to_string(),
+                    arguments: json!({"query": "flex gap"}),
+                }],
+                ..ModelChunk::default()
+            },
+            finished("tool_calls"),
+        ],
+        reply(&["done"]),
+    ]));
+    let result = run_ok(&mut h, &native_request(vec![user("q")]));
+
+    let live = h
+        .observer
+        .step_lists()
+        .into_iter()
+        .flatten()
+        .find(|s| s.kind == "tool_call" && s.extra.contains_key("liveArgs"))
+        .expect("a live row appeared");
+    assert_eq!(live.extra.get("tool"), Some(&json!("search_web")));
+    assert!(live.extra.get("liveArgs").is_some());
+    assert!(result.steps.iter().all(|s| s.kind != "tool_call"));
+    assert!(result.steps.iter().any(|s| s.kind == "searching"));
+}
+
 #[test]
 fn a_file_streamed_in_text_mode_reuses_the_in_progress_step() {
     let mut h = Harness::new(FakeModel::with_passes(vec![
