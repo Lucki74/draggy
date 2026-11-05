@@ -84,7 +84,7 @@ const FAST_PROMPT: &str = r##"Answer immediately. Do not reason step by step, do
 
 const NO_BROWSING_PROMPT: &str = r##"Web access is turned off for this conversation. Answer from your own knowledge and say plainly when something may be out of date. Never claim to have searched."##;
 
-const NATIVE_TOOL_PROMPT: &str = r##"Call tools via the tool interface, not in prose. Invoke one tool at a time, wait for results before proceeding, and answer directly once sufficient information is gathered. Always provide your final response to the user outside of internal reasoning. When you say you will use a tool, call it in the same reply; never end a reply by describing what you are about to do."##;
+const NATIVE_TOOL_PROMPT: &str = r##"Call tools via the tool interface, not in prose. Call every independent read-only tool in the same reply (up to 16 run in parallel); wait for results only when a call depends on them, and answer directly once sufficient information is gathered. Always provide your final response to the user outside of internal reasoning. When you say you will use a tool, call it in the same reply; never end a reply by describing what you are about to do."##;
 
 const FILE_FORMAT_PROMPT: &str = r##"create_file writes a file the user can open. Before you make a Word, Excel, PowerPoint or PDF file, call use_skill with docx, xlsx, pptx or pdf and follow it. Other files take their raw text or code."##;
 

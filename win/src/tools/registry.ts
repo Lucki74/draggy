@@ -186,6 +186,10 @@ export function annotationsFor(name: string): ToolAnnotations {
   return registry.get(name)?.annotations ?? {};
 }
 
+export function toolGroup(name: string): ToolGroup | undefined {
+  return registry.get(name)?.group;
+}
+
 export function isBrowsingTool(name: string): boolean {
   const spec = registry.get(name);
   return spec?.group === "web" || spec?.group === "browser";
