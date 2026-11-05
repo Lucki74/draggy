@@ -51,15 +51,29 @@ fn live_args_of(step: &SearchStep) -> Option<LiveArgsRecord> {
         .as_array()?
         .iter()
         .map(|entry| LiveArgRecord {
-            key: entry.get("key").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-            value: entry.get("value").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+            key: entry
+                .get("key")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            value: entry
+                .get("value")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
             open: entry.get("open").and_then(|v| v.as_bool()).unwrap_or(false),
         })
         .collect();
     Some(LiveArgsRecord {
         entries,
-        invalid: live.get("invalid").and_then(|v| v.as_bool()).unwrap_or(false),
-        complete: live.get("complete").and_then(|v| v.as_bool()).unwrap_or(false),
+        invalid: live
+            .get("invalid")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        complete: live
+            .get("complete")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
     })
 }
 
@@ -75,7 +89,11 @@ impl From<&SearchStep> for StepRecord {
             language: step.language.clone(),
             stdout: step.stdout.clone(),
             stderr: step.stderr.clone(),
-            tool_name: step.extra.get("tool").and_then(|v| v.as_str()).map(str::to_string),
+            tool_name: step
+                .extra
+                .get("tool")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
             live_args: live_args_of(step),
         }
     }

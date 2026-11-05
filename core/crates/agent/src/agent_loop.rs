@@ -2578,8 +2578,12 @@ impl<'a> Turn<'a> {
             return false;
         }
         let ids = std::mem::take(&mut self.live_ids);
-        self.steps
-            .retain(|entry| !entry.id.as_deref().is_some_and(|id| ids.iter().any(|live| live == id)));
+        self.steps.retain(|entry| {
+            !entry
+                .id
+                .as_deref()
+                .is_some_and(|id| ids.iter().any(|live| live == id))
+        });
         true
     }
 
@@ -2600,7 +2604,8 @@ impl<'a> Turn<'a> {
                 (Some(_), Some(entry)) => entry,
                 (_, previous) => {
                     // A step pushed meanwhile (prose) cleared the rows; the row comes back with the next chunk.
-                    let scanner = previous.map_or_else(PartialArgsScanner::new, |(_, scanner)| scanner);
+                    let scanner =
+                        previous.map_or_else(PartialArgsScanner::new, |(_, scanner)| scanner);
                     let id = self.next_id();
                     self.live_ids.push(id.clone());
                     let think = pass.think_step_id.clone();
@@ -2617,7 +2622,9 @@ impl<'a> Turn<'a> {
                     entry.extra.insert("tool".into(), json!(name));
                 }
                 if let Some(parsed) = &parsed {
-                    entry.extra.insert("liveArgs".into(), live_args_json(parsed));
+                    entry
+                        .extra
+                        .insert("liveArgs".into(), live_args_json(parsed));
                 }
             });
             self.sync_steps();
