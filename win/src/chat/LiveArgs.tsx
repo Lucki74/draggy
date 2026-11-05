@@ -40,7 +40,7 @@ function useRevealed(text: string, live: boolean): string {
 }
 
 /** A long value in a fixed-height box that follows its newest line, unless the reader scrolled up. */
-function TailBox({ text, open }: { text: string; open: boolean }) {
+export function TailBox({ text, open }: { text: string; open: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
 
@@ -79,7 +79,7 @@ function ArgRow({ entry, live }: { entry: Entry; live: boolean }) {
   if (long) {
     return (
       <>
-        <dt className="col-span-2 text-text-tertiary">{entry.key}</dt>
+        <dt className="step-fade col-span-2 text-text-tertiary">{entry.key}</dt>
         <dd className="col-span-2 m-0">
           <TailBox text={shown} open={entry.open} />
         </dd>
@@ -88,8 +88,8 @@ function ArgRow({ entry, live }: { entry: Entry; live: boolean }) {
   }
   return (
     <>
-      <dt className="text-text-tertiary">{entry.key}</dt>
-      <dd className="m-0 whitespace-pre-wrap break-words text-text-primary" data-kind={entry.kind}>
+      <dt className="step-fade text-text-tertiary">{entry.key}</dt>
+      <dd className="step-fade m-0 whitespace-pre-wrap break-words text-text-primary" data-kind={entry.kind}>
         {shown}
       </dd>
     </>

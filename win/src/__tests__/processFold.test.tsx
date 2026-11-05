@@ -38,7 +38,7 @@ describe("processFoldLength", () => {
 });
 
 describe("ProcessFold", () => {
-  const t = (key: string) => (key === "working" ? "Working" : key === "workRead_one" ? "Read {n} file" : key === "workRead_other" ? "Read {n} files" : key);
+  const t = (key: string) => (key === "processing" ? "Processing…" : key === "workRead_one" ? "Read {n} file" : key === "workRead_other" ? "Read {n} files" : key);
   const steps = [step("a", "reading"), step("b", "reading")];
 
   it("is open and reads as working while the turn runs", () => {
@@ -47,7 +47,7 @@ describe("ProcessFold", () => {
         <p>inner</p>
       </ProcessFold>,
     );
-    expect(screen.getByText("Working")).toBeTruthy();
+    expect(screen.getByText("Processing…")).toBeTruthy();
     expect(screen.getByText("inner")).toBeTruthy();
   });
 
@@ -66,5 +66,20 @@ describe("ProcessFold", () => {
     expect(screen.queryByText("inner")).toBeNull();
     fireEvent.click(screen.getByRole("button"));
     expect(screen.getByText("inner")).toBeTruthy();
+  });
+
+  it("shows edit counts in the row only for several edited files", () => {
+    const edit = (id: string) => step(id, "edit_file", { before: "a\n", after: "b\n" });
+    const render1 = (list: SearchStep[]) =>
+      render(
+        <ProcessFold steps={list} live={false} language="en" t={t}>
+          <p>inner</p>
+        </ProcessFold>,
+      );
+    const one = render1([edit("a")]);
+    expect(screen.queryByText("+1")).toBeNull();
+    one.unmount();
+    render1([edit("a"), edit("b")]);
+    expect(screen.getByText("+2")).toBeTruthy();
   });
 });

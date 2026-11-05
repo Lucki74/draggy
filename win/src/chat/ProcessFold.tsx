@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Icon, Spark } from "../ui";
-import { editTotals, isWorkStep, summarizeWork } from "./workSummary";
+import { editTotals, isWorkStep, stepTotals, summarizeWork } from "./workSummary";
 import type { SearchStep } from "../types";
 
 interface ProcessFoldProps {
@@ -18,7 +18,9 @@ export function ProcessFold({ steps, live, language, t, children }: ProcessFoldP
   const [clicked, setClicked] = useState<boolean | null>(null);
   const open = clicked ?? live;
   const totals = useMemo(() => editTotals(steps), [steps]);
-  const label = live ? t("working") : summarizeWork(steps.filter(isWorkStep), language, t).text;
+  // One edited file shows its counts in its own diff, so the row adds them only for several.
+  const edits = useMemo(() => steps.filter((step) => stepTotals(step)).length, [steps]);
+  const label = live ? t("processing") : summarizeWork(steps.filter(isWorkStep), language, t).text;
 
   return (
     <div className="mb-4" data-testid="process-fold">
@@ -34,7 +36,7 @@ export function ProcessFold({ steps, live, language, t, children }: ProcessFoldP
           </span>
         )}
         <span className="min-w-0">{label}</span>
-        {!live && (totals.added > 0 || totals.removed > 0) && (
+        {!live && edits > 1 && (totals.added > 0 || totals.removed > 0) && (
           <span className="step-fade whitespace-nowrap font-mono text-[12px] tabular-nums">
             <span className="text-ok">+{totals.added}</span> <span className="text-danger">-{totals.removed}</span>
           </span>

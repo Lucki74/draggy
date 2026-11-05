@@ -1,8 +1,6 @@
-import { Fragment, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { Button, EmberCaret, Icon, Spark } from "../ui";
+import { Fragment, useContext, useEffect, useState } from "react";
+import { Icon, Spark } from "../ui";
 import ReactMarkdown from "react-markdown";
-import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
-import { SYNTAX_THEME } from "./syntaxTheme";
 import { hostnameOf, hueFor, siteLabel } from "../utils";
 import { INLINE_COMPONENTS, REHYPE_PLUGINS, REMARK_PLUGINS } from "./markdown";
 import AppFrame from "./AppFrame";
@@ -19,7 +17,8 @@ import { FilePreview } from "./FilePreview";
 import ImageCard from "./ImageCard";
 import { loadLabel, type LoadStage } from "./loadLabel";
 import { stepTotals } from "./workSummary";
-import { stepView } from "./stepView";
+import { stepView, type StepView } from "./stepView";
+import { TailBox } from "./LiveArgs";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
 /** The state of a step: the ember spark while it runs, then a green check, or a red cross. */
@@ -66,8 +65,8 @@ function LibraryHits({
 
 // A diff git printed, folded until the user wants it.
 function GitDiffOutput({ diff, t }: { diff: string; t: (key: string) => string }) {
-  const { added, removed } = diffStats(diff);
   const verbose = useTranscriptView() === "verbose";
+  const { added, removed } = diffStats(diff);
 
   return (
     <details className="ms-5 mt-1" open={verbose}>
@@ -106,12 +105,6 @@ function CodeRunOutput({ step, t }: { step: SearchStep; t: (key: string) => stri
   );
 }
 
-const CODE_EXTENSIONS = new Set([
-  "js", "jsx", "ts", "tsx", "py", "html", "css", "scss", "json", "yml", "yaml",
-  "sh", "bash", "ps1", "cpp", "c", "h", "cs", "rs", "go", "java", "rb", "php",
-  "sql", "toml", "xml", "swift", "kt", "lua", "r",
-]);
-
 // Offers document vs source view only when format has meaningful markup rendering.
 const PREVIEWABLE_EXTENSIONS = new Set([
   "docx", "doc", "pdf",
@@ -140,12 +133,10 @@ function FileCard({
 }) {
   const content = step.fileContent || "";
   const extension = step.filename?.split(".").pop()?.toLowerCase() || "";
-  const isCode = CODE_EXTENSIONS.has(extension);
   const canToggle = PREVIEWABLE_EXTENSIONS.has(extension);
   const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
 
   const [revealed, setRevealed] = useState(0);
-  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // A file already on screen from an earlier reply is shown whole.
@@ -171,155 +162,56 @@ function FileCard({
 
   // Status follows the step only; the typewriter reveal must not keep the card "Writing…".
   const writing = !step.isComplete;
-  // For previewable documents, show preview both while writing and when complete (unless user chose source).
-  // For non-previewable files (code/text), show the streaming editor while writing, then windowed preview when complete.
-  const showingPreview = canToggle ? viewMode === "preview" : !writing;
+  // A finished document opens as its rendered preview; everything else is the raw text in the tail box.
+  const showingPreview = canToggle && !writing && viewMode === "preview";
   const shown = writing || !animate
     ? content
     : content.slice(0, Math.min(revealed, content.length));
-
-  const isScrolledToBottom = useRef(true);
-
-  const handleBodyScroll = () => {
-    const body = bodyRef.current;
-    if (!body) return;
-    const distance = body.scrollHeight - body.scrollTop - body.clientHeight;
-    isScrolledToBottom.current = distance <= 24;
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    if (e.deltaY < 0) {
-      isScrolledToBottom.current = false;
-    }
-  };
-
-  useEffect(() => {
-    if (!writing || !isScrolledToBottom.current) return;
-    const body = bodyRef.current;
-    if (body) body.scrollTop = body.scrollHeight;
-  }, [shown, writing]);
-
   const lineCount = content ? content.split("\n").length : 0;
-
-  const CodeWithCaret = useCallback(
-    ({ children, ...props }: React.HTMLProps<HTMLElement>) => (
-      <code {...props}>
-        {children}
-        {writing && <EmberCaret className="ms-0.5 inline-block align-middle" />}
-      </code>
-    ),
-    [writing],
-  );
+  const actionClass = "text-[12px] text-text-secondary hover:text-text-primary underline-offset-2 hover:underline disabled:no-underline disabled:text-text-tertiary";
 
   return (
-    <div className="mb-4 border border-rule rounded-md overflow-hidden bg-surface-base w-full">
-      <div className="flex items-center justify-between gap-3 h-11 ps-3 pe-2 border-b border-rule">
-        <div className="flex items-center gap-2 min-w-0">
-          <Icon name={isCode ? "file-code" : "file"} size={16} className="flex-shrink-0 text-text-secondary" />
-          <span className="font-mono text-[13px] text-text-primary truncate">
-            {step.filename || t("untitledFile")}
-          </span>
-          <span className="flex items-center gap-1.5 text-[12px] text-text-secondary whitespace-nowrap">
-            {writing ? (
-              <>
-                <Spark />
-                {t("writingFile")}
-              </>
-            ) : (
-              <>
-                {t("fileCreated")}
-                {lineCount > 0 ? ` · ${lineCount} ${t("lines")}` : ""}
-                {lineCount > 0 && <span className="font-mono tabular-nums text-ok">+{lineCount}</span>}
-              </>
-            )}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {canToggle && (
-            <div className="flex rounded-pill border border-rule p-0.5 text-[12px]">
-              {(["preview", "source"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  aria-pressed={viewMode === mode}
-                  onClick={() => setViewMode(mode)}
-                  className={`h-6 px-2.5 rounded-pill transition-colors ${
-                    viewMode === mode ? "bg-surface-raised text-text-primary" : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  {t(mode)}
-                </button>
-              ))}
-            </div>
+    <div className="step-rise mb-3.5 w-full" data-testid="file-step">
+      <div className="flex min-h-6 items-center gap-2 text-[13px] text-text-secondary">
+        <StepMark active={writing} failed={false} />
+        <span className="min-w-0">{writing ? t("writingFile") : t("fileCreated")}</span>
+        <span className="ms-auto flex flex-shrink-0 items-center gap-3 ps-2">
+          {canToggle && !writing && (
+            <button type="button" onClick={() => setViewMode(viewMode === "preview" ? "source" : "preview")} className={actionClass}>
+              {t(viewMode === "preview" ? "source" : "preview")}
+            </button>
           )}
-
           {step.filepath && !writing && (
-            <Button
-              variant="ghost"
-              size="dense"
-              icon={<Icon name="arrow-square-out" size={14} />}
-              onClick={() => window.electronAPI?.openFile?.(step.filepath!)}
-            >
+            <button type="button" onClick={() => window.electronAPI?.openFile?.(step.filepath!)} className={actionClass}>
               {t("openFile")}
-            </Button>
+            </button>
           )}
-
           {step.checkpointId !== undefined && onRevert && !writing && (
-            <Button
-              variant="ghost"
-              size="dense"
-              disabled={isReverted}
-              onClick={() => onRevert(step.checkpointId as number)}
-            >
+            <button type="button" disabled={isReverted} onClick={() => onRevert(step.checkpointId as number)} className={actionClass}>
               {isReverted ? t("changeUndone") : t("undoChange")}
-            </Button>
+            </button>
           )}
+        </span>
+      </div>
+      <dl className="ms-5 mt-0.5 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3.5 gap-y-0.5 font-mono text-[12.5px] leading-[1.6]">
+        <dt className="text-text-tertiary">file</dt>
+        <dd className="m-0 break-words text-text-primary">{step.filename || t("untitledFile")}</dd>
+        <dt className="col-span-2 text-text-tertiary">content</dt>
+        <dd className="col-span-2 m-0">
+          {showingPreview ? (
+            <div className="mt-1.5 max-h-[320px] overflow-y-auto rounded-[8px] border border-rule bg-surface-base">
+              <FilePreview filename={step.filename || "file.txt"} content={shown} t={t} isWriting={false} />
+            </div>
+          ) : (
+            <TailBox text={shown} open={writing} />
+          )}
+        </dd>
+      </dl>
+      {!writing && lineCount > 0 && (
+        <div className="step-rise ms-5 mt-1 text-[13px] text-text-tertiary">
+          {t(lineCount === 1 ? "createdWithLines_one" : "createdWithLines_other").replace("{n}", String(lineCount))}
         </div>
-      </div>
-
-      <div
-        ref={bodyRef}
-        onScroll={handleBodyScroll}
-        onWheel={handleWheel}
-        className={`p-0 w-full relative ${
-          showingPreview ? "" : "max-h-[320px] overflow-y-auto"
-        } ${
-          "bg-surface-base"
-        }`}
-      >
-        {showingPreview ? (
-          <FilePreview
-            filename={step.filename || "file.txt"}
-            content={shown}
-            t={t}
-            isWriting={writing}
-          />
-        ) : isCode ? (
-          <div className="relative">
-            <SyntaxHighlighter
-              language={extension || "javascript"}
-              style={SYNTAX_THEME}
-              customStyle={{
-                margin: 0,
-                padding: "1rem",
-                background: "transparent",
-                fontSize: "13px",
-              }}
-              wrapLines
-              wrapLongLines
-              CodeTag={CodeWithCaret}
-            >
-              {shown}
-            </SyntaxHighlighter>
-          </div>
-        ) : (
-          <pre className="m-0 p-4 font-mono text-[13px] leading-5 text-text-primary whitespace-pre-wrap break-words">
-            {shown}
-            {writing && <EmberCaret className="ms-0.5 inline-block align-middle" />}
-          </pre>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -446,6 +338,20 @@ function CommandLine({ content, active }: { content: string; active: boolean }) 
   );
 }
 
+/** A step's arguments as mono key and value rows. */
+function ArgRows({ view }: { view: StepView }) {
+  return (
+    <dl className="ms-5 mt-0.5 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3.5 gap-y-0.5 font-mono text-[12.5px] leading-[1.6]">
+      {view.args.map(([key, value]) => (
+        <Fragment key={key}>
+          <dt className="step-fade text-text-tertiary">{key}</dt>
+          <dd className="step-fade m-0 whitespace-pre-wrap break-words text-text-primary">{value}</dd>
+        </Fragment>
+      ))}
+    </dl>
+  );
+}
+
 export function WorkBlock({
   step,
   isGenerating = false,
@@ -455,24 +361,33 @@ export function WorkBlock({
   isReverted = false,
   t,
 }: WorkBlockProps) {
-  const verbose = useTranscriptView() === "verbose";
   const openInCanvas = useContext(OpenFileContext);
   if (step.type === "results" && step.results && step.results.length > 0) {
+    const resultsView = stepView(step, t);
     return (
-      <details key={step.id} className="step-rise mb-3.5 group/results" open={verbose}>
-        <summary className="flex items-center gap-2 min-h-6 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-[13px] text-text-secondary hover:text-text-primary">
+      <div key={step.id} className="step-rise mb-3.5">
+        <div className="flex min-h-6 items-center gap-2 text-[13px] text-text-secondary">
           <StepMark active={false} failed={false} />
-          <span className="markdown-inline">
-            <ReactMarkdown
-              remarkPlugins={REMARK_PLUGINS}
-              rehypePlugins={REHYPE_PLUGINS}
-              components={INLINE_COMPONENTS}
-            >
-              {step.content}
-            </ReactMarkdown>
-          </span>
-          <Icon name="caret-right" size={12} mirrored className="transition-transform group-open/results:rotate-90" />
-        </summary>
+          {resultsView ? (
+            <span className="min-w-0">{resultsView.name}</span>
+          ) : (
+            <span className="markdown-inline">
+              <ReactMarkdown
+                remarkPlugins={REMARK_PLUGINS}
+                rehypePlugins={REHYPE_PLUGINS}
+                components={INLINE_COMPONENTS}
+              >
+                {step.content}
+              </ReactMarkdown>
+            </span>
+          )}
+        </div>
+        {resultsView && <ArgRows view={resultsView} />}
+        <details className="group/results" open>
+          <summary className="ms-5 mt-1 flex cursor-pointer select-none list-none items-center gap-1.5 text-[13px] text-text-tertiary hover:text-text-secondary [&::-webkit-details-marker]:hidden">
+            <span>{resultsView?.result ?? ""}</span>
+            <Icon name="caret-right" size={12} mirrored className="transition-transform group-open/results:rotate-90" />
+          </summary>
         <div className="flex flex-col ms-5 mt-1">
           {step.results.map((result, rIdx) => {
             const hostname = hostnameOf(result.url);
@@ -507,7 +422,8 @@ export function WorkBlock({
             );
           })}
         </div>
-      </details>
+        </details>
+      </div>
     );
   }
 
@@ -567,7 +483,7 @@ export function WorkBlock({
   // A file read opens from its step; a folder listing has no file to open. File changes show only their diff.
   const openable = !isActive && step.filepath && step.type === "reading" && step.filename;
   const totals = isActive ? null : stepTotals(step);
-  const view = stepView(step);
+  const view = stepView(step, t);
   const openStep = () =>
     openInCanvas ? openInCanvas(step.filepath!) : window.electronAPI?.openFile?.(step.filepath!);
 
@@ -647,16 +563,7 @@ export function WorkBlock({
           )}
         </span>
       </div>
-      {view && (
-        <dl className="ms-5 mt-0.5 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3.5 gap-y-0.5 font-mono text-[12.5px] leading-[1.6]">
-          {view.args.map(([key, value]) => (
-            <Fragment key={key}>
-              <dt className="text-text-tertiary">{key}</dt>
-              <dd className="m-0 whitespace-pre-wrap break-words text-text-primary">{value}</dd>
-            </Fragment>
-          ))}
-        </dl>
-      )}
+      {view && <ArgRows view={view} />}
       {view?.result && !isActive && <div className={`step-rise ms-5 mt-1 text-[13px] ${failed ? "text-danger" : "text-text-tertiary"}`}>{view.result}</div>}
       {payload}
     </div>

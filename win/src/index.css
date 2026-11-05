@@ -1006,7 +1006,8 @@ kbd {
   }
 }
 
-.step-fade {
+.step-fade,
+.soft-words .stream-word {
   animation: step-fade 0.24s linear backwards;
 }
 @keyframes step-fade {
@@ -1015,7 +1016,9 @@ kbd {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .step-fade {
+  .step-fade,
+  .soft-words .stream-word,
+  .stream-word {
     animation: none;
   }
 }

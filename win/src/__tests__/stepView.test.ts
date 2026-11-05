@@ -34,4 +34,16 @@ describe("stepView", () => {
       result: "The sandbox is not available.",
     });
   });
+
+  const t = (key: string) => (key.endsWith("_one") ? "{n} thing" : key.endsWith("_other") ? "{n} things" : key);
+
+  it("counts search results as the result line", () => {
+    const hits = [{ title: "a", url: "u", snippet: "" }, { title: "b", url: "v", snippet: "" }] as SearchStep["results"];
+    expect(stepView(step("results", "Results for **x**", { results: hits }), t)?.result).toBe("2 things");
+  });
+
+  it("counts the lines of a read and the reason of a refusal", () => {
+    expect(stepView(step("reading", "Read **a.ts**", { lines: 1 }), t)?.result).toBe("1 thing");
+    expect(stepView(step("error", "Read **a.ts**", { filename: "a.ts", reason: "No such file" }))?.result).toBe("No such file");
+  });
 });

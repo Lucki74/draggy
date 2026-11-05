@@ -159,6 +159,8 @@ describe("reading", () => {
 
     expect(result).toMatch(/outside the folder/);
     expect(steps[0].type).toBe("error");
+    // One call is one row, never a read row and a failure row.
+    expect(steps).toHaveLength(1);
   });
 });
 

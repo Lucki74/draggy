@@ -446,6 +446,10 @@ export interface SearchStep {
   /** For a skill step whose instructions loaded, the skill's id, which keeps it loaded afterwards. */
   skill?: string;
   results?: SearchResult[];
+  /** Lines the file had, for the result line under a finished read. */
+  lines?: number;
+  /** Why a failed step failed, shown under it. */
+  reason?: string;
   filepath?: string;
   filename?: string;
   fileContent?: string;

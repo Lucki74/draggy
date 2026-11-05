@@ -39,7 +39,7 @@ export function ThinkingRow({ step, live, isGenerating, inline = false, t }: Thi
 
   if (inline) {
     return (
-      <div key={step.id} className="step-rise mb-3 text-[14px] leading-6 text-text-secondary markdown-body [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
+      <div key={step.id} className="step-rise soft-words mb-3 text-[14px] leading-6 text-text-secondary markdown-body [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
         {live && thinking ? (
           <StreamingMarkdown source={normalizeMath(step.content)} streaming={isGenerating} animateOnMount={isGenerating} />
         ) : (
