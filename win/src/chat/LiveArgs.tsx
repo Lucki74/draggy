@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Spark } from "../ui";
+import { hostnameOf } from "../utils";
 import type { SearchStep } from "../types";
 import { advanceReveal, type RevealState } from "./streamReveal";
 
@@ -98,6 +99,21 @@ function ArgRow({ entry, live }: { entry: Entry; live: boolean }) {
 /** A tool call the model is still writing: its name and the arguments so far. Plain text only. */
 export default function LiveArgs({ step }: { step: SearchStep }) {
   const args = step.liveArgs;
+  // A page address is not a file: it reads as the site, the way the finished step does.
+  const address = args?.entries.find((entry) => entry.key === "url" && entry.kind === "string");
+  if (address) {
+    const site = hostnameOf(address.value) || address.value;
+    return (
+      <div className="mb-3.5 flex min-h-6 items-center gap-2 text-[13px] text-text-secondary" data-testid="live-args">
+        <span className="flex w-3 justify-center">
+          <Spark />
+        </span>
+        <span className="min-w-0 break-words">
+          {toolLabel(step.tool)} {site}
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="mb-3.5" data-testid="live-args">
       <div className="flex min-h-6 items-center gap-2 text-[13px] text-text-secondary">

@@ -248,6 +248,14 @@ export function AssistantTurn({
     else segments.push([step]);
   }
 
+  // A search's results list is the last row of its work block, never followed by another call.
+  for (const segment of segments) {
+    if (!isWork(segment[0])) continue;
+    const results = segment.filter((step) => step.type === "results");
+    if (results.length === 0) continue;
+    segment.splice(0, segment.length, ...segment.filter((step) => step.type !== "results"), ...results);
+  }
+
   const renderSegment = (segment: SearchStep[], segmentIndex: number) =>
     isWork(segment[0]) ? (
       <WorkGroup
@@ -264,10 +272,9 @@ export function AssistantTurn({
     );
 
   // A finished turn folds its process in the normal view; the verbose view keeps everything open.
-  const runningNow = live && isGenerating && isLast;
-  const candidate = view === "normal" ? processFoldLength(segments) : 0;
+  const candidate = !isGenerating && view === "normal" ? processFoldLength(segments) : 0;
   const folded = segments.slice(0, candidate);
-  const foldLength = folded.reduce((sum, segment) => sum + segment.length, 0) >= (runningNow ? 1 : 2) ? candidate : 0;
+  const foldLength = folded.reduce((sum, segment) => sum + segment.length, 0) >= 2 ? candidate : 0;
 
   return (
     <>
@@ -319,7 +326,7 @@ export function AssistantTurn({
         {[
           ...(foldLength > 0
             ? [
-                <ProcessFold key="process" steps={folded.flat()} live={runningNow} t={t}>
+                <ProcessFold key="process" steps={folded.flat()} t={t}>
                   {folded.map(renderSegment)}
                 </ProcessFold>,
               ]

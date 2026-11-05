@@ -1,24 +1,20 @@
 import { useMemo, useState } from "react";
-import { Icon, Spark } from "../ui";
+import { Icon } from "../ui";
 import { editTotals } from "./workSummary";
 import type { SearchStep } from "../types";
 
 interface ProcessFoldProps {
   steps: SearchStep[];
-  /** The turn is still running: the fold reads "Processing…" and stays open. */
-  live?: boolean;
   t: (key: string) => string;
   children: React.ReactNode;
 }
 
-/** A turn's reasoning, tool calls and earlier prose under one line. Open while it runs, closed once it is done. */
-export function ProcessFold({ steps, live = false, t, children }: ProcessFoldProps) {
+/** A finished turn's reasoning, tool calls and earlier prose under one line. Closed until clicked. */
+export function ProcessFold({ steps, t, children }: ProcessFoldProps) {
   const [clicked, setClicked] = useState(false);
   const totals = useMemo(() => editTotals(steps), [steps]);
-  const open = live || clicked;
-  const label = live
-    ? t("workProcessing")
-    : t(steps.length === 1 ? "workProcess_one" : "workProcess_other").replace("{n}", String(steps.length));
+  const open = clicked;
+  const label = t(steps.length === 1 ? "workProcess_one" : "workProcess_other").replace("{n}", String(steps.length));
 
   return (
     <div className="mb-4" data-testid="process-fold">
@@ -28,11 +24,6 @@ export function ProcessFold({ steps, live = false, t, children }: ProcessFoldPro
         onClick={() => setClicked((value) => !value)}
         className="flex min-h-7 max-w-full items-center gap-2 rounded-xs text-start text-[13px] text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2"
       >
-        {live && (
-          <span className="flex w-4 justify-center">
-            <Spark />
-          </span>
-        )}
         <span className="min-w-0">{label}</span>
         {(totals.added > 0 || totals.removed > 0) && (
           <span className="whitespace-nowrap font-mono text-[12px] tabular-nums">
