@@ -164,7 +164,7 @@ export function describeCompletedWork(
   for (const step of steps) {
     // A step still in flight was interrupted; only finished work is reported
     // as done, so the model redoes anything that never completed.
-    if (step.isComplete === false) continue;
+    if (step.isComplete === false || step.type === "tool_call") continue;
     const line = lineFor(step);
     if (line?.text) lines.push(line);
   }

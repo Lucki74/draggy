@@ -2619,6 +2619,62 @@ describe("the system prompt's profile", () => {
   });
 });
 
+describe("live tool_call steps", () => {
+  it("shows a call as it is written and leaves no live row in the saved steps", async () => {
+    const host = makeHost();
+    installFetch(
+      [
+        {
+          toolCallChunks: [
+            [{ index: 0, id: "call_r1", function: { name: "search_web", arguments: '{"query": "src/a' } }],
+            [{ index: 0, function: { arguments: '.ts"}' } }],
+          ],
+        },
+        { content: ["Done."] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("read it")], undefined, host).promise;
+
+    const live = host.recordedSteps.flat().find((s) => s.type === "tool_call");
+    expect(live).toBeDefined();
+    expect(live?.tool).toBe("search_web");
+    expect(live?.liveArgs?.entries[0]).toMatchObject({ key: "query", value: "src/a", open: true });
+    expect(result.steps.some((s) => s.type === "tool_call" || s.liveArgs)).toBe(false);
+  });
+
+  it("removes the live row when the user stops mid-call", async () => {
+    const controller = new AbortController();
+    const host = makeHost();
+    installFetch(
+      [{ toolCallChunks: [[{ index: 0, id: "call_r2", function: { name: "search_web", arguments: '{"query": "x' } }]] }],
+      ["tools"],
+    );
+    // Stop lands as soon as the live row is on screen.
+    const seen = host.host.onSteps;
+    host.host.onSteps = (next) => {
+      seen(next);
+      if (next.some((s) => s.type === "tool_call")) controller.abort();
+    };
+    const result = await run([userMessage("read")], controller.signal, host).promise;
+    expect(host.recordedSteps.flat().some((s) => s.type === "tool_call")).toBe(true);
+    expect(result.aborted).toBe(true);
+    expect(result.steps.some((s) => s.type === "tool_call")).toBe(false);
+  });
+
+  it("does not add a second row for a create_file call", async () => {
+    const host = makeHost();
+    installFetch(
+      [{ toolCallChunks: [[{ index: 0, id: "call_c", function: { name: "create_file", arguments: '{"filename": "a.txt", "content": "hi' } }]] }, { content: ["ok"] }],
+      ["tools"],
+    );
+    registerTool(BUILTIN_TOOLS.find((t) => t.name === "create_file")!);
+    await run([userMessage("make a.txt")], undefined, host).promise;
+    expect(host.recordedSteps.flat().some((s) => s.type === "tool_call")).toBe(false);
+  });
+});
+
 describe("live streaming file creation", () => {
   const createFileTool = BUILTIN_TOOLS.find((t) => t.name === "create_file")!;
 

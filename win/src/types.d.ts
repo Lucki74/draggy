@@ -427,8 +427,18 @@ export interface SearchStep {
     /** A picture made by the local image engine, shown as a card. */
     | "image"
     /** A note the user added while the turn ran, handed to the model at its next step. */
-    | "steer";
+    | "steer"
+    /** A tool call still being written by the model. Display only: replaced by the real step once it runs. */
+    | "tool_call";
   content: string;
+  /** On a "tool_call" step: the tool being called, once its name has arrived. */
+  tool?: string;
+  /** On a "tool_call" step: the arguments so far. Never saved, never sent to the model. */
+  liveArgs?: {
+    entries: { key: string; value: string; kind: "string" | "json"; open: boolean }[];
+    invalid: boolean;
+    complete: boolean;
+  };
   thoughtTime?: number;
   isComplete?: boolean;
   /** For a step that opened or read a web page, the address. The group title names the site. */
