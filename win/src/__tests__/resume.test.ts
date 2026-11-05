@@ -21,6 +21,11 @@ describe("telling a cut-off reply what it already did", () => {
     expect(buildResumeMessage([])).toBeNull();
   });
 
+  it("leaves out a call that was still being written", () => {
+    const live = step({ type: "tool_call", content: "", tool: "search_web", isComplete: true });
+    expect(describeCompletedWork([live])).toBeNull();
+  });
+
   it("reports a created file with the path it was written to", () => {
     const work = describeCompletedWork([
       step({
