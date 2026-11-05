@@ -15,6 +15,7 @@ use draggy_agent::parsing::{
     ParsedToolCall, TOOL_MARKER_OVERLAP, ToolParser, extract_file_streaming_args, extract_thought,
     has_tool_marker, has_tool_marker_across, has_tool_marker_in_overlap, parse_tool_call,
 };
+use draggy_agent::partial_args::{PartialArgs, PartialArgsScanner, parse_partial_args};
 use draggy_agent::permissions::{
     Decision, Grant, PermissionMode, PermissionQuery, ToolAnnotations, Verdict, add_grant, decide,
     denied_by_user, grant_covers, grants_for, refusal_for, target_from_args,
@@ -48,6 +49,7 @@ fn fixtures_match_the_typescript_reference() {
 fn run(file: &str, input: &Value) -> Value {
     match file {
         "toolParsing.json" => tool_parsing(input),
+        "partialArgs.json" => partial_args(input),
         "repetition.json" => repetition(input),
         "announcement.json" => json!(announces_action(text(input))),
         "commandRules.json" => command_rules(input),
@@ -528,4 +530,36 @@ fn profile(input: &Value) -> Value {
         PromptProfile::Compact => json!("compact"),
         PromptProfile::Full => json!("full"),
     }
+}
+
+fn partial_json(result: &PartialArgs) -> Value {
+    let entries: Vec<Value> = result
+        .entries
+        .iter()
+        .map(|e| {
+            json!({
+                "key": e.key,
+                "value": e.value,
+                "kind": if e.is_string { "string" } else { "json" },
+                "open": e.open,
+            })
+        })
+        .collect();
+    json!({ "entries": entries, "invalid": result.invalid, "complete": result.complete })
+}
+
+/// Parses the text whole, then in two parts at every code-point split, and requires the same answer.
+fn partial_args(input: &Value) -> Value {
+    let raw = input["raw"].as_str().unwrap_or_default();
+    let whole = parse_partial_args(raw);
+    for (index, _) in raw.char_indices().skip(1) {
+        let mut scanner = PartialArgsScanner::new();
+        scanner.update(&raw[..index]);
+        assert_eq!(
+            scanner.update(raw),
+            whole,
+            "split at byte {index} of {raw:?}"
+        );
+    }
+    partial_json(&whole)
 }

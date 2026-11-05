@@ -4,10 +4,9 @@
 use serde_json::{Map, Value};
 
 use crate::AgentError;
-use crate::js::{
-    CaseFold, Flags, JsRegex, escape_js_literal, match_js_ci, trim_js, trim_start_js, utf16_suffix,
-};
+use crate::js::{CaseFold, Flags, JsRegex, escape_js_literal, match_js_ci, trim_js, utf16_suffix};
 use crate::json;
+use crate::partial_args::parse_partial_args;
 
 /// How many trailing UTF-16 units of a streamed chunk the caller re-scans, so a marker split at the boundary is seen.
 pub const TOOL_MARKER_OVERLAP: usize = 16;
@@ -420,103 +419,26 @@ pub fn parse_tool_call(raw: &str) -> ParsedToolCall {
 
 /// `extractFileStreamingArgs`: the filename and the unescaped content of a call whose JSON is still arriving.
 pub fn extract_file_streaming_args(args_or_json: &str) -> FileStreamingArgs {
-    let filename = string_value(args_or_json, &["filename", "path"]).map(|raw| {
-        json::parse(&format!("\"{raw}\""))
-            .and_then(|value| value.as_str().map(str::to_string))
-            .unwrap_or_else(|| raw.to_string())
-    });
-    let content = string_value(args_or_json, &["content"]).map(unescape_content);
-    FileStreamingArgs { filename, content }
-}
-
-/// The body after `"key" :` for the first key that matches, read up to its closing quote.
-fn string_value<'t>(text: &'t str, keys: &[&str]) -> Option<&'t str> {
-    for (quote, _) in text.match_indices('"') {
-        let after_quote = &text[quote + 1..];
-        for key in keys {
-            let Some(rest) = after_quote
-                .strip_prefix(*key)
-                .and_then(|rest| rest.strip_prefix('"'))
-            else {
-                continue;
-            };
-            let Some(rest) = trim_start_js(rest).strip_prefix(':') else {
-                continue;
-            };
-            if let Some(value) = trim_start_js(rest).strip_prefix('"') {
-                return Some(raw_string_body(value));
-            }
+    // Text-format calls arrive as `<tool>{"name": .., "args": {..}}`, so the arguments sit one object down.
+    let start = args_or_json.find('{').unwrap_or(args_or_json.len());
+    let mut parsed = parse_partial_args(&args_or_json[start..]);
+    if parsed.first(&["filename", "path", "content"]).is_none() {
+        let inner = parsed
+            .first(&["args", "arguments", "parameters"])
+            .filter(|arg| !arg.is_string && arg.value.starts_with('{'))
+            .map(|arg| arg.value.clone());
+        if let Some(inner) = inner {
+            parsed = parse_partial_args(&inner);
         }
     }
-    None
-}
-
-/// The characters of a JSON string body: up to an unescaped quote, a backslash before a line break, or the end.
-fn raw_string_body(value: &str) -> &str {
-    let mut chars = value.char_indices().peekable();
-    while let Some((index, c)) = chars.next() {
-        match c {
-            '"' => return &value[..index],
-            '\\' => match chars.peek() {
-                Some((_, next)) if !matches!(*next, '\n' | '\r' | '\u{2028}' | '\u{2029}') => {
-                    chars.next();
-                }
-                _ => return &value[..index],
-            },
-            _ => {}
-        }
+    let pick = |keys: &[&str]| {
+        parsed
+            .first(keys)
+            .filter(|arg| arg.is_string)
+            .map(|arg| arg.value.clone())
+    };
+    FileStreamingArgs {
+        filename: pick(&["filename", "path"]),
+        content: pick(&["content"]),
     }
-    value
-}
-
-/// Decodes `\n \r \t \" \\ \/ \uXXXX` as the TypeScript does. `\b` and `\f` come out as the letters: TS quirk, kept.
-/// Escapes build UTF-16 units, so a surrogate pair becomes one character. A lone surrogate becomes U+FFFD, because a
-/// Rust string cannot hold one; TypeScript keeps the unit, and a file written from either reads the same bytes.
-fn unescape_content(body: &str) -> String {
-    let chars: Vec<char> = body.chars().collect();
-    let mut units: Vec<u16> = Vec::with_capacity(chars.len());
-    let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
-        i += 1;
-        if c != '\\' {
-            push_char(&mut units, c);
-            continue;
-        }
-        match chars.get(i).copied() {
-            Some(escape @ ('n' | 'r' | 't' | 'b' | 'f' | '"' | '\\' | '/')) => {
-                i += 1;
-                // TS quirk: `\b` and `\f` decode to the letters, not to control characters.
-                let decoded = match escape {
-                    'n' => '\n',
-                    'r' => '\r',
-                    't' => '\t',
-                    other => other,
-                };
-                push_char(&mut units, decoded);
-            }
-            Some('u') => match hex_unit(chars.get(i + 1..i + 5).unwrap_or_default()) {
-                Some(unit) => {
-                    i += 5;
-                    units.push(unit);
-                }
-                None => units.push(u16::from(b'\\')),
-            },
-            _ => units.push(u16::from(b'\\')),
-        }
-    }
-    String::from_utf16_lossy(&units)
-}
-
-fn push_char(units: &mut Vec<u16>, c: char) {
-    let mut buffer = [0u16; 2];
-    units.extend_from_slice(c.encode_utf16(&mut buffer));
-}
-
-fn hex_unit(digits: &[char]) -> Option<u16> {
-    if digits.len() != 4 || !digits.iter().all(char::is_ascii_hexdigit) {
-        return None;
-    }
-    let text: String = digits.iter().collect();
-    u16::from_str_radix(&text, 16).ok()
 }

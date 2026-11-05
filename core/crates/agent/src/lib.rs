@@ -12,6 +12,7 @@ mod js;
 pub mod json;
 pub mod live_turn;
 pub mod parsing;
+pub mod partial_args;
 pub mod permissions;
 pub mod prompts;
 pub mod repetition;

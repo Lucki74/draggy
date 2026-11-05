@@ -1,4 +1,5 @@
 import { safeJsonParse } from "./utils";
+import { firstArg, parsePartialArgs } from "./agent/partialArgs";
 import { allToolNames, onRegistryChange } from "./tools/registry";
 
 export const TOOL_MARKER_RE = /<tool|<function|<invoke|<search_|<read_|<run_|<browser_|<create_|"name"/i;
@@ -208,33 +209,17 @@ export function parseToolCall(rawJson: string): {
 
 /** Reads unescaped partial content from an unfinished streaming file tool call. */
 export function extractFileStreamingArgs(argsOrJson: string): { filename?: string; content?: string } {
-  let filename: string | undefined;
-  let content: string | undefined;
-
-  const fnMatch = argsOrJson.match(/"(?:filename|path)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)/);
-  if (fnMatch) {
-    try {
-      filename = JSON.parse(`"${fnMatch[1]}"`);
-    } catch {
-      filename = fnMatch[1];
-    }
+  // Text-format calls arrive as `<tool>{"name": .., "args": {..}}`, so the arguments sit one object down.
+  const start = argsOrJson.indexOf("{");
+  let parsed = parsePartialArgs(start < 0 ? "" : argsOrJson.slice(start));
+  if (!firstArg(parsed, ["filename", "path", "content"])) {
+    const wrapped = firstArg(parsed, ["args", "arguments", "parameters"]);
+    if (wrapped?.kind === "json" && wrapped.value.startsWith("{")) parsed = parsePartialArgs(wrapped.value);
   }
-
-  const cMatch = argsOrJson.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)/);
-  if (cMatch) {
-    content = cMatch[1].replace(/\\([nrtbf"\\/]|u[0-9a-fA-F]{4})/g, (_, esc) => {
-      if (esc === "n") return "\n";
-      if (esc === "r") return "\r";
-      if (esc === "t") return "\t";
-      if (esc === '"') return '"';
-      if (esc === "\\") return "\\";
-      if (esc === "/") return "/";
-      if (esc.startsWith("u")) return String.fromCharCode(parseInt(esc.slice(1), 16));
-      return esc;
-    });
-  }
-
-
-  return { filename, content };
+  const pick = (keys: string[]) => {
+    const arg = firstArg(parsed, keys);
+    return arg?.kind === "string" ? arg.value : undefined;
+  };
+  return { filename: pick(["filename", "path"]), content: pick(["content"]) };
 }
 

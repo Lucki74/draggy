@@ -14,6 +14,7 @@ import {
   parseToolCall,
 } from "../../toolParsing";
 import { detectRepetition } from "../../agent/repetition";
+import { PartialArgsScanner, parsePartialArgs } from "../../agent/partialArgs";
 import { announcesAction } from "../../agent/announcement";
 import {
   commandCovered,
@@ -287,8 +288,23 @@ function runImageReference(input: Fixture): unknown {
   }
 }
 
+/** Parses the text whole, then in two parts at every code-point split, and requires the same answer. */
+function runPartialArgs(input: Fixture): unknown {
+  const raw = text(input, "raw");
+  const whole = parsePartialArgs(raw);
+  const points = Array.from(raw);
+  for (let i = 1; i < points.length; i++) {
+    const scanner = new PartialArgsScanner();
+    scanner.update(points.slice(0, i).join(""));
+    expect(scanner.update(raw), `split at ${i}`).toEqual(whole);
+  }
+  return whole;
+}
+
 function run(file: string, input: Fixture): unknown {
   switch (file) {
+    case "partialArgs":
+      return runPartialArgs(input);
     case "imageReference":
       return runImageReference(input);
     case "effort":
