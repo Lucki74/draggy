@@ -2892,6 +2892,20 @@ fn streamed_search(args_so_far: &str) -> ModelChunk {
 }
 
 #[test]
+fn a_call_that_never_executes_leaves_no_live_row() {
+    let mut h = Harness::new(FakeModel::with_passes(vec![vec![
+        streamed_search("{\"query\": \"flex"),
+        ModelChunk {
+            content: "cut off".to_string(),
+            ..ModelChunk::default()
+        },
+        finished("stop"),
+    ]]));
+    let result = run_ok(&mut h, &native_request(vec![user("q")]));
+    assert!(result.steps.iter().all(|s| s.kind != "tool_call"));
+}
+
+#[test]
 fn a_call_being_written_shows_a_live_row_that_the_real_step_replaces() {
     let mut h = Harness::new(FakeModel::with_passes(vec![
         vec![

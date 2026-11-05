@@ -2697,11 +2697,25 @@ impl<'a> Turn<'a> {
 }
 
 /// The arguments so far as the shape hosts read: pairs, whether the text broke, whether it closed.
+/// The last 4 KB of a value, cut on a character boundary, so a long write stays cheap to hand to a host.
+fn tail_of(value: &str) -> &str {
+    const LIMIT: usize = 4096;
+    if value.len() <= LIMIT {
+        return value;
+    }
+    let mut start = value.len() - LIMIT;
+    while !value.is_char_boundary(start) {
+        start += 1;
+    }
+    &value[start..]
+}
+
 fn live_args_json(parsed: &crate::partial_args::PartialArgs) -> Value {
     json!({
         "entries": parsed.entries.iter().map(|entry| json!({
             "key": entry.key,
-            "value": entry.value,
+            "value": tail_of(&entry.value),
+            "length": entry.value.len(),
             "kind": if entry.is_string { "string" } else { "json" },
             "open": entry.open,
         })).collect::<Vec<_>>(),
@@ -2768,6 +2782,15 @@ fn prefix_units(text: &str, units: usize) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_long_value_keeps_its_last_4_kb_on_a_character_boundary() {
+        let long = "é".repeat(3000);
+        let tail = tail_of(&long);
+        assert!(tail.len() <= 4096 && tail.len() > 4000);
+        assert!(long.ends_with(tail));
+        assert_eq!(tail_of("short"), "short");
+    }
 
     #[test]
     fn a_list_item_without_brackets_is_a_todo() {

@@ -540,7 +540,7 @@ mod tests {
             live_args: Some(draggy_core::LiveArgsRecord {
                 entries: vec![draggy_core::LiveArgRecord {
                     key: "query".to_owned(),
-                    value: "flex gap".to_owned(),
+                    value: "flex gap".to_owned(), length: 8,
                     open: true,
                 }],
                 invalid: false,

@@ -32,6 +32,8 @@ pub struct StepRecord {
 pub struct LiveArgRecord {
     pub key: String,
     pub value: String,
+    /// The length of the whole value in bytes. `value` keeps only its last 4 KB.
+    pub length: u64,
     /// Still being written, so the newest text may be partial.
     pub open: bool,
 }
@@ -61,6 +63,7 @@ fn live_args_of(step: &SearchStep) -> Option<LiveArgsRecord> {
                 .and_then(|v| v.as_str())
                 .unwrap_or_default()
                 .to_string(),
+            length: entry.get("length").and_then(|v| v.as_u64()).unwrap_or(0),
             open: entry.get("open").and_then(|v| v.as_bool()).unwrap_or(false),
         })
         .collect();
