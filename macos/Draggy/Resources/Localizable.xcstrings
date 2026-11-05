@@ -1,6 +1,29 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Process (%lld steps)": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processus (%lld étapes)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proceso (%lld pasos)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Процесс (%lld шагов)"
+          }
+        }
+      }
+    },
     "Talk": {
       "extractionState": "manual",
       "localizations": {
