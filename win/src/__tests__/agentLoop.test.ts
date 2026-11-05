@@ -641,6 +641,123 @@ describe("native tool calling", () => {
   });
 });
 
+describe("several tool calls in one reply", () => {
+  let live = 0;
+  let peak = 0;
+  let events: string[] = [];
+
+  const pause = () => new Promise<void>((resolve) => setTimeout(resolve, 5));
+
+  const reader: ToolSpec = {
+    name: "read_slow",
+    group: "web",
+    description: "Reads.",
+    parameters: { n: { type: "number", description: "Which." } },
+    required: ["n"],
+    usage: '{"n": 1} → text',
+    annotations: { readOnly: true, readOnlyHint: true },
+    run: async (args) => {
+      events.push(`start read ${args.n}`);
+      live++;
+      peak = Math.max(peak, live);
+      await pause();
+      live--;
+      events.push(`end read ${args.n}`);
+      return `read ${args.n}`;
+    },
+  };
+
+  const writer: ToolSpec = {
+    name: "write_slow",
+    group: "web",
+    description: "Writes.",
+    parameters: { n: { type: "number", description: "Which." } },
+    required: ["n"],
+    usage: '{"n": 1} → text',
+    run: async (args) => {
+      events.push(`start write ${args.n}`);
+      await pause();
+      events.push(`end write ${args.n}`);
+      return `wrote ${args.n}`;
+    },
+  };
+
+  const call = (name: string, n: number) => ({ function: { name, arguments: { n } } });
+  const toolMessages = (request: unknown) =>
+    (request as { messages: { role: string; content: string }[] }).messages
+      .filter((message) => message.role === "tool")
+      .map((message) => message.content);
+
+  beforeEach(() => {
+    live = 0;
+    peak = 0;
+    events = [];
+    registerTool(reader);
+    registerTool(writer);
+  });
+
+  it("runs twelve read-only calls at the same time and answers in the order they were written", async () => {
+    const { requests } = installFetch(
+      [
+        { toolCalls: Array.from({ length: 12 }, (_, n) => call("read_slow", n)) },
+        { content: ["done"] },
+      ],
+      ["tools"],
+    );
+
+    const result = await run([userMessage("read them all")]).promise;
+
+    expect(peak).toBe(12);
+    expect(toolMessages(requests[1])).toEqual(Array.from({ length: 12 }, (_, n) => `read ${n}`));
+    expect(result.toolCalls).toEqual({ read_slow: 12 });
+  });
+
+  it("keeps a write between two reads in its place", async () => {
+    installFetch(
+      [
+        { toolCalls: [call("read_slow", 1), call("read_slow", 2), call("write_slow", 3), call("read_slow", 4)] },
+        { content: ["done"] },
+      ],
+      ["tools"],
+    );
+
+    await run([userMessage("mixed")]).promise;
+
+    const at = (entry: string) => events.indexOf(entry);
+    expect(at("start write 3")).toBeGreaterThan(at("end read 1"));
+    expect(at("start write 3")).toBeGreaterThan(at("end read 2"));
+    expect(at("start read 4")).toBeGreaterThan(at("end write 3"));
+  });
+
+  it("starts no further call once the turn is stopped", async () => {
+    installFetch(
+      [{ toolCalls: [call("write_slow", 1), call("write_slow", 2), call("write_slow", 3)] }, { content: ["done"] }],
+      ["tools"],
+    );
+    const stop = new AbortController();
+
+    const pending = run([userMessage("stop me")], stop.signal).promise;
+    await pause();
+    stop.abort();
+    const result = await pending;
+
+    expect(result.aborted).toBe(true);
+    expect(events).not.toContain("start write 3");
+  });
+
+  it("asks a local model with tools for parallel calls", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], ["tools"]);
+    await run([userMessage("hi")]).promise;
+    expect((requests[0] as { parallel_tool_calls?: boolean }).parallel_tool_calls).toBe(true);
+  });
+
+  it("does not mention parallel calls to a model without tools", async () => {
+    const { requests } = installFetch([{ content: ["ok"] }], []);
+    await run([userMessage("hi")]).promise;
+    expect(requests[0]).not.toHaveProperty("parallel_tool_calls");
+  });
+});
+
 describe("a tool that returns an image", () => {
   const shot: ToolSpec = {
     name: "take_shot",
