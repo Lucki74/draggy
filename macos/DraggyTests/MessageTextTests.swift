@@ -49,17 +49,18 @@ final class MessageTextTests: XCTestCase {
             id: UUID(),
             role: .assistant,
             text: "done",
-            steps: [Transcript.Step(kind: "read", label: "read a.txt", isDone: true)]
+            steps: [Transcript.Step(kind: "read", label: "read a.txt", isDone: true)],
+            stepsOpen: true
         )
-        XCTAssertEqual(MessageText.attributed(line).string, "\u{2713} read a.txt\ndone")
+        XCTAssertEqual(MessageText.attributed(line).string, "\u{25BE} Process (1 steps)\n\u{2713} read a.txt\ndone")
     }
 
     func testToolDetailFollowsItsLabelInMonospace() {
         let step = Transcript.Step(kind: "bash", label: "bash ls", isDone: true, detail: "a.txt")
-        let line = Transcript.Line(id: UUID(), role: .assistant, text: "done", steps: [step])
+        let line = Transcript.Line(id: UUID(), role: .assistant, text: "done", steps: [step], stepsOpen: true)
         let text = MessageText.attributed(line)
-        XCTAssertEqual(text.string, "\u{2713} bash ls\na.txt\ndone")
-        let font = text.attribute(.font, at: 12, effectiveRange: nil) as? NSFont
+        XCTAssertEqual(text.string, "\u{25BE} Process (1 steps)\n\u{2713} bash ls\na.txt\ndone")
+        let font = text.attribute(.font, at: 32, effectiveRange: nil) as? NSFont
         XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.monoSpace) ?? false)
     }
 
