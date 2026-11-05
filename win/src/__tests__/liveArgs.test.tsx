@@ -58,7 +58,7 @@ describe("LiveArgs", () => {
       liveArgs: { entries: [{ key: "url", value: "https://www.reddit.com/r/x/comments/1", kind: "string", open: true }], invalid: false, complete: false },
     };
     render(<LiveArgs step={step} />);
-    expect(screen.getByTestId("live-args").textContent).toBe("Read www.reddit.com");
+    expect(screen.getByTestId("live-args").textContent).toBe("Read reddit.com");
     expect(screen.queryByTestId("live-args-tail")).toBeNull();
     expect(document.querySelector("dl")).toBeNull();
   });

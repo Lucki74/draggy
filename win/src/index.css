@@ -985,3 +985,23 @@ kbd {
     mask-image: none;
   }
 }
+
+/* A tool step rises in as it appears, and its check lands a beat later. */
+.step-rise {
+  animation: step-rise 0.35s cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+.step-check {
+  animation: step-rise 0.25s cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+@keyframes step-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-rise,
+  .step-check {
+    animation: none;
+  }
+}

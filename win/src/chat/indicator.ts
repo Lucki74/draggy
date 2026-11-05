@@ -11,8 +11,3 @@ function showsItself(step: SearchStep): boolean {
 export function showsTailMark(steps: SearchStep[], isGenerating: boolean, isLast: boolean): boolean {
   return isGenerating && isLast && !steps.some(showsItself);
 }
-
-/** A collapsed work group stands in for its running steps; an open one lets them show their own. */
-export function showsGroupMark(steps: SearchStep[], open: boolean): boolean {
-  return !open && steps.some((step) => !step.isComplete);
-}

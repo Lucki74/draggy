@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { Button, EmberCaret, Icon, Spark, type IconName } from "../ui";
+import { Button, EmberCaret, Icon, Spark } from "../ui";
 import ReactMarkdown from "react-markdown";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { SYNTAX_THEME } from "./syntaxTheme";
@@ -21,32 +21,20 @@ import { loadLabel, type LoadStage } from "./loadLabel";
 import { stepTotals } from "./workSummary";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
-const CHANGE_ICONS: Record<NonNullable<SearchStep["change"]>, IconName> = {
-  created: "file-arrow-up",
-  moved: "arrow-right",
-  deleted: "trash",
-};
-
-const STEP_ICONS: Partial<Record<SearchStep["type"], IconName>> = {
-  searching: "magnifying-glass",
-  opening: "magnifying-glass",
-  results: "globe-simple",
-  reading: "file-text",
-  navigating: "arrow-square-out",
-  loaded: "check",
-  scanned: "scan",
-  clicking: "cursor-click",
-  typing: "text-aa",
-  library: "books",
-  run_code: "terminal",
-  command: "terminal-window",
-  plan: "check-circle",
-  extension: "puzzle-piece",
-  // The same book as the Skills tab, so a loaded skill never reads as a web search.
-  skill: "book-open",
-  edit_file: "pencil-simple",
-  git: "git-branch",
-};
+/** The state of a step: the ember spark while it runs, then a green check, or a red cross. */
+function StepMark({ active, failed }: { active: boolean; failed: boolean }) {
+  return (
+    <span className="flex w-3 flex-shrink-0 justify-center">
+      {failed ? (
+        <Icon name="x-circle" size={12} className="text-danger" />
+      ) : active ? (
+        <Spark />
+      ) : (
+        <Icon name="check" size={12} className="step-check text-ok" />
+      )}
+    </span>
+  );
+}
 
 function LibraryHits({
   hits,
@@ -81,7 +69,7 @@ function GitDiffOutput({ diff, t }: { diff: string; t: (key: string) => string }
   const verbose = useTranscriptView() === "verbose";
 
   return (
-    <details className="ps-6 mt-1" open={verbose}>
+    <details className="ms-5 mt-1" open={verbose}>
       <summary className="cursor-pointer text-[12px] text-text-secondary hover:text-text-primary">
         {t("gitShowDiff")}{" "}
         <span className="text-ok tabular-nums">+{added}</span>{" "}
@@ -99,14 +87,14 @@ function CodeRunOutput({ step, t }: { step: SearchStep; t: (key: string) => stri
   if (!hasOutput) return null;
 
   return (
-    <div className="ps-6 mt-1 space-y-2">
+    <div className="ms-5 mt-1.5 space-y-2">
       {step.stdout && (
-        <pre className="p-3 rounded-sm border border-rule bg-surface-base font-mono text-[12px] leading-5 text-text-primary overflow-x-auto whitespace-pre-wrap break-words max-h-64">
+        <pre className="rounded-[8px] border border-rule bg-surface-base px-3 py-2.5 font-mono text-[12.5px] leading-[1.6] text-text-secondary overflow-x-auto whitespace-pre-wrap break-words max-h-64">
           {step.stdout}
         </pre>
       )}
       {step.stderr && (
-        <pre className="p-3 rounded-sm border border-rule bg-surface-base font-mono text-[12px] leading-5 text-danger overflow-x-auto whitespace-pre-wrap break-words max-h-64">
+        <pre className="rounded-[8px] border border-rule bg-surface-base px-3 py-2.5 font-mono text-[12.5px] leading-[1.6] text-danger overflow-x-auto whitespace-pre-wrap break-words max-h-64">
           <span className="block mb-1 font-sans text-text-secondary">
             {t("stderr")}
           </span>
@@ -470,9 +458,9 @@ export function WorkBlock({
   const openInCanvas = useContext(OpenFileContext);
   if (step.type === "results" && step.results && step.results.length > 0) {
     return (
-      <details key={step.id} className="mb-2 group/results" open={verbose}>
-        <summary className="flex items-center gap-2 min-h-7 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-[13px] text-text-secondary hover:text-text-primary">
-          <Icon name="globe-simple" size={16} className="flex-shrink-0" />
+      <details key={step.id} className="step-rise mb-3.5 group/results" open={verbose}>
+        <summary className="flex items-center gap-2 min-h-6 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-[13px] text-text-secondary hover:text-text-primary">
+          <StepMark active={false} failed={false} />
           <span className="markdown-inline">
             <ReactMarkdown
               remarkPlugins={REMARK_PLUGINS}
@@ -484,7 +472,7 @@ export function WorkBlock({
           </span>
           <Icon name="caret-right" size={12} mirrored className="transition-transform group-open/results:rotate-90" />
         </summary>
-        <div className="flex flex-col ps-6 mt-1">
+        <div className="flex flex-col ms-5 mt-1">
           {step.results.map((result, rIdx) => {
             const hostname = hostnameOf(result.url);
             return (
@@ -591,25 +579,19 @@ export function WorkBlock({
     ) : step.type === "edit_file" &&
       step.before !== undefined &&
       step.after !== undefined ? (
-      <div className="ps-6 mt-1">
+      <div className="ms-5 mt-1">
         <DiffBlock before={step.before} after={step.after} filePath={step.filepath} t={t} />
       </div>
     ) : null;
 
   return (
-    <div key={step.id} className="mb-1">
-      <div className="flex items-center gap-2 min-h-7 text-[13px] text-text-secondary">
-        <span className="flex w-4 justify-center flex-shrink-0">
-          <Icon
-            name={failed ? "x-circle" : (step.change && CHANGE_ICONS[step.change]) || STEP_ICONS[step.type] || "globe-simple"}
-            size={16}
-            className={failed ? "text-danger" : ""}
-          />
-        </span>
+    <div key={step.id} className="step-rise mb-3.5">
+      <div className="flex items-center gap-2 min-h-6 text-[13px] text-text-secondary">
+        <StepMark active={isActive} failed={failed} />
         {step.runId && step.fileContent && splitCommand(step.content) ? (
           <CommandLine content={step.content} active={isActive} />
         ) : (
-          <span className={`markdown-inline min-w-0 ${isActive ? "" : "text-text-primary"}`}>
+          <span className="markdown-inline min-w-0">
             <ReactMarkdown
               remarkPlugins={REMARK_PLUGINS}
               rehypePlugins={REHYPE_PLUGINS}
@@ -659,7 +641,6 @@ export function WorkBlock({
               {t("sendToBackground")}
             </button>
           )}
-          {isActive && <Spark />}
         </span>
       </div>
       {payload}

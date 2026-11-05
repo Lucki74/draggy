@@ -1,41 +1,5 @@
 import { diffLines } from "./diff";
-import { hostnameOf } from "../utils";
 import type { SearchStep } from "../types";
-
-type Kind = "read" | "site" | "created" | "edited" | "moved" | "deleted" | "ran" | "searched" | "browsed" | "other";
-
-const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
-  reading: "read",
-  library: "read",
-  edit_file: "edited",
-  run_code: "ran",
-  command: "ran",
-  searching: "searched",
-  results: "searched",
-  // Old saved chats opened a page with no address on the step.
-  opening: "searched",
-  navigating: "browsed",
-  loaded: "browsed",
-  clicking: "browsed",
-  typing: "browsed",
-  scanned: "browsed",
-};
-
-const ORDER: Kind[] = ["read", "site", "created", "edited", "moved", "deleted", "ran", "searched", "browsed", "other"];
-
-/** Translation keys are work<Name>_one and work<Name>_other. */
-const KEY: Record<Kind, string> = {
-  read: "Read",
-  site: "ReadPages",
-  created: "Created",
-  edited: "Edited",
-  moved: "Moved",
-  deleted: "Deleted",
-  ran: "Ran",
-  searched: "Searched",
-  browsed: "Browsed",
-  other: "Other",
-};
 
 /** Steps that fold into a work block. Prose, reasoning, questions for the user and written files
  * stay in the transcript on their own; an answered approval folds in with the call it allowed. */
@@ -43,61 +7,6 @@ export function isWorkStep(step: SearchStep) {
   if (step.type === "approval") return Boolean(step.answer);
   return !["text", "thinking", "create_file", "app", "image"].includes(step.type) &&
     !(step.type === "loading" && !step.isComplete);
-}
-
-/** "Read 3 files, edited 2 files and ran 1 command", in the reader's language. */
-export function summarizeWork(steps: SearchStep[], language: string, t: (key: string) => string) {
-  const counts = new Map<Kind, number>();
-  const sites = new Set<string>();
-  let failed = 0;
-  for (const step of steps) {
-    if (step.type === "error") {
-      failed += 1;
-      continue;
-    }
-    if (step.type === "loading" || step.type === "approval") continue;
-    // A search is its "searching" step plus the "results" row it fills in: one search, not two.
-    if (step.type === "searching" && step.isComplete) continue;
-    const host = (step.type === "reading" || step.type === "opening") && step.url
-      ? hostnameOf(step.url).replace(/^www\./i, "")
-      : "";
-    if (host) {
-      sites.add(host);
-      counts.set("site", (counts.get("site") ?? 0) + 1);
-      continue;
-    }
-    const kind = step.change ?? KIND_OF[step.type] ?? "other";
-    counts.set(kind, (counts.get(kind) ?? 0) + 1);
-  }
-
-  let plural: Intl.PluralRules;
-  try {
-    plural = new Intl.PluralRules(language);
-  } catch {
-    plural = new Intl.PluralRules("en");
-  }
-  const listOf = (items: string[]) => {
-    try {
-      return new Intl.ListFormat(language, { type: "conjunction" }).format(items);
-    } catch {
-      return items.join(", ");
-    }
-  };
-  const phrase = (key: string, n: number) => {
-    const form = plural.select(n) === "one" ? "one" : "other";
-    return t(`work${key}_${form}`).replace("{n}", String(n));
-  };
-
-  const parts = ORDER.filter((kind) => counts.has(kind)).map((kind, index) => {
-    // One or two sites are named; more are counted.
-    const text = kind === "site" && sites.size > 0 && sites.size <= 2
-      ? t("workReadSite").replace("{sites}", listOf([...sites]))
-      : phrase(KEY[kind], counts.get(kind)!);
-    return index === 0 ? text : text.charAt(0).toLocaleLowerCase(language) + text.slice(1);
-  });
-  if (failed > 0) parts.push(phrase("Failed", failed));
-
-  return { text: listOf(parts), failed };
 }
 
 /** Lines added and removed by one file step, or null when it has no diff. */
@@ -110,18 +19,6 @@ export function stepTotals(step: SearchStep) {
       if (line.kind === "added") added += 1;
       else if (line.kind === "removed") removed += 1;
     }
-  }
-  return { added, removed };
-}
-
-export function editTotals(steps: SearchStep[]) {
-  let added = 0;
-  let removed = 0;
-  for (const step of steps) {
-    const totals = stepTotals(step);
-    if (!totals) continue;
-    added += totals.added;
-    removed += totals.removed;
   }
   return { added, removed };
 }
@@ -140,21 +37,4 @@ export function touchedFiles(steps: SearchStep[]): { name: string; path: string;
     }
   }
   return [...seen.values()];
-}
-
-/** How many leading segments of a finished turn fold under "Process (N steps)". The last prose block,
- * approvals, questions, errors, files and pictures stay out, and the first of them ends the fold. */
-export function processFoldLength(segments: SearchStep[][]): number {
-  let lastText = -1;
-  segments.forEach((segment, index) => {
-    if (segment[0].type === "text") lastText = index;
-  });
-  const folds = (step: SearchStep) =>
-    step.type === "thinking" ||
-    step.type === "text" ||
-    step.type === "steer" ||
-    (isWorkStep(step) && step.type !== "error" && step.type !== "question");
-  let length = 0;
-  while (length < segments.length && length !== lastText && segments[length].every(folds)) length += 1;
-  return length;
 }

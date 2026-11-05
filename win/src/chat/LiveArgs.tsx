@@ -102,9 +102,9 @@ export default function LiveArgs({ step }: { step: SearchStep }) {
   // A page address is not a file: it reads as the site, the way the finished step does.
   const address = args?.entries.find((entry) => entry.key === "url" && entry.kind === "string");
   if (address) {
-    const site = hostnameOf(address.value) || address.value;
+    const site = hostnameOf(address.value).replace(/^www\./i, "") || address.value;
     return (
-      <div className="mb-3.5 flex min-h-6 items-center gap-2 text-[13px] text-text-secondary" data-testid="live-args">
+      <div className="step-rise mb-3.5 flex min-h-6 items-center gap-2 text-[13px] text-text-secondary" data-testid="live-args">
         <span className="flex w-3 justify-center">
           <Spark />
         </span>
@@ -115,7 +115,7 @@ export default function LiveArgs({ step }: { step: SearchStep }) {
     );
   }
   return (
-    <div className="mb-3.5" data-testid="live-args">
+    <div className="step-rise mb-3.5" data-testid="live-args">
       <div className="flex min-h-6 items-center gap-2 text-[13px] text-text-secondary">
         <span className="flex w-3 justify-center">
           <Spark />

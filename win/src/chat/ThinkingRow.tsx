@@ -41,7 +41,7 @@ export function ThinkingRow({ step, live, isGenerating, t }: ThinkingRowProps) {
       : `${t("thoughtFor")} ${Math.round(step.thoughtTime ?? elapsed)}s`;
 
   return (
-    <details key={step.id} className="mb-4 group/think" open={thinking || view === "verbose"}>
+    <details key={step.id} className="step-rise mb-3.5 group/think" open={thinking || view === "verbose"}>
       <summary className="inline-flex items-center gap-2 h-7 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-[13px] text-text-secondary hover:text-text-primary rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2">
         {thinking ? (
           <>
