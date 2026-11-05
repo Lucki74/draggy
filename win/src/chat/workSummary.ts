@@ -11,6 +11,7 @@ const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   run_code: "ran",
   command: "ran",
   searching: "searched",
+  results: "searched",
   // Old saved chats opened a page with no address on the step.
   opening: "searched",
   navigating: "browsed",
@@ -56,7 +57,7 @@ export function summarizeWork(steps: SearchStep[], language: string, t: (key: st
     }
     if (step.type === "loading" || step.type === "approval") continue;
     // A search is its "searching" step plus the "results" row it fills in: one search, not two.
-    if (step.type === "results") continue;
+    if (step.type === "searching" && step.isComplete) continue;
     const host = (step.type === "reading" || step.type === "opening") && step.url
       ? hostnameOf(step.url).replace(/^www\./i, "")
       : "";

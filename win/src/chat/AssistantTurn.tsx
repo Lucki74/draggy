@@ -243,17 +243,11 @@ export function AssistantTurn({
   const segments: SearchStep[][] = [];
   for (const step of steps) {
     if (invisible(step)) continue;
+    // A finished search shows only its results row; "Searched for" is shown while it runs.
+    if (step.type === "searching" && step.isComplete) continue;
     const last = segments[segments.length - 1];
     if (isWork(step) && last && isWork(last[0])) last.push(step);
     else segments.push([step]);
-  }
-
-  // A search's results list is the last row of its work block, never followed by another call.
-  for (const segment of segments) {
-    if (!isWork(segment[0])) continue;
-    const results = segment.filter((step) => step.type === "results");
-    if (results.length === 0) continue;
-    segment.splice(0, segment.length, ...segment.filter((step) => step.type !== "results"), ...results);
   }
 
   const renderSegment = (segment: SearchStep[], segmentIndex: number) =>
