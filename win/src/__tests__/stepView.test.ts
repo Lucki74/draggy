@@ -26,4 +26,12 @@ describe("stepView", () => {
   it("returns null for a sentence with no subject", () => {
     expect(stepView(step("reading", "Read files"))).toBeNull();
   });
+
+  it("splits a failed command into name, command and reason", () => {
+    expect(stepView(step("error", "Failed `ls -la`: The sandbox is not available."))).toEqual({
+      name: "Failed",
+      args: [["command", "ls -la"]],
+      result: "The sandbox is not available.",
+    });
+  });
 });

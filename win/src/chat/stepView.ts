@@ -49,11 +49,12 @@ export function stepView(step: SearchStep): StepView | null {
       // The diff block under the step already counts the lines.
       return target ? { name, args: [["file", target]] } : null;
     }
+    case "error":
     case "command":
     case "run_code": {
       const command = step.content.slice(step.content.indexOf("`") + 1, step.content.lastIndexOf("`"));
       if (!command || step.content.indexOf("`") === step.content.lastIndexOf("`")) return null;
-      const tail = step.content.slice(step.content.lastIndexOf("`") + 1).trim();
+      const tail = step.content.slice(step.content.lastIndexOf("`") + 1).replace(/^\s*:\s*/, "").trim();
       return { name, args: [["command", command]], ...(tail ? { result: tail } : {}) };
     }
     case "skill":

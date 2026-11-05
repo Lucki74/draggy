@@ -607,7 +607,7 @@ export function WorkBlock({
         )}
 
         {/* Failed step keeps original description so failure is explicit rather than silent. */}
-        {failed && <span className="text-[12px] text-danger">{t("stepFailed")}</span>}
+        {failed && !view && <span className="text-[12px] text-danger">{t("stepFailed")}</span>}
 
         <span className="ms-auto flex items-center gap-3 flex-shrink-0 ps-2">
           {totals && !view && (
@@ -657,7 +657,7 @@ export function WorkBlock({
           ))}
         </dl>
       )}
-      {view?.result && !isActive && <div className="step-rise ms-5 mt-1 text-[13px] text-text-tertiary">{view.result}</div>}
+      {view?.result && !isActive && <div className={`step-rise ms-5 mt-1 text-[13px] ${failed ? "text-danger" : "text-text-tertiary"}`}>{view.result}</div>}
       {payload}
     </div>
   );
