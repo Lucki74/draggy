@@ -9,7 +9,8 @@ import WorkingStatus from "./WorkingStatus";
 import WorkBlock from "./WorkBlock";
 import WorkGroup from "./WorkGroup";
 import { TaskChip } from "./TaskChip";
-import { isWorkStep, touchedFiles } from "./workSummary";
+import { isWorkStep, processFoldLength, touchedFiles } from "./workSummary";
+import ProcessFold from "./ProcessFold";
 import { OpenFileContext } from "./openFileContext";
 import { useTranscriptView } from "./transcriptView";
 import TurnActions from "./TurnActions";
@@ -247,6 +248,26 @@ export function AssistantTurn({
     else segments.push([step]);
   }
 
+  const renderSegment = (segment: SearchStep[], segmentIndex: number) =>
+    isWork(segment[0]) ? (
+      <WorkGroup
+        key={segment[0].id}
+        steps={segment}
+        active={live && isGenerating && segmentIndex === segments.length - 1}
+        language={settings.language}
+        t={t}
+      >
+        {segment.map(renderStep)}
+      </WorkGroup>
+    ) : (
+      renderStep(segment[0])
+    );
+
+  // A finished turn folds its process in the normal view; the verbose view keeps everything open.
+  const candidate = !isGenerating && view === "normal" ? processFoldLength(segments) : 0;
+  const folded = segments.slice(0, candidate);
+  const foldLength = folded.reduce((sum, segment) => sum + segment.length, 0) >= 2 ? candidate : 0;
+
   return (
     <>
       {msg.attachments && msg.attachments.length > 0 && (
@@ -295,23 +316,15 @@ export function AssistantTurn({
         onCopy={copyAsMarkdown}
       >
         {[
-          ...segments.map((segment, segmentIndex) =>
-            isWork(segment[0]) ? (
-              <WorkGroup
-                key={segment[0].id}
-                steps={segment}
-                active={
-                  live && isGenerating && segmentIndex === segments.length - 1
-                }
-                language={settings.language}
-                t={t}
-              >
-                {segment.map(renderStep)}
-              </WorkGroup>
-            ) : (
-              renderStep(segment[0])
-            ),
+          ...(foldLength > 0
+            ? [
+                <ProcessFold key="process" steps={folded.flat()} t={t}>
+                  {folded.map(renderSegment)}
+                </ProcessFold>,
+              ]
+            : []
           ),
+          ...segments.slice(foldLength).map((segment, offset) => renderSegment(segment, foldLength + offset)),
           isLast && isGenerating ? <BrowserConsentCard key="consent" t={t} /> : null,
           (!isFailed || hasGeneratedText) && !bodyInStep ? (
             <div key={bodyKey} className={isFailed ? "mb-3" : undefined}>

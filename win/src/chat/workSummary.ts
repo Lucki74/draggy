@@ -140,3 +140,20 @@ export function touchedFiles(steps: SearchStep[]): { name: string; path: string;
   }
   return [...seen.values()];
 }
+
+/** How many leading segments of a finished turn fold under "Process (N steps)". The last prose block,
+ * approvals, questions, errors, files and pictures stay out, and the first of them ends the fold. */
+export function processFoldLength(segments: SearchStep[][]): number {
+  let lastText = -1;
+  segments.forEach((segment, index) => {
+    if (segment[0].type === "text") lastText = index;
+  });
+  const folds = (step: SearchStep) =>
+    step.type === "thinking" ||
+    step.type === "text" ||
+    step.type === "steer" ||
+    (isWorkStep(step) && step.type !== "error" && step.type !== "question");
+  let length = 0;
+  while (length < segments.length && length !== lastText && segments[length].every(folds)) length += 1;
+  return length;
+}
