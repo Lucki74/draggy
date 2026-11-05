@@ -10,6 +10,7 @@ import { displayModelName } from "../llama";
 import UnifiedDiff from "./UnifiedDiff";
 import { diffStats } from "../project/gitView";
 import ApprovalCard from "./ApprovalCard";
+import LiveArgs from "./LiveArgs";
 import QuestionCard from "./QuestionCard";
 import { useTranscriptView } from "./transcriptView";
 import { OpenFileContext } from "./openFileContext";
@@ -553,6 +554,10 @@ export function WorkBlock({
 
   if (step.type === "loading" && !step.isComplete) {
     return <LoadingStep key={step.id} step={step} t={t} />;
+  }
+
+  if (step.type === "tool_call") {
+    return <LiveArgs key={step.id} step={step} />;
   }
 
   if (step.type === "create_file") {
