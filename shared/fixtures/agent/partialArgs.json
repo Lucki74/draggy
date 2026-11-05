@@ -1,0 +1,701 @@
+{
+  "area": "agent",
+  "description": "Incremental partial-argument scanner for tool calls still arriving (partialArgs.ts, partial_args.rs). Every case is also fed in two parts at every code-point split.",
+  "cases": [
+    {
+      "name": "empty arguments",
+      "input": {
+        "op": "parse",
+        "raw": ""
+      },
+      "expected": {
+        "entries": [],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "whitespace only",
+      "input": {
+        "op": "parse",
+        "raw": "  \n "
+      },
+      "expected": {
+        "entries": [],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "empty object",
+      "input": {
+        "op": "parse",
+        "raw": "{}"
+      },
+      "expected": {
+        "entries": [],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "open brace only",
+      "input": {
+        "op": "parse",
+        "raw": "{"
+      },
+      "expected": {
+        "entries": [],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "two complete strings",
+      "input": {
+        "op": "parse",
+        "raw": "{\"filename\": \"a.txt\", \"content\": \"hi\"}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "filename",
+            "value": "a.txt",
+            "kind": "string",
+            "open": false
+          },
+          {
+            "key": "content",
+            "value": "hi",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "cut string value is still open",
+      "input": {
+        "op": "parse",
+        "raw": "{\"command\": \"ls -l"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "command",
+            "value": "ls -l",
+            "kind": "string",
+            "open": true
+          }
+        ],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "cut key is not an entry yet",
+      "input": {
+        "op": "parse",
+        "raw": "{\"filename\": \"a\", \"conte"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "filename",
+            "value": "a",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "key and colon without a value",
+      "input": {
+        "op": "parse",
+        "raw": "{\"content\":"
+      },
+      "expected": {
+        "entries": [],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "value quote just opened",
+      "input": {
+        "op": "parse",
+        "raw": "{\"content\": \""
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "content",
+            "value": "",
+            "kind": "string",
+            "open": true
+          }
+        ],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "escapes are decoded",
+      "input": {
+        "op": "parse",
+        "raw": "{\"c\": \"a\\nb\\tc \\\"q\\\" \\\\ \\/ \\r\"}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "c",
+            "value": "a\nb\tc \"q\" \\ / \r",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "lone trailing backslash is held back",
+      "input": {
+        "op": "parse",
+        "raw": "{\"c\": \"abc\\"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "c",
+            "value": "abc",
+            "kind": "string",
+            "open": true
+          }
+        ],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "split unicode escape waits for four digits",
+      "input": {
+        "op": "parse",
+        "raw": "{\"c\": \"caf\\u00"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "c",
+            "value": "caf",
+            "kind": "string",
+            "open": true
+          }
+        ],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "complete unicode escape",
+      "input": {
+        "op": "parse",
+        "raw": "{\"c\": \"café\"}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "c",
+            "value": "café",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "surrogate pair escape",
+      "input": {
+        "op": "parse",
+        "raw": "{\"c\": \"😀 ok\"}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "c",
+            "value": "😀 ok",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "high surrogate waits for its pair",
+      "input": {
+        "op": "parse",
+        "raw": "{\"c\": \"a\\ud83d"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "c",
+            "value": "a",
+            "kind": "string",
+            "open": true
+          }
+        ],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "pair cut inside the second escape",
+      "input": {
+        "op": "parse",
+        "raw": "{\"c\": \"a\\ud83d\\ude"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "c",
+            "value": "a",
+            "kind": "string",
+            "open": true
+          }
+        ],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "backspace and form feed come out as letters",
+      "input": {
+        "op": "parse",
+        "raw": "{\"c\": \"x\\by\\fz\"}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "c",
+            "value": "xbyfz",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "unknown escape keeps its backslash",
+      "input": {
+        "op": "parse",
+        "raw": "{\"c\": \"a\\qb\"}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "c",
+            "value": "a\\qb",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "backslash before a line break ends the string",
+      "input": {
+        "op": "parse",
+        "raw": "{\"content\": \"a\\\nb\""
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "content",
+            "value": "a",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": true,
+        "complete": false
+      }
+    },
+    {
+      "name": "raw line break inside a string is kept",
+      "input": {
+        "op": "parse",
+        "raw": "{\"c\": \"line one\nline two"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "c",
+            "value": "line one\nline two",
+            "kind": "string",
+            "open": true
+          }
+        ],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "invalid unicode escape stays literal",
+      "input": {
+        "op": "parse",
+        "raw": "{\"c\": \"\\u12zz\"}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "c",
+            "value": "\\u12zz",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "nested object and array are kept as text",
+      "input": {
+        "op": "parse",
+        "raw": "{\"opts\": {\"a\": [1, 2, \"x}\"], \"b\": null}, \"n\": 5}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "opts",
+            "value": "{\"a\": [1, 2, \"x}\"], \"b\": null}",
+            "kind": "json",
+            "open": false
+          },
+          {
+            "key": "n",
+            "value": "5",
+            "kind": "json",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "cut nested value stays open",
+      "input": {
+        "op": "parse",
+        "raw": "{\"edits\": [{\"old\": \"a\", \"new\": \"b\"}, {\"old\": \"c"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "edits",
+            "value": "[{\"old\": \"a\", \"new\": \"b\"}, {\"old\": \"c",
+            "kind": "json",
+            "open": true
+          }
+        ],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "literals",
+      "input": {
+        "op": "parse",
+        "raw": "{\"n\": 12, \"ok\": true, \"z\": null}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "n",
+            "value": "12",
+            "kind": "json",
+            "open": false
+          },
+          {
+            "key": "ok",
+            "value": "true",
+            "kind": "json",
+            "open": false
+          },
+          {
+            "key": "z",
+            "value": "null",
+            "kind": "json",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "cut literal is still open",
+      "input": {
+        "op": "parse",
+        "raw": "{\"n\": 12"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "n",
+            "value": "12",
+            "kind": "json",
+            "open": true
+          }
+        ],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "not json at all",
+      "input": {
+        "op": "parse",
+        "raw": "not json"
+      },
+      "expected": {
+        "entries": [],
+        "invalid": true,
+        "complete": false
+      }
+    },
+    {
+      "name": "bare key is invalid but keeps earlier pairs",
+      "input": {
+        "op": "parse",
+        "raw": "{\"a\": \"x\", b: 1}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "a",
+            "value": "x",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": true,
+        "complete": false
+      }
+    },
+    {
+      "name": "top level array is invalid",
+      "input": {
+        "op": "parse",
+        "raw": "[1,2]"
+      },
+      "expected": {
+        "entries": [],
+        "invalid": true,
+        "complete": false
+      }
+    },
+    {
+      "name": "duplicate keys keep their order",
+      "input": {
+        "op": "parse",
+        "raw": "{\"a\": \"1\", \"a\": \"2\"}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "a",
+            "value": "1",
+            "kind": "string",
+            "open": false
+          },
+          {
+            "key": "a",
+            "value": "2",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "non-ASCII key and value",
+      "input": {
+        "op": "parse",
+        "raw": "{\"имя\": \"отчёт 2026\", \"路径\": \"日記.md\"}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "имя",
+            "value": "отчёт 2026",
+            "kind": "string",
+            "open": false
+          },
+          {
+            "key": "路径",
+            "value": "日記.md",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "text after the object is invalid",
+      "input": {
+        "op": "parse",
+        "raw": "{\"a\":\"b\"} extra"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "a",
+            "value": "b",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": true,
+        "complete": false
+      }
+    },
+    {
+      "name": "whitespace between tokens",
+      "input": {
+        "op": "parse",
+        "raw": "  {\n \"a\" :\n \"b\" \n,\n \"c\": \"d\"\n}  "
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "a",
+            "value": "b",
+            "kind": "string",
+            "open": false
+          },
+          {
+            "key": "c",
+            "value": "d",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "empty string value",
+      "input": {
+        "op": "parse",
+        "raw": "{\"a\": \"\"}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "a",
+            "value": "",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "trailing comma",
+      "input": {
+        "op": "parse",
+        "raw": "{\"a\": \"b\",}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "a",
+            "value": "b",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "missing colon",
+      "input": {
+        "op": "parse",
+        "raw": "{\"a\" \"b\"}"
+      },
+      "expected": {
+        "entries": [],
+        "invalid": true,
+        "complete": false
+      }
+    },
+    {
+      "name": "key with an escape",
+      "input": {
+        "op": "parse",
+        "raw": "{\"a\\\"b\": \"v\""
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "a\"b",
+            "value": "v",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "content that contains key-like text",
+      "input": {
+        "op": "parse",
+        "raw": "{\"filename\": \"x.json\", \"content\": \"{\\\"filename\\\": \\\"y\\\"}\"}"
+      },
+      "expected": {
+        "entries": [
+          {
+            "key": "filename",
+            "value": "x.json",
+            "kind": "string",
+            "open": false
+          },
+          {
+            "key": "content",
+            "value": "{\"filename\": \"y\"}",
+            "kind": "string",
+            "open": false
+          }
+        ],
+        "invalid": false,
+        "complete": true
+      }
+    }
+  ]
+}
