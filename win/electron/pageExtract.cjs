@@ -305,11 +305,19 @@ function shape(entry, page) {
 }
 
 /** Reads one page of a URL: cache, fast fetch, PDF or Readability, render fallback, snapshot. */
+const hostOf = (url) => {
+  try {
+    return new URL(String(url)).host || "unknown host";
+  } catch {
+    return "unparsable url";
+  }
+};
+
 async function readPage(url, requestedPage, deps) {
   const now = (deps.now ?? Date.now)();
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   if (!deps.isFetchable(url)) {
-    deps.log.warn("read-url", `refused ${String(url).slice(0, 120)}`);
+    deps.log.warn("read-url", `refused ${hostOf(url)}`);
     return { title: "", text: "", blocked: "refused", reason: deps.refusalFor(url), url };
   }
   const hit = cacheGet(url, now);
