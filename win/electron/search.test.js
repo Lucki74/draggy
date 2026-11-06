@@ -306,3 +306,60 @@ describe("following DuckDuckGo redirect links to the real page", () => {
     expect(result.url).toBe("https://www.cdc.gov/");
   });
 });
+
+describe("concurrent searches", () => {
+  it("spaces three simultaneous searches to one provider a gap apart", async () => {
+    const sleeps = [];
+    const slots = [];
+    const timed = {
+      now: () => clock,
+      sleep: (ms) => {
+        sleeps.push(ms);
+        return Promise.resolve();
+      },
+      scrape: async (opts) => {
+        slots.push(opts.url);
+        return RESULTS;
+      },
+    };
+
+    await Promise.all(["one", "two", "three"].map((q) => search.runSearch(q, AUTO, timed)));
+
+    expect(sleeps).toEqual([search.PROVIDER_GAP_MS, search.PROVIDER_GAP_MS * 2]);
+    expect(slots).toHaveLength(3);
+  });
+
+  it("shares one request between identical searches that overlap", async () => {
+    const scrape = vi.fn().mockResolvedValue(RESULTS);
+    const [first, second] = await Promise.all([
+      search.runSearch("same", AUTO, deps({ scrape })),
+      search.runSearch("SAME", AUTO, deps({ scrape })),
+    ]);
+
+    expect(scrape).toHaveBeenCalledTimes(1);
+    expect(second.results).toEqual(first.results);
+  });
+});
+
+describe("telling a block page from an empty web", () => {
+  it("names the reason from the title and text, ignoring case and line breaks", () => {
+    expect(search.blockReason("DuckDuckGo", "Unfortunately, bots use\nDuckDuckGo too.")).toBe("unusual-traffic");
+    expect(search.blockReason("Startpage CAPTCHA", "")).toBe("captcha");
+    expect(search.blockReason("Before you continue to Google", "")).toBe("consent");
+    expect(search.blockReason("rust at DuckDuckGo", "No results found.")).toBeNull();
+  });
+
+  it("reports a block page as blocked and does not remember it", async () => {
+    const page = JSON.stringify({ blocked: "captcha" });
+    const blocked = vi.fn().mockResolvedValue(page);
+    const outcome = await search.runSearch("blocked", AUTO, deps({ scrape: blocked }));
+
+    expect(outcome.status).toBe("blocked");
+    expect(blocked).toHaveBeenCalledTimes(4);
+
+    clock += search.COOLDOWNS_MS[0];
+    const retry = await search.runSearch("blocked", AUTO, deps({ scrape: vi.fn().mockResolvedValue(RESULTS) }));
+    expect(retry.status).toBe("ok");
+    expect(retry.cached).toBeUndefined();
+  });
+});

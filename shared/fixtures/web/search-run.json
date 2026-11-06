@@ -8648,6 +8648,797 @@
           }
         ]
       }
+    },
+    {
+      "name": "every provider blocked is blocked, not empty, and is not remembered",
+      "input": {
+        "ops": [
+          {
+            "query": "blocked query",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage CAPTCHA</title></head><body><h1>Please verify you are human</h1></body></html>"
+              },
+              "duckduckgo-lite": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo Lite</title></head><body><p>Unfortunately, bots use DuckDuckGo too.</p></body></html>"
+              },
+              "brave-html": {
+                "body": "<!DOCTYPE html><html><head><title>Verify you are human - Brave Search</title></head><body><h1>Please solve the captcha</h1></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1040000,
+            "query": "blocked query",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>q at DuckDuckGo</title></head><body><div class=\"result\"><a class=\"result__a\" href=\"https://example.org/1\">Title</a><div class=\"result__snippet\">Snippet</div></div></body></html>"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "results": [],
+            "provider": null,
+            "tried": [
+              "duckduckgo",
+              "startpage",
+              "duckduckgo-lite",
+              "brave-html"
+            ],
+            "status": "blocked",
+            "cached": false,
+            "called": [
+              "duckduckgo",
+              "startpage",
+              "duckduckgo-lite",
+              "brave-html"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Title",
+                "url": "https://example.org/1",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "duckduckgo",
+            "tried": [
+              "duckduckgo"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo"
+            ],
+            "waitedMs": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "a blocked provider is skipped while it cools down",
+      "input": {
+        "ops": [
+          {
+            "query": "first",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1001000,
+            "query": "second",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "startpage"
+            ],
+            "waitedMs": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "a cooldown lasts exactly 30 seconds the first time",
+      "input": {
+        "ops": [
+          {
+            "query": "first",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1029999,
+            "query": "second",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1030000,
+            "query": "third",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>q at DuckDuckGo</title></head><body><div class=\"result\"><a class=\"result__a\" href=\"https://example.org/1\">Title</a><div class=\"result__snippet\">Snippet</div></div></body></html>"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "startpage"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Title",
+                "url": "https://example.org/1",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "duckduckgo",
+            "tried": [
+              "duckduckgo"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo"
+            ],
+            "waitedMs": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "repeat blocks escalate the cooldown to 2 minutes then 10 minutes",
+      "input": {
+        "ops": [
+          {
+            "query": "q1",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1030000,
+            "query": "q2",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1149999,
+            "query": "q3",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1150000,
+            "query": "q4",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1749999,
+            "query": "q5",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1750000,
+            "query": "q6",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 2349999,
+            "query": "q7",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "startpage"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "waitedMs": 899
+          },
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "startpage"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "waitedMs": 899
+          },
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "startpage"
+            ],
+            "waitedMs": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "a success resets the cooldown ladder",
+      "input": {
+        "ops": [
+          {
+            "query": "q1",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1030000,
+            "query": "q2",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>q at DuckDuckGo</title></head><body><div class=\"result\"><a class=\"result__a\" href=\"https://example.org/1\">Title</a><div class=\"result__snippet\">Snippet</div></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1060000,
+            "query": "q3",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1090000,
+            "query": "q4",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><div class=\"result\"><h2><a href=\"https://example.net/s\">Startpage hit</a></h2><p>Snippet</p></div></body></html>"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Title",
+                "url": "https://example.org/1",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "duckduckgo",
+            "tried": [
+              "duckduckgo"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Startpage hit",
+                "url": "https://example.net/s",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "startpage",
+            "tried": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo",
+              "startpage"
+            ],
+            "waitedMs": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "a block on one provider does not hide an empty answer from another",
+      "input": {
+        "ops": [
+          {
+            "query": "odd",
+            "config": {},
+            "responses": {
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div></body></html>"
+              },
+              "startpage": {
+                "body": "<!DOCTYPE html><html><head><title>Startpage</title></head><body><p>No results.</p></body></html>"
+              },
+              "duckduckgo-lite": {
+                "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><p>No results.</p></body></html>"
+              },
+              "brave-html": {
+                "body": "<!DOCTYPE html><html><head><title>Brave</title></head><body><p>No results.</p></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1001000,
+            "query": "odd",
+            "config": {},
+            "responses": {}
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "results": [],
+            "provider": null,
+            "tried": [
+              "duckduckgo",
+              "startpage",
+              "duckduckgo-lite",
+              "brave-html"
+            ],
+            "status": "empty",
+            "cached": false,
+            "called": [
+              "duckduckgo",
+              "startpage",
+              "duckduckgo-lite",
+              "brave-html"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [],
+            "provider": null,
+            "tried": [
+              "duckduckgo",
+              "startpage",
+              "duckduckgo-lite",
+              "brave-html"
+            ],
+            "status": "empty",
+            "cached": true,
+            "called": [],
+            "waitedMs": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "an API answering 202 with nothing is blocked and cooled down",
+      "input": {
+        "ops": [
+          {
+            "query": "api",
+            "config": {
+              "searxngUrl": "http://searx.test:8080"
+            },
+            "responses": {
+              "searxng": {
+                "status": 202,
+                "body": ""
+              },
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>q at DuckDuckGo</title></head><body><div class=\"result\"><a class=\"result__a\" href=\"https://example.org/1\">Title</a><div class=\"result__snippet\">Snippet</div></div></body></html>"
+              }
+            }
+          },
+          {
+            "at": 1001000,
+            "query": "api two",
+            "config": {
+              "searxngUrl": "http://searx.test:8080"
+            },
+            "responses": {
+              "searxng": {
+                "status": 202,
+                "body": ""
+              },
+              "duckduckgo": {
+                "body": "<!DOCTYPE html><html><head><title>q at DuckDuckGo</title></head><body><div class=\"result\"><a class=\"result__a\" href=\"https://example.org/1\">Title</a><div class=\"result__snippet\">Snippet</div></div></body></html>"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "steps": [
+          {
+            "results": [
+              {
+                "title": "Title",
+                "url": "https://example.org/1",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "duckduckgo",
+            "tried": [
+              "searxng",
+              "duckduckgo"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "searxng",
+              "duckduckgo"
+            ],
+            "waitedMs": 0
+          },
+          {
+            "results": [
+              {
+                "title": "Title",
+                "url": "https://example.org/1",
+                "snippet": "Snippet"
+              }
+            ],
+            "provider": "duckduckgo",
+            "tried": [
+              "duckduckgo"
+            ],
+            "status": "ok",
+            "cached": false,
+            "called": [
+              "duckduckgo"
+            ],
+            "waitedMs": 0
+          }
+        ]
+      }
     }
   ]
 }

@@ -39,6 +39,8 @@ const search = require("../../../electron/search.cjs") as {
   runSearch: (query: unknown, config: Config, deps: Deps) => Promise<Outcome>;
   buildChain: (config: Config) => Provider[];
   normaliseResults: (raw: unknown) => Result[];
+  canonicalUrl: (url: string) => string;
+  domainOf: (url: string) => string;
   unwrapRedirect: (url: string) => string;
   clearCache: () => void;
   PROVIDERS: Provider[];
@@ -217,6 +219,23 @@ async function runQuery(input: { provider: string; query: string; searxngUrl?: s
 
 function runNormalise(input: { raw: unknown }) {
   return wellFormed(search.normaliseResults(input.raw));
+}
+
+function runCanonical(input: { url: string }) {
+  return { canonical: search.canonicalUrl(input.url), domain: search.domainOf(input.url) };
+}
+
+/** A provider's page or API reply: how many results it gave, or the reason it was a block page. */
+async function runBlockedBody(input: { provider: string; body: string; status?: number }) {
+  const web = fakeWeb({ [input.provider]: { body: input.body, status: input.status } });
+  try {
+    const results = await withFetch(web.fetchStub, () => providerById(input.provider).run("query", CONFIG, { scrape: web.scrape }));
+    return { count: results.length };
+  } catch (error) {
+    const blocked = error as { blocked?: boolean; reason?: string };
+    if (blocked.blocked === true) return { blocked: blocked.reason };
+    throw error;
+  }
 }
 
 function runRedirect(input: { url: string }) {
@@ -453,6 +472,8 @@ const RUNNERS: Record<string, (input: never) => unknown> = {
   "search-brave-html.json": runProviderBody,
   "search-searxng.json": runProviderBody,
   "search-brave.json": runProviderBody,
+  "search-blocked.json": runBlockedBody,
+  "url-canonical.json": runCanonical,
   "search-run.json": runSearchOps,
   "search-log.json": runSearchLog,
   "connectivity.json": runConnectivity,
@@ -465,7 +486,7 @@ const RUNNERS: Record<string, (input: never) => unknown> = {
 // RUNNERS END
 
 describe("web fixtures", () => {
-  for (const file of fs.readdirSync(FIXTURE_DIR).filter((name) => name.endsWith(".json")).sort()) {
+  for (const file of fs.readdirSync(FIXTURE_DIR).filter((name) => name.endsWith(".json") && name !== "config.json").sort()) {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, file), "utf8")) as { cases: Case[] };
     describe(file, () => {
       for (const testCase of fixture.cases) {

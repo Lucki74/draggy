@@ -7,15 +7,17 @@ use std::fmt::Debug;
 use std::future::{Future, ready};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use draggy_testkit::{cases, files};
+use draggy_testkit::{cases, files, load};
 use draggy_web::connectivity::Connectivity;
 use draggy_web::http::{HttpClient, HttpError, HttpRequest, HttpResponse, Method, decode_page};
 use draggy_web::policy::{
     Refusals, UrlPolicy, is_private_hostname, permission_granted, refusal_for,
 };
 use draggy_web::search::{
-    Clock, Outcome, Provider, ProviderError, Search, SearchConfig, SearchResult, build_chain,
-    build_request, failure_log_text, normalise_results, parse_response, unwrap_redirect,
+    CACHE_LIMIT, CACHE_TTL_MS, COOLDOWNS_MS, Clock, DESKTOP_USER_AGENT, Outcome, PROVIDER_GAP_MS,
+    Provider, ProviderError, RESULT_LIMIT, Search, SearchConfig, SearchResult, build_chain,
+    build_request, canonical_url, domain_of, failure_log_text, normalise_results, parse_response,
+    unwrap_redirect,
 };
 use serde_json::{Map, Value, json};
 use tracing::field::{Field, Visit};
@@ -56,6 +58,7 @@ fixture_tests! {
     permissions => "permissions.json",
     policy_counts => "policy-counts.json",
     search_brave => "search-brave.json",
+    search_blocked => "search-blocked.json",
     search_brave_html => "search-brave-html.json",
     search_chain => "search-chain.json",
     search_duckduckgo => "search-duckduckgo.json",
@@ -68,14 +71,16 @@ fixture_tests! {
     search_run => "search-run.json",
     search_searxng => "search-searxng.json",
     search_startpage => "search-startpage.json",
+    url_canonical => "url-canonical.json",
     urls => "urls.json",
 }
 
 #[test]
 fn every_fixture_file_has_a_runner() {
+    // config.json holds the shared numbers, not cases, and is checked by its own test below.
     let unknown: Vec<String> = files("web")
         .into_iter()
-        .filter(|file| !KNOWN_FILES.contains(&file.as_str()))
+        .filter(|file| file != "config.json" && !KNOWN_FILES.contains(&file.as_str()))
         .collect();
     assert!(unknown.is_empty(), "no Rust runner for {unknown:?}");
 }
@@ -124,6 +129,11 @@ fn run(file: &str, input: &Value) -> Value {
         "search-redirect.json" => json!(unwrap_redirect(&js_text(&input["url"]))),
         "search-redact.json" => run_redact(input),
         "search-run.json" => run_ops(input),
+        "search-blocked.json" => run_blocked(input),
+        "url-canonical.json" => {
+            let url = js_text(&input["url"]);
+            json!({ "canonical": canonical_url(&url), "domain": domain_of(&url) })
+        }
         "search-log.json" => run_search_log(input),
         "connectivity.json" => run_connectivity(input),
         "connectivity-log.json" => run_connectivity_log(input),
@@ -291,6 +301,34 @@ fn run_body(input: &Value) -> Value {
         Ok(results) => json!({ "results": results.iter().map(result_json).collect::<Vec<_>>() }),
         Err(error) => json!({ "error": failure_text(&error) }),
     }
+}
+
+/// A page or API reply: how many results it gave, or the reason it was a block page.
+fn run_blocked(input: &Value) -> Value {
+    let provider = provider_named(input["provider"].as_str().unwrap_or_default());
+    let status = input["status"]
+        .as_u64()
+        .and_then(|status| u16::try_from(status).ok())
+        .unwrap_or(200);
+    let request = build_request(provider, "query", &fixture_config());
+    let body = input["body"].as_str().unwrap_or_default();
+    match parse_response(provider, &request.url, status, body) {
+        Ok(results) => json!({ "count": results.len() }),
+        Err(ProviderError::Blocked(reason)) => json!({ "blocked": reason }),
+        Err(error) => panic!("unexpected failure: {error}"),
+    }
+}
+
+/// The numbers the Rust side keeps as constants must be the ones the Windows app reads from the shared JSON.
+#[test]
+fn constants_match_the_shared_config() {
+    let config = load("web", "config.json");
+    assert_eq!(config["providerGapMs"], json!(PROVIDER_GAP_MS));
+    assert_eq!(config["cacheTtlMs"], json!(CACHE_TTL_MS));
+    assert_eq!(config["cacheLimit"], json!(CACHE_LIMIT));
+    assert_eq!(config["resultLimit"], json!(RESULT_LIMIT));
+    assert_eq!(config["cooldownsMs"], json!(COOLDOWNS_MS));
+    assert_eq!(config["desktopUserAgent"], json!(DESKTOP_USER_AGENT));
 }
 
 /// Status errors keep their message. Anything else is reported as an invalid body, as the TypeScript runner does.

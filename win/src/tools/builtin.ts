@@ -28,6 +28,15 @@ function searchMemo(context: ToolContext): Map<string, string> {
   return fresh;
 }
 
+/** The host without a leading www., so the model can weigh a source by where it comes from. */
+function domainOf(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
 function normaliseQuery(query: string): string {
   return query.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -98,6 +107,10 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
 
         // An engine that will not answer is an outage, not evidence that
         // nothing exists. Saying so stops the model inventing more queries.
+        if (status === "blocked") {
+          return `TOOL RESULT (search_web): The search was blocked: the engines asked for a CAPTCHA or refused automated requests (tried ${outcome.tried.join(", ") || "none"}). This is temporary and says nothing about whether the subject exists.${remaining > 0 ? " Retry later or rephrase the question once; do not conclude that nothing exists." : " Answer from your own knowledge and say which parts you could not check."}`;
+        }
+
         if (status === "unavailable") {
           return `TOOL RESULT (search_web): No search engine would answer just now (tried ${outcome.tried.join(", ") || "none"}). This is a temporary outage, not a sign that nothing exists on the subject.${remaining > 0 ? " Do not reword the question; if you retry at all, wait for a different question." : " Answer from your own knowledge and say which parts you could not check."}`;
         }
@@ -125,6 +138,7 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
         .map(
           (result, index) =>
             `[Result #${index + 1}] ${result.title}
+Domain: ${domainOf(result.url)}
 URL: ${result.url}
 Snippet: ${result.snippet}`,
         )
@@ -132,7 +146,7 @@ Snippet: ${result.snippet}`,
 
       asked.set(key, summary);
 
-      return `TOOL RESULT (search_web):
+      return `TOOL RESULT (search_web, via ${outcome.provider ?? "unknown"}):
 ${summary}
 
 Read the most relevant URL(s) with read_url when you need the full text. If you already have enough to answer, stop calling tools and reply.`;

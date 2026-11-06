@@ -1,18 +1,65 @@
+const fs = require("node:fs");
+const path = require("node:path");
 const { log } = require("./logger.cjs");
 
-const DESKTOP_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+/** The numbers both apps share. A checkout reads shared/, a packaged build finds the copy beside its resources. */
+function loadSharedConfig() {
+  const checkout = path.join(__dirname, "..", "..", "shared", "fixtures", "web", "config.json");
+  return require(fs.existsSync(checkout) ? checkout : path.join(process.resourcesPath || "", "search-config.json"));
+}
 
-const RESULT_LIMIT = 10;
+const SHARED = loadSharedConfig();
+
+const DESKTOP_USER_AGENT = SHARED.desktopUserAgent;
+
+const RESULT_LIMIT = SHARED.resultLimit;
 
 /** The smallest gap between two requests to one provider. Firing five at once returns empty pages,
  * which the model reads as "nothing exists". */
-const PROVIDER_GAP_MS = 900;
+const PROVIDER_GAP_MS = SHARED.providerGapMs;
 
 /** Models rephrase the same question several times in a row. Answering the repeats from memory
  * keeps that from counting against the rate limit. */
-const CACHE_TTL_MS = 5 * 60 * 1000;
-const CACHE_LIMIT = 80;
+const CACHE_TTL_MS = SHARED.cacheTtlMs;
+const CACHE_LIMIT = SHARED.cacheLimit;
+
+/** How long a provider that served a block page is left alone, by how many blocks in a row. */
+const COOLDOWNS_MS = SHARED.cooldownsMs;
+
+/** Names a block page from its title and text, or null. Runs inside the scraped page as well as in
+ * Node, so it must stay self-contained. */
+function blockReason(title, text) {
+  const haystack = (String(title || "") + " " + String(text || "")).toLowerCase().replace(/\s+/g, " ");
+  const rules = [
+    ["unusual-traffic", ["unusual traffic", "bots use duckduckgo too", "anomaly in the request", "automated requests", "unusual activity"]],
+    ["captcha", ["captcha", "verify you are human", "verify you're human", "are you a robot", "are you human", "not a robot", "select all squares"]],
+    ["consent", ["before you continue to google", "consent.google", "before you continue", "cookie consent", "accept all cookies"]],
+  ];
+  for (const [reason, phrases] of rules) {
+    if (phrases.some((phrase) => haystack.includes(phrase))) return reason;
+  }
+  return null;
+}
+
+/** Thrown when a provider answered with a block page, which is not the same as having no results. */
+class BlockedError extends Error {
+  constructor(reason) {
+    super("blocked: " + reason);
+    this.name = "BlockedError";
+    this.blocked = true;
+    this.reason = reason;
+  }
+}
+
+/** The tail every extract script shares: rows, or the block reason when there are none. */
+const FINISH = `
+    const rows = results.slice(0, ${RESULT_LIMIT});
+    if (rows.length === 0) {
+      const reason = (${blockReason.toString()})(document.title, document.body ? document.body.innerText : '');
+      if (reason) return JSON.stringify({ blocked: reason });
+    }
+    return JSON.stringify(rows);
+`;
 
 const DUCKDUCKGO_EXTRACT = `
   (() => {
@@ -26,7 +73,7 @@ const DUCKDUCKGO_EXTRACT = `
         results.push({ title, url: titleEl.href, snippet: snippetEl ? snippetEl.innerText.trim() : '' });
       }
     });
-    return JSON.stringify(results.slice(0, ${RESULT_LIMIT}));
+${FINISH}
   })();
 `;
 
@@ -46,7 +93,7 @@ const DUCKDUCKGO_LITE_EXTRACT = `
         snippet: snippetEl ? snippetEl.innerText.trim() : '',
       });
     });
-    return JSON.stringify(results.slice(0, ${RESULT_LIMIT}));
+${FINISH}
   })();
 `;
 
@@ -66,7 +113,7 @@ const STARTPAGE_EXTRACT = `
         snippet: snippetEl ? snippetEl.innerText.trim() : '',
       });
     });
-    return JSON.stringify(results.slice(0, ${RESULT_LIMIT}));
+${FINISH}
   })();
 `;
 
@@ -87,7 +134,7 @@ const BRAVE_HTML_EXTRACT = `
         snippet: snippetEl ? snippetEl.innerText.trim() : '',
       });
     });
-    return JSON.stringify(results.slice(0, ${RESULT_LIMIT}));
+${FINISH}
   })();
 `;
 
@@ -104,6 +151,47 @@ function unwrapRedirect(url) {
   }
 }
 
+const TRACKING_PARAM = /^(utm_.*|gclid|fbclid|mc_cid|mc_eid|ref|ref_src|igshid|yclid|msclkid)$/i;
+
+/** The same page under different tracking, AMP or fragment spellings gets one key. The host is only
+ * lowercased: a www host and its bare twin can serve different pages. */
+function canonicalUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(String(url));
+  } catch {
+    return String(url);
+  }
+
+  const segments = parsed.pathname.split("/").filter((segment) => segment.toLowerCase() !== "amp");
+  let pathname = segments.join("/");
+  if (!pathname.startsWith("/")) pathname = "/" + pathname;
+  if (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
+
+  const kept = parsed.search
+    .replace(/^\?/, "")
+    .split("&")
+    .filter((pair) => {
+      if (!pair) return false;
+      const equals = pair.indexOf("=");
+      const name = (equals < 0 ? pair : pair.slice(0, equals)).toLowerCase();
+      const value = (equals < 0 ? "" : pair.slice(equals + 1)).toLowerCase();
+      if (TRACKING_PARAM.test(name)) return false;
+      return !((name === "amp" && value === "1") || (name === "outputtype" && value === "amp"));
+    });
+
+  return `${parsed.protocol}//${parsed.host}${pathname}${kept.length ? "?" + kept.join("&") : ""}`;
+}
+
+/** The host without a leading www., for showing the model where a result comes from. */
+function domainOf(url) {
+  try {
+    return new URL(String(url)).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
 function normaliseResults(raw) {
   if (!Array.isArray(raw)) return [];
 
@@ -114,8 +202,9 @@ function normaliseResults(raw) {
     const url = unwrapRedirect(String(entry?.url || "").trim());
     const title = String(entry?.title || "").trim();
     if (!title || !/^https?:\/\//i.test(url)) continue;
-    if (seen.has(url)) continue;
-    seen.add(url);
+    const canonical = canonicalUrl(url);
+    if (seen.has(canonical)) continue;
+    seen.add(canonical);
 
     results.push({
       title,
@@ -136,7 +225,17 @@ async function scrapeProvider(url, readySelector, extract, deps) {
     readyExpression: `document.querySelectorAll('${readySelector}').length > 0`,
     extract,
   });
-  return normaliseResults(JSON.parse(raw || "[]"));
+  const parsed = JSON.parse(raw || "[]");
+  if (parsed && !Array.isArray(parsed) && typeof parsed.blocked === "string") throw new BlockedError(parsed.blocked);
+  return normaliseResults(parsed);
+}
+
+/** An API that answers 202 with nothing is throttling, not reporting an empty web. */
+async function readApiBody(response, name) {
+  const text = await response.text();
+  if (response.status === 202 && !text.trim()) throw new BlockedError("rate-limited");
+  if (!response.ok) throw new Error(`${name} returned ${response.status}`);
+  return JSON.parse(text.replace(/^\uFEFF/, ""));
 }
 
 const duckduckgo = {
@@ -205,9 +304,7 @@ const searxng = {
       },
     );
 
-    if (!response.ok) throw new Error(`SearXNG returned ${response.status}`);
-
-    const body = await response.json();
+    const body = await readApiBody(response, "SearXNG");
     return normaliseResults(
       (body?.results || []).map((entry) => ({
         title: entry.title,
@@ -234,9 +331,7 @@ const brave = {
       },
     );
 
-    if (!response.ok) throw new Error(`Brave returned ${response.status}`);
-
-    const body = await response.json();
+    const body = await readApiBody(response, "Brave");
     return normaliseResults(
       (body?.web?.results || []).map((entry) => ({
         title: entry.title,
@@ -268,12 +363,32 @@ const lastCallAt = new Map();
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** The slot is reserved before sleeping, so calls that arrive together queue one gap apart
+ * instead of all reading the same last call. */
 async function pace(providerId, now, sleep) {
-  const previous = lastCallAt.get(providerId) || 0;
-  const due = previous + PROVIDER_GAP_MS - now();
+  const slot = Math.max(now(), (lastCallAt.get(providerId) || 0) + PROVIDER_GAP_MS);
+  lastCallAt.set(providerId, slot);
+  const due = slot - now();
   if (due > 0) await sleep(due);
-  lastCallAt.set(providerId, now());
 }
+
+/** Providers that served a block page: how many in a row, and when they may be asked again. */
+const cooldowns = new Map();
+
+function coolingDown(providerId, now) {
+  const state = cooldowns.get(providerId);
+  return Boolean(state) && now() < state.until;
+}
+
+function recordBlock(providerId, now) {
+  const strikes = (cooldowns.get(providerId)?.strikes || 0) + 1;
+  const cooldownMs = COOLDOWNS_MS[Math.min(strikes, COOLDOWNS_MS.length) - 1];
+  cooldowns.set(providerId, { strikes, until: now() + cooldownMs });
+  return cooldownMs;
+}
+
+/** Calls for one question that are already on their way, so a repeat joins them. */
+const inFlight = new Map();
 
 const cache = new Map();
 
@@ -310,17 +425,18 @@ function redactQuery(message, term) {
 function clearCache() {
   cache.clear();
   lastCallAt.clear();
+  cooldowns.clear();
+  inFlight.clear();
 }
 
 /** Runs the chain until something answers. "empty" means the web had nothing; "unavailable" means
- * nobody answered, which is temporary, not a fact. */
+ * nobody answered; "blocked" means a provider refused us. The last two are temporary, not facts. */
 async function runSearch(query, config, deps) {
   const term = String(query || "").trim();
   if (!term) return { results: [], provider: null, tried: [], status: "empty" };
 
   const settings = config || {};
   const now = deps?.now || (() => Date.now());
-  const sleep = deps?.sleep || wait;
 
   const key = cacheKey(term, settings);
   const cached = readCache(key, now);
@@ -328,11 +444,34 @@ async function runSearch(query, config, deps) {
     return { ...cached, cached: true };
   }
 
+  const joined = inFlight.get(key);
+  if (joined) return { ...(await joined) };
+
+  const pending = searchChain(term, settings, deps, key);
+  inFlight.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    if (inFlight.get(key) === pending) inFlight.delete(key);
+  }
+}
+
+async function searchChain(term, settings, deps, key) {
+  const now = deps?.now || (() => Date.now());
+  const sleep = deps?.sleep || wait;
+
   const chain = buildChain(settings);
   const tried = [];
   let anyProviderAnswered = false;
+  let anyProviderBlocked = false;
 
   for (const provider of chain) {
+    if (coolingDown(provider.id, now)) {
+      anyProviderBlocked = true;
+      log.info("net.search", "provider cooling down", { provider: provider.id });
+      continue;
+    }
+
     tried.push(provider.id);
     const started = now();
     try {
@@ -342,6 +481,7 @@ async function runSearch(query, config, deps) {
       const durationMs = now() - started;
 
       if (results.length > 0) {
+        cooldowns.delete(provider.id);
         log.info("net.search", "search answered", { provider: provider.id, results: results.length, durationMs });
         const outcome = { results, provider: provider.id, tried, status: "ok" };
         writeCache(key, outcome, now);
@@ -350,6 +490,12 @@ async function runSearch(query, config, deps) {
 
       log.info("net.search", "search empty", { provider: provider.id, results: 0, durationMs });
     } catch (error) {
+      if (error?.blocked) {
+        anyProviderBlocked = true;
+        const cooldownMs = recordBlock(provider.id, now);
+        log.warn("net.search", "provider blocked", { provider: provider.id, reason: error.reason, cooldownMs });
+        continue;
+      }
       log.warn("net.search", "provider failed", {
         provider: provider.id,
         durationMs: now() - started,
@@ -358,16 +504,16 @@ async function runSearch(query, config, deps) {
     }
   }
 
-  const outcome = {
-    results: [],
-    provider: null,
-    tried,
-    status: anyProviderAnswered ? "empty" : "unavailable",
-  };
+  // A block page parses to nothing, so it must never read as an empty web: that would be
+  // remembered and tell the model nothing exists.
+  let status = "unavailable";
+  if (anyProviderBlocked && !anyProviderAnswered) status = "blocked";
+  else if (anyProviderAnswered) status = "empty";
 
-  // A provider outage is worth retrying on the next question, so only a genuine
-  // empty result is remembered.
-  if (outcome.status === "empty") writeCache(key, outcome, now);
+  const outcome = { results: [], provider: null, tried, status };
+
+  // An outage or a block is worth retrying later, so only a genuine empty result is remembered.
+  if (status === "empty") writeCache(key, outcome, now);
 
   return outcome;
 }
@@ -376,6 +522,10 @@ module.exports = {
   runSearch,
   buildChain,
   normaliseResults,
+  canonicalUrl,
+  domainOf,
+  blockReason,
+  BlockedError,
   unwrapRedirect,
   clearCache,
   PROVIDERS,
@@ -384,4 +534,5 @@ module.exports = {
   RESULT_LIMIT,
   PROVIDER_GAP_MS,
   CACHE_TTL_MS,
+  COOLDOWNS_MS,
 };

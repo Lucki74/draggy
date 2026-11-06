@@ -12,12 +12,14 @@ use draggy_agent::tool_channel::{FunctionDefinition, ToolDefinition};
 use draggy_web::http::{ReqwestClient, decode_page};
 use draggy_web::page::page_text;
 use draggy_web::policy::{UrlPolicy, refusal_for};
-use draggy_web::search::{DESKTOP_USER_AGENT, Search, SearchConfig, Status, SystemClock};
+use draggy_web::search::{
+    DESKTOP_USER_AGENT, Search, SearchConfig, Status, SystemClock, domain_of,
+};
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
 
 /// How many failed searches a reply may have before search is switched off for it.
-const SEARCH_FAILURE_BUDGET: u32 = 2;
+const SEARCH_FAILURE_BUDGET: u32 = 3;
 /// How many results the model reads.
 const RESULT_LIMIT: usize = 8;
 /// The longest page text handed back, in lines.
@@ -117,6 +119,25 @@ impl WebTools {
             self.failures += 1;
             patch(ctx, &id, "error", None);
             let remaining = SEARCH_FAILURE_BUDGET.saturating_sub(self.failures);
+            let tried_ids = || {
+                let tried: Vec<&str> = outcome.tried.iter().map(|p| p.id()).collect();
+                if tried.is_empty() {
+                    "none".to_owned()
+                } else {
+                    tried.join(", ")
+                }
+            };
+            if outcome.status == Status::Blocked {
+                let tail = if remaining > 0 {
+                    " Retry later or rephrase the question once; do not conclude that nothing exists."
+                } else {
+                    " Answer from your own knowledge and say which parts you could not check."
+                };
+                return format!(
+                    "TOOL RESULT (search_web): The search was blocked: the engines asked for a CAPTCHA or refused automated requests (tried {}). This is temporary and says nothing about whether the subject exists.{tail}",
+                    tried_ids()
+                );
+            }
             if outcome.status == Status::Unavailable {
                 let tried: Vec<&str> = outcome.tried.iter().map(|p| p.id()).collect();
                 let tried = if tried.is_empty() {
@@ -173,9 +194,10 @@ impl WebTools {
             .enumerate()
             .map(|(index, r)| {
                 format!(
-                    "[Result #{}] {}\nURL: {}\nSnippet: {}",
+                    "[Result #{}] {}\nDomain: {}\nURL: {}\nSnippet: {}",
                     index + 1,
                     r.title,
+                    domain_of(&r.url),
                     r.url,
                     r.snippet
                 )
@@ -183,8 +205,9 @@ impl WebTools {
             .collect::<Vec<_>>()
             .join("\n\n");
         self.asked.insert(key, summary.clone());
+        let provider = outcome.provider.map_or("unknown", |p| p.id());
         format!(
-            "TOOL RESULT (search_web):\n{summary}\n\nRead the most relevant URL(s) with read_url when you need the full text. If you already have enough to answer, stop calling tools and reply."
+            "TOOL RESULT (search_web, via {provider}):\n{summary}\n\nRead the most relevant URL(s) with read_url when you need the full text. If you already have enough to answer, stop calling tools and reply."
         )
     }
 

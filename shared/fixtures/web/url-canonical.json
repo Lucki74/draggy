@@ -1,0 +1,216 @@
+{
+  "area": "web",
+  "description": "canonicalUrl gives one key to a page however it was linked; domainOf names the host without a leading www.",
+  "cases": [
+    {
+      "name": "a clean url is unchanged",
+      "input": {
+        "url": "https://example.com/a/b?q=1"
+      },
+      "expected": {
+        "canonical": "https://example.com/a/b?q=1",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "the host is lowercased and www is kept",
+      "input": {
+        "url": "https://WWW.Example.COM/Path"
+      },
+      "expected": {
+        "canonical": "https://www.example.com/Path",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "the fragment is dropped",
+      "input": {
+        "url": "https://example.com/a#section"
+      },
+      "expected": {
+        "canonical": "https://example.com/a",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "utm parameters are dropped in any case",
+      "input": {
+        "url": "https://example.com/a?utm_source=x&UTM_Medium=y&id=7"
+      },
+      "expected": {
+        "canonical": "https://example.com/a?id=7",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "click ids are dropped",
+      "input": {
+        "url": "https://example.com/a?gclid=1&fbclid=2&msclkid=3&yclid=4&igshid=5&mc_cid=6&mc_eid=7"
+      },
+      "expected": {
+        "canonical": "https://example.com/a",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "ref and ref_src are dropped but similar names stay",
+      "input": {
+        "url": "https://example.com/a?ref=home&ref_src=tw&referrer=keep&refx=1"
+      },
+      "expected": {
+        "canonical": "https://example.com/a?referrer=keep&refx=1",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "an amp path segment is removed",
+      "input": {
+        "url": "https://example.com/news/amp/story"
+      },
+      "expected": {
+        "canonical": "https://example.com/news/story",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "a trailing amp segment is removed",
+      "input": {
+        "url": "https://example.com/story/amp"
+      },
+      "expected": {
+        "canonical": "https://example.com/story",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "a trailing amp segment with a slash is removed",
+      "input": {
+        "url": "https://example.com/story/amp/"
+      },
+      "expected": {
+        "canonical": "https://example.com/story",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "amp=1 and outputType=amp are dropped",
+      "input": {
+        "url": "https://example.com/story?amp=1&outputType=amp&page=2"
+      },
+      "expected": {
+        "canonical": "https://example.com/story?page=2",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "amp=0 stays",
+      "input": {
+        "url": "https://example.com/story?amp=0"
+      },
+      "expected": {
+        "canonical": "https://example.com/story?amp=0",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "a word starting with amp stays",
+      "input": {
+        "url": "https://example.com/ampere/amplifier"
+      },
+      "expected": {
+        "canonical": "https://example.com/ampere/amplifier",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "a trailing slash is removed",
+      "input": {
+        "url": "https://example.com/docs/"
+      },
+      "expected": {
+        "canonical": "https://example.com/docs",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "the root path keeps its slash",
+      "input": {
+        "url": "https://example.com/"
+      },
+      "expected": {
+        "canonical": "https://example.com/",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "a bare host gets the root slash",
+      "input": {
+        "url": "https://example.com"
+      },
+      "expected": {
+        "canonical": "https://example.com/",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "a root with only tracking has no query",
+      "input": {
+        "url": "https://www.example.com/?utm_campaign=a#top"
+      },
+      "expected": {
+        "canonical": "https://www.example.com/",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "a default port is dropped and another kept",
+      "input": {
+        "url": "https://example.com:443/a"
+      },
+      "expected": {
+        "canonical": "https://example.com/a",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "a custom port is kept",
+      "input": {
+        "url": "http://example.com:8080/a/"
+      },
+      "expected": {
+        "canonical": "http://example.com:8080/a",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "query order and encoding are kept",
+      "input": {
+        "url": "https://example.com/s?b=%20x&a=2"
+      },
+      "expected": {
+        "canonical": "https://example.com/s?b=%20x&a=2",
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "a subdomain other than www is kept in the domain",
+      "input": {
+        "url": "https://docs.example.com/a"
+      },
+      "expected": {
+        "canonical": "https://docs.example.com/a",
+        "domain": "docs.example.com"
+      }
+    },
+    {
+      "name": "text that is not a url comes back as it is",
+      "input": {
+        "url": "not a url"
+      },
+      "expected": {
+        "canonical": "not a url",
+        "domain": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+{
+  "area": "web",
+  "description": "A block page parses to no rows, so it is told apart from an empty web by its title and text. A provider that serves one throws a blocked error with the reason.",
+  "cases": [
+    {
+      "name": "DuckDuckGo html anomaly page is unusual traffic",
+      "input": {
+        "provider": "duckduckgo",
+        "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div class=\"anomaly-modal__modal\"><div class=\"anomaly-modal__title\">Unfortunately, bots use DuckDuckGo too.</div><div class=\"anomaly-modal__description\">Please complete the following challenge and confirm this search was made by a human.</div><div>Select all squares containing a duck:</div></div></body></html>"
+      },
+      "expected": {
+        "blocked": "unusual-traffic"
+      }
+    },
+    {
+      "name": "DuckDuckGo lite bot check is unusual traffic",
+      "input": {
+        "provider": "duckduckgo-lite",
+        "body": "<!DOCTYPE html><html><head><title>DuckDuckGo Lite</title></head><body><form><p>Unfortunately, bots use DuckDuckGo too.</p><p>Please complete the following challenge.</p></form></body></html>"
+      },
+      "expected": {
+        "blocked": "unusual-traffic"
+      }
+    },
+    {
+      "name": "DuckDuckGo unusual traffic wording is matched in any case",
+      "input": {
+        "provider": "duckduckgo",
+        "body": "<!DOCTYPE html><html><head><title>Error</title></head><body><p>We have detected UNUSUAL TRAFFIC from your network.</p></body></html>"
+      },
+      "expected": {
+        "blocked": "unusual-traffic"
+      }
+    },
+    {
+      "name": "Startpage captcha page",
+      "input": {
+        "provider": "startpage",
+        "body": "<!DOCTYPE html><html><head><title>Startpage CAPTCHA</title></head><body><h1>Please verify you are human</h1><div class=\"captcha\"><img alt=\"captcha\"></div></body></html>"
+      },
+      "expected": {
+        "blocked": "captcha"
+      }
+    },
+    {
+      "name": "Brave html verification page",
+      "input": {
+        "provider": "brave-html",
+        "body": "<!DOCTYPE html><html><head><title>Verify you are human - Brave Search</title></head><body><main><h1>Verifying you are human</h1><p>Please solve the captcha to continue.</p></main></body></html>"
+      },
+      "expected": {
+        "blocked": "captcha"
+      }
+    },
+    {
+      "name": "a generic robot check is a captcha",
+      "input": {
+        "provider": "duckduckgo",
+        "body": "<!DOCTYPE html><html><head><title>Just a moment</title></head><body><h2>Are you a robot?</h2><p>Confirm below.</p></body></html>"
+      },
+      "expected": {
+        "blocked": "captcha"
+      }
+    },
+    {
+      "name": "a Google style consent wall is consent",
+      "input": {
+        "provider": "brave-html",
+        "body": "<!DOCTYPE html><html><head><title>Before you continue to Google</title></head><body><div><h1>Before you continue to Google</h1><button>Reject all</button><button>Accept all</button></div></body></html>"
+      },
+      "expected": {
+        "blocked": "consent"
+      }
+    },
+    {
+      "name": "SearXNG answering 202 with nothing is blocked",
+      "input": {
+        "provider": "searxng",
+        "body": "",
+        "status": 202
+      },
+      "expected": {
+        "blocked": "rate-limited"
+      }
+    },
+    {
+      "name": "Brave API answering 202 with nothing is blocked",
+      "input": {
+        "provider": "brave",
+        "body": "  ",
+        "status": 202
+      },
+      "expected": {
+        "blocked": "rate-limited"
+      }
+    },
+    {
+      "name": "Brave API answering 200 with an empty list is not blocked",
+      "input": {
+        "provider": "brave",
+        "body": "{\"web\":{\"results\":[]}}"
+      },
+      "expected": {
+        "count": 0
+      }
+    },
+    {
+      "name": "an ordinary DuckDuckGo no results page is not blocked",
+      "input": {
+        "provider": "duckduckgo",
+        "body": "<!DOCTYPE html><html><head><title>rare words at DuckDuckGo</title></head><body><div class=\"no-results\">No results found for rare words.</div></body></html>"
+      },
+      "expected": {
+        "count": 0
+      }
+    },
+    {
+      "name": "an ordinary Startpage empty page is not blocked",
+      "input": {
+        "provider": "startpage",
+        "body": "<!DOCTYPE html><html><head><title>Startpage Search</title></head><body><main><p>No results.</p></main></body></html>"
+      },
+      "expected": {
+        "count": 0
+      }
+    },
+    {
+      "name": "an ordinary Brave html empty page is not blocked",
+      "input": {
+        "provider": "brave-html",
+        "body": "<!DOCTYPE html><html><head><title>rare words - Brave Search</title></head><body><div id=\"results\"></div><p>No results found.</p></body></html>"
+      },
+      "expected": {
+        "count": 0
+      }
+    },
+    {
+      "name": "results that mention a captcha are results, not a block",
+      "input": {
+        "provider": "startpage",
+        "body": "<!DOCTYPE html><html><head><title>captcha at Startpage</title></head><body><div class=\"w-gl__result\"><a class=\"w-gl__result-title\" href=\"https://example.com/captcha\"><h3>What is a captcha</h3></a><p class=\"w-gl__description\">A captcha asks you to verify you are human.</p></div></body></html>"
+      },
+      "expected": {
+        "count": 1
+      }
+    },
+    {
+      "name": "a DuckDuckGo lite page with results is not blocked",
+      "input": {
+        "provider": "duckduckgo-lite",
+        "body": "<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><table><tr><td><a class=\"result-link\" href=\"https://example.org/a\">A page</a></td></tr><tr><td class=\"result-snippet\">About a page.</td></tr></table></body></html>"
+      },
+      "expected": {
+        "count": 1
+      }
+    }
+  ]
+}

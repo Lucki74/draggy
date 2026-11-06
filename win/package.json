@@ -71,6 +71,10 @@
         "to": "prices.json"
       },
       {
+        "from": "../shared/fixtures/web/config.json",
+        "to": "search-config.json"
+      },
+      {
         "from": "vendor/python",
         "to": "python"
       },
