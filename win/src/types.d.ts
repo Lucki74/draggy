@@ -1356,8 +1356,8 @@ declare global {
         provider: string | null;
         tried: string[];
         /** "empty" means the web had nothing; "unavailable" means no provider answered, which is
-         * temporary and says nothing about the subject. */
-        status: "ok" | "empty" | "unavailable";
+         * temporary and says nothing about the subject. "blocked" means an engine refused with a block page. */
+        status: "ok" | "empty" | "unavailable" | "blocked";
         cached?: boolean;
       }>;
       setSearchConfig: (config: {
@@ -1665,6 +1665,17 @@ declare global {
           path?: string;
           cancelled?: boolean;
         }>;
+      };
+
+      research?: {
+        list: (workspaceId?: string) => Promise<{ success: boolean; runs?: import("./research/library").RunSummary[] }>;
+        get: (id: string) => Promise<{ success: boolean; run?: import("./research/library").SavedRun | null }>;
+        save: (run: import("./research/library").RunRecord) => Promise<{ success: boolean }>;
+        remove: (id: string) => Promise<{ success: boolean }>;
+        search: (
+          query: string,
+          options?: { runId?: string; limit?: number },
+        ) => Promise<{ success: boolean; hits?: import("./research/library").RunHit[] }>;
       };
 
       library: {

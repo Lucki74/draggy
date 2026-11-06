@@ -49,6 +49,7 @@ const mcpRegistry = require("./mcpRegistry.cjs");
 const skills = require("./skills.cjs");
 const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
+const researchLibrary = require("./researchLibrary.cjs");
 const runner = require("./runner.cjs");
 const commands = require("./commands.cjs");
 const { createTaskManager } = require("./tasks.cjs");
@@ -1165,6 +1166,7 @@ app.whenReady().then(() => {
 
   try {
     library.init(app.getPath("userData"));
+    researchLibrary.init(library.database());
   } catch (error) {
     log.error("library", "could not open the document index", error);
   }
@@ -3465,6 +3467,31 @@ ipc.handle("library:remove", wrap("library", async (event, id) =>
 ));
 
 ipc.handle("library:clear", wrap("library", async () => library.clear()));
+
+ipc.handle("research:list", wrap("research", async (event, workspaceId) => ({
+  success: true,
+  runs: researchLibrary.listRuns(workspaceId ? String(workspaceId) : undefined),
+})));
+
+ipc.handle("research:get", wrap("research", async (event, id) => ({
+  success: true,
+  run: researchLibrary.getRun(String(id)),
+})));
+
+ipc.handle("research:save", wrap("research", async (event, run) => {
+  researchLibrary.saveRun(run);
+  return { success: true };
+}));
+
+ipc.handle("research:remove", wrap("research", async (event, id) => {
+  researchLibrary.removeRun(String(id));
+  return { success: true };
+}));
+
+ipc.handle("research:search", wrap("research", async (event, query, options) => ({
+  success: true,
+  hits: researchLibrary.searchRuns(String(query ?? ""), options || {}),
+})));
 
 ipc.handle("library:search", wrap("library", async (event, query, limit, model, options) =>
   library.search(

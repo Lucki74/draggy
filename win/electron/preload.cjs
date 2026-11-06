@@ -218,6 +218,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("library:search", query, limit, model, options),
     onProgress: (callback) => subscribe("library-progress", callback),
   },
+  research: {
+    list: (workspaceId) => ipcRenderer.invoke("research:list", workspaceId),
+    get: (id) => ipcRenderer.invoke("research:get", id),
+    save: (run) => ipcRenderer.invoke("research:save", run),
+    remove: (id) => ipcRenderer.invoke("research:remove", id),
+    search: (query, options) => ipcRenderer.invoke("research:search", query, options),
+  },
 
   chats: {
     folder: (chatId, open) => ipcRenderer.invoke("chats:folder", chatId, open === true),

@@ -4,8 +4,11 @@ import type { ToolSpec } from "./registry";
 import { registerTools } from "./registry";
 import { verifyCitations } from "../research/citations";
 import { activeRun, pageTexts, runFooter, setRun, spendCall } from "../research/session";
+import { toRecord } from "../research/library";
+import { swallowed } from "../logger";
 import {
   addNote,
+  budgetOf,
   coverage,
   createRun,
   DEPTH_IDS,
@@ -174,6 +177,16 @@ const finishResearch: ToolSpec = {
       `Notes:\n${kept.map((note) => `${note.id} q${note.subQuestion} ${note.confidence}: ${note.claim}`).join("\n") || "(none)"}`,
       `Sources:\n${sources.map((source) => `${source.id} ${source.title} ${source.url}`).join("\n") || "(none)"}`,
     ];
+    const now = Date.now();
+    run.endedAt = now;
+    const record = toRecord(run, pageTexts(ctx), {
+      workspaceId: ctx.workspaceId,
+      chatId: ctx.chatId,
+      budgetUsed: budgetOf(run, now).used,
+      now,
+    });
+    // The report still gets written if the library cannot save the run.
+    await globalThis.window?.electronAPI?.research?.save(record).catch(swallowed("research", "the run stays in the chat", null));
     if (dropped > 0) parts.push(`${dropped} notes were left out because their quote was not found on the page.`);
     if (gaps.length > 0) parts.push(`Say plainly that these were not answered:\n${gaps.join("\n")}`);
     return parts.join("\n\n");
