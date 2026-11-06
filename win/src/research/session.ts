@@ -3,6 +3,7 @@
 import type { ToolContext } from "../tools/registry";
 import {
   addSource,
+  budgetOf,
   finish,
   findRepeat,
   logSearch,
@@ -14,6 +15,9 @@ import {
   type SourceKind,
 } from "./run";
 import { toRunView } from "./runView";
+import { verifyCitations } from "./citations";
+import { toRecord, type SavedRun } from "./library";
+import { swallowed } from "../logger";
 
 const RUN_KEY = "research:run";
 const PAGES_KEY = "research:pages";
@@ -60,6 +64,42 @@ export function syncRun(ctx: RunScreen): void {
   ctx.patchStep(stepId, { researchRun: toRunView(run, Date.now()), isComplete: run.endedAt !== undefined });
   ctx.syncSteps?.();
   if (run.endedAt !== undefined) live.delete(run.id);
+}
+
+/** Ends gathering: checks every quote against its page, then saves the run to the library.
+ * The report still gets written if the library cannot save. */
+export async function settleRun(
+  ctx: RunScreen & Partial<Pick<ToolContext, "workspaceId" | "chatId">>,
+): Promise<{ dropped: number } | null> {
+  const run = activeRun(ctx);
+  if (!run) return null;
+  finish(run);
+  const verdicts = verifyCitations(run.notes, pageTexts(ctx));
+  for (const note of run.notes) note.verified = verdicts.get(note.id) === "verified";
+  const now = Date.now();
+  run.endedAt = now;
+  syncRun(ctx);
+  const record = toRecord(run, pageTexts(ctx), {
+    workspaceId: ctx.workspaceId,
+    chatId: ctx.chatId,
+    budgetUsed: budgetOf(run, now).used,
+    now,
+  });
+  await globalThis.window?.electronAPI?.research?.save(record).catch(swallowed("research", "the run stays in the chat", null));
+  return { dropped: run.notes.filter((note) => !note.verified).length };
+}
+
+/** The latest finished run saved for this chat, for a follow-up after the turn that ran it is gone. */
+export async function priorRun(ctx: Partial<Pick<ToolContext, "workspaceId" | "chatId">>): Promise<SavedRun | null> {
+  const api = globalThis.window?.electronAPI?.research;
+  if (!api || !ctx.chatId) return null;
+  const listed = await api.list(ctx.workspaceId).catch(swallowed("research", "no earlier run is offered", null));
+  const latest = (listed?.runs ?? [])
+    .filter((entry) => entry.chatId === ctx.chatId && entry.status === "done")
+    .sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0))[0];
+  if (!latest) return null;
+  const saved = await api.get(latest.id).catch(swallowed("research", "no earlier run is offered", null));
+  return saved?.run ?? null;
 }
 
 /** The Stop button: tells the model to write now from its notes. False when the run is not live. */

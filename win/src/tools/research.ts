@@ -2,18 +2,14 @@
  * Gathering itself goes through search_web and read_url, which feed the run in ctx.memo. */
 import type { ToolSpec } from "./registry";
 import { registerTools } from "./registry";
-import { verifyCitations } from "../research/citations";
-import { activeRun, openRunBlock, pageTexts, runFooter, setRun, spendCall, syncRun } from "../research/session";
-import { toRecord } from "../research/library";
 import { swallowed } from "../logger";
+import { activeRun, openRunBlock, priorRun, runFooter, setRun, settleRun, spendCall, syncRun } from "../research/session";
 import {
   addNote,
-  budgetOf,
   coverage,
   createRun,
   DEPTH_IDS,
   DEPTHS,
-  finish,
   readPlan,
   type ResearchPlan,
 } from "../research/run";
@@ -149,15 +145,29 @@ const searchNotes: ToolSpec = {
   annotations: { ...READ_ONLY, idempotent: true, idempotentHint: true },
   available: webOn,
   run: async (args, ctx) => {
-    const run = activeRun(ctx);
-    if (!run) return "TOOL RESULT (search_notes): There is no research run.";
-    const words = String(args.query ?? "").toLowerCase().split(/\s+/).filter(Boolean);
-    const hits = run.notes.filter((note) => {
+    const live = activeRun(ctx);
+    const saved = live ? null : await priorRun(ctx);
+    if (!live && !saved) return "TOOL RESULT (search_notes): There is no research run.";
+    const query = String(args.query ?? "");
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const hits = (live?.notes ?? saved?.notes ?? []).filter((note) => {
       const text = `${note.claim} ${note.quote}`.toLowerCase();
       return words.length === 0 || words.some((word) => text.includes(word));
     });
-    if (hits.length === 0) return "TOOL RESULT (search_notes): No notes match.";
     const lines = hits.slice(0, 20).map((note) => `${note.id} (${note.sourceId}): ${note.claim}\n  "${note.quote}"`);
+    if (saved) {
+      const pages = await globalThis.window?.electronAPI?.research
+        ?.search(query, { runId: saved.id, limit: 5 })
+        .catch(swallowed("research", "only the notes are searched", null));
+      for (const hit of (pages?.hits ?? []).filter((entry) => entry.kind === "source").slice(0, 3)) {
+        lines.push(`page ${hit.ref}: ${hit.snippet}`);
+      }
+    }
+    if (lines.length === 0) {
+      return saved
+        ? "TOOL RESULT (search_notes): Nothing in the earlier research matches. Search the web for this."
+        : "TOOL RESULT (search_notes): No notes match.";
+    }
     return `TOOL RESULT (search_notes):\n${lines.join("\n")}`;
   },
 };
@@ -175,30 +185,17 @@ const finishResearch: ToolSpec = {
   run: async (_args, ctx) => {
     const run = activeRun(ctx);
     if (!run) return "TOOL RESULT (finish_research): There is no research run.";
-    finish(run);
-    const verdicts = verifyCitations(run.notes, pageTexts(ctx));
-    for (const note of run.notes) note.verified = verdicts.get(note.id) === "verified";
+    const settled = await settleRun(ctx);
+    const dropped = settled?.dropped ?? 0;
     const kept = run.notes.filter((note) => note.verified);
-    const dropped = run.notes.length - kept.length;
     const cited = new Set(kept.map((note) => note.sourceId));
     const sources = run.sources.filter((source) => cited.has(source.id));
     const gaps = coverage(run).filter((entry) => !entry.enough).map((entry) => `${entry.subQuestion}. ${entry.text}`);
     const parts = [
-      "TOOL RESULT (finish_research): Write the report now. Answer the question first, then one section per sub-question. Cite every fact with its note id like [n1]; do not cite anything else.",
+      "TOOL RESULT (finish_research): Write the report now. Answer the question first, then one section per sub-question. Cite every fact with its note id like [n1]; do not cite anything else. Write the report in the reply when it fits. When the user asked for a file, or it would run past about 1,500 words, write it with create_file and keep the reply to a short summary.",
       `Notes:\n${kept.map((note) => `${note.id} q${note.subQuestion} ${note.confidence}: ${note.claim}`).join("\n") || "(none)"}`,
       `Sources:\n${sources.map((source) => `${source.id} ${source.title} ${source.url}`).join("\n") || "(none)"}`,
     ];
-    const now = Date.now();
-    run.endedAt = now;
-    syncRun(ctx);
-    const record = toRecord(run, pageTexts(ctx), {
-      workspaceId: ctx.workspaceId,
-      chatId: ctx.chatId,
-      budgetUsed: budgetOf(run, now).used,
-      now,
-    });
-    // The report still gets written if the library cannot save the run.
-    await globalThis.window?.electronAPI?.research?.save(record).catch(swallowed("research", "the run stays in the chat", null));
     if (dropped > 0) parts.push(`${dropped} notes were left out because their quote was not found on the page.`);
     if (gaps.length > 0) parts.push(`Say plainly that these were not answered:\n${gaps.join("\n")}`);
     return parts.join("\n\n");
