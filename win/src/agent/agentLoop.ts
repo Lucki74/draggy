@@ -108,7 +108,7 @@ import { describeEnded, inputFor, isHarmlessInput } from "../tools/tasks";
 import { activeRun, settleRun } from "../research/session";
 import { followUpInstruction, holdsFinishedRun, researchInstruction, researchRequest } from "../research/command";
 import { applyReceipts } from "../research/receipts";
-import { loopLimitFor, renderRunState } from "../research/run";
+import { loopLimitFor } from "../research/run";
 import type {
   AppSettings,
   ApprovalAnswer,
@@ -1057,8 +1057,6 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     });
   }
 
-  // The run's section of the system prompt is rebuilt from this each step.
-  const baseSystem = wire[0].content;
   let loopCount = 0;
   let isFinished = false;
   let turnState: ProviderState | undefined;
@@ -1179,12 +1177,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       if (ended?.items && ended.items.length > 0) wire.push({ role: "user", content: describeEnded(ended.items) });
     }
 
-    // A research run shows the model its state each step, and pages already noted shrink to receipts.
+    // Pages already noted shrink to receipts. The run state rides on each research tool result,
+    // not in the system prompt, so the cached prefix survives the run.
     const researchRun = activeRun(toolContext);
-    if (researchRun) {
-      applyReceipts(wire, researchRun);
-      wire[0] = { ...wire[0], content: [baseSystem, renderRunState(researchRun, Date.now())].join("\n\n") };
-    }
+    if (researchRun) applyReceipts(wire, researchRun);
 
     const loopController = new AbortController();
     const abortHandler = () => loopController.abort();
