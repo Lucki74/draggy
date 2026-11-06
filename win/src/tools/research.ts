@@ -3,7 +3,7 @@
 import type { ToolSpec } from "./registry";
 import { registerTools } from "./registry";
 import { verifyCitations } from "../research/citations";
-import { activeRun, pageTexts, runFooter, setRun, spendCall } from "../research/session";
+import { activeRun, openRunBlock, pageTexts, runFooter, setRun, spendCall, syncRun } from "../research/session";
 import { toRecord } from "../research/library";
 import { swallowed } from "../logger";
 import {
@@ -101,6 +101,7 @@ const startResearch: ToolSpec = {
 
     const run = createRun(ctx.newId(), plan, Date.now());
     setRun(ctx, run);
+    openRunBlock(ctx, run);
     return `TOOL RESULT (start_research): The plan is approved. Search for each sub-question, read the best pages with read_url, and after each useful page call add_note with the exact sentence it says.${runFooter(ctx)}`;
   },
 };
@@ -133,6 +134,7 @@ const addNoteTool: ToolSpec = {
       confidence: args.confidence,
     });
     if (typeof note === "string") return `TOOL RESULT (add_note): ${note}`;
+    syncRun(ctx);
     return `TOOL RESULT (add_note): Saved as ${note.id}.${runFooter(ctx)}`;
   },
 };
@@ -188,6 +190,7 @@ const finishResearch: ToolSpec = {
     ];
     const now = Date.now();
     run.endedAt = now;
+    syncRun(ctx);
     const record = toRecord(run, pageTexts(ctx), {
       workspaceId: ctx.workspaceId,
       chatId: ctx.chatId,

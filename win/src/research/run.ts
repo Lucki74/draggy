@@ -195,7 +195,7 @@ export function addSource(
   const existing = run.sources.find((source) => source.key === key);
   if (existing) {
     if (input.status) existing.status = input.status;
-    if (input.title && !existing.title) existing.title = input.title;
+    if (input.title && (!existing.title || existing.title === existing.url)) existing.title = input.title.trim();
     if (input.site && !existing.site) existing.site = input.site;
     if (input.published && !existing.published) existing.published = input.published;
     return existing;

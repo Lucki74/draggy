@@ -3,6 +3,7 @@
 import type { ToolContext } from "../tools/registry";
 import {
   addSource,
+  finish,
   findRepeat,
   logSearch,
   recordHost,
@@ -12,9 +13,11 @@ import {
   type ResearchSource,
   type SourceKind,
 } from "./run";
+import { toRunView } from "./runView";
 
 const RUN_KEY = "research:run";
 const PAGES_KEY = "research:pages";
+const STEP_KEY = "research:step";
 /** Enough of a page to check quotes against, without holding whole books in memory. */
 const PAGE_KEEP = 200_000;
 
@@ -26,6 +29,55 @@ export function activeRun(ctx: Memo): ResearchRun | null {
 
 export function setRun(ctx: Memo, run: ResearchRun): void {
   ctx.memo.set(RUN_KEY, run);
+}
+
+type RunScreen = Memo & Partial<Pick<ToolContext, "pushStep" | "patchStep" | "syncSteps" | "newId" | "t">>;
+
+/** Runs the Stop button can end: the run and the call that redraws its block. */
+const live = new Map<string, { run: ResearchRun; sync: () => void }>();
+
+/** Shows the run block once the plan is approved, and keeps it current through syncRun. */
+export function openRunBlock(ctx: RunScreen, run: ResearchRun): void {
+  if (!ctx.pushStep || !ctx.newId) return;
+  const stepId = ctx.newId();
+  ctx.memo.set(STEP_KEY, stepId);
+  ctx.pushStep({
+    id: stepId,
+    type: "research_run",
+    content: ctx.t?.("researchRunTitle") ?? "",
+    isComplete: false,
+    researchRun: toRunView(run, Date.now()),
+  });
+  live.set(run.id, { run, sync: () => syncRun(ctx) });
+  ctx.syncSteps?.();
+}
+
+/** Copies the run's state onto its block. Does nothing outside a run or when the block is not shown. */
+export function syncRun(ctx: RunScreen): void {
+  const run = activeRun(ctx);
+  const stepId = ctx.memo.get(STEP_KEY) as string | undefined;
+  if (!run || !stepId || !ctx.patchStep) return;
+  ctx.patchStep(stepId, { researchRun: toRunView(run, Date.now()), isComplete: run.endedAt !== undefined });
+  ctx.syncSteps?.();
+  if (run.endedAt !== undefined) live.delete(run.id);
+}
+
+/** The Stop button: tells the model to write now from its notes. False when the run is not live. */
+export function stopRun(runId: string): boolean {
+  const entry = live.get(runId);
+  if (!entry || entry.run.status !== "gathering") return false;
+  finish(entry.run);
+  entry.sync();
+  return true;
+}
+
+/** A page is about to be fetched: shows it as reading until recordRead settles it. */
+export function recordReading(ctx: RunScreen, url: string): void {
+  const run = activeRun(ctx);
+  if (!run) return;
+  recordHost(run, url);
+  addSource(run, { url, status: "reading" });
+  syncRun(ctx);
 }
 
 export function pageTexts(ctx: Memo): Map<string, string> {
@@ -55,15 +107,16 @@ export function repeatedSearch(ctx: Memo, query: string, kind: SourceKind = "web
   return entry ? entry.urls : null;
 }
 
-export function recordSearch(ctx: Memo, query: string, urls: string[], kind: SourceKind = "web"): void {
+export function recordSearch(ctx: RunScreen, query: string, urls: string[], kind: SourceKind = "web"): void {
   const run = activeRun(ctx);
   if (!run) return;
   logSearch(run, query, kind, urls);
+  syncRun(ctx);
 }
 
 /** Records a page that was opened. Returns its source, so read_url can tell the model the id to cite. */
 export function recordRead(
-  ctx: Memo,
+  ctx: RunScreen,
   page: { url: string; title?: string; text?: string; site?: string; published?: string; ok: boolean },
 ): ResearchSource | null {
   const run = activeRun(ctx);
@@ -77,10 +130,13 @@ export function recordRead(
     status: page.ok ? "read" : "failed",
   });
   if (page.ok && page.text) pageTexts(ctx).set(source.id, page.text.slice(0, PAGE_KEEP));
+  syncRun(ctx);
   return source;
 }
 
-export function recordContact(ctx: Memo, url: string): void {
+export function recordContact(ctx: RunScreen, url: string): void {
   const run = activeRun(ctx);
-  if (run) recordHost(run, url);
+  if (!run) return;
+  recordHost(run, url);
+  syncRun(ctx);
 }

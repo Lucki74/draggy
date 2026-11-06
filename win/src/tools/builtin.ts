@@ -3,7 +3,7 @@ import { registerTools } from "./registry";
 import { logRendererEvent } from "../logger";
 import type { BrowserResult, SearchResult } from "../types";
 import { SOURCE_KINDS, type SourceKind } from "../research/run";
-import { recordRead, recordSearch, repeatedSearch, runFooter, spendCall } from "../research/session";
+import { recordRead, recordReading, recordSearch, repeatedSearch, runFooter, spendCall } from "../research/session";
 
 const api = () => window.electronAPI;
 
@@ -227,7 +227,9 @@ const readUrl: ToolSpec = {
       content: `${ctx.t("readingSite")} **${url}**`,
       isComplete: false,
       url,
+      retryUrl: url,
     });
+    recordReading(ctx, url);
 
     try {
       const page = await api()?.readUrl(url, wanted);

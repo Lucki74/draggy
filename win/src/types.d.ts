@@ -419,6 +419,8 @@ export interface SearchStep {
     | "question"
     /** A research plan waiting on the user to edit and approve it. */
     | "research_plan"
+    /** The live record of an approved research run: sources, notes and budget. */
+    | "research_run"
     /** The model writing down what it is going to do. */
     | "plan"
     /** A skill's instructions loaded, by the model or by a slash command. */
@@ -497,6 +499,10 @@ export interface SearchStep {
   reply?: UserReply | "cancelled";
   /** On a "research_plan" step: the plan the model drafted. */
   researchPlan?: import("./research/run").ResearchPlan;
+  /** On a "research_run" step: where the run stands. */
+  researchRun?: import("./research/runView").ResearchRunView;
+  /** On a read_url step: the address, so a failed read can be retried or opened in the browser. */
+  retryUrl?: string;
   /** On a "loading" step: the model being loaded, and when it started, to count the seconds. */
   model?: string;
   startedAt?: number;
