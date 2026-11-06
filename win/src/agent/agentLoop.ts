@@ -105,6 +105,8 @@ import {
 import { generateId, isBinary, safeJsonParse } from "../utils";
 import { raceAbort } from "./abortRace";
 import { describeEnded, inputFor, isHarmlessInput } from "../tools/tasks";
+import { activeRun } from "../research/session";
+import { loopLimitFor } from "../research/run";
 import type {
   AppSettings,
   ApprovalAnswer,
@@ -1027,7 +1029,9 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   // The tool list was built with this flag, so a call to a tool that needs it is checked against the same one.
   environment.vision = nativeVision;
   toolContext.images = trackImages(request.messages);
-  const loopLimit = toolLoopLimit(slow, MAX_TOOL_LOOPS);
+  const baseLimit = toolLoopLimit(slow, MAX_TOOL_LOOPS);
+  // A research run carries its own call budget, so the cap rises once one starts.
+  const currentLimit = () => loopLimitFor(activeRun(toolContext), baseLimit);
   const turnStartedAt = Date.now();
 
   const toolChars = nativeTools ? JSON.stringify(definitions).length : 0;
@@ -1117,7 +1121,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   // Text-mode results come back as user turns, so the wire alone cannot say whether a tool ran.
   let toolsRan = false;
 
-  while (!isFinished && loopCount < loopLimit) {
+  while (!isFinished && loopCount < currentLimit()) {
     if (signal.aborted) {
       finishIncompleteSteps();
       host.onPatch(combine("", ""));
@@ -1761,7 +1765,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         if (
           !textContent.trim() &&
           !answerAsked &&
-          loopCount < loopLimit &&
+          loopCount < currentLimit() &&
           (thinkingText.trim() || toolsRan || wire.some((m) => m.role === "tool"))
         ) {
           answerAsked = true;
@@ -1779,7 +1783,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         if (
           !actionAsked &&
           definitions.length > 0 &&
-          loopCount < loopLimit &&
+          loopCount < currentLimit() &&
           announcesAction(textContent)
         ) {
           actionAsked = true;
@@ -1896,7 +1900,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     }
   }
 
-  const exhausted = !isFinished && loopCount >= loopLimit;
+  const exhausted = !isFinished && loopCount >= currentLimit();
 
   if (exhausted) {
     dropLive();
