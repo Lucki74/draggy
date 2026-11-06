@@ -31,8 +31,7 @@ const READ_ONLY = {
   openWorldHint: false,
 };
 
-const START = "Start research";
-const CANCEL = "Cancel";
+const APPROVE = "approve";
 
 function planText(plan: ResearchPlan): string {
   const spec = DEPTHS[plan.depth];
@@ -42,6 +41,15 @@ function planText(plan: ResearchPlan): string {
     ...lines,
     `${plan.depth}, up to ${Math.round(spec.wallMs / 60_000)} min, sources: ${plan.sources.join(", ")}`,
   ].join("\n");
+}
+
+/** The card sends the edited plan back as JSON; anything unreadable keeps the draft. */
+function editedPlan(text: string, drafted: ResearchPlan): ResearchPlan {
+  try {
+    return readPlan({ ...JSON.parse(text), question: drafted.question }) ?? drafted;
+  } catch {
+    return drafted;
+  }
 }
 
 const startResearch: ToolSpec = {
@@ -79,15 +87,16 @@ const startResearch: ToolSpec = {
       plan = approved;
     } else if (ctx.askUser) {
       const id = ctx.newId();
-      const question = { id, text: planText(drafted), options: [START, CANCEL], multiple: false };
-      ctx.pushStep({ id, type: "question", content: ctx.t("questionAsked"), isComplete: false, question });
+      const question = { id, text: planText(drafted), options: [APPROVE], multiple: false };
+      ctx.pushStep({ id, type: "research_plan", content: ctx.t("researchPlanTitle"), isComplete: false, question, researchPlan: drafted });
       ctx.syncSteps();
       const reply = await ctx.askUser(question);
       ctx.patchStep(id, { reply: reply ?? "cancelled", isComplete: true });
       ctx.syncSteps();
-      if (!reply || !reply.choices.includes(START)) {
+      if (!reply || !reply.choices.includes(APPROVE)) {
         return "TOOL RESULT (start_research): The user did not approve the plan. Do not search; ask what they want changed.";
       }
+      plan = editedPlan(reply.text, drafted);
     }
 
     const run = createRun(ctx.newId(), plan, Date.now());

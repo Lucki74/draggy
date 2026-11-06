@@ -23,10 +23,18 @@ const PLAN = { question: "How fast is X?", sub_questions: "Speed\nCost", depth: 
 
 describe("start_research", () => {
   it("starts a run once the user approves", async () => {
-    const ctx = context({ askUser: vi.fn(async () => ({ choices: ["Start research"], text: "" })) });
+    const ctx = context({ askUser: vi.fn(async () => ({ choices: ["approve"], text: "" })) });
     const result = await tool("start_research").run(PLAN, ctx);
     expect(result).toMatch(/plan is approved/);
     expect(activeRun(ctx)?.plan.subQuestions).toEqual(["Speed", "Cost"]);
+  });
+
+  it("takes the plan the user edited on the card", async () => {
+    const edited = { subQuestions: ["Speed only"], depth: "deep", sources: ["web", "papers"] };
+    const ctx = context({ askUser: vi.fn(async () => ({ choices: ["approve"], text: JSON.stringify(edited) })) });
+    await tool("start_research").run(PLAN, ctx);
+    expect(activeRun(ctx)?.plan).toEqual({ question: "How fast is X?", ...edited });
+    expect(ctx.pushStep).toHaveBeenCalledWith(expect.objectContaining({ type: "research_plan" }));
   });
 
   it("does not start when the user cancels", async () => {

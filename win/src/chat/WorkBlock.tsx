@@ -10,6 +10,7 @@ import { diffStats } from "../project/gitView";
 import ApprovalCard from "./ApprovalCard";
 import LiveArgs from "./LiveArgs";
 import QuestionCard from "./QuestionCard";
+import ResearchPlanCard from "./ResearchPlanCard";
 import { useTranscriptView } from "./transcriptView";
 import { OpenFileContext } from "./openFileContext";
 import DiffBlock from "./DiffBlock";
@@ -429,6 +430,10 @@ export function WorkBlock({
 
   if (step.type === "question") {
     return <QuestionCard key={step.id} step={step} t={t} />;
+  }
+
+  if (step.type === "research_plan") {
+    return <ResearchPlanCard key={step.id} step={step} t={t} />;
   }
 
   if (step.type === "approval") {

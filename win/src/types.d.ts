@@ -412,6 +412,8 @@ export interface SearchStep {
     | "approval"
     /** A question the model put to the user, with the form to answer it. */
     | "question"
+    /** A research plan waiting on the user to edit and approve it. */
+    | "research_plan"
     /** The model writing down what it is going to do. */
     | "plan"
     /** A skill's instructions loaded, by the model or by a slash command. */
@@ -488,6 +490,8 @@ export interface SearchStep {
   question?: UserQuestion;
   /** On a "question" step: the reply, or "cancelled". Absent while the form is still waiting. */
   reply?: UserReply | "cancelled";
+  /** On a "research_plan" step: the plan the model drafted. */
+  researchPlan?: import("./research/run").ResearchPlan;
   /** On a "loading" step: the model being loaded, and when it started, to count the seconds. */
   model?: string;
   startedAt?: number;
