@@ -41,7 +41,7 @@ const KEY: Record<Kind, string> = {
  * stay in the transcript on their own; an answered approval folds in with the call it allowed. */
 export function isWorkStep(step: SearchStep) {
   if (step.type === "approval") return Boolean(step.answer);
-  return !["text", "thinking", "create_file", "app", "image"].includes(step.type) &&
+  return !["text", "thinking", "create_file", "app", "image", "research_run"].includes(step.type) &&
     !(step.type === "loading" && !step.isComplete);
 }
 
