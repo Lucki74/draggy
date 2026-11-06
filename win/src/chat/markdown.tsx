@@ -76,7 +76,8 @@ interface HastElement extends UnistParent {
   properties?: { className?: string[] };
 }
 
-const CITE_MARK = /\[(n\d+|\d{1,3})\]/g;
+// Only note ids become chips: a bare [1] may be a footnote or an array index.
+const CITE_MARK = /\[(n\d+)\]/g;
 const NO_CITE = new Set(["code", "pre", "a"]);
 
 /** Wraps "[n3]" and "[2]" in a draggy-cite element. Without a research run the chip prints the text back. */
