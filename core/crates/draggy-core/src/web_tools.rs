@@ -3,31 +3,29 @@
 //! must never run on that runtime's own threads.
 
 use std::collections::HashMap;
-use std::time::Duration;
 
 use draggy_agent::agent_loop::{ToolContext, ToolRuntime};
 use draggy_agent::permissions::ToolAnnotations;
 use draggy_agent::resume::{SearchResult as StepResult, SearchStep};
 use draggy_agent::tool_channel::{FunctionDefinition, ToolDefinition};
-use draggy_web::http::{ReqwestClient, decode_page};
-use draggy_web::page::page_text;
-use draggy_web::policy::{UrlPolicy, refusal_for};
+use draggy_web::http::ReqwestClient;
+use draggy_web::page::{BlockKind, PageCache, PageRead, ReadOutcome, ReqwestPageSource, read_page};
 use draggy_web::search::{
-    DESKTOP_USER_AGENT, Search, SearchConfig, Status, SystemClock, domain_of,
+    Search, SearchConfig, Status, SystemClock, domain_of,
 };
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
+
+use crate::research::run::{
+    ResearchRun, RunStatus, SourceInput, SourceStatus, add_source, record_host, render_run_state, tick,
+};
 
 /// How many failed searches a reply may have before search is switched off for it.
 const SEARCH_FAILURE_BUDGET: u32 = 3;
 /// How many results the model reads.
 const RESULT_LIMIT: usize = 8;
-/// The longest page text handed back, in lines.
-const PAGE_LINE_LIMIT: usize = 500;
-/// The most bytes of a page that are read.
-const PAGE_BYTE_LIMIT: usize = 4 * 1024 * 1024;
-const PAGE_TIMEOUT: Duration = Duration::from_secs(30);
-const MAX_REDIRECTS: usize = 20;
+/// The most characters of a read page kept for checking quotes against it.
+const PAGE_KEEP: usize = 200_000;
 
 /// The tool definitions a session offers when the web is on.
 pub fn definitions() -> Vec<ToolDefinition> {
@@ -43,10 +41,13 @@ pub fn definitions() -> Vec<ToolDefinition> {
         ),
         definition(
             "read_url",
-            "Read the readable text content of a web page.",
+            "Read a web page or PDF as Markdown. Long pages come in parts: pass page to read the next one.",
             &json!({
                 "type": "object",
-                "properties": {"url": {"type": "string", "description": "Absolute URL of the page to read."}},
+                "properties": {
+                    "url": {"type": "string", "description": "Absolute URL of the page to read."},
+                    "page": {"type": "integer", "description": "Optional 1-based part of a long page. Default 1."}
+                },
                 "required": ["url"]
             }),
         ),
@@ -73,19 +74,39 @@ pub struct WebTools {
     handle: Handle,
     config: SearchConfig,
     search: Search<ReqwestClient, SystemClock>,
-    pages: Option<reqwest::Client>,
+    pages: Option<ReqwestPageSource>,
+    cache: PageCache,
+    research: Option<ResearchRun>,
+    page_texts: HashMap<String, String>,
     asked: HashMap<String, String>,
     failures: u32,
 }
 
 impl WebTools {
+    /// Starts or ends a research run, whose budget and sources read_url then tracks.
+    pub fn set_research(&mut self, run: Option<ResearchRun>) {
+        self.research = run;
+    }
+
+    pub fn research(&self) -> Option<&ResearchRun> {
+        self.research.as_ref()
+    }
+
+    /// Kept page text by source id, for checking quotes.
+    pub fn page_texts(&self) -> &HashMap<String, String> {
+        &self.page_texts
+    }
+
     pub fn new(handle: Handle, config: SearchConfig) -> Result<Self, String> {
         let http = ReqwestClient::new().map_err(|error| error.to_string())?;
         Ok(Self {
             handle,
             config,
             search: Search::new(http, SystemClock),
-            pages: page_client(),
+            pages: ReqwestPageSource::new(),
+            cache: PageCache::new(),
+            research: None,
+            page_texts: HashMap::new(),
             asked: HashMap::new(),
             failures: 0,
         })
@@ -211,12 +232,76 @@ impl WebTools {
         )
     }
 
+    /// Counts a gathering call. True when the run says stop, which the caller reports instead of working.
+    fn spend_call(&mut self) -> bool {
+        match self.research.as_mut() {
+            Some(run) if run.status == RunStatus::Gathering => tick(run, now_ms()).is_some(),
+            Some(run) => run.status == RunStatus::Writing,
+            None => false,
+        }
+    }
+
+    /// The run state as a tool-result footer, or nothing outside a run.
+    fn run_footer(&self) -> String {
+        self.research
+            .as_ref()
+            .map_or_else(String::new, |run| format!("\n\n{}", render_run_state(run, now_ms())))
+    }
+
+    fn record_reading(&mut self, url: &str) {
+        if let Some(run) = self.research.as_mut() {
+            record_host(run, url);
+            add_source(
+                run,
+                SourceInput {
+                    url,
+                    status: Some(SourceStatus::Reading),
+                    ..SourceInput::default()
+                },
+            );
+        }
+    }
+
+    /// Records a page that was opened. Returns its source id, so read_url can tell the model what to cite.
+    fn record_read(&mut self, url: &str, read: Option<&PageRead>) -> Option<String> {
+        let run = self.research.as_mut()?;
+        record_host(run, url);
+        let source = add_source(
+            run,
+            SourceInput {
+                url,
+                title: read.map(|page| page.title.as_str()),
+                site: read.and_then(|page| page.meta.site.as_deref()),
+                published: read.and_then(|page| page.meta.published.as_deref()),
+                status: Some(if read.is_some() {
+                    SourceStatus::Read
+                } else {
+                    SourceStatus::Failed
+                }),
+            },
+        );
+        if let Some(page) = read.filter(|page| !page.text.is_empty()) {
+            let kept: String = page.text.chars().take(PAGE_KEEP).collect();
+            self.page_texts.insert(source.id.clone(), kept);
+        }
+        Some(source.id)
+    }
+
     fn read_url(&mut self, args: &Value, ctx: &mut ToolContext<'_>) -> String {
         let url = args
             .get("url")
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_owned();
+        let wanted = args
+            .get("page")
+            .and_then(|page| page.as_u64().or_else(|| page.as_str()?.trim().parse().ok()));
+        if self.spend_call() {
+            return format!(
+                "TOOL RESULT (read_url): The research budget is spent. Stop gathering, call finish_research and write the report from your notes.{}",
+                self.run_footer()
+            );
+        }
         let id = ctx.new_id();
         ctx.steps.push(SearchStep {
             id: Some(id.clone()),
@@ -225,38 +310,64 @@ impl WebTools {
             is_complete: Some(false),
             ..SearchStep::default()
         });
-        if !UrlPolicy::new().is_fetchable_url(&url, false) {
-            patch(ctx, &id, "error", None);
-            return format!("TOOL RESULT (read_url): {}", refusal_for(&url));
-        }
-        let Some(client) = self.pages.clone() else {
+        self.record_reading(&url);
+        let Some(source) = self.pages.clone() else {
+            self.record_read(&url, None);
             patch(ctx, &id, "error", None);
             return "TOOL RESULT (read_url): Failed to read URL.".to_owned();
         };
-        let fetched = self.handle.block_on(fetch(&client, &url));
-        let html = match fetched {
-            Ok(html) => html,
-            Err(Fetch::Refused) => {
+        let outcome = self.handle.block_on(read_page(
+            &mut self.cache,
+            &source,
+            &url,
+            wanted,
+            now_ms(),
+            &read_pdf,
+        ));
+        let read = match outcome {
+            ReadOutcome::Blocked(blocked) => {
+                self.record_read(&url, None);
                 patch(ctx, &id, "error", None);
-                return format!("TOOL RESULT (read_url): {}", refusal_for(&url));
+                return match blocked.kind {
+                    BlockKind::HumanVerification => format!(
+                        "TOOL RESULT (read_url): This page is behind a human-verification challenge (such as Cloudflare) and cannot be read automatically. Do not retry this URL or try to work around the check. Tell the user the page needs them to open it and pass the check themselves, and give them the link: {url}"
+                    ),
+                    BlockKind::Refused | BlockKind::Unreachable => {
+                        format!("TOOL RESULT (read_url): {}", blocked.reason)
+                    }
+                };
             }
-            Err(Fetch::Failed) => {
-                patch(ctx, &id, "error", None);
-                return "TOOL RESULT (read_url): Failed to read URL.".to_owned();
-            }
+            ReadOutcome::Page(read) => read,
         };
-        let (title, text) = page_text(&html);
-        if is_challenge(&title, &text) {
-            patch(ctx, &id, "error", None);
-            return format!(
-                "TOOL RESULT (read_url): This page is behind a human-verification challenge (such as Cloudflare) and cannot be read automatically. Do not retry this URL or try to work around the check. Tell the user the page needs them to open it and pass the check themselves, and give them the link: {url}"
-            );
-        }
         patch(ctx, &id, "reading", Some(format!("Read **{url}**")));
-        let lines: Vec<&str> = text.lines().take(PAGE_LINE_LIMIT).collect();
+        let cite = self.record_read(&url, Some(&read)).map_or_else(String::new, |id| {
+            format!("Source id: {id}. Record what it says with add_note and this id.\n")
+        });
+        let meta = &read.meta;
+        let facts: Vec<String> = [
+            meta.site.as_ref().map(|site| format!("Site: {site}")),
+            meta.author.as_ref().map(|author| format!("Author: {author}")),
+            meta.published.as_ref().map(|date| format!("Published: {date}")),
+            meta.modified.as_ref().map(|date| format!("Modified: {date}")),
+            meta.language.as_ref().map(|language| format!("Language: {language}")),
+            Some(&read.canonical_url)
+                .filter(|canonical| **canonical != url)
+                .map(|canonical| format!("Canonical: {canonical}")),
+            Some(read.page_note.clone()).filter(|note| !note.is_empty()),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        let facts = if facts.is_empty() {
+            String::new()
+        } else {
+            format!("{}\n", facts.join("\n"))
+        };
         format!(
-            "TOOL RESULT (read_url):\nTitle: {title}\nContent:\n{}",
-            lines.join("\n")
+            "TOOL RESULT (read_url):\n{cite}Title: {}\n{facts}Content:\n{}{}",
+            read.title,
+            read.text,
+            self.run_footer()
         )
     }
 }
@@ -284,59 +395,14 @@ impl ToolRuntime for WebTools {
     }
 }
 
-enum Fetch {
-    Refused,
-    Failed,
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
 }
 
-/// A client that checks the URL policy on every redirect hop, so a public page cannot bounce the app to a local address.
-fn page_client() -> Option<reqwest::Client> {
-    let policy = reqwest::redirect::Policy::custom(|attempt| {
-        if attempt.previous().len() >= MAX_REDIRECTS {
-            return attempt.error("too many redirects");
-        }
-        if UrlPolicy::new().is_fetchable_url(attempt.url().as_str(), false) {
-            attempt.follow()
-        } else {
-            attempt.error("redirect refused")
-        }
-    });
-    reqwest::Client::builder()
-        .redirect(policy)
-        .user_agent(DESKTOP_USER_AGENT)
-        .timeout(PAGE_TIMEOUT)
-        .build()
-        .ok()
-}
-
-async fn fetch(client: &reqwest::Client, url: &str) -> Result<String, Fetch> {
-    let response = client.get(url).send().await.map_err(|error| {
-        if error.is_redirect() {
-            Fetch::Refused
-        } else {
-            Fetch::Failed
-        }
-    })?;
-    if !response.status().is_success() {
-        return Err(Fetch::Failed);
-    }
-    let content_type = response
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-    let bytes = response.bytes().await.map_err(|_| Fetch::Failed)?;
-    let capped = &bytes[..bytes.len().min(PAGE_BYTE_LIMIT)];
-    Ok(decode_page(capped, content_type.as_deref()))
-}
-
-fn is_challenge(title: &str, text: &str) -> bool {
-    let title = title.to_lowercase();
-    let head: String = text.chars().take(600).collect::<String>().to_lowercase();
-    title.contains("just a moment")
-        || title.contains("attention required")
-        || head.contains("verify you are human")
-        || head.contains("checking your browser")
+fn read_pdf(bytes: &[u8]) -> Result<String, String> {
+    draggy_documents::office_pdf::read_pdf(bytes).map_err(|error| error.to_string())
 }
 
 fn normalise(query: &str) -> String {
@@ -383,12 +449,5 @@ mod tests {
     #[test]
     fn repeated_queries_match_after_normalising() {
         assert_eq!(normalise("  Rust, async!  "), normalise("rust async"));
-    }
-
-    #[test]
-    fn spots_a_verification_page() {
-        assert!(is_challenge("Just a moment...", ""));
-        assert!(is_challenge("", "Please Verify you are human"));
-        assert!(!is_challenge("Docs", "Hello"));
     }
 }
