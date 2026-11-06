@@ -58,6 +58,11 @@ export function toRunView(run: ResearchRun, now: number): ResearchRunView {
   };
 }
 
+/** Dates arrive as the page wrote them; a full timestamp is cut to its day. */
+export function dayOf(published: string): string {
+  return /^\d{4}-\d{2}-\d{2}/.test(published) ? published.slice(0, 10) : published;
+}
+
 export interface ResolvedCitation {
   /** The number shown on the chip: the source's place in the list of sources that have notes. */
   n: number;

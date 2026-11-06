@@ -4,6 +4,7 @@ import SiteBadge from "./SiteBadge";
 import { hostnameOf } from "../utils";
 import { stopRun } from "../research/session";
 import type { Depth, SourceStatus } from "../research/run";
+import { dayOf } from "../research/runView";
 import type { SearchStep } from "../types";
 
 const DEPTH_KEY: Record<Depth, string> = {
@@ -32,11 +33,6 @@ const STATUS_TONE: Record<SourceStatus, string> = {
 function clock(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
-/** Dates arrive as the page wrote them; a full timestamp is cut to its day. */
-function dayOf(published: string): string {
-  return /^\d{4}-\d{2}-\d{2}/.test(published) ? published.slice(0, 10) : published;
 }
 
 export function ResearchRunCard({ step, t }: { step: SearchStep; t: (key: string) => string }) {

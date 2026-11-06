@@ -13,6 +13,7 @@ import { isWorkStep, processFoldLength, touchedFiles } from "./workSummary";
 import ProcessFold from "./ProcessFold";
 import { OpenFileContext } from "./openFileContext";
 import { CitationContext, runOf } from "./citationContext";
+import { ResearchSourceList } from "./ResearchSourceList";
 import { useTranscriptView } from "./transcriptView";
 import TurnActions from "./TurnActions";
 import { Button, Chip, Icon, Lightbox, Spark } from "../ui";
@@ -397,6 +398,8 @@ export function AssistantTurn({
 
         {showsTailMark(steps, isGenerating, isLast) && <WorkingStatus language={settings.language} />}
       </div>
+
+      {run?.endedAt !== undefined && !isGenerating && <ResearchSourceList run={run} t={t} />}
 
       {!isGenerating && files.length > 0 && (
         <div
