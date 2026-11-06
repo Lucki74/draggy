@@ -701,6 +701,12 @@ pub trait ToolRuntime {
     fn annotations(&self, name: &str) -> ToolAnnotations;
     /// Runs one tool and returns what the model reads back. An unknown name returns a message, not an error.
     fn run(&mut self, name: &str, args: &Value, ctx: &mut ToolContext<'_>) -> String;
+    /// Lets the tools rewrite the wire before each model call, as research receipts shrink read pages.
+    fn prepare_wire(&mut self, _wire: &mut [WireMessage]) {}
+    /// The loop cap for this pass; a research run raises it. The default keeps the base.
+    fn loop_limit(&self, base: usize) -> usize {
+        base
+    }
 }
 
 /// What the loop asks of the person driving the turn, and tells them immediately rather than in a batch.
@@ -1370,6 +1376,7 @@ struct Turn<'a> {
     model: String,
     remote: bool,
     loop_limit: usize,
+    base_limit: usize,
     max_context: Option<i64>,
     fixed_context: Option<FixedContext>,
     ports: Ports<'a>,
@@ -1435,6 +1442,7 @@ impl<'a> Turn<'a> {
             model: request.profile.model.clone(),
             remote: is_remote(&request.profile.model),
             loop_limit: request.profile.loop_limit,
+            base_limit: request.profile.loop_limit,
             max_context: request.profile.max_context,
             fixed_context: request.profile.fixed_context,
             wire: prepared.wire.clone(),
@@ -1556,6 +1564,7 @@ impl<'a> Turn<'a> {
             }
             self.loop_count += 1;
             self.catch_up_on_plan();
+            self.ports.tools.prepare_wire(&mut self.wire);
 
             let mut pass = Pass {
                 think_step_id: self.next_id(),
@@ -1597,6 +1606,7 @@ impl<'a> Turn<'a> {
             let result = self.pass(&mut pass);
             self.done_loading(&mut pass);
             result?;
+            self.loop_limit = self.ports.tools.loop_limit(self.base_limit);
             if self.aborted {
                 return Ok(());
             }
