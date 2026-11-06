@@ -16,9 +16,12 @@ use draggy_web::search::{
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
 
+use crate::research::receipts::apply_receipts;
 use crate::research::run::{
-    ResearchRun, RunStatus, SourceInput, SourceStatus, add_source, record_host, render_run_state, tick,
+    ResearchRun, RunStatus, SourceInput, SourceStatus, add_source, loop_limit_for, record_host, render_run_state, tick,
 };
+use crate::research::tools::{self as research_tools, ResearchLibrary};
+use draggy_agent::agent_loop::WireMessage;
 
 /// How many failed searches a reply may have before search is switched off for it.
 const SEARCH_FAILURE_BUDGET: u32 = 3;
@@ -52,6 +55,9 @@ pub fn definitions() -> Vec<ToolDefinition> {
             }),
         ),
     ]
+    .into_iter()
+    .chain(research_tools::definitions())
+    .collect()
 }
 
 fn definition(name: &str, description: &str, parameters: &Value) -> ToolDefinition {
@@ -67,7 +73,7 @@ fn definition(name: &str, description: &str, parameters: &Value) -> ToolDefiniti
 
 /// Whether `name` is one of the web tools.
 pub fn owns(name: &str) -> bool {
-    matches!(name, "search_web" | "read_url")
+    matches!(name, "search_web" | "read_url") || research_tools::NAMES.contains(&name)
 }
 
 pub struct WebTools {
@@ -76,8 +82,9 @@ pub struct WebTools {
     search: Search<ReqwestClient, SystemClock>,
     pages: Option<ReqwestPageSource>,
     cache: PageCache,
-    research: Option<ResearchRun>,
-    page_texts: HashMap<String, String>,
+    pub(crate) research: Option<ResearchRun>,
+    pub(crate) library: Option<ResearchLibrary>,
+    pub(crate) page_texts: HashMap<String, String>,
     asked: HashMap<String, String>,
     failures: u32,
 }
@@ -106,6 +113,7 @@ impl WebTools {
             pages: ReqwestPageSource::new(),
             cache: PageCache::new(),
             research: None,
+            library: None,
             page_texts: HashMap::new(),
             asked: HashMap::new(),
             failures: 0,
@@ -233,7 +241,7 @@ impl WebTools {
     }
 
     /// Counts a gathering call. True when the run says stop, which the caller reports instead of working.
-    fn spend_call(&mut self) -> bool {
+    pub(crate) fn spend_call(&mut self) -> bool {
         match self.research.as_mut() {
             Some(run) if run.status == RunStatus::Gathering => tick(run, now_ms()).is_some(),
             Some(run) => run.status == RunStatus::Writing,
@@ -242,7 +250,7 @@ impl WebTools {
     }
 
     /// The run state as a tool-result footer, or nothing outside a run.
-    fn run_footer(&self) -> String {
+    pub(crate) fn run_footer(&self) -> String {
         self.research
             .as_ref()
             .map_or_else(String::new, |run| format!("\n\n{}", render_run_state(run, now_ms())))
@@ -377,7 +385,7 @@ impl ToolRuntime for WebTools {
         if owns(name) {
             ToolAnnotations {
                 read_only: true,
-                idempotent: true,
+                idempotent: !research_tools::NAMES.contains(&name),
                 open_world: true,
                 ..ToolAnnotations::default()
             }
@@ -390,12 +398,23 @@ impl ToolRuntime for WebTools {
         match name {
             "search_web" => self.search_web(args, ctx),
             "read_url" => self.read_url(args, ctx),
+            other if research_tools::NAMES.contains(&other) => self.run_research(other, args, ctx),
             other => format!("TOOL ERROR: There is no tool called \"{other}\"."),
         }
     }
+
+    fn prepare_wire(&mut self, wire: &mut [WireMessage]) {
+        if let Some(run) = self.research.as_ref() {
+            apply_receipts(wire, run);
+        }
+    }
+
+    fn loop_limit(&self, base: usize) -> usize {
+        loop_limit_for(self.research.as_ref(), base)
+    }
 }
 
-fn now_ms() -> u64 {
+pub(crate) fn now_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
@@ -435,15 +454,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn owns_only_the_two_web_tools() {
-        assert!(owns("search_web") && owns("read_url"));
+    fn owns_the_web_and_research_tools() {
+        assert!(owns("search_web") && owns("read_url") && owns("add_note"));
         assert!(!owns("read_file"));
     }
 
     #[test]
-    fn definitions_name_both_tools() {
+    fn definitions_name_the_web_and_research_tools() {
         let names: Vec<String> = definitions().into_iter().map(|d| d.function.name).collect();
-        assert_eq!(names, ["search_web", "read_url"]);
+        assert_eq!(
+            names,
+            ["search_web", "read_url", "start_research", "add_note", "search_notes", "finish_research"]
+        );
     }
 
     #[test]

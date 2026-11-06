@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use draggy_agent::agent_loop::Permission;
+use draggy_agent::agent_loop::WireMessage;
 use draggy_agent::agent_loop::ToolContext;
 use draggy_agent::agent_loop::{
     AgentResult, ApprovalAnswer, ApprovalRequest, Clock, DraggyRef, Engine, FixedContext, IdSource,
@@ -40,6 +41,7 @@ use crate::records::{
 use crate::skills::{self, SkillStore};
 use crate::task_tools::TaskSet;
 use crate::tools::{FileTools, NoTools, definitions};
+use crate::research::tools::ResearchLibrary;
 use crate::web_tools::{self, WebTools};
 
 struct WallClock;
@@ -193,6 +195,8 @@ pub struct Session {
     plan: SharedPlan,
     /// Background commands. They outlive a turn, so the session keeps them rather than the turn's tools.
     tasks: TaskSet,
+    /// Where finished research runs are saved, when the host opened a library.
+    library: Mutex<Option<ResearchLibrary>>,
 }
 
 impl Drop for Session {
@@ -293,9 +297,24 @@ impl ToolRuntime for CompositeTools {
         }
         self.files.run(name, args, ctx)
     }
+
+    fn prepare_wire(&mut self, wire: &mut [WireMessage]) {
+        if let Some(web) = self.web.as_mut() {
+            web.prepare_wire(wire);
+        }
+    }
+
+    fn loop_limit(&self, base: usize) -> usize {
+        self.web.as_ref().map_or(base, |web| web.loop_limit(base))
+    }
 }
 
 impl Session {
+    /// Saves finished research runs to `storage`, under this workspace and chat. Rust-only: the shells do not call it yet.
+    pub fn set_research_library(&self, library: Option<ResearchLibrary>) {
+        *self.library.lock().unwrap_or_else(PoisonError::into_inner) = library;
+    }
+
     fn create(config: SessionConfig, mcp: Option<Arc<McpManager>>) -> Result<Arc<Self>, CoreError> {
         let net = Net::new().map_err(|message| CoreError::Internal { message })?;
         if config.base_url.trim().is_empty() || config.model.trim().is_empty() {
@@ -310,6 +329,7 @@ impl Session {
             state: Mutex::new(State::default()),
             plan: SharedPlan::default(),
             tasks: TaskSet::new(),
+            library: Mutex::new(None),
         }))
     }
 
@@ -450,6 +470,10 @@ impl Session {
             .ok(),
             _ => None,
         };
+        let mut web_tools = web_tools;
+        if let Some(web) = web_tools.as_mut() {
+            web.set_library(self.library.lock().unwrap_or_else(PoisonError::into_inner).clone());
+        }
         let request = self.request(messages, grants, extra_tools, web_tools.is_some());
         let mut model = OpenAiModel::new(
             Arc::clone(&self.net),
@@ -501,6 +525,10 @@ impl Session {
                 cancel: cancel.signal(),
             },
         );
+        // A run the model left open still gets its quotes checked and its record saved.
+        if let Some(web) = composite.web.as_mut() {
+            web.settle_open();
+        }
         let result: AgentResult = match result {
             Ok(result) => result,
             Err(error) => {
