@@ -2,6 +2,7 @@ import type { ToolContext, ToolSpec } from "./registry";
 import { registerTools } from "./registry";
 import { logRendererEvent } from "../logger";
 import type { BrowserResult } from "../types";
+import { recordRead, recordSearch, repeatedSearch, runFooter, spendCall } from "../research/session";
 
 const api = () => window.electronAPI;
 
@@ -16,6 +17,10 @@ const PAGE_LINE_LIMIT = 500;
 /** How many empty searches before searching is switched off for the turn. A model that gets one
  * empty answer rewords the same question indefinitely. */
 const SEARCH_FAILURE_BUDGET = 3;
+
+/** What a gathering tool says once the research run has used its budget. */
+const runSpent = (tool: string, ctx: ToolContext) =>
+  `TOOL RESULT (${tool}): The research budget is spent. Stop gathering, call finish_research and write the report from your notes.${runFooter(ctx)}`;
 
 const SEARCH_MEMO = "search:asked";
 const SEARCH_FAILURES = "search:failures";
@@ -74,6 +79,12 @@ ${repeat}
 Do not search for this again. Use what you have, or read one of the URLs.`;
     }
 
+    const earlier = repeatedSearch(ctx, query);
+    if (earlier) {
+      return `TOOL RESULT (search_web): This research already ran a search like "${query}". It found:\n${earlier.join("\n") || "(nothing)"}\n\nSearch for a different sub-question, or read one of these.${runFooter(ctx)}`;
+    }
+    if (spendCall(ctx)) return runSpent("search_web", ctx);
+
     const failures = (ctx.memo.get(SEARCH_FAILURES) as number) ?? 0;
     if (failures >= SEARCH_FAILURE_BUDGET) {
       return `TOOL RESULT (search_web): Web search is not answering right now, so it has been switched off for this reply. Do not call search_web again. Answer from your own knowledge and say plainly which parts you could not check.`;
@@ -99,6 +110,7 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
       const { results, status } = outcome;
 
       if (results.length === 0) {
+        if (status !== "blocked" && status !== "unavailable") recordSearch(ctx, query, []);
         ctx.memo.set(SEARCH_FAILURES, failures + 1);
         ctx.patchStep(stepId, { isComplete: true, type: "error" });
         ctx.syncSteps();
@@ -145,11 +157,12 @@ Snippet: ${result.snippet}`,
         .join("\n\n");
 
       asked.set(key, summary);
+      recordSearch(ctx, query, results.map((result) => result.url));
 
       return `TOOL RESULT (search_web, via ${outcome.provider ?? "unknown"}):
 ${summary}
 
-Read the most relevant URL(s) with read_url when you need the full text. If you already have enough to answer, stop calling tools and reply.`;
+Read the most relevant URL(s) with read_url when you need the full text. If you already have enough to answer, stop calling tools and reply.${runFooter(ctx)}`;
     } catch (error) {
       ctx.memo.set(SEARCH_FAILURES, failures + 1);
       ctx.patchStep(stepId, { isComplete: true, type: "error" });
@@ -188,6 +201,7 @@ const readUrl: ToolSpec = {
   available: webEnabled,
   run: async (args, ctx) => {
     const url = String(args.url);
+    if (spendCall(ctx)) return runSpent("read_url", ctx);
     const stepId = ctx.newId();
 
     ctx.pushStep({
@@ -204,6 +218,7 @@ const readUrl: ToolSpec = {
 
       // An address the tools will not fetch. Saying so once, and why, is what
       // stops the model looking for a way around it.
+      if (page.blocked) recordRead(ctx, { url, title: page.title, ok: false });
       if (page.blocked === "refused" || page.blocked === "unreachable") {
         ctx.patchStep(stepId, { isComplete: true, type: "error" });
         ctx.syncSteps();
@@ -234,12 +249,15 @@ const readUrl: ToolSpec = {
       });
       ctx.syncSteps();
 
-      return `TOOL RESULT (read_url):\nTitle: ${page.title}\nContent:\n${lines.slice(0, shown).join("\n")}`;
+      const source = recordRead(ctx, { url, title: page.title, text: page.text, ok: true });
+      const cite = source ? `Source id: ${source.id}. Record what it says with add_note and this id.\n` : "";
+      return `TOOL RESULT (read_url):\n${cite}Title: ${page.title}\nContent:\n${lines.slice(0, shown).join("\n")}${runFooter(ctx)}`;
     } catch (error) {
       // The message can echo the address, so only the error name is logged.
       logRendererEvent("renderer.tools", "ERROR", "read_url failed", {
         error: error instanceof Error ? error.name : "Error",
       }, ctx.correlationId);
+      recordRead(ctx, { url, ok: false });
       ctx.patchStep(stepId, { isComplete: true, type: "error" });
       ctx.syncSteps();
       return `TOOL RESULT (read_url): Failed to read URL.`;
