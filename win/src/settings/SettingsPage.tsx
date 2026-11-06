@@ -9,6 +9,7 @@ import { DiagnosticsPage } from "./DiagnosticsPage";
 import { DataPage, ExtensionsPage, GeneralPage, UpdatesPage, WebSearchPage } from "./GeneralPages";
 import { ChatPreferencesPage, LibraryPage, TalkPage } from "./ChatPages";
 import { CodePreferencesPage, PermissionsPage, ProjectsPage } from "./CodePages";
+import { ResearchPage } from "./ResearchPage";
 import ApiServerField from "./ApiServerField";
 import StatsPanel from "../stats/StatsPanel";
 import BudgetsGroup from "./BudgetsGroup";
@@ -16,7 +17,8 @@ import PricesGroup from "./PricesGroup";
 import { useTranslator } from "../i18n";
 import { Icon } from "../ui/icons/Icon";
 import { fill } from "../onboarding/text";
-import type { AppSettings, PermissionMode, Workspace, WorkspaceGrant } from "../types";
+import type { FollowUp } from "../research/libraryView";
+import type { AppSettings, ChatSession, PermissionMode, Workspace, WorkspaceGrant } from "../types";
 
 export interface SettingsRequest {
   tab: SettingsTab;
@@ -41,6 +43,9 @@ interface SettingsPageProps {
   onRemoveProject: (id: string) => void;
   onEditProjectMemory: (id: string) => void;
   onClearChats: () => void;
+  /** The chats on hand, for finding the report and the chat a research run came from. */
+  sessions?: ChatSession[];
+  onResearchFollowUp?: (target: FollowUp) => void;
   onClearSessions: () => void;
   onLibraryChange?: () => void;
   /** Which page is open, for the shell: an update notice is noise on the Updates page. */
@@ -192,6 +197,8 @@ export default function SettingsPage(props: SettingsPageProps) {
             {tab === "providers" && <ProvidersPage engineModels={manager.installed.length} t={t} />}
 
             {tab === "web" && <WebSearchPage settings={settings} onUpdate={onUpdate} t={t} />}
+
+            {tab === "research" && <ResearchPage sessions={props.sessions ?? []} onFollowUp={props.onResearchFollowUp ?? (() => {})} t={t} />}
 
             {tab === "usage" && (
               <Page title={t("statistics")}>
