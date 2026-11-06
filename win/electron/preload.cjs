@@ -86,6 +86,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Write-only, like a provider's key: the status says whether one is set and its last four.
   setBraveKey: (key) => ipcRenderer.invoke("search:set-brave-key", key),
   braveKeyStatus: () => ipcRenderer.invoke("search:brave-key-status"),
+  setServiceKey: (id, key) => ipcRenderer.invoke("search:set-service-key", id, key),
+  serviceKeyStatus: (id) => ipcRenderer.invoke("search:service-key-status", id),
   readUrl: (url, page) => ipcRenderer.invoke("get-page-content", url, page),
 
   browserNavigate: (url) => ipcRenderer.invoke("browser-navigate", url),

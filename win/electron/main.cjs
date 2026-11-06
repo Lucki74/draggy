@@ -850,6 +850,8 @@ let codexAccounts = null;
 let claudeAccounts = null;
 let providerAutoRefresh = null;
 let searchKey = null;
+let openAlexKey = null;
+let githubKey = null;
 
 /** An existing install is recorded as done on the spot, so later launches need one read to know. */
 function decideOnboarding() {
@@ -1187,6 +1189,20 @@ app.whenReady().then(() => {
     searchKey.adopt();
   } catch (error) {
     log.warn("search", `could not move the Brave key into the store: ${error.message}`);
+  }
+  openAlexKey = createSearchKey({ secrets, storage, owner: "search:openalex" });
+  githubKey = createSearchKey({ secrets, storage, owner: "search:github" });
+  try {
+    let keep = "forever";
+    try {
+      keep = JSON.parse(storage.getValue("draggy_settings") || "null")?.researchKeep ?? "forever";
+    } catch (error) {
+      log.swallow("research", error, "unreadable settings keep research forever");
+    }
+    const dropped = researchLibrary.applyRetention(keep);
+    if (dropped) log.info("research", "old runs removed", { count: dropped });
+  } catch (error) {
+    log.warn("research", `could not prune old runs: ${error.message}`);
   }
   providers = createRegistry({ storage, secrets });
   const remoteCatalog = createRemoteCatalog({ storage, instances: () => providers.list(), log: (line) => log.warn("providers", line) });
@@ -1750,6 +1766,14 @@ const searchSettings = () => ({ ...searchConfig, braveApiKey: searchKey?.get() |
 ipc.handle("search:set-brave-key", (event, key) => searchKey.set(key));
 ipc.handle("search:brave-key-status", () => searchKey.status());
 
+// Only "is it set" goes back to the renderer for these two, never any part of the key.
+const serviceKeys = () => ({ openalex: openAlexKey, github: githubKey });
+ipc.handle("search:set-service-key", (event, id, key) => serviceKeys()[String(id)]?.set(key) ?? { success: false, kept: false });
+ipc.handle("search:service-key-status", (event, id) => {
+  const status = serviceKeys()[String(id)]?.status();
+  return { hasKey: Boolean(status?.hasKey), keystore: Boolean(status?.keystore) };
+});
+
 ipc.handle("search-web", async (event, query) => {
   const { results } = await runSearch(query, searchSettings(), {
     scrape: scrapeInHiddenWindow,
@@ -1758,7 +1782,12 @@ ipc.handle("search-web", async (event, query) => {
 });
 
 ipc.handle("search-source", async (event, query, source) =>
-  searchSources.searchSource(String(query ?? ""), String(source ?? ""), { fetch: (target, init) => net.fetch(target, init), version: app.getVersion() }),
+  searchSources.searchSource(String(query ?? ""), String(source ?? ""), {
+    fetch: (target, init) => net.fetch(target, init),
+    version: app.getVersion(),
+    openAlexKey: openAlexKey?.get() || "",
+    githubToken: githubKey?.get() || "",
+  }),
 );
 
 ipc.handle("search-web-detailed", async (event, query) =>

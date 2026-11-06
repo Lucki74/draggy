@@ -245,7 +245,11 @@ async function request(url, deps, accept) {
   let response;
   try {
     response = await deps.fetch(url, {
-      headers: { "User-Agent": userAgent(deps.version), Accept: accept },
+      headers: {
+        "User-Agent": userAgent(deps.version),
+        Accept: accept,
+        ...(host === "api.github.com" && deps.githubToken ? { Authorization: `Bearer ${deps.githubToken}` } : {}),
+      },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch (error) {
@@ -358,6 +362,7 @@ async function searchSource(query, source, overrides = {}) {
     now: overrides.now || Date.now,
     sleep: overrides.sleep || ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
     openAlexKey: overrides.openAlexKey || "",
+    githubToken: overrides.githubToken || "",
   };
   const active = providers;
   const settled = await Promise.allSettled(active.map((p) => p.run(text, deps)));

@@ -2,10 +2,11 @@
  * without a keystore it lasts this run only, since a weaker fallback would be the clear again. */
 const { log } = require("./logger.cjs");
 
-const OWNER = "search:brave";
+const BRAVE_OWNER = "search:brave";
 const SETTINGS_KEY = "draggy_settings";
 
-function createSearchKey({ secrets, storage }) {
+function createSearchKey({ secrets, storage, owner = BRAVE_OWNER }) {
+  const OWNER = owner;
   let thisRunOnly = "";
 
   function get() {
