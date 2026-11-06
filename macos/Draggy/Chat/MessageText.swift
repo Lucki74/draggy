@@ -1,5 +1,11 @@
 import AppKit
 
+/// The link on a folded reply's summary row. A click opens or closes its steps.
+final class StepsToggle: NSObject {
+    let id: UUID
+    init(_ id: UUID) { self.id = id }
+}
+
 /// Turns a transcript line into styled text: tool steps first, then the message with code, emphasis, links,
 /// headings, lists, quotes and tables drawn. Anything else in markdown shows as typed.
 @MainActor
@@ -19,7 +25,16 @@ enum MessageText {
 
     static func attributed(_ line: Transcript.Line) -> NSAttributedString {
         let out = NSMutableAttributedString()
-        for step in line.steps {
+        if line.foldsSteps {
+            let arrow = line.stepsOpen ? "\u{25BE}" : "\u{25B8}"
+            let title = String(format: String(localized: "Process (%lld steps)"), line.steps.count)
+            out.append(NSAttributedString(string: "\(arrow) \(title)\n", attributes: [
+                .font: small,
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .link: StepsToggle(line.id),
+            ]))
+        }
+        for step in line.steps where !line.foldsSteps || line.stepsOpen {
             let mark = step.isDone ? "\u{2713}" : "\u{2026}"
             let title = step.kind == "thinking" ? String(localized: "Thinking") : step.label
             out.append(NSAttributedString(

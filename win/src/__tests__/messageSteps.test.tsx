@@ -19,7 +19,15 @@ const reply = (steps: SearchStep[]): Message => ({
   steps,
 });
 
-const show = (steps: SearchStep[], view: TranscriptView = "normal") =>
+// A finished turn folds its steps under a summary row; these tests read the steps, so open it.
+const show = (steps: SearchStep[], view: TranscriptView = "normal") => {
+  const result = showFolded(steps, view);
+  const fold = screen.queryByTestId("process-fold")?.querySelector("button");
+  if (fold) fireEvent.click(fold);
+  return result;
+};
+
+const showFolded = (steps: SearchStep[], view: TranscriptView = "normal") =>
   render(
     <TranscriptViewContext.Provider value={view}>
     <MessageItem
@@ -137,14 +145,14 @@ describe("a file the model wrote", () => {
     fileContent,
   });
 
-  it("offers preview and source for a document", () => {
+  it("offers a switch to source for a document", () => {
     show([file("report.docx", "<h1>Report</h1>")]);
 
+    fireEvent.click(screen.getByText("Source"));
     expect(screen.getByText("Preview")).toBeTruthy();
-    expect(screen.getByText("Source")).toBeTruthy();
   });
 
-  it("renders live preview directly while a document is being generated", () => {
+  it("streams a document into the tail box while it is written", () => {
     const generatingDoc: SearchStep = {
       id: "f2",
       type: "create_file",
@@ -153,22 +161,21 @@ describe("a file the model wrote", () => {
       filename: "report.docx",
       fileContent: "<h1>Live Heading</h1>",
     };
-    const { container } = show([generatingDoc]);
+    show([generatingDoc]);
 
     expect(screen.getByText("Writing...")).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
-    expect(screen.getByText("Live Heading")).toBeTruthy();
-    expect(container.querySelector(".ember-caret")).toBeTruthy();
+    expect(screen.getByTestId("live-args-tail").getAttribute("data-open")).toBe("true");
   });
 
   it("stops saying Writing once the file step is complete", () => {
     show([file("format.ts", "export const one = 1;")]);
 
     expect(screen.queryByText("Writing...")).toBeNull();
-    expect(screen.getByText("File created · 1 lines")).toBeTruthy();
+    expect(screen.getByText("File created")).toBeTruthy();
+    expect(screen.getByText("Created with 1 line")).toBeTruthy();
   });
 
-  it("renders the typing indicator directly on the code text, not in a floating corner", () => {
+  it("shows the file name as an argument row", () => {
     const generatingCode: SearchStep = {
       id: "f3",
       type: "create_file",
@@ -177,35 +184,10 @@ describe("a file the model wrote", () => {
       filename: "format.ts",
       fileContent: "const active = true;",
     };
-    const { container } = show([generatingCode]);
+    show([generatingCode]);
 
-    expect(screen.getByText("Writing...")).toBeTruthy();
-    // The caret is inside the <code> element right next to the code tokens
-    const codeEl = container.querySelector("code");
-    expect(codeEl).toBeTruthy();
-    expect(codeEl?.querySelector(".ember-caret")).toBeTruthy();
-
-    // Detached floating corner container is not present
-    expect(container.querySelector(".absolute.bottom-4.end-4")).toBeNull();
-  });
-
-  it("renders live html generation in Chrome preview with white canvas and active caret", () => {
-    const generatingHtml: SearchStep = {
-      id: "f4",
-      type: "create_file",
-      content: "Writing index.html",
-      isComplete: false,
-      filename: "index.html",
-      fileContent: "<h1>Live Webpage</h1>",
-    };
-    const { container } = show([generatingHtml]);
-
-    expect(screen.getByText("Writing...")).toBeTruthy();
-    expect(screen.queryByText(/localhost:3000/)).toBeNull();
-    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
-    expect(screen.getByText("Live Webpage")).toBeTruthy();
-    expect(container.querySelector(".chrome-html-canvas.bg-white")).toBeTruthy();
-    expect(container.querySelector(".ember-caret")).toBeTruthy();
+    expect(screen.getByText("format.ts")).toBeTruthy();
+    expect(screen.getByTestId("file-step")).toBeTruthy();
   });
 
   it("offers neither for a code file", () => {
@@ -264,8 +246,8 @@ describe("an edited file step", () => {
       </OpenDiffContext.Provider>,
     );
 
-    // A lone step shows as its own row, with no group to open.
-    expect(screen.queryByRole("button", { name: "Deleted 1 file" })).toBeNull();
+    // The turn folds under its summary; opening it shows the row.
+    fireEvent.click(screen.getByRole("button", { name: "Deleted 1 file" }));
     expect(screen.getByText("format.ts")).toBeTruthy();
     for (const name of ["Open changes", "Open", "Undo"]) {
       expect(screen.queryByRole("button", { name })).toBeNull();

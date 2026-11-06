@@ -976,12 +976,49 @@ kbd {
 
 /* A long argument fades at its top edge while it grows, and new text eases in. */
 .live-args-fade {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 1.5rem);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 1.5rem);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 28px);
 }
 @media (prefers-reduced-motion: reduce) {
   .live-args-fade {
     -webkit-mask-image: none;
     mask-image: none;
+  }
+}
+
+/* A tool step rises in as it appears, and its check lands a beat later. */
+.step-rise {
+  animation: step-rise 0.35s cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+.step-check {
+  animation: step-rise 0.25s cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+@keyframes step-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-rise,
+  .step-check {
+    animation: none;
+  }
+}
+
+.step-fade,
+.soft-words .stream-word {
+  animation: step-fade 0.24s linear backwards;
+}
+@keyframes step-fade {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-fade,
+  .soft-words .stream-word,
+  .stream-word {
+    animation: none;
   }
 }

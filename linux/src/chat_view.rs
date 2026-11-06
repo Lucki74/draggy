@@ -1,6 +1,6 @@
 //! The chat page: the transcript, the composer, and the turn that runs between them.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -41,6 +41,11 @@ type Toast = Rc<dyn Fn(&str)>;
 pub struct ReplyParts {
     body: gtk::Box,
     steps: gtk::Label,
+    /// Holds the steps in a box of fixed height that follows the newest line.
+    steps_box: gtk::ScrolledWindow,
+    /// Folds the steps once the reply ends; open while it streams.
+    fold: gtk::Expander,
+    streamed: Cell<bool>,
     meta: gtk::Label,
     shown: RefCell<Option<String>>,
 }
@@ -912,12 +917,17 @@ impl DraggyChat {
 
     fn refresh_reply(&self) {
         let imp = self.imp();
+        // A reader who scrolled up stays where they are.
+        let bar = imp.scroller.vadjustment();
+        let at_bottom = bar.upper() - bar.value() - bar.page_size() < 48.0;
         let log = imp.log.borrow();
         if let (Some(entry), Some(parts)) = (log.entries().last(), imp.reply.borrow().as_ref()) {
             fill(parts, entry);
         }
         drop(log);
-        self.scroll_to_end();
+        if at_bottom {
+            self.scroll_to_end();
+        }
     }
 
     fn scroll_to_end(&self) {
@@ -985,7 +995,19 @@ fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
         .css_classes(["caption", "dim-label"])
         .build();
     row.append(&body);
-    row.append(&steps);
+    let steps_box = gtk::ScrolledWindow::builder()
+        .child(&steps)
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .propagate_natural_height(true)
+        .max_content_height(160)
+        .visible(false)
+        .build();
+    let fold = gtk::Expander::builder()
+        .child(&steps_box)
+        .expanded(entry.streaming)
+        .visible(false)
+        .build();
+    row.append(&fold);
     row.append(&meta);
     match entry.role {
         Role::User => {
@@ -997,6 +1019,9 @@ fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
     let parts = ReplyParts {
         body,
         steps,
+        steps_box,
+        fold,
+        streamed: Cell::new(entry.streaming),
         meta,
         shown: RefCell::new(None),
     };
@@ -1016,7 +1041,21 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
     }
     let steps: Vec<String> = entry.steps.iter().filter_map(step_label).collect();
     parts.steps.set_visible(!steps.is_empty());
+    parts.steps_box.set_visible(!steps.is_empty());
+    parts.fold.set_visible(!steps.is_empty());
+    parts
+        .fold
+        .set_label(Some(&format!("Process ({} steps)", steps.len())));
+    if entry.streaming {
+        parts.fold.set_expanded(true);
+    } else if parts.streamed.get() {
+        parts.fold.set_expanded(false);
+    }
+    parts.streamed.set(entry.streaming);
     parts.steps.set_text(&steps.join("\n"));
+    // Follow the newest line, as the Windows tail box does.
+    let bar = parts.steps_box.vadjustment();
+    bar.set_value(bar.upper() - bar.page_size());
     let mut meta = Vec::new();
     if let Some(note) = &entry.note {
         meta.push(note.clone());

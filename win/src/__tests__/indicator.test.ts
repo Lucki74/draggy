@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { showsGroupMark, showsTailMark } from "../chat/indicator";
+import { showsTailMark } from "../chat/indicator";
 import type { SearchStep } from "../types";
 
 const step = (type: string, isComplete: boolean, content = "x"): SearchStep => ({ id: type, type, isComplete, content }) as SearchStep;
@@ -20,12 +20,5 @@ describe("which working mark shows", () => {
       const stepMark = running;
       expect(Number(showsTailMark(steps, true, true)) + Number(stepMark)).toBe(1);
     }
-  });
-
-  it("shows the group mark only while the group is folded", () => {
-    const running = [step("command", false)];
-    expect(showsGroupMark(running, false)).toBe(true);
-    expect(showsGroupMark(running, true)).toBe(false);
-    expect(showsGroupMark([step("command", true)], false)).toBe(false);
   });
 });

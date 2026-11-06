@@ -11,6 +11,7 @@ const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   run_code: "ran",
   command: "ran",
   searching: "searched",
+  results: "searched",
   // Old saved chats opened a page with no address on the step.
   opening: "searched",
   navigating: "browsed",
@@ -56,7 +57,7 @@ export function summarizeWork(steps: SearchStep[], language: string, t: (key: st
     }
     if (step.type === "loading" || step.type === "approval") continue;
     // A search is its "searching" step plus the "results" row it fills in: one search, not two.
-    if (step.type === "results") continue;
+    if (step.type === "searching" && step.isComplete) continue;
     const host = (step.type === "reading" || step.type === "opening") && step.url
       ? hostnameOf(step.url).replace(/^www\./i, "")
       : "";
@@ -139,4 +140,21 @@ export function touchedFiles(steps: SearchStep[]): { name: string; path: string;
     }
   }
   return [...seen.values()];
+}
+
+/** How many leading segments of a finished turn fold under the summary row. The last prose block,
+ * approvals, questions, files and pictures stay out, and the first of them ends the fold. */
+export function processFoldLength(segments: SearchStep[][]): number {
+  let lastText = -1;
+  segments.forEach((segment, index) => {
+    if (segment[0].type === "text") lastText = index;
+  });
+  const folds = (step: SearchStep) =>
+    step.type === "thinking" ||
+    step.type === "text" ||
+    step.type === "steer" ||
+    (isWorkStep(step) && step.type !== "question");
+  let length = 0;
+  while (length < segments.length && length !== lastText && segments[length].every(folds)) length += 1;
+  return length;
 }

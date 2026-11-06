@@ -51,6 +51,18 @@ describe("LiveArgs", () => {
     expect(screen.getByTestId("live-args-tail").textContent).toBe(long);
   });
 
+  it("shows a page address as the site name with no grid or tail box", () => {
+    const step: SearchStep = {
+      ...call("", false),
+      tool: "read_url",
+      liveArgs: { entries: [{ key: "url", value: "https://www.reddit.com/r/x/comments/1", kind: "string", open: true }], invalid: false, complete: false },
+    };
+    render(<LiveArgs step={step} />);
+    expect(screen.getByTestId("live-args").textContent).toBe("Read reddit.com");
+    expect(screen.queryByTestId("live-args-tail")).toBeNull();
+    expect(document.querySelector("dl")).toBeNull();
+  });
+
   it("renders markup as text", () => {
     render(<LiveArgs step={call("<img src=x onerror=alert(1)>", false, true)} />);
     expect(screen.getByText("<img src=x onerror=alert(1)>")).toBeTruthy();

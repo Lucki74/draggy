@@ -61,13 +61,19 @@ struct TranscriptView: NSViewRepresentable {
         weak var table: NSTableView?
         private var lines: [Transcript.Line] = []
         private var measured: [UUID: Measured] = [:]
+        private var opened: Set<UUID> = []
 
         private static let sidePadding: CGFloat = 16
         private static let captionHeight: CGFloat = 18
 
-        func update(_ new: [Transcript.Line], in scroll: NSScrollView) {
+        func update(_ incoming: [Transcript.Line], in scroll: NSScrollView) {
             guard let table else { return }
             let old = lines
+            let new = incoming.map { line in
+                var shown = line
+                shown.stepsOpen = opened.contains(line.id)
+                return shown
+            }
             lines = new
             let stuck = isAtBottom(scroll)
 
@@ -84,6 +90,15 @@ struct TranscriptView: NSViewRepresentable {
             if stuck, !new.isEmpty {
                 table.scrollRowToVisible(new.count - 1)
             }
+        }
+
+        func toggleSteps(_ id: UUID) {
+            guard let table, let row = lines.firstIndex(where: { $0.id == id }) else { return }
+            if opened.contains(id) { opened.remove(id) } else { opened.insert(id) }
+            lines[row].stepsOpen = opened.contains(id)
+            let rows = IndexSet(integer: row)
+            table.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(integer: 0))
+            table.noteHeightOfRows(withIndexesChanged: rows)
         }
 
         func widthChanged() {
@@ -123,6 +138,7 @@ struct TranscriptView: NSViewRepresentable {
             let identifier = NSUserInterfaceItemIdentifier("messageCell")
             let cell = tableView.makeView(withIdentifier: identifier, owner: nil) as? MessageCell ?? MessageCell()
             cell.identifier = identifier
+            cell.onToggle = { [weak self] id in self?.toggleSteps(id) }
             cell.show(lines[row], side: Self.sidePadding, captionHeight: Self.captionHeight)
             return cell
         }
@@ -135,6 +151,7 @@ private final class MessageCell: NSTableCellView, NSTextViewDelegate {
     private let text = NSTextView(usingTextLayoutManager: true)
     private var side: CGFloat = 16
     private var captionHeight: CGFloat = 18
+    var onToggle: ((UUID) -> Void)?
 
     override var isFlipped: Bool { true }
 
@@ -186,6 +203,10 @@ private final class MessageCell: NSTableCellView, NSTextViewDelegate {
     }
 
     func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+        if let toggle = link as? StepsToggle {
+            onToggle?(toggle.id)
+            return true
+        }
         guard let preview = link as? HTMLPreview else { return false }
         HTMLPreviewWindow.show(preview)
         return true

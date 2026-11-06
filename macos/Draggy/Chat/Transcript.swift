@@ -25,6 +25,13 @@ struct Transcript: Equatable {
         var speed: Double?
         /// What the reply cost, once it is priced. Not saved with the conversation.
         var cost: TurnCostLabel?
+        /// Whether the reader opened the folded steps. Window state, not saved.
+        var stepsOpen = false
+
+        /// A reply with text and only finished steps folds them under one row.
+        var foldsSteps: Bool {
+            role == .assistant && !steps.isEmpty && !text.isEmpty && steps.allSatisfy(\.isDone)
+        }
     }
 
     private(set) var lines: [Line] = []

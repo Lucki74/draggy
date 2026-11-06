@@ -84,7 +84,7 @@ const readFile: ToolSpec = {
     const result = await api()?.read(workspaceOf(ctx), target);
 
     if (!result?.success) {
-      ctx.patchStep(stepId, { isComplete: true, type: "error" });
+      ctx.patchStep(stepId, { isComplete: true, type: "error", reason: result?.error });
       ctx.syncSteps();
       return `TOOL RESULT (read_file): ${result?.error || NO_BRIDGE}`;
     }
@@ -93,6 +93,7 @@ const readFile: ToolSpec = {
       isComplete: true,
       filepath: result.path,
       content: `${ctx.t("readFile")} **${nameOf(target)}**`,
+      ...(typeof result.text === "string" ? { lines: result.text.split("\n").length } : {}),
     });
     ctx.syncSteps();
 
@@ -160,6 +161,7 @@ const editFile: ToolSpec = {
       ctx.patchStep(stepId, {
         isComplete: true,
         type: "error",
+        reason: result?.error,
         content: `${ctx.t("savingFile")} **${nameOf(target)}**`,
       });
       ctx.syncSteps();
@@ -225,7 +227,7 @@ const writeFile: ToolSpec = {
     );
 
     if (!result?.success) {
-      ctx.patchStep(stepId, { isComplete: true, type: "error" });
+      ctx.patchStep(stepId, { isComplete: true, type: "error", reason: result?.error });
       ctx.syncSteps();
       return `TOOL RESULT (write_file): ${result?.error || NO_BRIDGE}`;
     }

@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Spark } from "../ui";
+import { hostnameOf } from "../utils";
 import type { SearchStep } from "../types";
 import { advanceReveal, type RevealState } from "./streamReveal";
 
@@ -38,7 +40,7 @@ function useRevealed(text: string, live: boolean): string {
 }
 
 /** A long value in a fixed-height box that follows its newest line, unless the reader scrolled up. */
-function TailBox({ text, open }: { text: string; open: boolean }) {
+export function TailBox({ text, open }: { text: string; open: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
 
@@ -56,49 +58,78 @@ function TailBox({ text, open }: { text: string; open: boolean }) {
         const el = event.currentTarget;
         pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8;
       }}
-      className={`live-args-tail mt-1 max-h-[12rem] overflow-y-auto overflow-x-hidden rounded-sm border border-rule bg-surface-base p-2 font-mono text-[12px] leading-5 text-text-primary whitespace-pre-wrap break-words ${open ? "live-args-fade" : ""}`}
+      className={`live-args-tail mt-1.5 h-[164px] overflow-y-auto overflow-x-hidden rounded-[8px] border border-rule bg-surface-base px-3 py-2.5 font-mono text-[12.5px] leading-[1.6] text-text-secondary whitespace-pre-wrap break-words ${open ? "live-args-fade" : ""}`}
     >
       {text}
     </div>
   );
 }
 
-function ValueRow({ name, value, kind, open, live }: { name: string; value: string; kind: string; open: boolean; live: boolean }) {
-  const shown = useRevealed(value, live && open);
-  const long = value.length > SHORT_VALUE || value.includes("\n");
+/** "search_web" reads as "Search". */
+function toolLabel(tool: string | undefined): string {
+  const word = (tool ?? "").split(/[_\s-]/)[0];
+  return word ? word[0].toUpperCase() + word.slice(1) : "…";
+}
+
+type Entry = NonNullable<SearchStep["liveArgs"]>["entries"][number];
+
+function ArgRow({ entry, live }: { entry: Entry; live: boolean }) {
+  const shown = useRevealed(entry.value, live && entry.open);
+  const long = entry.value.length > SHORT_VALUE || entry.value.includes("\n");
+  if (long) {
+    return (
+      <>
+        <dt className="step-fade col-span-2 text-text-tertiary">{entry.key}</dt>
+        <dd className="col-span-2 m-0">
+          <TailBox text={shown} open={entry.open} />
+        </dd>
+      </>
+    );
+  }
   return (
-    <div className="mt-1 text-[12px]">
-      <span className="text-text-secondary">{name}</span>
-      {long ? (
-        <TailBox text={shown} open={open} />
-      ) : (
-        <span className="ms-2 font-mono text-text-primary break-words" data-kind={kind}>
-          {shown}
-        </span>
-      )}
-    </div>
+    <>
+      <dt className="step-fade text-text-tertiary">{entry.key}</dt>
+      <dd className="step-fade m-0 whitespace-pre-wrap break-words text-text-primary" data-kind={entry.kind}>
+        {shown}
+      </dd>
+    </>
   );
 }
 
 /** A tool call the model is still writing: its name and the arguments so far. Plain text only. */
 export default function LiveArgs({ step }: { step: SearchStep }) {
   const args = step.liveArgs;
+  // A page address is not a file: it reads as the site, the way the finished step does.
+  const address = args?.entries.find((entry) => entry.key === "url" && entry.kind === "string");
+  if (address) {
+    const site = hostnameOf(address.value).replace(/^www\./i, "") || address.value;
+    return (
+      <div className="step-rise mb-3.5 flex min-h-6 items-center gap-2 text-[13px] text-text-secondary" data-testid="live-args">
+        <span className="flex w-3 justify-center">
+          <Spark />
+        </span>
+        <span className="min-w-0 break-words">
+          {toolLabel(step.tool)} {site}
+        </span>
+      </div>
+    );
+  }
   return (
-    <div className="ps-6 mt-1" data-testid="live-args">
-      <div className="font-mono text-[12px] text-text-secondary">{step.tool ?? "…"}</div>
+    <div className="step-rise mb-3.5" data-testid="live-args">
+      <div className="flex min-h-6 items-center gap-2 text-[13px] text-text-secondary">
+        <span className="flex w-3 justify-center">
+          <Spark />
+        </span>
+        <span>{toolLabel(step.tool)}</span>
+      </div>
       {args?.invalid ? (
-        <div className="mt-1 font-mono text-[12px] text-text-secondary break-words">…</div>
+        <div className="ms-5 mt-0.5 break-words font-mono text-[12.5px] text-text-secondary">…</div>
       ) : (
-        args?.entries.map((entry, index) => (
-          <ValueRow
-            key={`${index}:${entry.key}`}
-            name={entry.key}
-            value={entry.value}
-            kind={entry.kind}
-            open={entry.open}
-            live={!args.complete}
-          />
-        ))
+        <dl className="ms-5 mt-0.5 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3.5 gap-y-0.5 font-mono text-[12.5px] leading-[1.6]">
+          {args?.entries.map((entry, index) => (
+            <ArgRow key={`${index}:${entry.key}`} entry={entry} live={!args.complete} />
+          ))}
+        </dl>
       )}
     </div>
   );

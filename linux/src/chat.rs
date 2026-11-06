@@ -240,6 +240,9 @@ pub fn metrics_line(metrics: &MetricsRecord) -> String {
 /// A one-line description of a step the agent took, for the list under a reply. Steps that carry no visible content
 /// (the model's thinking, for one) give `None`.
 pub fn step_label(step: &StepRecord) -> Option<String> {
+    if let Some(tool) = &step.tool_name {
+        return Some(live_call_label(tool, step));
+    }
     let detail = step
         .filepath
         .as_deref()
@@ -253,6 +256,18 @@ pub fn step_label(step: &StepRecord) -> Option<String> {
         " (running)"
     };
     Some(format!("{}: {detail}{state}", step.kind))
+}
+
+/// A call still being written: the tool name and one `key: value` line per argument seen so far.
+fn live_call_label(tool: &str, step: &StepRecord) -> String {
+    let mut text = format!("{tool} (writing)");
+    if let Some(live) = &step.live_args {
+        for entry in &live.entries {
+            let value = entry.value.lines().next().unwrap_or_default();
+            text.push_str(&format!("\n  {}: {value}", entry.key));
+        }
+    }
+    text
 }
 
 /// The core's messages in the form they are saved in.
@@ -514,6 +529,29 @@ mod tests {
         assert_eq!(
             reply.note.as_deref(),
             Some("The server refused the request.")
+        );
+    }
+
+    #[test]
+    fn a_call_being_written_lists_its_arguments() {
+        let live = StepRecord {
+            kind: "tool_call".to_owned(),
+            tool_name: Some("search_web".to_owned()),
+            live_args: Some(draggy_core::LiveArgsRecord {
+                entries: vec![draggy_core::LiveArgRecord {
+                    key: "query".to_owned(),
+                    value: "flex gap".to_owned(),
+                    length: 8,
+                    open: true,
+                }],
+                invalid: false,
+                complete: false,
+            }),
+            ..StepRecord::default()
+        };
+        assert_eq!(
+            step_label(&live).as_deref(),
+            Some("search_web (writing)\n  query: flex gap")
         );
     }
 

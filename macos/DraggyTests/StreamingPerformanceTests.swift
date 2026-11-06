@@ -63,4 +63,29 @@ final class StreamingPerformanceTests: XCTestCase {
             }
         }
     }
+
+    func testAFinishedReplyFoldsItsStepsUnderOneRowThatOpens() {
+        var transcript = Transcript()
+        transcript.beginReply()
+        transcript.setReply("Done.")
+        transcript.setSteps([
+            Transcript.Step(kind: "tool_call", label: "Search", isDone: true, detail: "query: draggy"),
+            Transcript.Step(kind: "tool_call", label: "Read", isDone: true),
+        ])
+        var line = transcript.lines[0]
+        XCTAssertTrue(line.foldsSteps)
+        XCTAssertTrue(MessageText.attributed(line).string.contains("Process (2 steps)"))
+        XCTAssertFalse(MessageText.attributed(line).string.contains("query: draggy"))
+        line.stepsOpen = true
+        XCTAssertTrue(MessageText.attributed(line).string.contains("query: draggy"))
+    }
+
+    func testAReplyStillRunningAToolKeepsItsStepsOpen() {
+        var transcript = Transcript()
+        transcript.beginReply()
+        transcript.setReply("Looking.")
+        transcript.setSteps([Transcript.Step(kind: "tool_call", label: "Search", isDone: false)])
+        XCTAssertFalse(transcript.lines[0].foldsSteps)
+        XCTAssertTrue(MessageText.attributed(transcript.lines[0]).string.contains("Search"))
+    }
 }
