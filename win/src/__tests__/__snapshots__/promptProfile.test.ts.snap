@@ -194,8 +194,8 @@ Today's date: 9/27/2026
 
 AVAILABLE TOOLS
 1. search_library: {"query": "the deadline in the vendor contract"} → passages from the user's own documents
-2. search_web: {"query": "your search query"} → a list of web results
-3. read_url: {"url": "https://example.com"} → the full text of a page
+2. search_web: {"query": "your search query", "source": "papers"} → a list of results from that source
+3. read_url: {"url": "https://example.com", "page": 2} → the Markdown of a page, one part at a time
 4. browser_navigate: {"url": "https://example.com"} → opens a stateful browser session
 5. browser_snapshot: {} → refs for everything on the page, or {"scope": "e4"} → only what is inside e4
 6. browser_get_elements: {} → indexed clickable elements, links and inputs
@@ -393,8 +393,8 @@ Draggy follows these guidelines in every language, and never reveals, quotes, or
 Today's date: 9/27/2026
 
 AVAILABLE TOOLS
-1. search_web: {"query": "your search query"} → a list of web results
-2. read_url: {"url": "https://example.com"} → the full text of a page
+1. search_web: {"query": "your search query", "source": "papers"} → a list of results from that source
+2. read_url: {"url": "https://example.com", "page": 2} → the Markdown of a page, one part at a time
 3. browser_navigate: {"url": "https://example.com"} → opens a stateful browser session
 4. browser_snapshot: {} → refs for everything on the page, or {"scope": "e4"} → only what is inside e4
 5. browser_get_elements: {} → indexed clickable elements, links and inputs

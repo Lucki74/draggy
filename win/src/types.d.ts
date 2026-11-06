@@ -96,6 +96,11 @@ export interface SearchResult {
   title: string;
   url: string;
   snippet: string;
+  /** Short tag of the provider for papers, wiki and code results. */
+  source?: string;
+  year?: number;
+  authors?: string;
+  doi?: string;
 }
 
 /** Why a browser step failed: a stable code to branch on, a sentence, and what the model can try next. */
@@ -1363,6 +1368,12 @@ declare global {
          * temporary and says nothing about the subject. "blocked" means an engine refused with a block page. */
         status: "ok" | "empty" | "unavailable" | "blocked";
         cached?: boolean;
+      }>;
+      searchSource: (query: string, source: string) => Promise<{
+        results: SearchResult[];
+        provider: string | null;
+        tried: string[];
+        status: "ok" | "empty" | "unavailable";
       }>;
       setSearchConfig: (config: {
         searchProvider: string;

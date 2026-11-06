@@ -1,0 +1,1 @@
+{"crates":[{"name":"serde","max_version":"1.0.210","description":"A generic serialization framework"},{"name":"serde_json","max_version":"1.0.128","description":"A JSON serialization file format"}]}

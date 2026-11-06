@@ -511,7 +511,7 @@ const RUNNERS: Record<string, (input: never) => unknown> = {
 // RUNNERS END
 
 describe("web fixtures", () => {
-  for (const file of fs.readdirSync(FIXTURE_DIR).filter((name) => name.endsWith(".json") && name !== "config.json").sort()) {
+  for (const file of fs.readdirSync(FIXTURE_DIR).filter((name) => name.endsWith(".json") && name !== "config.json" && !name.startsWith("sources-")).sort()) {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, file), "utf8")) as { cases: Case[] };
     describe(file, () => {
       for (const testCase of fixture.cases) {

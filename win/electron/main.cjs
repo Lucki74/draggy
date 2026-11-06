@@ -27,6 +27,7 @@ const favicon = require("./favicon.cjs");
 const logger = require("./logger.cjs");
 const { log } = logger;
 const { createIpc, sendTo } = require("./ipcLog.cjs");
+const searchSources = require("./sources.cjs");
 const ipc = createIpc(ipcMain);
 const lifecycle = require("./lifecycleLog.cjs");
 const spawnLog = require("./spawnLog.cjs");
@@ -1755,6 +1756,10 @@ ipc.handle("search-web", async (event, query) => {
   });
   return results;
 });
+
+ipc.handle("search-source", async (event, query, source) =>
+  searchSources.searchSource(String(query ?? ""), String(source ?? ""), { fetch: (target, init) => net.fetch(target, init), version: app.getVersion() }),
+);
 
 ipc.handle("search-web-detailed", async (event, query) =>
   runSearch(query, searchSettings(), { scrape: scrapeInHiddenWindow }),

@@ -365,8 +365,8 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** The slot is reserved before sleeping, so calls that arrive together queue one gap apart
  * instead of all reading the same last call. */
-async function pace(providerId, now, sleep) {
-  const slot = Math.max(now(), (lastCallAt.get(providerId) || 0) + PROVIDER_GAP_MS);
+async function pace(providerId, now, sleep, gap = PROVIDER_GAP_MS) {
+  const slot = Math.max(now(), (lastCallAt.get(providerId) || 0) + gap);
   lastCallAt.set(providerId, slot);
   const due = slot - now();
   if (due > 0) await sleep(due);
@@ -520,6 +520,7 @@ async function searchChain(term, settings, deps, key) {
 
 module.exports = {
   runSearch,
+  pace,
   buildChain,
   normaliseResults,
   canonicalUrl,

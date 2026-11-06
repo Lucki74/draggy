@@ -1,7 +1,8 @@
 import type { ToolContext, ToolSpec } from "./registry";
 import { registerTools } from "./registry";
 import { logRendererEvent } from "../logger";
-import type { BrowserResult } from "../types";
+import type { BrowserResult, SearchResult } from "../types";
+import { SOURCE_KINDS, type SourceKind } from "../research/run";
 import { recordRead, recordSearch, repeatedSearch, runFooter, spendCall } from "../research/session";
 
 const api = () => window.electronAPI;
@@ -44,6 +45,17 @@ function normaliseQuery(query: string): string {
   return query.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 }
 
+/** Source tag, year, authors and DOI lines for papers, wiki and code results. */
+function resultExtras(result: SearchResult): string {
+  const lines = [
+    result.source ? `Source: ${result.source}` : "",
+    result.year ? `Year: ${result.year}` : "",
+    result.authors ? `Authors: ${result.authors}` : "",
+    result.doi ? `DOI: ${result.doi}` : "",
+  ].filter(Boolean);
+  return lines.length > 0 ? `\n${lines.join("\n")}` : "";
+}
+
 const searchWeb: ToolSpec = {
   name: "search_web",
   annotations: {
@@ -58,16 +70,21 @@ const searchWeb: ToolSpec = {
   },
   group: "web",
   description:
-    "Search the web and return a list of results with titles, URLs and snippets.",
-  parameters: { query: { type: "string", description: "The search query." } },
+    "Search and return a list of results with titles, URLs and snippets. The source parameter picks where: web (default), papers (academic, with year, authors and DOI), wiki (Wikipedia and Wikidata) or code (GitHub, npm, PyPI, crates.io).",
+  parameters: {
+    query: { type: "string", description: "The search query." },
+    source: { type: "string", description: "web (default), papers, wiki or code." },
+  },
   required: ["query"],
   usage:
-    '{"query": "your search query"} → a list of web results',
+    '{"query": "your search query", "source": "papers"} → a list of results from that source',
   available: webEnabled,
   run: async (args, ctx) => {
     const query = String(args.query);
     const asked = searchMemo(ctx);
-    const key = normaliseQuery(query);
+    const wanted = String(args.source ?? "web").trim().toLowerCase();
+    const kind: SourceKind = (SOURCE_KINDS as string[]).includes(wanted) ? (wanted as SourceKind) : "web";
+    const key = kind === "web" ? normaliseQuery(query) : `${kind}:${normaliseQuery(query)}`;
 
     const repeat = asked.get(key);
     if (repeat !== undefined) {
@@ -77,7 +94,7 @@ ${repeat}
 Do not search for this again. Use what you have, or read one of the URLs.`;
     }
 
-    const earlier = repeatedSearch(ctx, query);
+    const earlier = repeatedSearch(ctx, query, kind);
     if (earlier) {
       return `TOOL RESULT (search_web): This research already ran a search like "${query}". It found:\n${earlier.join("\n") || "(nothing)"}\n\nSearch for a different sub-question, or read one of these.${runFooter(ctx)}`;
     }
@@ -97,7 +114,7 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
     });
 
     try {
-      const outcome = await api()?.searchWebDetailed(query);
+      const outcome = kind === "web" ? await api()?.searchWebDetailed(query) : await api()?.searchSource(query, kind);
 
       if (!outcome) {
         ctx.patchStep(stepId, { isComplete: true, type: "error" });
@@ -108,7 +125,7 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
       const { results, status } = outcome;
 
       if (results.length === 0) {
-        if (status !== "blocked" && status !== "unavailable") recordSearch(ctx, query, []);
+        if (status !== "blocked" && status !== "unavailable") recordSearch(ctx, query, [], kind);
         ctx.memo.set(SEARCH_FAILURES, failures + 1);
         ctx.patchStep(stepId, { isComplete: true, type: "error" });
         ctx.syncSteps();
@@ -149,13 +166,13 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
           (result, index) =>
             `[Result #${index + 1}] ${result.title}
 Domain: ${domainOf(result.url)}
-URL: ${result.url}
+URL: ${result.url}${resultExtras(result)}
 Snippet: ${result.snippet}`,
         )
         .join("\n\n");
 
       asked.set(key, summary);
-      recordSearch(ctx, query, results.map((result) => result.url));
+      recordSearch(ctx, query, results.map((result) => result.url), kind);
 
       return `TOOL RESULT (search_web, via ${outcome.provider ?? "unknown"}):
 ${summary}

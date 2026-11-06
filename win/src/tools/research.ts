@@ -61,7 +61,7 @@ const startResearch: ToolSpec = {
     question: { type: "string", description: "The question to research, in the user's words." },
     sub_questions: { type: "string", description: "The sub-questions, one per line." },
     depth: { type: "string", description: `How deep to go: ${DEPTH_IDS.join(", ")}.` },
-    sources: { type: "string", description: "Where to look, comma separated: web, papers, wiki, code." },
+    sources: { type: "string", description: "Where to look, comma separated: web, papers, wiki, code. Pass the same word as search_web's source parameter to search each one." },
   },
   required: ["question", "sub_questions"],
   usage:
