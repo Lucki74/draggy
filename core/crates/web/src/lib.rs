@@ -14,5 +14,6 @@ pub mod http;
 mod js;
 pub mod page;
 pub mod policy;
+pub mod readable;
 pub mod search;
 pub mod sources;

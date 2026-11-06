@@ -19,6 +19,9 @@ use draggy_web::search::{
     build_request, canonical_url, domain_of, failure_log_text, normalise_results, parse_response,
     unwrap_redirect,
 };
+use draggy_web::page::{
+    extract_metadata, is_pdf_source, is_script_shell, needs_render, page_note, split_pages,
+};
 use draggy_web::sources;
 use serde_json::{Map, Value, json};
 use tracing::field::{Field, Visit};
@@ -56,6 +59,7 @@ fixture_tests! {
     connectivity_log => "connectivity-log.json",
     hostnames => "hostnames.json",
     page_decode => "page-decode.json",
+    page_extract => "page-extract.json",
     permissions => "permissions.json",
     policy_counts => "policy-counts.json",
     search_brave => "search-brave.json",
@@ -157,6 +161,7 @@ fn run(file: &str, input: &Value) -> Value {
         "connectivity.json" => run_connectivity(input),
         "connectivity-log.json" => run_connectivity_log(input),
         "page-decode.json" => run_decode(input),
+        "page-extract.json" => run_page_extract(input),
         "permissions.json" => run_permission(input),
         "policy-counts.json" => run_policy_ops(input),
         "search-brave.json"
@@ -918,4 +923,43 @@ fn sources_code_registries_read_names_and_urls() {
     assert_eq!(source_rows("sources-pypi.json")[0]["title"], "requests 2.32.3");
     assert_eq!(run("sources-pypi.json", &json!({})), json!([]));
     assert_eq!(source_rows("sources-crates.json")[1]["url"], "https://crates.io/crates/serde_json");
+}
+
+/// The page-reading helpers, one op per case, as `runPageExtract` in the TypeScript runner does.
+fn run_page_extract(input: &Value) -> Value {
+    let text = |key: &str| js_text(&input[key]);
+    match input["op"].as_str().unwrap_or_default() {
+        "metadata" => {
+            let meta = extract_metadata(&text("html"), &text("url"));
+            json!({
+                "title": meta.title,
+                "site": meta.site,
+                "author": meta.author,
+                "published": meta.published,
+                "modified": meta.modified,
+                "language": meta.language,
+                "canonical": meta.canonical,
+            })
+        }
+        "shell" => json!(is_script_shell(&text("html"))),
+        "needsRender" => json!(needs_render(&text("markdown"), &text("html"))),
+        "pdf" => json!(is_pdf_source(&text("contentType"), &text("url"))),
+        "note" => {
+            let number = |key: &str, default: usize| {
+                input[key].as_u64().map_or(default, |n| usize::try_from(n).unwrap_or(default))
+            };
+            json!(page_note(number("page", 1), number("count", 1)))
+        }
+        "split" => {
+            let size = input["size"]
+                .as_u64()
+                .map_or(draggy_web::page::PAGE_SIZE, |n| usize::try_from(n).unwrap_or(0));
+            let pages = split_pages(&text("markdown"), size);
+            json!({
+                "lengths": pages.iter().map(|page| page.chars().count()).collect::<Vec<_>>(),
+                "starts": pages.iter().map(|page| page.chars().take(2).collect::<String>()).collect::<Vec<_>>(),
+            })
+        }
+        other => json!(format!("unknown op {other}")),
+    }
 }
