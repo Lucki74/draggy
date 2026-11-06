@@ -12,8 +12,6 @@ const browserFailure = (result: BrowserResult<object> | undefined) =>
 
 const webEnabled = (environment: { webMode: string }) => environment.webMode !== "off";
 
-const PAGE_LINE_LIMIT = 500;
-
 /** How many empty searches before searching is switched off for the turn. A model that gets one
  * empty answer rewords the same question indefinitely. */
 const SEARCH_FAILURE_BUDGET = 3;
@@ -191,16 +189,18 @@ const readUrl: ToolSpec = {
     openWorldHint: true,
   },
   group: "web",
-  description: "Read the readable text content of a web page.",
+  description: "Read a web page or PDF as Markdown. Long pages come in parts: pass page to read the next one.",
   parameters: {
     url: { type: "string", description: "Absolute URL of the page to read." },
+    page: { type: "integer", description: "Optional 1-based part of a long page. Default 1." },
   },
   required: ["url"],
   usage:
-    '{"url": "https://example.com"} → the full text of a page',
+    '{"url": "https://example.com", "page": 2} → the Markdown of a page, one part at a time',
   available: webEnabled,
   run: async (args, ctx) => {
     const url = String(args.url);
+    const wanted = Number.isInteger(Number(args.page)) && Number(args.page) > 0 ? Number(args.page) : 1;
     if (spendCall(ctx)) return runSpent("read_url", ctx);
     const stepId = ctx.newId();
 
@@ -213,7 +213,7 @@ const readUrl: ToolSpec = {
     });
 
     try {
-      const page = await api()?.readUrl(url);
+      const page = await api()?.readUrl(url, wanted);
       if (!page) throw new Error("No data");
 
       // An address the tools will not fetch. Saying so once, and why, is what
@@ -240,18 +240,32 @@ const readUrl: ToolSpec = {
         return `TOOL RESULT (read_url): This page is behind a human-verification challenge (such as Cloudflare) and cannot be read automatically. Do not retry this URL or try to work around the check. Tell the user the page needs them to open it and pass the check themselves, and give them the link: ${url}`;
       }
 
-      const lines = page.text.split("\n").filter((line) => line.trim().length > 0);
-      const shown = Math.min(lines.length, PAGE_LINE_LIMIT);
-
       ctx.patchStep(stepId, {
         isComplete: true,
         content: `${ctx.t("readSite")} **${url}**`,
       });
       ctx.syncSteps();
 
-      const source = recordRead(ctx, { url, title: page.title, text: page.text, ok: true });
+      const source = recordRead(ctx, {
+        url,
+        title: page.title,
+        text: page.text,
+        site: page.site,
+        published: page.published,
+        ok: true,
+      });
       const cite = source ? `Source id: ${source.id}. Record what it says with add_note and this id.\n` : "";
-      return `TOOL RESULT (read_url):\n${cite}Title: ${page.title}\nContent:\n${lines.slice(0, shown).join("\n")}${runFooter(ctx)}`;
+      const facts = [
+        page.site ? `Site: ${page.site}` : "",
+        page.author ? `Author: ${page.author}` : "",
+        page.published ? `Published: ${page.published}` : "",
+        page.modified ? `Modified: ${page.modified}` : "",
+        page.language ? `Language: ${page.language}` : "",
+        page.canonicalUrl && page.canonicalUrl !== url ? `Canonical: ${page.canonicalUrl}` : "",
+        page.pageNote ?? "",
+      ].filter(Boolean);
+      const meta = facts.length ? `${facts.join("\n")}\n` : "";
+      return `TOOL RESULT (read_url):\n${cite}Title: ${page.title}\n${meta}Content:\n${page.text}${runFooter(ctx)}`;
     } catch (error) {
       // The message can echo the address, so only the error name is logged.
       logRendererEvent("renderer.tools", "ERROR", "read_url failed", {

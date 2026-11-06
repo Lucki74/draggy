@@ -1371,9 +1371,21 @@ declare global {
       /** Write-only; an empty key removes it. `kept` is false when no keystore holds it past this run. */
       setBraveKey: (key: string) => Promise<{ success: boolean; kept: boolean }>;
       braveKeyStatus: () => Promise<{ hasKey: boolean; keyHint: string; keystore: boolean }>;
-      readUrl: (url: string) => Promise<{
+      readUrl: (url: string, page?: number) => Promise<{
         title: string;
+        /** One page of Markdown, about 12,000 characters. */
         text: string;
+        site?: string;
+        author?: string;
+        published?: string;
+        modified?: string;
+        language?: string;
+        canonicalUrl?: string;
+        snapshotHash?: string;
+        pageCount?: number;
+        page?: number;
+        /** "Page 1 of 3" plus how to get the next page, worded for the model. Empty for a single page. */
+        pageNote?: string;
         /** Set when the page could not be read rather than had no content. */
         blocked?: "human-verification" | "refused" | "unreachable";
         /** Why a refused or unreachable address failed, worded for the model. */
