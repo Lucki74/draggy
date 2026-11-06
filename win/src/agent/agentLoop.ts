@@ -106,6 +106,7 @@ import { generateId, isBinary, safeJsonParse } from "../utils";
 import { raceAbort } from "./abortRace";
 import { describeEnded, inputFor, isHarmlessInput } from "../tools/tasks";
 import { activeRun } from "../research/session";
+import { researchInstruction, researchRequest } from "../research/command";
 import { loopLimitFor } from "../research/run";
 import type {
   AppSettings,
@@ -450,6 +451,12 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       ? skillInvocations(lastMessage.content, skills)
       : null;
 
+  // "/research" only means something while the research tools are offered.
+  const researchAsked =
+    !request.isContinuation && lastMessage?.role === "user" && environment.webMode !== "off"
+      ? researchRequest(lastMessage.content)
+      : null;
+
   const alreadyLoaded = new Set(loadedSkillIds(messages, skills));
   const invokedSkillBodies: LoadedSkill[] = [];
   if (invoked) {
@@ -489,6 +496,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     ),
     loadedSection,
     environment.imageReady ? imageIndex(trackImages(messages)) : "",
+    researchAsked !== null ? researchInstruction(researchAsked) : "",
   ]
     .filter(Boolean)
     .join("\n\n");
