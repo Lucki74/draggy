@@ -105,9 +105,10 @@ import {
 import { generateId, isBinary, safeJsonParse } from "../utils";
 import { raceAbort } from "./abortRace";
 import { describeEnded, inputFor, isHarmlessInput } from "../tools/tasks";
-import { activeRun } from "../research/session";
-import { researchInstruction, researchRequest } from "../research/command";
-import { loopLimitFor } from "../research/run";
+import { activeRun, settleRun } from "../research/session";
+import { followUpInstruction, holdsFinishedRun, researchInstruction, researchRequest } from "../research/command";
+import { applyReceipts } from "../research/receipts";
+import { loopLimitFor, renderRunState } from "../research/run";
 import type {
   AppSettings,
   ApprovalAnswer,
@@ -497,6 +498,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     loadedSection,
     environment.imageReady ? imageIndex(trackImages(messages)) : "",
     researchAsked !== null ? researchInstruction(researchAsked) : "",
+    researchAsked === null && environment.webMode !== "off" && holdsFinishedRun(messages) ? followUpInstruction() : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -1055,6 +1057,8 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     });
   }
 
+  // The run's section of the system prompt is rebuilt from this each step.
+  const baseSystem = wire[0].content;
   let loopCount = 0;
   let isFinished = false;
   let turnState: ProviderState | undefined;
@@ -1173,6 +1177,13 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     if (toolContext.chatId) {
       const ended = await window.electronAPI?.tasks?.takeInbox(toolContext.chatId).catch(swallowed("agent", "the report of ended tasks is retried on the next request", null));
       if (ended?.items && ended.items.length > 0) wire.push({ role: "user", content: describeEnded(ended.items) });
+    }
+
+    // A research run shows the model its state each step, and pages already noted shrink to receipts.
+    const researchRun = activeRun(toolContext);
+    if (researchRun) {
+      applyReceipts(wire, researchRun);
+      wire[0] = { ...wire[0], content: [baseSystem, renderRunState(researchRun, Date.now())].join("\n\n") };
     }
 
     const loopController = new AbortController();
@@ -1907,6 +1918,10 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       signal.removeEventListener("abort", abortHandler);
     }
   }
+
+  // A run the model never finished, such as after Stop, is still checked and saved.
+  const openRun = activeRun(toolContext);
+  if (openRun && openRun.endedAt === undefined) await settleRun(toolContext);
 
   const exhausted = !isFinished && loopCount >= currentLimit();
 
