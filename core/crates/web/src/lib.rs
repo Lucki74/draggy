@@ -15,3 +15,4 @@ mod js;
 pub mod page;
 pub mod policy;
 pub mod search;
+pub mod sources;

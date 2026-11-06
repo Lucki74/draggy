@@ -9,7 +9,7 @@ pub(crate) fn js_trim(text: &str) -> &str {
     text.trim_matches(is_js_space)
 }
 
-fn is_js_space(ch: char) -> bool {
+pub(crate) fn is_js_space(ch: char) -> bool {
     matches!(
         ch,
         '\t' | '\u{0B}'
