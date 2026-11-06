@@ -406,7 +406,14 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     compactTools: (info?.promptProfile ?? "compact") === "compact",
     vision: hasCapability(info, "vision"),
   };
-  const environment = cannotUseTools ? withoutTools(sized) : sized;
+  const lastUser = request.messages[request.messages.length - 1];
+  const withResearch = {
+    ...sized,
+    researchModelStart: settings.researchModelStart !== false,
+    researchMaxDepth: settings.researchMaxDepth,
+    researchAsked: !request.isContinuation && lastUser?.role === "user" && researchRequest(lastUser.content) !== null,
+  };
+  const environment = cannotUseTools ? withoutTools(withResearch) : withResearch;
 
   // A probe that failed is not proof a model cannot call tools: the engine may
   // have been busy. What it said last time stands in.

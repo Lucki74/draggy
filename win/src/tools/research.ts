@@ -12,9 +12,14 @@ import {
   DEPTHS,
   readPlan,
   type ResearchPlan,
+  clampDepth,
 } from "../research/run";
 
 const webOn = (env: { webMode: string }) => env.webMode !== "off";
+
+/** The model may start research unless the user turned that off; /research always allows it. */
+export const mayStartResearch = (env: { webMode: string; researchModelStart?: boolean; researchAsked?: boolean }) =>
+  webOn(env) && (env.researchModelStart !== false || env.researchAsked === true);
 
 const READ_ONLY = {
   readOnly: true,
@@ -63,19 +68,21 @@ const startResearch: ToolSpec = {
   usage:
     '{"question": "...", "sub_questions": "First\\nSecond", "depth": "standard", "sources": "web"} → the approved plan',
   annotations: READ_ONLY,
-  available: webOn,
+  available: mayStartResearch,
   run: async (args, ctx) => {
     if (activeRun(ctx)) {
       return `TOOL RESULT (start_research): A research run is already going in this reply. Carry on with it.${runFooter(ctx)}`;
     }
-    const drafted = readPlan({
+    const firstDraft = readPlan({
       question: args.question,
       subQuestions: args.sub_questions,
       depth: args.depth,
       sources: args.sources,
     });
-    if (!drafted) return "TOOL RESULT (start_research): There was no question. Send the question to research.";
+    if (!firstDraft) return "TOOL RESULT (start_research): There was no question. Send the question to research.";
 
+    const cap = ctx.environment?.researchMaxDepth;
+    const drafted = { ...firstDraft, depth: clampDepth(firstDraft.depth, cap) };
     let plan = drafted;
     if (ctx.approveResearch) {
       const approved = await ctx.approveResearch(drafted);
@@ -95,7 +102,7 @@ const startResearch: ToolSpec = {
       plan = editedPlan(reply.text, drafted);
     }
 
-    const run = createRun(ctx.newId(), plan, Date.now());
+    const run = createRun(ctx.newId(), { ...plan, depth: clampDepth(plan.depth, cap) }, Date.now());
     setRun(ctx, run);
     openRunBlock(ctx, run);
     return `TOOL RESULT (start_research): The plan is approved. Search for each sub-question, read the best pages with read_url, and after each useful page call add_note with the exact sentence it says.${runFooter(ctx)}`;

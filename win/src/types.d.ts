@@ -1292,6 +1292,12 @@ export interface AppSettings {
   interfaceSounds: boolean;
   searchProvider: SearchProvider;
   searxngUrl: string;
+  /** Whether the model may call start_research itself. Off means only after /research. */
+  researchModelStart: boolean;
+  /** The deepest research the model may plan. */
+  researchMaxDepth: "quick" | "standard" | "deep";
+  /** How long finished research is kept. */
+  researchKeep: "forever" | "90" | "30";
   /** The model Code runs. Empty uses the chat model. */
   codeModel: string;
   /** Instructions for every project, kept apart from the chat ones. */
@@ -1388,6 +1394,9 @@ declare global {
       /** Write-only; an empty key removes it. `kept` is false when no keystore holds it past this run. */
       setBraveKey: (key: string) => Promise<{ success: boolean; kept: boolean }>;
       braveKeyStatus: () => Promise<{ hasKey: boolean; keyHint: string; keystore: boolean }>;
+      /** Write-only keys for OpenAlex and GitHub; the status never carries any part of the key. */
+      setServiceKey: (id: "openalex" | "github", key: string) => Promise<{ success: boolean; kept: boolean }>;
+      serviceKeyStatus: (id: "openalex" | "github") => Promise<{ hasKey: boolean; keystore: boolean }>;
       readUrl: (url: string, page?: number) => Promise<{
         title: string;
         /** One page of Markdown, about 12,000 characters. */

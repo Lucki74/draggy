@@ -38,6 +38,9 @@ vi.mock("../llama", async (importOriginal) => {
 });
 
 const SETTINGS = {
+  researchModelStart: true,
+  researchMaxDepth: "deep",
+  researchKeep: "forever",
   theme: "light",
   accent: "vermilion",
   fontSize: "base",

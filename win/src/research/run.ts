@@ -25,6 +25,12 @@ export const DEPTHS: Record<Depth, DepthSpec> = {
 };
 
 export const DEPTH_IDS = Object.keys(DEPTHS) as Depth[];
+
+/** Brings a depth down to the highest the user allows. An unknown limit allows everything. */
+export function clampDepth(depth: Depth, max: string | undefined): Depth {
+  const limit = DEPTH_IDS.indexOf(max as Depth);
+  return limit >= 0 && DEPTH_IDS.indexOf(depth) > limit ? DEPTH_IDS[limit] : depth;
+}
 export const SOURCE_KINDS: SourceKind[] = ["web", "papers", "wiki", "code"];
 
 /** The share of the budget after which the model is told to start writing. */
