@@ -2,6 +2,7 @@
 // The DOM work (Readability, Turndown) runs in a window the caller supplies, never in Node.
 const fs = require("fs");
 const path = require("path");
+const log = require("./logger.cjs");
 
 const PAGE_SIZE = 12000;
 const MIN_TEXT = 500;
@@ -234,7 +235,7 @@ async function readCapped(response, limit) {
     chunks.push(value);
     total += value.length;
   }
-  reader.cancel().catch(() => {});
+  reader.cancel().catch(log.swallowed("read-url", "body already cut at the limit"));
   return new Uint8Array(Buffer.concat(chunks).subarray(0, limit));
 }
 

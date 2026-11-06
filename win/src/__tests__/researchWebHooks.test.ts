@@ -67,7 +67,7 @@ describe("web tools during a research run", () => {
     await runTool("search_web", { query: "speed of X" }, ctx, WEB);
     const again = await runTool("search_web", { query: "X speed" }, ctx, WEB);
     expect(again).toMatch(/already ran a search like/);
-    expect(window.electronAPI.searchWebDetailed).toHaveBeenCalledTimes(1);
+    expect(window.electronAPI!.searchWebDetailed).toHaveBeenCalledTimes(1);
   });
 
   it("stop gathering once the budget is spent", async () => {
@@ -75,12 +75,12 @@ describe("web tools during a research run", () => {
     activeRun(ctx)!.toolCalls = 1_000;
     const result = await runTool("read_url", { url: hit.url }, ctx, WEB);
     expect(result).toMatch(/budget is spent/);
-    expect(window.electronAPI.readUrl).not.toHaveBeenCalled();
+    expect(window.electronAPI!.readUrl).not.toHaveBeenCalled();
   });
 
   it("mark a page that failed as a failed source", async () => {
     const ctx = researching();
-    vi.mocked(window.electronAPI.readUrl).mockRejectedValueOnce(new Error("boom"));
+    vi.mocked(window.electronAPI!.readUrl).mockRejectedValueOnce(new Error("boom"));
     await runTool("read_url", { url: hit.url }, ctx, WEB);
     expect(activeRun(ctx)!.sources[0].status).toBe("failed");
   });
