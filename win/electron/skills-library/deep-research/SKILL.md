@@ -1,45 +1,45 @@
 ---
 name: deep-research
-description: Answers a hard question with a cited report. Splits it into sub-questions, searches, reads primary sources in full, cross-checks them and writes up what is established, what is disputed and what is unknown. Use when the user asks for deep research, a thorough investigation, or a report with sources.
+description: Answers a hard question with a cited report. Plans sub-questions, gathers sourced notes, cross-checks them and writes up what is established, what is disputed and what is unknown. Use when the user asks for deep research, a thorough investigation, or a report with sources.
 ---
 
 # Deep research
 
 ## Goal
 
-Give the user a report they can rely on and check. Every claim carries a source the agent opened, disagreements are shown instead of smoothed over, and gaps are named. A long answer is not the aim. A traceable one is.
+Give the user a report they can check. Every fact cites a note the agent recorded from a page it read, disagreements are shown, and gaps are named. A traceable answer matters more than a long one.
 
 ## When to use
 
 - The question needs many sources and a synthesis, not one lookup.
-- The user wants a written report, with links, on a topic they will act on.
-- For a single claim to confirm, use `use_skill` with `fact-check`. For a quick headline round-up, use `news-brief`.
+- The user wants a written report with links on a topic they will act on.
+- For one claim to check, use `use_skill` with `fact-check`. For today's headlines, use `news-brief`.
 
 ## Steps
 
-1. **Pin the question.** Restate it in one sentence with scope, region, time range and the decision it feeds. If any of those is unclear and changes the answer, use `ask_user` once.
-2. **Plan sub-questions.** List 4 to 8 sub-questions that together answer the main one. Record them with `update_plan` and tick them off as you go.
-3. **Search each sub-question.** Use `search_web` with at least two differently worded queries per sub-question. Prefer results from the body that produced the data: regulators, statistics offices, courts, the paper itself, the company filing.
-4. **Open the sources.** Use `read_url` on every page you will cite. Read the part that carries the claim, past the intro. A search snippet is a lead, never a citation.
-5. **Find the primary source.** When a page cites a study or figure, follow the link and read that. If it cannot be reached, mark the claim as secondhand.
-6. **Cross-check.** For each important claim, look for one independent source. Independent means it did not copy the first. Note where two sources disagree and look for the reason: definition, date, sample or method.
-7. **Record as you go.** Keep a running list of claim, source URL, date accessed and confidence (confirmed, single source, disputed).
-8. **Write the report.** Order: answer in three sentences, findings by sub-question, disagreements, open gaps, source list. Save it with `create_file` when it runs past a screen.
-9. **Reread against the list.** Every sentence with a fact maps to a recorded source. Cut or soften any that does not.
-10. **Offer the trail.** Keep the plan and source list in a file with `create_file` so the user can rerun or extend the work later.
-11. **State the limits.** Name the sub-questions that got thin evidence and what further search would target them.
+1. Pin the question. Restate it in one sentence with scope, region, time range and the decision it feeds. If something unclear changes the answer, use `ask_user` once.
+2. Call `start_research` with the question, the sub-questions one per line, a depth and the sources that fit. Use `deep` unless the user asked for less. Add `papers`, `wiki` or `code` where the topic has them. The user approves the plan before any search runs. If they edit it, work from the edited plan.
+3. Search each sub-question with `search_web`, using at least two differently worded queries. Pick the `source` that fits the claim. Prefer the body that produced the data: regulators, statistics offices, courts, the paper itself, the company filing.
+4. Open each page you plan to cite with `read_url`. Read the part that carries the claim, not only the intro. Follow a cited study to its own page when that page can be reached. A search snippet is a lead, never a citation.
+5. After each useful page, call `add_note` with a claim in your own words, the exact sentence from the page, the `source_id` that `read_url` gave, and a confidence of `confirmed`, `single_source` or `disputed`.
+6. Before searching again, call `search_notes` to see what is already recorded. Reuse notes instead of reopening the same page.
+7. Cross-check each important claim against one independent source. Independent means it did not copy the first. Where sources differ, find the reason: definition, date, sample or method.
+8. Call `finish_research` once the sub-questions are covered or the tools report the budget spent. Stop gathering there.
+9. Write the report from the notes that `finish_research` returns. Cite each fact with its note id in brackets, such as [n1], and cite nothing else. Order: three-sentence answer, findings by sub-question, where sources disagree, what is not known, sources.
+10. Save the report with `create_file` when it runs past about 1,500 words or when the user asks for a file. Put the plan and source list in that file so the work can be rerun later.
+11. Reread the report against the notes. Every factual sentence needs a note id. Cut or soften any that has none.
 
 ## Gotchas
 
-- Sub-questions drift. Check at the end that the report still answers the question asked in step 1, not the most interesting thing found on the way.
-- A topic with one dominant source looks settled. If three sites say the same thing, check whether they quote one origin.
-- Dates matter more than they seem. A figure from before a rule change answers a different question. State the year next to each number.
+- Sub-questions drift. Check at the end that the report answers the question from step 1, not the most interesting thing found on the way.
+- Several sites that repeat one origin count as one source. Check where they got the figure.
+- Dates matter. A figure from before a rule change answers a different question. State the year beside each number.
 - Confident prose hides weak evidence. Use the confidence labels in the text, for example "one study, small sample".
-- Stop when new searches only repeat known sources. Say so, instead of padding to look exhaustive.
-- Paywalled pages: say you could not read them. Do not cite from the visible teaser.
-- Search ranking favours popular pages, not the best evidence. Dig past the first results page for official and specialist sources.
+- Paywalled pages: say you could not read them. Do not cite from a visible teaser.
+- Search ranking favours popular pages, not the best evidence. Look past the first results for official and specialist sources.
 - A source in another language may hold the best data. Search once in the main language of the place studied.
+- Stop when new searches only return known sources, and say so. Do not pad the report to look thorough.
 
 ## Output
 
-A report in plain headings. Opening answer first, then findings, then "Where sources disagree", "What is not known" and "Sources" with URL and access date. No filler intro. If the user asked for a short version, give the three-sentence answer and offer the file.
+A report under plain headings. Open with the answer, then findings by sub-question, then "Where sources disagree", "What is not known" and "Sources" with the URL and the date read. No intro. If the user asked for a short version, give the three-sentence answer and offer the file.
