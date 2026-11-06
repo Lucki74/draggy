@@ -21,6 +21,7 @@ pub mod net;
 pub mod observer;
 pub mod plan;
 pub mod records;
+pub mod research;
 pub mod session;
 pub mod skills;
 pub mod task_tools;
