@@ -15,6 +15,7 @@ const {
   protocol,
   screen,
   session,
+  net,
 } = require("electron");
 const path = require("path");
 const os = require("os");
@@ -50,6 +51,7 @@ const skills = require("./skills.cjs");
 const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
 const researchLibrary = require("./researchLibrary.cjs");
+const pageExtract = require("./pageExtract.cjs");
 const runner = require("./runner.cjs");
 const commands = require("./commands.cjs");
 const { createTaskManager } = require("./tasks.cjs");
@@ -1758,12 +1760,8 @@ ipc.handle("search-web-detailed", async (event, query) =>
   runSearch(query, searchSettings(), { scrape: scrapeInHiddenWindow }),
 );
 
-ipc.handle("get-page-content", async (event, url) => {
-  if (!urlPolicy.isFetchableUrl(url)) {
-    log.warn("read-url", `refused ${String(url).slice(0, 120)}`);
-    return { title: "", text: "", blocked: "refused", reason: urlPolicy.refusalFor(url), url };
-  }
-
+/** Loads the page in a hidden window and reads the rendered DOM. The slow path of read_url. */
+async function renderPageInHiddenWindow(url) {
   const win = new BrowserWindow({
     show: false,
     webPreferences: {
@@ -1840,32 +1838,56 @@ ipc.handle("get-page-content", async (event, url) => {
       return { title: "", text: "", blocked: "refused", reason: urlPolicy.refusalFor(refusedHop), url };
     }
 
-    const result = await win.webContents.executeJavaScript(`
-      (() => {
-        document.querySelectorAll('script, style, nav, footer, header, aside, .ad, .ads, [role="banner"], [role="navigation"]')
-          .forEach(el => el.remove());
-
-        const title = document.title || '';
-        const mainEl = document.querySelector('main, article, [role="main"]') || document.body;
-        const text = mainEl.innerText
-          .replace(/[ \\t]+/g, ' ')       
-          .replace(/\\n{3,}/g, '\\n\\n')  
-          .trim()
-          .substring(0, 15000);           
-
-        return JSON.stringify({ title, text });
-      })();
-    `);
-
+    const bundles = pageBundles();
+    const out = JSON.parse(
+      await win.webContents.executeJavaScript(
+        pageExtract.buildExtractScript({ ...bundles, html: null, baseUrl: url }),
+      ),
+    );
+    const finalUrl = win.webContents.getURL();
     win.destroy();
-    return JSON.parse(result);
+    return { ...out, finalUrl };
   } catch (e) {
     win.destroy();
     const failure = classifyPageFailure(e);
     log.warn("read-url", `page read failed: ${failure.code}`);
     return { title: "", text: "", blocked: "unreachable", reason: failure.reason, url };
   }
-});
+}
+
+let bundlesCache = null;
+const pageBundles = () => (bundlesCache ??= pageExtract.loadBundles());
+
+/** Runs Readability and Turndown over fetched HTML inside a blank window. Scripts in the HTML never run. */
+async function extractHtmlInBlankWindow(html, url) {
+  const win = new BrowserWindow({
+    show: false,
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  });
+  try {
+    await win.loadURL("about:blank");
+    const out = await win.webContents.executeJavaScript(
+      pageExtract.buildExtractScript({ ...pageBundles(), html, baseUrl: url }),
+    );
+    return JSON.parse(out);
+  } finally {
+    if (!win.isDestroyed()) win.destroy();
+  }
+}
+
+ipc.handle("get-page-content", async (event, url, page) =>
+  pageExtract.readPage(url, Number(page) || 1, {
+    fetch: (target, init) => net.fetch(target, init),
+    userAgent: DESKTOP_USER_AGENT,
+    isFetchable: (target) => urlPolicy.isFetchableUrl(target),
+    refusalFor: (target) => urlPolicy.refusalFor(target),
+    extractHtml: extractHtmlInBlankWindow,
+    render: renderPageInHiddenWindow,
+    readPdf: (buffer) => documents.readPdf(buffer),
+    saveSnapshot: (markdown, metadata) => researchLibrary.saveSnapshot(markdown, metadata),
+    log,
+  }),
+);
 
 const AGENT_WORLD = 1000;
 

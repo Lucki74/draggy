@@ -280,6 +280,30 @@ function runDecode(input: { contentType: string | null; bytes: number[] }) {
   }
 }
 
+const pageExtract = require("../../../electron/pageExtract.cjs") as {
+  extractMetadata: (html: string, url: string) => unknown;
+  isScriptShell: (html: string) => boolean;
+  needsRender: (markdown: string, html: string) => boolean;
+  isPdfSource: (contentType: string, url: string) => boolean;
+  splitPages: (markdown: string, size?: number) => string[];
+  pageNote: (page: number, count: number) => string;
+};
+
+function runPageExtract(input: { op: string; html?: string; url?: string; markdown?: string; contentType?: string; size?: number; page?: number; count?: number }) {
+  switch (input.op) {
+    case "metadata": return pageExtract.extractMetadata(input.html ?? "", input.url ?? "");
+    case "shell": return pageExtract.isScriptShell(input.html ?? "");
+    case "needsRender": return pageExtract.needsRender(input.markdown ?? "", input.html ?? "");
+    case "pdf": return pageExtract.isPdfSource(input.contentType ?? "", input.url ?? "");
+    case "note": return pageExtract.pageNote(input.page ?? 1, input.count ?? 1);
+    case "split": {
+      const pages = pageExtract.splitPages(input.markdown ?? "", input.size);
+      return { lengths: pages.map((page) => page.length), starts: pages.map((page) => page.slice(0, 2)) };
+    }
+    default: throw new Error(`unknown op ${input.op}`);
+  }
+}
+
 /** The warning a failed provider logs. Every provider fails with the same message, so the first log line is the one kept. */
 async function runRedact(input: { query: string; message: string }) {
   const logged: string[] = [];
@@ -479,6 +503,7 @@ const RUNNERS: Record<string, (input: never) => unknown> = {
   "connectivity.json": runConnectivity,
   "connectivity-log.json": runConnectivityLog,
   "page-decode.json": runDecode,
+  "page-extract.json": runPageExtract,
   "permissions.json": runPermission,
   "search-redact.json": runRedact,
   "policy-counts.json": runPolicyOps,
