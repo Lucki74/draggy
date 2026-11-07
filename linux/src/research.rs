@@ -507,8 +507,8 @@ mod tests {
     fn the_source_list_follows_the_notes() {
         let lines = source_list_markup(&run());
         assert_eq!(lines.len(), 2);
-        assert!(lines[0].starts_with("1. <a href=\"https://y.org\">Y</a>"));
-        assert!(lines[1].contains("A &amp; B"));
+        assert!(lines[0].starts_with("1. <a href=\"https://x.org/a\">A &amp; B</a>"));
+        assert!(lines[1].starts_with("2. <a href=\"https://y.org\">Y</a>"));
     }
 
     #[test]
