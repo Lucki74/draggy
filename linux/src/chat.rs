@@ -240,6 +240,10 @@ pub fn metrics_line(metrics: &MetricsRecord) -> String {
 /// A one-line description of a step the agent took, for the list under a reply. Steps that carry no visible content
 /// (the model's thinking, for one) give `None`.
 pub fn step_label(step: &StepRecord) -> Option<String> {
+    // The research run has its own card.
+    if step.kind == "research_run" {
+        return None;
+    }
     if let Some(tool) = &step.tool_name {
         return Some(live_call_label(tool, step));
     }

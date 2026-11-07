@@ -12,6 +12,7 @@ use gtk::{gdk, gio, glib};
 
 use crate::state::{AppState, BRAVE_KEY, SERVER_KEY};
 use crate::tasks_view::TasksList;
+use draggy_core::research::tools::ResearchLibrary;
 use draggy_core::{
     ApprovalChoice, ApprovalRecord, CancelToken, CoreError, ImageRecord, Session, TurnOutcome,
     read_document,
@@ -23,6 +24,7 @@ use draggy_linux::chat::{
 use draggy_linux::conversations::{self, Conversation, Store};
 use draggy_linux::markdown::{self, Block};
 use draggy_linux::preview;
+use draggy_linux::research::{self, RunView};
 use draggy_linux::runtime::runtime;
 use draggy_linux::services::stats_store::{self, TurnCost};
 use draggy_linux::settings::Settings;
@@ -40,6 +42,8 @@ type Toast = Rc<dyn Fn(&str)>;
 #[derive(Clone)]
 pub struct ReplyParts {
     body: gtk::Box,
+    /// The research run card, hidden unless the reply holds a run.
+    card: gtk::Box,
     steps: gtk::Label,
     /// Holds the steps in a box of fixed height that follows the newest line.
     steps_box: gtk::ScrolledWindow,
@@ -48,6 +52,8 @@ pub struct ReplyParts {
     streamed: Cell<bool>,
     meta: gtk::Label,
     shown: RefCell<Option<String>>,
+    /// The run JSON the card was drawn from.
+    run_key: RefCell<Option<String>>,
 }
 
 /// The conversation's session with the settings it was built from. A change in the settings starts a new one.
@@ -512,7 +518,14 @@ impl DraggyChat {
             };
             chat.imp().input.buffer().set_text("");
             let images = chat.imp().images.take();
-            chat.run_turn(session, text, images);
+            // /research shows as typed and sends the model its instruction.
+            let sent = match research::command_question(&text) {
+                Some(question) => research::instruction(&question),
+                None => text.clone(),
+            };
+            let options = state.research.borrow().clone();
+            session.set_research_options(options.model_start, options.max_depth);
+            chat.run_turn(session, text, sent, images);
         });
     }
 
@@ -585,6 +598,14 @@ impl DraggyChat {
             }
         };
         *imp.pending.borrow_mut() = None;
+        // Finished runs are saved under this chat.
+        if let Some(storage) = state.storage() {
+            session.set_research_library(Some(ResearchLibrary {
+                storage,
+                workspace_id: None,
+                chat_id: Some(id.clone()),
+            }));
+        }
         *imp.live.borrow_mut() = Some(Live {
             settings: settings.clone(),
             session: Arc::clone(&session),
@@ -823,9 +844,9 @@ impl DraggyChat {
         }
     }
 
-    fn run_turn(&self, session: Arc<Session>, text: String, images: Vec<ImageRecord>) {
+    fn run_turn(&self, session: Arc<Session>, text: String, sent: String, images: Vec<ImageRecord>) {
         let imp = self.imp();
-        let shown = images.iter().fold(text.clone(), |shown, image| {
+        let shown = images.iter().fold(text, |shown, image| {
             format!("{shown}\n[{}]", image.name)
         });
         imp.log.borrow_mut().begin_turn(&shown);
@@ -843,7 +864,7 @@ impl DraggyChat {
         self.scroll_to_end();
 
         let (tx, rx) = async_channel::unbounded();
-        *imp.cancel.borrow_mut() = Some(start_turn(session, text, images, tx));
+        *imp.cancel.borrow_mut() = Some(start_turn(session, sent, images, tx));
         let chat = self.clone();
         glib::spawn_future_local(async move {
             while let Ok(message) = rx.recv().await {
@@ -995,6 +1016,12 @@ fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
         .css_classes(["caption", "dim-label"])
         .build();
     row.append(&body);
+    let card = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(4)
+        .visible(false)
+        .build();
+    row.append(&card);
     let steps_box = gtk::ScrolledWindow::builder()
         .child(&steps)
         .hscrollbar_policy(gtk::PolicyType::Never)
@@ -1018,12 +1045,14 @@ fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
     }
     let parts = ReplyParts {
         body,
+        card,
         steps,
         steps_box,
         fold,
         streamed: Cell::new(entry.streaming),
         meta,
         shown: RefCell::new(None),
+        run_key: RefCell::new(None),
     };
     fill(&parts, entry);
     (row, parts)
@@ -1035,9 +1064,21 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
     } else {
         entry.text.clone()
     };
-    if parts.shown.borrow().as_deref() != Some(shown.as_str()) {
-        draw_body(&parts.body, entry, &shown);
-        *parts.shown.borrow_mut() = Some(shown);
+    let run_json = entry
+        .steps
+        .iter()
+        .find(|step| step.kind == "research_run")
+        .and_then(|step| step.content.clone());
+    let run = entry.steps.iter().find_map(research::parse_step);
+    // The chips and source list come from the run, so a change in it redraws the body too.
+    let key = format!("{shown}\u{0}{}", run_json.as_deref().unwrap_or_default());
+    if parts.shown.borrow().as_deref() != Some(key.as_str()) {
+        draw_body(&parts.body, entry, &shown, run.as_ref());
+        *parts.shown.borrow_mut() = Some(key);
+    }
+    if *parts.run_key.borrow() != run_json {
+        draw_card(&parts.card, run.as_ref());
+        *parts.run_key.borrow_mut() = run_json;
     }
     let steps: Vec<String> = entry.steps.iter().filter_map(step_label).collect();
     parts.steps.set_visible(!steps.is_empty());
@@ -1079,7 +1120,7 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
 }
 
 /// Replaces the body with the text drawn for its role: plain for the user, Markdown blocks for the assistant.
-fn draw_body(body: &gtk::Box, entry: &Entry, text: &str) {
+fn draw_body(body: &gtk::Box, entry: &Entry, text: &str, run: Option<&RunView>) {
     while let Some(child) = body.first_child() {
         body.remove(&child);
     }
@@ -1091,18 +1132,65 @@ fn draw_body(body: &gtk::Box, entry: &Entry, text: &str) {
         }
         Role::Assistant => {
             for block in markdown::parse(text) {
-                body.append(&block_widget(&block));
+                body.append(&block_widget(&block, run));
+            }
+            if let Some(run) = run.filter(|run| run.ended_at.is_some()) {
+                let lines = research::source_list_markup(run);
+                if !lines.is_empty() {
+                    let title = format!("<b>{}</b>", markdown::escape(&research::t("researchSourceList")));
+                    body.append(&markup_label(&title, "message-text"));
+                    for line in lines {
+                        body.append(&markup_label(&line, "caption"));
+                    }
+                }
             }
         }
     }
 }
 
+/// The run card: the question, the sub-questions, the sources and the services contacted.
+fn draw_card(card: &gtk::Box, run: Option<&RunView>) {
+    while let Some(child) = card.first_child() {
+        card.remove(&child);
+    }
+    card.set_visible(run.is_some());
+    let Some(run) = run else { return };
+    let line = |text: &str, class: &str| {
+        gtk::Label::builder()
+            .label(text)
+            .wrap(true)
+            .wrap_mode(gtk::pango::WrapMode::WordChar)
+            .xalign(0.0)
+            .selectable(true)
+            .css_classes([class])
+            .build()
+    };
+    card.append(&line(&research::card_header(run), "caption"));
+    if !run.question.is_empty() {
+        card.append(&line(&run.question, "message-text"));
+    }
+    for question in &run.questions {
+        card.append(&line(&research::question_line(question), "caption"));
+    }
+    for source in &run.sources {
+        card.append(&line(&research::source_line(source), "caption"));
+    }
+    if let Some(services) = research::services_line(run) {
+        card.append(&line(&services, "dim-label"));
+    }
+}
+
 /// The widget that draws one Markdown block of a reply.
-fn block_widget(block: &Block) -> gtk::Widget {
+fn block_widget(block: &Block, run: Option<&RunView>) -> gtk::Widget {
+    // In a research reply the note ids become linked numbers.
+    let cited = |markup: &str| match run {
+        Some(run) => research::link_citations(markup, run),
+        None => markup.to_owned(),
+    };
     match block {
-        Block::Paragraph(markup) => markup_label(markup, "message-text").upcast(),
-        Block::Heading(markup) => markup_label(markup, "markdown-heading").upcast(),
-        Block::Quote(markup) => markup_label(markup, "markdown-quote").upcast(),
+        Block::Paragraph(markup) => markup_label(&cited(markup), "message-text").upcast(),
+        Block::Heading(markup) => markup_label(&cited(markup), "markdown-heading").upcast(),
+        Block::Quote(markup) => markup_label(&cited(markup), "markdown-quote").upcast(),
         Block::Item { marker, markup } => {
             let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
             let bullet = gtk::Label::builder()
@@ -1111,7 +1199,7 @@ fn block_widget(block: &Block) -> gtk::Widget {
                 .css_classes(["message-text", "dim-label"])
                 .build();
             row.append(&bullet);
-            row.append(&markup_label(markup, "message-text"));
+            row.append(&markup_label(&cited(markup), "message-text"));
             row.upcast()
         }
         Block::Code { language, code } => code_block(language, code).upcast(),
