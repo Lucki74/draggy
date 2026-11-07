@@ -25,16 +25,17 @@ import { stepView, type StepView } from "./stepView";
 import { TailBox } from "./LiveArgs";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
-/** The state of a step: the ember spark while it runs, then a green check, or a red cross. */
+/** The state of a step: the ember spark while it runs, then a quiet filled dot, or a red cross.
+ * One dot per step, never a check: a chain of green checks reads as noise. */
 function StepMark({ active, failed }: { active: boolean; failed: boolean }) {
   return (
-    <span className="flex w-3 flex-shrink-0 justify-center">
+    <span className="flex w-3 flex-shrink-0 items-center justify-center">
       {failed ? (
         <Icon name="x-circle" size={12} className="text-danger" />
       ) : active ? (
         <Spark />
       ) : (
-        <Icon name="check" size={12} className="step-check text-ok" />
+        <span aria-hidden="true" className="step-dot size-[5px] rounded-full bg-text-secondary/60" />
       )}
     </span>
   );
@@ -307,6 +308,13 @@ function CommandLine({ content, active }: { content: string; active: boolean }) 
   );
 }
 
+/** A folded step's first argument on its own row, cut to one line: "Read format.ts". */
+function ArgTag({ view }: { view: StepView }) {
+  const first = view.args[0]?.[1].split(/\r?\n/)[0];
+  if (!first) return null;
+  return <span className="min-w-0 truncate font-mono text-[12.5px] text-text-tertiary">{first}</span>;
+}
+
 /** A step's arguments as mono key and value rows. */
 function ArgRows({ view }: { view: StepView }) {
   return (
@@ -331,6 +339,9 @@ export function WorkBlock({
   t,
 }: WorkBlockProps) {
   const openInCanvas = useContext(OpenFileContext);
+  const verbose = useTranscriptView() === "verbose";
+  // null follows the step: details show while it runs and fold once it is done. A click overrides it.
+  const [clicked, setClicked] = useState<boolean | null>(null);
   if (step.type === "results" && step.results && step.results.length > 0) {
     const resultsView = stepView(step, t);
     return (
@@ -338,7 +349,10 @@ export function WorkBlock({
         <div className="flex min-h-6 items-center gap-2 text-[13px] text-text-secondary">
           <StepMark active={false} failed={false} />
           {resultsView ? (
-            <span className="min-w-0">{resultsView.name}</span>
+            <>
+              <span className="flex-shrink-0">{resultsView.name}</span>
+              <ArgTag view={resultsView} />
+            </>
           ) : (
             <span className="markdown-inline">
               <ReactMarkdown
@@ -351,8 +365,7 @@ export function WorkBlock({
             </span>
           )}
         </div>
-        {resultsView && <ArgRows view={resultsView} />}
-        <details className="group/results" open>
+        <details className="group/results" open={verbose}>
           <summary className="ms-5 mt-1 flex cursor-pointer select-none list-none items-center gap-1.5 text-[13px] text-text-tertiary hover:text-text-secondary [&::-webkit-details-marker]:hidden">
             <span>{resultsView?.result ?? ""}</span>
             <Icon name="caret-right" size={12} mirrored className="transition-transform group-open/results:rotate-90" />
@@ -479,12 +492,18 @@ export function WorkBlock({
       </div>
     ) : null;
 
+  const hasDetails = Boolean(view?.args.length || (view?.result && !isActive) || payload);
+  const expanded = clicked ?? (isActive || verbose);
+
   return (
     <div key={step.id} className="step-rise mb-3.5">
       <div className="flex items-center gap-2 min-h-6 text-[13px] text-text-secondary">
         <StepMark active={isActive} failed={failed} />
         {view ? (
-          <span className="min-w-0">{view.name}</span>
+          <>
+            <span className={expanded ? "min-w-0" : "flex-shrink-0"}>{view.name}</span>
+            {!expanded && <ArgTag view={view} />}
+          </>
         ) : step.runId && step.fileContent && splitCommand(step.content) ? (
           <CommandLine content={step.content} active={isActive} />
         ) : (
@@ -501,9 +520,21 @@ export function WorkBlock({
 
         {/* Failed step keeps original description so failure is explicit rather than silent. */}
         {failed && !view && <span className="text-[12px] text-danger">{t("stepFailed")}</span>}
+        {hasDetails && (
+          <button
+            type="button"
+            data-testid="step-details-toggle"
+            onClick={() => setClicked(!expanded)}
+            aria-expanded={expanded}
+            aria-label={expanded ? t("hideStepDetails") : t("showStepDetails")}
+            className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary"
+          >
+            <Icon name="caret-right" size={12} mirrored className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
+          </button>
+        )}
 
         <span className="ms-auto flex items-center gap-3 flex-shrink-0 ps-2">
-          {totals && !view && (
+          {totals && (!view || !expanded) && (
             <span className="font-mono text-[12px] tabular-nums whitespace-nowrap">
               <span className="text-ok">+{totals.added}</span> <span className="text-danger">-{totals.removed}</span>
             </span>
@@ -560,9 +591,9 @@ export function WorkBlock({
           )}
         </span>
       </div>
-      {view && <ArgRows view={view} />}
-      {view?.result && !isActive && <div className={`step-rise ms-5 mt-1 text-[13px] ${failed ? "text-danger" : "text-text-tertiary"}`}>{view.result}</div>}
-      {payload}
+      {expanded && view && <ArgRows view={view} />}
+      {view?.result && !isActive && (expanded || failed) && <div className={`step-rise ms-5 mt-1 text-[13px] ${failed ? "text-danger" : "text-text-tertiary"}`}>{view.result}</div>}
+      {expanded && payload}
     </div>
   );
 }

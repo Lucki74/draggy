@@ -111,6 +111,7 @@
     --text-inverted: #ffffff;
     --hover-bg: #d4d4d4;
     --chat-font-size: 15px;
+    --chat-column: 720px;
     /* The voice orb: one flat colour, opposite the page it sits on. */
     --orb: #111111;
     /* The default accent; src/app/accent.ts sets the chosen one on the body. */
@@ -986,11 +987,11 @@ kbd {
   }
 }
 
-/* A tool step rises in as it appears, and its check lands a beat later. */
+/* A tool step rises in as it appears, and its dot lands a beat later. */
 .step-rise {
   animation: step-rise 0.35s cubic-bezier(0.23, 1, 0.32, 1) backwards;
 }
-.step-check {
+.step-dot {
   animation: step-rise 0.25s cubic-bezier(0.23, 1, 0.32, 1) backwards;
 }
 @keyframes step-rise {
@@ -1001,7 +1002,7 @@ kbd {
 }
 @media (prefers-reduced-motion: reduce) {
   .step-rise,
-  .step-check {
+  .step-dot {
     animation: none;
   }
 }

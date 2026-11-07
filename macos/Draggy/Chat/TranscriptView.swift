@@ -64,6 +64,12 @@ struct TranscriptView: NSViewRepresentable {
         private var opened: Set<UUID> = []
 
         private static let sidePadding: CGFloat = 16
+        /// The reading column, matching the Windows and Linux apps.
+        private static let column: CGFloat = 720
+
+        private func side(for width: CGFloat) -> CGFloat {
+            max(Self.sidePadding, (width - Self.column) / 2)
+        }
         private static let captionHeight: CGFloat = 18
 
         func update(_ incoming: [Transcript.Line], in scroll: NSScrollView) {
@@ -119,7 +125,7 @@ struct TranscriptView: NSViewRepresentable {
         func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
             guard lines.indices.contains(row) else { return 24 }
             let line = lines[row]
-            let width = max(tableView.bounds.width - Self.sidePadding * 2, 80)
+            let width = max(tableView.bounds.width - side(for: tableView.bounds.width) * 2, 80)
             if let cached = measured[line.id], cached.width == width, cached.line == line {
                 return cached.height
             }
@@ -139,7 +145,7 @@ struct TranscriptView: NSViewRepresentable {
             let cell = tableView.makeView(withIdentifier: identifier, owner: nil) as? MessageCell ?? MessageCell()
             cell.identifier = identifier
             cell.onToggle = { [weak self] id in self?.toggleSteps(id) }
-            cell.show(lines[row], side: Self.sidePadding, captionHeight: Self.captionHeight)
+            cell.show(lines[row], side: side(for: tableView.bounds.width), captionHeight: Self.captionHeight)
             return cell
         }
     }

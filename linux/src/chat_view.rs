@@ -1027,7 +1027,6 @@ fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
         .child(&steps)
         .hscrollbar_policy(gtk::PolicyType::Never)
         .propagate_natural_height(true)
-        .max_content_height(160)
         .visible(false)
         .build();
     let fold = gtk::Expander::builder()

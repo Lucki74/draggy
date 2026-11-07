@@ -68,7 +68,7 @@ const MessageItem = memo(
         key={msg.id}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`message-container group/msg flex max-w-[760px] mx-auto w-full ${
+        className={`message-container group/msg flex max-w-[var(--chat-column)] mx-auto w-full ${
           msg.role === "user" ? "justify-end" : "justify-start"
         }`}
       >
