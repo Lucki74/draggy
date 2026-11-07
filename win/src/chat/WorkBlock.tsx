@@ -25,16 +25,17 @@ import { stepView, type StepView } from "./stepView";
 import { TailBox } from "./LiveArgs";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
-/** The state of a step: the ember spark while it runs, then a green check, or a red cross. */
+/** The state of a step: the ember spark while it runs, then a quiet filled dot, or a red cross.
+ * One dot per step, never a check: a chain of green checks reads as noise. */
 function StepMark({ active, failed }: { active: boolean; failed: boolean }) {
   return (
-    <span className="flex w-3 flex-shrink-0 justify-center">
+    <span className="flex w-3 flex-shrink-0 items-center justify-center">
       {failed ? (
         <Icon name="x-circle" size={12} className="text-danger" />
       ) : active ? (
         <Spark />
       ) : (
-        <Icon name="check" size={12} className="step-check text-ok" />
+        <span aria-hidden="true" className="step-dot size-[5px] rounded-full bg-text-secondary/60" />
       )}
     </span>
   );

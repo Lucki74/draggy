@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon, Spark } from "../ui";
 import { editTotals, isWorkStep, stepTotals, summarizeWork } from "./workSummary";
 import type { SearchStep } from "../types";
@@ -7,19 +7,42 @@ interface ProcessFoldProps {
   steps: SearchStep[];
   /** The turn is still running: the chain is open and the row reads as working. */
   live: boolean;
+  /** How long the finished turn took, shown after the summary. */
+  durationMs?: number;
   language: string;
   t: (key: string) => string;
   children: React.ReactNode;
 }
 
 /** A turn's reasoning and tool calls in one chain. Open while it runs, folded under a summary once done, one click reopens it. */
-export function ProcessFold({ steps, live, language, t, children }: ProcessFoldProps) {
+/** 9s, 1m 05s: short enough to sit after a summary. */
+function formatSpan(ms: number) {
+  const seconds = Math.max(0, Math.round(ms / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
+}
+
+/** Milliseconds since the row mounted, ticking once a second while `running`. */
+function useRunningFor(running: boolean) {
+  const [from] = useState(() => Date.now());
+  const [now, setNow] = useState(from);
+  useEffect(() => {
+    if (!running) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [running]);
+  return now - from;
+}
+
+export function ProcessFold({ steps, live, durationMs, language, t, children }: ProcessFoldProps) {
   // null follows the turn: open while it runs, folded after. A click overrides it.
   const [clicked, setClicked] = useState<boolean | null>(null);
   const open = clicked ?? live;
   const totals = useMemo(() => editTotals(steps), [steps]);
   // One edited file shows its counts in its own diff, so the row adds them only for several.
   const edits = useMemo(() => steps.filter((step) => stepTotals(step)).length, [steps]);
+  const runningFor = useRunningFor(live);
+  const span = live ? runningFor : durationMs;
   const label = live ? t("processing") : summarizeWork(steps.filter(isWorkStep), language, t).text;
 
   return (
@@ -36,6 +59,9 @@ export function ProcessFold({ steps, live, language, t, children }: ProcessFoldP
           </span>
         )}
         <span className="min-w-0">{label}</span>
+        {span !== undefined && span >= 1000 && (
+          <span data-testid="process-time" className="whitespace-nowrap tabular-nums text-text-secondary/70">{formatSpan(span)}</span>
+        )}
         {!live && edits > 1 && (totals.added > 0 || totals.removed > 0) && (
           <span className="step-fade whitespace-nowrap font-mono text-[12px] tabular-nums">
             <span className="text-ok">+{totals.added}</span> <span className="text-danger">-{totals.removed}</span>

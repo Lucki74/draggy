@@ -59,10 +59,11 @@ describe("a finished reply with several steps", () => {
     expect(screen.getByText("Final reply.")).toBeTruthy();
   });
 
-  it("shows a green check on a finished step and a cross on a failed one", () => {
+  it("shows a quiet dot on a finished step and a cross on a failed one", () => {
     const { container } = turn("normal", [step("one.ts", "reading"), step("boom", "error")]);
     unfold();
-    expect(container.querySelectorAll(".step-check")).toHaveLength(1);
+    expect(container.querySelectorAll(".step-dot")).toHaveLength(1);
+    expect(container.querySelectorAll(".step-check")).toHaveLength(0);
     expect(container.querySelectorAll(".text-danger").length).toBeGreaterThan(0);
   });
 

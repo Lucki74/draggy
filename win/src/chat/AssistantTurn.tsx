@@ -322,7 +322,7 @@ export function AssistantTurn({
         {[
           ...(foldLength > 0
             ? [
-                <ProcessFold key="process" steps={foldedSegments.flat()} live={runningNow} language={settings.language} t={t}>
+                <ProcessFold key="process" steps={foldedSegments.flat()} live={runningNow} durationMs={displayMsg.metrics?.totalMs} language={settings.language} t={t}>
                   {foldedSegments.flat().map((step) => renderStep(step, true))}
                 </ProcessFold>,
               ]
