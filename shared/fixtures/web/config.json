@@ -1,0 +1,9 @@
+{
+  "providerGapMs": 900,
+  "cacheTtlMs": 300000,
+  "cacheLimit": 80,
+  "resultLimit": 10,
+  "failureBudget": 3,
+  "cooldownsMs": [30000, 120000, 600000],
+  "desktopUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+}

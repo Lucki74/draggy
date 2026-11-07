@@ -6,7 +6,7 @@ import { ReleaseNotes } from "../updates/ReleaseNotes";
 import { buildLabel } from "../app/buildLabel";
 import ExtensionsPanel from "../extensions/ExtensionsPanel";
 import { languages } from "../translations";
-import { searchProviderOptions } from "./pages";
+import { researchDepthOptions, researchKeepOptions, searchProviderOptions } from "./pages";
 import type { AppSettings, Language, SearchProvider, StorageStats, UpdaterState } from "../types";
 import { swallowed } from "../logger";
 
@@ -130,6 +130,34 @@ export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
           <BraveKeyRow t={t} />
 
         )}
+        <ServiceKeyRow id="openalex" label={t("openAlexKey")} t={t} />
+        <ServiceKeyRow id="github" label={t("githubToken")} t={t} />
+      </Group>
+
+      <Group title={t("researchRunTitle")}>
+        <Row label={t("researchModelStart")} description={t("researchModelStartHint")}>
+          <Toggle
+            checked={settings.researchModelStart}
+            onChange={(researchModelStart) => onUpdate({ researchModelStart })}
+            label={t("researchModelStart")}
+          />
+        </Row>
+        <Row label={t("researchMaxDepth")}>
+          <Select
+            label={t("researchMaxDepth")}
+            value={settings.researchMaxDepth}
+            options={researchDepthOptions(t)}
+            onChange={(researchMaxDepth) => onUpdate({ researchMaxDepth: researchMaxDepth as AppSettings["researchMaxDepth"] })}
+          />
+        </Row>
+        <Row label={t("researchKeep")}>
+          <Select
+            label={t("researchKeep")}
+            value={settings.researchKeep}
+            options={researchKeepOptions(t)}
+            onChange={(researchKeep) => onUpdate({ researchKeep: researchKeep as AppSettings["researchKeep"] })}
+          />
+        </Row>
       </Group>
     </Page>
   );
@@ -353,6 +381,43 @@ function BraveKeyRow({ t }: { t: Translate }) {
           onKeyDown={(event) => event.key === "Enter" && draft.trim() && void save(draft)}
           placeholder={status?.hasKey ? `•••• ${status.keyHint}` : "BSA..."}
           aria-label={t("braveApiKey")}
+          className="h-8 w-full sm:w-64 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          spellCheck={false}
+          autoComplete="off"
+        />
+        {status?.hasKey && <Button onClick={() => void save("")}>{t("remove")}</Button>}
+      </div>
+    </Row>
+  );
+}
+/** Write-only like the Brave key, but nothing of the key comes back, only whether one is set. */
+export function ServiceKeyRow({ id, label, t }: { id: "openalex" | "github"; label: string; t: Translate }) {
+  const [status, setStatus] = useState<{ hasKey: boolean; keystore: boolean } | null>(null);
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => {
+    window.electronAPI?.serviceKeyStatus?.(id).then(setStatus).catch(swallowed("settings", "the main process already logged this call"));
+  }, [id]);
+
+  const save = async (value: string) => {
+    const api = window.electronAPI;
+    if (!api?.setServiceKey) return;
+    await api.setServiceKey(id, value).catch(swallowed("settings", "the main process already logged this call"));
+    setDraft("");
+    setStatus(await api.serviceKeyStatus(id).catch(swallowed("settings", "the main process already logged this call", null)));
+  };
+
+  return (
+    <Row label={label} description={status && !status.keystore ? t("braveKeyThisRun") : undefined}>
+      <div className="flex w-full items-center gap-2 sm:w-auto">
+        <input
+          type="password"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => draft.trim() && void save(draft)}
+          onKeyDown={(event) => event.key === "Enter" && draft.trim() && void save(draft)}
+          placeholder={status?.hasKey ? "••••••••" : ""}
+          aria-label={label}
           className="h-8 w-full sm:w-64 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"
           spellCheck={false}
           autoComplete="off"

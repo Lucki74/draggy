@@ -96,6 +96,11 @@ export interface SearchResult {
   title: string;
   url: string;
   snippet: string;
+  /** Short tag of the provider for papers, wiki and code results. */
+  source?: string;
+  year?: number;
+  authors?: string;
+  doi?: string;
 }
 
 /** Why a browser step failed: a stable code to branch on, a sentence, and what the model can try next. */
@@ -412,6 +417,10 @@ export interface SearchStep {
     | "approval"
     /** A question the model put to the user, with the form to answer it. */
     | "question"
+    /** A research plan waiting on the user to edit and approve it. */
+    | "research_plan"
+    /** The live record of an approved research run: sources, notes and budget. */
+    | "research_run"
     /** The model writing down what it is going to do. */
     | "plan"
     /** A skill's instructions loaded, by the model or by a slash command. */
@@ -488,6 +497,12 @@ export interface SearchStep {
   question?: UserQuestion;
   /** On a "question" step: the reply, or "cancelled". Absent while the form is still waiting. */
   reply?: UserReply | "cancelled";
+  /** On a "research_plan" step: the plan the model drafted. */
+  researchPlan?: import("./research/run").ResearchPlan;
+  /** On a "research_run" step: where the run stands. */
+  researchRun?: import("./research/runView").ResearchRunView;
+  /** On a read_url step: the address, so a failed read can be retried or opened in the browser. */
+  retryUrl?: string;
   /** On a "loading" step: the model being loaded, and when it started, to count the seconds. */
   model?: string;
   startedAt?: number;
@@ -1277,6 +1292,12 @@ export interface AppSettings {
   interfaceSounds: boolean;
   searchProvider: SearchProvider;
   searxngUrl: string;
+  /** Whether the model may call start_research itself. Off means it may not. */
+  researchModelStart: boolean;
+  /** The deepest research the model may plan. */
+  researchMaxDepth: "quick" | "standard" | "deep";
+  /** How long finished research is kept. */
+  researchKeep: "forever" | "90" | "30";
   /** The model Code runs. Empty uses the chat model. */
   codeModel: string;
   /** Instructions for every project, kept apart from the chat ones. */
@@ -1356,9 +1377,15 @@ declare global {
         provider: string | null;
         tried: string[];
         /** "empty" means the web had nothing; "unavailable" means no provider answered, which is
-         * temporary and says nothing about the subject. */
-        status: "ok" | "empty" | "unavailable";
+         * temporary and says nothing about the subject. "blocked" means an engine refused with a block page. */
+        status: "ok" | "empty" | "unavailable" | "blocked";
         cached?: boolean;
+      }>;
+      searchSource: (query: string, source: string) => Promise<{
+        results: SearchResult[];
+        provider: string | null;
+        tried: string[];
+        status: "ok" | "empty" | "unavailable";
       }>;
       setSearchConfig: (config: {
         searchProvider: string;
@@ -1367,9 +1394,24 @@ declare global {
       /** Write-only; an empty key removes it. `kept` is false when no keystore holds it past this run. */
       setBraveKey: (key: string) => Promise<{ success: boolean; kept: boolean }>;
       braveKeyStatus: () => Promise<{ hasKey: boolean; keyHint: string; keystore: boolean }>;
-      readUrl: (url: string) => Promise<{
+      /** Write-only keys for OpenAlex and GitHub; the status never carries any part of the key. */
+      setServiceKey: (id: "openalex" | "github", key: string) => Promise<{ success: boolean; kept: boolean }>;
+      serviceKeyStatus: (id: "openalex" | "github") => Promise<{ hasKey: boolean; keystore: boolean }>;
+      readUrl: (url: string, page?: number) => Promise<{
         title: string;
+        /** One page of Markdown, about 12,000 characters. */
         text: string;
+        site?: string;
+        author?: string;
+        published?: string;
+        modified?: string;
+        language?: string;
+        canonicalUrl?: string;
+        snapshotHash?: string;
+        pageCount?: number;
+        page?: number;
+        /** "Page 1 of 3" plus how to get the next page, worded for the model. Empty for a single page. */
+        pageNote?: string;
         /** Set when the page could not be read rather than had no content. */
         blocked?: "human-verification" | "refused" | "unreachable";
         /** Why a refused or unreachable address failed, worded for the model. */
@@ -1665,6 +1707,17 @@ declare global {
           path?: string;
           cancelled?: boolean;
         }>;
+      };
+
+      research?: {
+        list: (workspaceId?: string) => Promise<{ success: boolean; runs?: import("./research/library").RunSummary[] }>;
+        get: (id: string) => Promise<{ success: boolean; run?: import("./research/library").SavedRun | null }>;
+        save: (run: import("./research/library").RunRecord) => Promise<{ success: boolean }>;
+        remove: (id: string) => Promise<{ success: boolean }>;
+        search: (
+          query: string,
+          options?: { runId?: string; limit?: number },
+        ) => Promise<{ success: boolean; hits?: import("./research/library").RunHit[] }>;
       };
 
       library: {

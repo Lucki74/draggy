@@ -1,7 +1,9 @@
 import type { ToolContext, ToolSpec } from "./registry";
 import { registerTools } from "./registry";
 import { logRendererEvent } from "../logger";
-import type { BrowserResult } from "../types";
+import type { BrowserResult, SearchResult } from "../types";
+import { SOURCE_KINDS, type SourceKind } from "../research/run";
+import { recordRead, recordReading, recordSearch, repeatedSearch, runFooter, spendCall } from "../research/session";
 
 const api = () => window.electronAPI;
 
@@ -11,11 +13,13 @@ const browserFailure = (result: BrowserResult<object> | undefined) =>
 
 const webEnabled = (environment: { webMode: string }) => environment.webMode !== "off";
 
-const PAGE_LINE_LIMIT = 500;
-
 /** How many empty searches before searching is switched off for the turn. A model that gets one
  * empty answer rewords the same question indefinitely. */
 const SEARCH_FAILURE_BUDGET = 3;
+
+/** What a gathering tool says once the research run has used its budget. */
+const runSpent = (tool: string, ctx: ToolContext) =>
+  `TOOL RESULT (${tool}): Gathering has ended for the reason below. Stop gathering, call finish_research and write the report from your notes.${runFooter(ctx)}`;
 
 const SEARCH_MEMO = "search:asked";
 const SEARCH_FAILURES = "search:failures";
@@ -28,8 +32,28 @@ function searchMemo(context: ToolContext): Map<string, string> {
   return fresh;
 }
 
+/** The host without a leading www., so the model can weigh a source by where it comes from. */
+function domainOf(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
 function normaliseQuery(query: string): string {
   return query.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Source tag, year, authors and DOI lines for papers, wiki and code results. */
+function resultExtras(result: SearchResult): string {
+  const lines = [
+    result.source ? `Source: ${result.source}` : "",
+    result.year ? `Year: ${result.year}` : "",
+    result.authors ? `Authors: ${result.authors}` : "",
+    result.doi ? `DOI: ${result.doi}` : "",
+  ].filter(Boolean);
+  return lines.length > 0 ? `\n${lines.join("\n")}` : "";
 }
 
 const searchWeb: ToolSpec = {
@@ -46,16 +70,21 @@ const searchWeb: ToolSpec = {
   },
   group: "web",
   description:
-    "Search the web and return a list of results with titles, URLs and snippets.",
-  parameters: { query: { type: "string", description: "The search query." } },
+    "Search and return a list of results with titles, URLs and snippets. The source parameter picks where: web (default), papers (academic, with year, authors and DOI), wiki (Wikipedia and Wikidata) or code (GitHub, npm, PyPI, crates.io).",
+  parameters: {
+    query: { type: "string", description: "The search query." },
+    source: { type: "string", description: "web (default), papers, wiki or code." },
+  },
   required: ["query"],
   usage:
-    '{"query": "your search query"} → a list of web results',
+    '{"query": "your search query", "source": "papers"} → a list of results from that source',
   available: webEnabled,
   run: async (args, ctx) => {
     const query = String(args.query);
     const asked = searchMemo(ctx);
-    const key = normaliseQuery(query);
+    const wanted = String(args.source ?? "web").trim().toLowerCase();
+    const kind: SourceKind = (SOURCE_KINDS as string[]).includes(wanted) ? (wanted as SourceKind) : "web";
+    const key = kind === "web" ? normaliseQuery(query) : `${kind}:${normaliseQuery(query)}`;
 
     const repeat = asked.get(key);
     if (repeat !== undefined) {
@@ -64,6 +93,12 @@ ${repeat}
 
 Do not search for this again. Use what you have, or read one of the URLs.`;
     }
+
+    const earlier = repeatedSearch(ctx, query, kind);
+    if (earlier) {
+      return `TOOL RESULT (search_web): This research already ran a search like "${query}". It found:\n${earlier.join("\n") || "(nothing)"}\n\nSearch for a different sub-question, or read one of these.${runFooter(ctx)}`;
+    }
+    if (spendCall(ctx)) return runSpent("search_web", ctx);
 
     const failures = (ctx.memo.get(SEARCH_FAILURES) as number) ?? 0;
     if (failures >= SEARCH_FAILURE_BUDGET) {
@@ -79,7 +114,7 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
     });
 
     try {
-      const outcome = await api()?.searchWebDetailed(query);
+      const outcome = kind === "web" ? await api()?.searchWebDetailed(query) : await api()?.searchSource(query, kind);
 
       if (!outcome) {
         ctx.patchStep(stepId, { isComplete: true, type: "error" });
@@ -90,6 +125,7 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
       const { results, status } = outcome;
 
       if (results.length === 0) {
+        if (status !== "blocked" && status !== "unavailable") recordSearch(ctx, query, [], kind);
         ctx.memo.set(SEARCH_FAILURES, failures + 1);
         ctx.patchStep(stepId, { isComplete: true, type: "error" });
         ctx.syncSteps();
@@ -98,6 +134,10 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
 
         // An engine that will not answer is an outage, not evidence that
         // nothing exists. Saying so stops the model inventing more queries.
+        if (status === "blocked") {
+          return `TOOL RESULT (search_web): The search was blocked: the engines asked for a CAPTCHA or refused automated requests (tried ${outcome.tried.join(", ") || "none"}). This is temporary and says nothing about whether the subject exists.${remaining > 0 ? " Retry later or rephrase the question once; do not conclude that nothing exists." : " Answer from your own knowledge and say which parts you could not check."}`;
+        }
+
         if (status === "unavailable") {
           return `TOOL RESULT (search_web): No search engine would answer just now (tried ${outcome.tried.join(", ") || "none"}). This is a temporary outage, not a sign that nothing exists on the subject.${remaining > 0 ? " Do not reword the question; if you retry at all, wait for a different question." : " Answer from your own knowledge and say which parts you could not check."}`;
         }
@@ -125,17 +165,19 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
         .map(
           (result, index) =>
             `[Result #${index + 1}] ${result.title}
-URL: ${result.url}
+Domain: ${domainOf(result.url)}
+URL: ${result.url}${resultExtras(result)}
 Snippet: ${result.snippet}`,
         )
         .join("\n\n");
 
       asked.set(key, summary);
+      recordSearch(ctx, query, results.map((result) => result.url), kind);
 
-      return `TOOL RESULT (search_web):
+      return `TOOL RESULT (search_web, via ${outcome.provider ?? "unknown"}):
 ${summary}
 
-Read the most relevant URL(s) with read_url when you need the full text. If you already have enough to answer, stop calling tools and reply.`;
+Read the most relevant URL(s) with read_url when you need the full text. If you already have enough to answer, stop calling tools and reply.${runFooter(ctx)}`;
     } catch (error) {
       ctx.memo.set(SEARCH_FAILURES, failures + 1);
       ctx.patchStep(stepId, { isComplete: true, type: "error" });
@@ -164,16 +206,19 @@ const readUrl: ToolSpec = {
     openWorldHint: true,
   },
   group: "web",
-  description: "Read the readable text content of a web page.",
+  description: "Read a web page or PDF as Markdown. Long pages come in parts: pass page to read the next one.",
   parameters: {
     url: { type: "string", description: "Absolute URL of the page to read." },
+    page: { type: "integer", description: "Optional 1-based part of a long page. Default 1." },
   },
   required: ["url"],
   usage:
-    '{"url": "https://example.com"} → the full text of a page',
+    '{"url": "https://example.com", "page": 2} → the Markdown of a page, one part at a time',
   available: webEnabled,
   run: async (args, ctx) => {
     const url = String(args.url);
+    const wanted = Number.isInteger(Number(args.page)) && Number(args.page) > 0 ? Number(args.page) : 1;
+    if (spendCall(ctx)) return runSpent("read_url", ctx);
     const stepId = ctx.newId();
 
     ctx.pushStep({
@@ -182,14 +227,17 @@ const readUrl: ToolSpec = {
       content: `${ctx.t("readingSite")} **${url}**`,
       isComplete: false,
       url,
+      retryUrl: url,
     });
+    recordReading(ctx, url);
 
     try {
-      const page = await api()?.readUrl(url);
+      const page = await api()?.readUrl(url, wanted);
       if (!page) throw new Error("No data");
 
       // An address the tools will not fetch. Saying so once, and why, is what
       // stops the model looking for a way around it.
+      if (page.blocked) recordRead(ctx, { url, title: page.title, ok: false });
       if (page.blocked === "refused" || page.blocked === "unreachable") {
         ctx.patchStep(stepId, { isComplete: true, type: "error" });
         ctx.syncSteps();
@@ -211,21 +259,38 @@ const readUrl: ToolSpec = {
         return `TOOL RESULT (read_url): This page is behind a human-verification challenge (such as Cloudflare) and cannot be read automatically. Do not retry this URL or try to work around the check. Tell the user the page needs them to open it and pass the check themselves, and give them the link: ${url}`;
       }
 
-      const lines = page.text.split("\n").filter((line) => line.trim().length > 0);
-      const shown = Math.min(lines.length, PAGE_LINE_LIMIT);
-
       ctx.patchStep(stepId, {
         isComplete: true,
         content: `${ctx.t("readSite")} **${url}**`,
       });
       ctx.syncSteps();
 
-      return `TOOL RESULT (read_url):\nTitle: ${page.title}\nContent:\n${lines.slice(0, shown).join("\n")}`;
+      const source = recordRead(ctx, {
+        url,
+        title: page.title,
+        text: page.text,
+        site: page.site,
+        published: page.published,
+        ok: true,
+      });
+      const cite = source ? `Source id: ${source.id}. Record what it says with add_note and this id.\n` : "";
+      const facts = [
+        page.site ? `Site: ${page.site}` : "",
+        page.author ? `Author: ${page.author}` : "",
+        page.published ? `Published: ${page.published}` : "",
+        page.modified ? `Modified: ${page.modified}` : "",
+        page.language ? `Language: ${page.language}` : "",
+        page.canonicalUrl && page.canonicalUrl !== url ? `Canonical: ${page.canonicalUrl}` : "",
+        page.pageNote ?? "",
+      ].filter(Boolean);
+      const meta = facts.length ? `${facts.join("\n")}\n` : "";
+      return `TOOL RESULT (read_url):\n${cite}Title: ${page.title}\n${meta}Content:\n${page.text}${runFooter(ctx)}`;
     } catch (error) {
       // The message can echo the address, so only the error name is logged.
       logRendererEvent("renderer.tools", "ERROR", "read_url failed", {
         error: error instanceof Error ? error.name : "Error",
       }, ctx.correlationId);
+      recordRead(ctx, { url, ok: false });
       ctx.patchStep(stepId, { isComplete: true, type: "error" });
       ctx.syncSteps();
       return `TOOL RESULT (read_url): Failed to read URL.`;

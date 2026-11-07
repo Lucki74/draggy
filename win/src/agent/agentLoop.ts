@@ -105,6 +105,10 @@ import {
 import { generateId, isBinary, safeJsonParse } from "../utils";
 import { raceAbort } from "./abortRace";
 import { describeEnded, inputFor, isHarmlessInput } from "../tools/tasks";
+import { activeRun, settleRun } from "../research/session";
+import { followUpInstruction, holdsFinishedRun } from "../research/command";
+import { applyReceipts } from "../research/receipts";
+import { loopLimitFor } from "../research/run";
 import type {
   AppSettings,
   ApprovalAnswer,
@@ -402,7 +406,12 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     compactTools: (info?.promptProfile ?? "compact") === "compact",
     vision: hasCapability(info, "vision"),
   };
-  const environment = cannotUseTools ? withoutTools(sized) : sized;
+  const withResearch = {
+    ...sized,
+    researchModelStart: settings.researchModelStart !== false,
+    researchMaxDepth: settings.researchMaxDepth,
+  };
+  const environment = cannotUseTools ? withoutTools(withResearch) : withResearch;
 
   // A probe that failed is not proof a model cannot call tools: the engine may
   // have been busy. What it said last time stands in.
@@ -487,6 +496,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     ),
     loadedSection,
     environment.imageReady ? imageIndex(trackImages(messages)) : "",
+    environment.webMode !== "off" && holdsFinishedRun(messages) ? followUpInstruction() : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -734,14 +744,25 @@ const LIVE_INTERVAL_MS = 250;
 
 export async function runAgentTurn(request: AgentRequest, host: AgentHost): Promise<AgentResult> {
   const end = beginLlamaWork(request.model);
+  let context: ToolContext | undefined;
   try {
-    return await runTurn(request, host);
+    const result = await runTurn(request, host, (made) => (context = made));
+    // Stop skips the end of the loop, so a run still open is settled here as cancelled.
+    if (result.aborted && context) await settleRun(context, "cancelled");
+    return result;
+  } catch (error) {
+    if (context) await settleRun(context, "cancelled").catch(swallowed("agent", "the turn error is rethrown below"));
+    throw error;
   } finally {
     end();
   }
 }
 
-async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentResult> {
+async function runTurn(
+  request: AgentRequest,
+  host: AgentHost,
+  onContext?: (context: ToolContext) => void,
+): Promise<AgentResult> {
   const { model, settings, environment, signal } = request;
   // One id for every pass and tool round-trip in this turn, so its log lines join back together.
   const correlationId = request.correlationId ?? newCorrelationId();
@@ -1023,11 +1044,14 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     wire,
     invokedSkills,
   } = await prepareTurn(request);
+  onContext?.(toolContext);
   toolContext.vision = nativeVision;
   // The tool list was built with this flag, so a call to a tool that needs it is checked against the same one.
   environment.vision = nativeVision;
   toolContext.images = trackImages(request.messages);
-  const loopLimit = toolLoopLimit(slow, MAX_TOOL_LOOPS);
+  const baseLimit = toolLoopLimit(slow, MAX_TOOL_LOOPS);
+  // A research run carries its own call budget, so the cap rises once one starts.
+  const currentLimit = () => loopLimitFor(activeRun(toolContext), baseLimit);
   const turnStartedAt = Date.now();
 
   const toolChars = nativeTools ? JSON.stringify(definitions).length : 0;
@@ -1117,7 +1141,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
   // Text-mode results come back as user turns, so the wire alone cannot say whether a tool ran.
   let toolsRan = false;
 
-  while (!isFinished && loopCount < loopLimit) {
+  while (!isFinished && loopCount < currentLimit()) {
     if (signal.aborted) {
       finishIncompleteSteps();
       host.onPatch(combine("", ""));
@@ -1162,6 +1186,11 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
       const ended = await window.electronAPI?.tasks?.takeInbox(toolContext.chatId).catch(swallowed("agent", "the report of ended tasks is retried on the next request", null));
       if (ended?.items && ended.items.length > 0) wire.push({ role: "user", content: describeEnded(ended.items) });
     }
+
+    // Pages already noted shrink to receipts. The run state rides on each research tool result,
+    // not in the system prompt, so the cached prefix survives the run.
+    const researchRun = activeRun(toolContext);
+    if (researchRun) applyReceipts(wire, researchRun);
 
     const loopController = new AbortController();
     const abortHandler = () => loopController.abort();
@@ -1761,7 +1790,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         if (
           !textContent.trim() &&
           !answerAsked &&
-          loopCount < loopLimit &&
+          loopCount < currentLimit() &&
           (thinkingText.trim() || toolsRan || wire.some((m) => m.role === "tool"))
         ) {
           answerAsked = true;
@@ -1779,7 +1808,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
         if (
           !actionAsked &&
           definitions.length > 0 &&
-          loopCount < loopLimit &&
+          loopCount < currentLimit() &&
           announcesAction(textContent)
         ) {
           actionAsked = true;
@@ -1896,7 +1925,11 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     }
   }
 
-  const exhausted = !isFinished && loopCount >= loopLimit;
+  // A run the model never finished, such as after Stop, is still checked and saved.
+  const openRun = activeRun(toolContext);
+  if (openRun && openRun.endedAt === undefined) await settleRun(toolContext, signal.aborted ? "cancelled" : "done");
+
+  const exhausted = !isFinished && loopCount >= currentLimit();
 
   if (exhausted) {
     dropLive();

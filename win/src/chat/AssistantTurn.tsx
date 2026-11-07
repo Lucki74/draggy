@@ -12,6 +12,8 @@ import { TaskChip } from "./TaskChip";
 import { isWorkStep, processFoldLength, touchedFiles } from "./workSummary";
 import ProcessFold from "./ProcessFold";
 import { OpenFileContext } from "./openFileContext";
+import { CitationContext, runOf } from "./citationContext";
+import { ResearchSourceList } from "./ResearchSourceList";
 import { useTranscriptView } from "./transcriptView";
 import TurnActions from "./TurnActions";
 import { Button, Chip, Icon, Lightbox, Spark } from "../ui";
@@ -240,8 +242,12 @@ export function AssistantTurn({
   // Consecutive tool steps fold into one work block; prose, reasoning, notes and questions stand alone.
   const isWork = (step: SearchStep) => isWorkStep(step) && step.type !== "steer";
   const segments: SearchStep[][] = [];
+  // In a research reply the run block lists what was searched and read, so those rows stay out of the chain.
+  const run = runOf(steps);
+  const inRunBlock = (step: SearchStep) =>
+    Boolean(run) && (step.type === "searching" || step.type === "results" || (step.type === "reading" && Boolean(step.retryUrl)));
   for (const step of steps) {
-    if (invisible(step)) continue;
+    if (invisible(step) || inRunBlock(step)) continue;
     // A finished search shows only its results row; "Searched for" is shown while it runs.
     if (step.type === "searching" && step.isComplete) continue;
     const last = segments[segments.length - 1];
@@ -267,7 +273,7 @@ export function AssistantTurn({
     );
 
   return (
-    <>
+    <CitationContext.Provider value={run}>
       {msg.attachments && msg.attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">
           {msg.attachments.map((file, fIdx) =>
@@ -393,6 +399,8 @@ export function AssistantTurn({
         {showsTailMark(steps, isGenerating, isLast) && <WorkingStatus language={settings.language} />}
       </div>
 
+      {run?.endedAt !== undefined && !isGenerating && <ResearchSourceList run={run} t={t} />}
+
       {!isGenerating && files.length > 0 && (
         <div
           className="mt-3 flex flex-wrap items-center gap-1.5"
@@ -458,7 +466,7 @@ export function AssistantTurn({
         alt={previewFile?.name}
         onClose={() => setPreviewFile(null)}
       />
-    </>
+    </CitationContext.Provider>
   );
 }
 export default AssistantTurn;

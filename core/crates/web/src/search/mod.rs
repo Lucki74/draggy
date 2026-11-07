@@ -11,14 +11,19 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::http::{HttpClient, HttpRequest, Method};
 use crate::js::{encode_uri_component, js_trim, utf16_prefix};
 
-pub use parse::{ProviderError, normalise_results, parse_response, unwrap_redirect};
+pub use parse::{
+    ProviderError, block_reason, canonical_url, domain_of, normalise_results, parse_response,
+    unwrap_redirect,
+};
 
 pub const RESULT_LIMIT: usize = 10;
 /// The smallest gap between two requests to one provider. Firing five at once returns empty pages.
 pub const PROVIDER_GAP_MS: u64 = 900;
 /// Repeated questions are answered from memory for this long.
 pub const CACHE_TTL_MS: u64 = 5 * 60 * 1000;
-const CACHE_LIMIT: usize = 80;
+pub const CACHE_LIMIT: usize = 80;
+/// How long a provider that served a block page is left alone, by how many blocks in a row.
+pub const COOLDOWNS_MS: [u64; 3] = [30_000, 120_000, 600_000];
 pub const DESKTOP_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 const API_TIMEOUT: Duration = Duration::from_secs(15);
 const PAGE_TIMEOUT: Duration = Duration::from_secs(30);
@@ -182,11 +187,13 @@ pub struct SearchResult {
 }
 
 /// `Ok` means some provider answered with results. `Empty` means the web had nothing. `Unavailable` means nobody answered.
+/// `Blocked` means no provider answered and at least one refused us with a block page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
     Ok,
     Empty,
     Unavailable,
+    Blocked,
 }
 
 impl Status {
@@ -195,6 +202,7 @@ impl Status {
             Self::Ok => "ok",
             Self::Empty => "empty",
             Self::Unavailable => "unavailable",
+            Self::Blocked => "blocked",
         }
     }
 }
@@ -243,6 +251,8 @@ pub struct Search<H, C> {
     http: H,
     clock: C,
     last_call_ms: HashMap<Provider, u64>,
+    /// Blocks in a row and the time a blocked provider may be asked again.
+    cooldowns: HashMap<Provider, (usize, u64)>,
     cache: Vec<CacheEntry>,
 }
 
@@ -252,6 +262,7 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
             http,
             clock,
             last_call_ms: HashMap::new(),
+            cooldowns: HashMap::new(),
             cache: Vec::new(),
         }
     }
@@ -260,6 +271,7 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
     pub fn clear(&mut self) {
         self.cache.clear();
         self.last_call_ms.clear();
+        self.cooldowns.clear();
     }
 
     /// Runs the chain until something answers. An empty query calls no provider.
@@ -284,7 +296,13 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
 
         let mut tried = Vec::new();
         let mut any_answered = false;
+        let mut any_blocked = false;
         for provider in build_chain(config) {
+            if self.cooling_down(provider) {
+                any_blocked = true;
+                tracing::info!(target: "net.search", provider = provider.id(), "provider cooling down");
+                continue;
+            }
             tried.push(provider);
             let started = self.clock.now_ms();
             self.pace(provider).await;
@@ -296,6 +314,7 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
                         tracing::info!(target: "net.search", provider = provider.id(), results = 0, duration_ms, "search empty");
                         continue;
                     }
+                    self.cooldowns.remove(&provider);
                     tracing::info!(target: "net.search", provider = provider.id(), results = results.len(), duration_ms, "search answered");
                     let outcome = Outcome {
                         results,
@@ -307,6 +326,11 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
                     self.write_cache(key, &outcome);
                     return outcome;
                 }
+                Err(ProviderError::Blocked(reason)) => {
+                    any_blocked = true;
+                    let cooldown_ms = self.record_block(provider);
+                    tracing::warn!(target: "net.search", provider = provider.id(), reason, cooldown_ms, "provider blocked");
+                }
                 Err(error) => {
                     let duration_ms = self.clock.now_ms().saturating_sub(started);
                     let logged = failure_log_text(&error.to_string(), term);
@@ -315,8 +339,11 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
             }
         }
 
+        // A block page parses to nothing, so it must never read as an empty web: that would be remembered.
         let status = if any_answered {
             Status::Empty
+        } else if any_blocked {
+            Status::Blocked
         } else {
             Status::Unavailable
         };
@@ -327,14 +354,14 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
             status,
             cached: false,
         };
-        // A provider outage is worth retrying on the next question, so only a genuine empty result is remembered.
+        // An outage or a block is worth retrying later, so only a genuine empty result is remembered.
         if status == Status::Empty {
             self.write_cache(key, &outcome);
         }
         outcome
     }
 
-    /// Waits until the provider's gap has passed since its last call, then records this call.
+    /// Reserves the provider's next slot, then waits for it, as the CJS does so overlapping calls queue a gap apart.
     async fn pace(&mut self, provider: Provider) {
         let ready_at = self
             .last_call_ms
@@ -343,11 +370,26 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
             .unwrap_or_default()
             + PROVIDER_GAP_MS;
         let now = self.clock.now_ms();
-        if ready_at > now {
-            self.clock.sleep(ready_at - now).await;
+        let slot = ready_at.max(now);
+        self.last_call_ms.insert(provider, slot);
+        if slot > now {
+            self.clock.sleep(slot - now).await;
         }
-        let after = self.clock.now_ms();
-        self.last_call_ms.insert(provider, after);
+    }
+
+    fn cooling_down(&self, provider: Provider) -> bool {
+        self.cooldowns
+            .get(&provider)
+            .is_some_and(|&(_, until)| self.clock.now_ms() < until)
+    }
+
+    /// Counts another block in a row and returns how long the provider is now left alone.
+    fn record_block(&mut self, provider: Provider) -> u64 {
+        let strikes = self.cooldowns.get(&provider).map_or(0, |&(count, _)| count) + 1;
+        let cooldown_ms = COOLDOWNS_MS[strikes.min(COOLDOWNS_MS.len()) - 1];
+        self.cooldowns
+            .insert(provider, (strikes, self.clock.now_ms() + cooldown_ms));
+        cooldown_ms
     }
 
     async fn fetch(

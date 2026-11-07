@@ -82,6 +82,24 @@ struct SettingsView: View {
                 .disabled(!model.webEnabled || braveDraft.isEmpty)
             }
 
+            Section("Research") {
+                Toggle("Let the model start research", isOn: $model.researchModelStart)
+                Text("When off, the model does not start research runs.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("Highest depth allowed", selection: $model.researchMaxDepth) {
+                    Text("Quick").tag("quick")
+                    Text("Standard").tag("standard")
+                    Text("Deep").tag("deep")
+                }
+                Picker("Keep research for", selection: $model.researchKeep) {
+                    Text("Forever").tag("forever")
+                    Text("90 days").tag("90")
+                    Text("30 days").tag("30")
+                }
+                ResearchLibraryView(store: model.researchStore)
+            }
+
             Section("Voice & Updates") {
                 CloudTTSView()
                 UpdateSettingsView()

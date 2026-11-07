@@ -73,6 +73,7 @@ import {
   workspaceLabel,
 } from "../workspaces";
 import { writeLocalStorage } from "../utils";
+import type { FollowUp } from "../research/libraryView";
 import type { AppSettings, Attachment, ChatSession, InstalledSkill, Message, Workspace } from "../types";
 import { nextView, type TranscriptView } from "../chat/transcriptView";
 import { skillsFor } from "../skills/skills";
@@ -520,6 +521,21 @@ export default function AppShell({
     setMode(next);
     writeLocalStorage(MODE_KEY, next);
   }, []);
+
+  // A run's own chat opens as it is; a gone chat becomes a new one with the question typed in.
+  const followUpResearch = useCallback(
+    (target: FollowUp) => {
+      if (target.kind === "chat") return selectChat(target.id);
+      try {
+        localStorage.setItem("draft_new_chat", target.draft);
+      } catch (error) {
+        logSwallow("app", error, "the new chat opens without the question");
+      }
+      enterMode("chat");
+      handleNewChat();
+    },
+    [selectChat, enterMode, handleNewChat],
+  );
 
   const handleSelectWorkspace = useCallback(
     (id: string) => {
@@ -1477,6 +1493,8 @@ export default function AppShell({
                 workspaces.workspaces.find((one) => one.id === id),
               )
             }
+            sessions={store.sessions}
+            onResearchFollowUp={followUpResearch}
             onClearChats={() => clearSide("chat")}
             onClearSessions={() => clearSide("code")}
             onLibraryChange={refreshLibraryReadiness}

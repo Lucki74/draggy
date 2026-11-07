@@ -100,6 +100,9 @@ final class AppModel {
         static let searchProvider = "searchProvider"
         static let searxng = "searxngURL"
         static let speakReplies = "speakReplies"
+        static let researchModelStart = "researchModelStart"
+        static let researchMaxDepth = "researchMaxDepth"
+        static let researchKeep = "researchKeep"
     }
 
     private let defaults: UserDefaults
@@ -193,6 +196,27 @@ final class AppModel {
         }
     }
 
+    /// Whether the model may start a research run on its own.
+    var researchModelStart: Bool {
+        didSet { defaults.set(researchModelStart, forKey: Key.researchModelStart) }
+    }
+
+    /// The deepest run the model may plan: quick, standard or deep.
+    var researchMaxDepth: String {
+        didSet { defaults.set(researchMaxDepth, forKey: Key.researchMaxDepth) }
+    }
+
+    /// How long saved research runs are kept: forever, 90 or 30. A shorter choice deletes older runs now.
+    var researchKeep: String {
+        didSet {
+            defaults.set(researchKeep, forKey: Key.researchKeep)
+            _ = try? researchStore?.applyRetention(keep: researchKeep)
+        }
+    }
+
+    /// The saved research runs, or nil when the data folder cannot open.
+    @ObservationIgnored let researchStore: ResearchStore?
+
     /// Reads each finished reply aloud with the system voice.
     var speakReplies: Bool {
         didSet {
@@ -234,6 +258,13 @@ final class AppModel {
         searxngURL = defaults.string(forKey: Key.searxng) ?? ""
         permission = defaults.string(forKey: Key.permission).flatMap(PermissionChoice.init(rawValue:)) ?? .ask
         speakReplies = defaults.bool(forKey: Key.speakReplies)
+        researchModelStart = defaults.object(forKey: Key.researchModelStart) as? Bool ?? true
+        researchMaxDepth = defaults.string(forKey: Key.researchMaxDepth) ?? "deep"
+        researchKeep = defaults.string(forKey: Key.researchKeep) ?? "forever"
+        let dataFolder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Draggy")
+        try? FileManager.default.createDirectory(at: dataFolder, withIntermediateDirectories: true)
+        researchStore = try? ResearchStore.open(dataDir: dataFolder.path)
         broker = ApprovalBroker { [weak self] request in
             self?.pendingApproval = request
         }
@@ -241,6 +272,7 @@ final class AppModel {
             self?.baseURL = info.baseUrl
             self?.modelName = info.model
         }
+        _ = try? researchStore?.applyRetention(keep: researchKeep)
     }
 
     func hasAPIKey() -> Bool {
@@ -423,6 +455,7 @@ final class AppModel {
 
         do {
             let session = try currentSession()
+            session.setResearchOptions(allowModelStart: researchModelStart, maxDepth: researchMaxDepth)
             let outcome = try await session.sendWithImages(
                 text: text, images: images, observer: sink, approvals: broker, cancel: token)
             transcript.finishReply(outcome.textContent)
@@ -475,6 +508,8 @@ final class AppModel {
             MessageRecord(id: "m\(index + 1)", role: line.role == .user ? "user" : "assistant", content: line.text)
         }
         if !records.isEmpty { try created.restore(saved: records) }
+        // Finished research runs are saved to the library under this conversation.
+        created.setResearchStore(store: researchStore, chatId: currentID.uuidString)
         session = created
         return created
     }

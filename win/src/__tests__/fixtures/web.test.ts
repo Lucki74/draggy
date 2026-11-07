@@ -39,6 +39,8 @@ const search = require("../../../electron/search.cjs") as {
   runSearch: (query: unknown, config: Config, deps: Deps) => Promise<Outcome>;
   buildChain: (config: Config) => Provider[];
   normaliseResults: (raw: unknown) => Result[];
+  canonicalUrl: (url: string) => string;
+  domainOf: (url: string) => string;
   unwrapRedirect: (url: string) => string;
   clearCache: () => void;
   PROVIDERS: Provider[];
@@ -219,6 +221,23 @@ function runNormalise(input: { raw: unknown }) {
   return wellFormed(search.normaliseResults(input.raw));
 }
 
+function runCanonical(input: { url: string }) {
+  return { canonical: search.canonicalUrl(input.url), domain: search.domainOf(input.url) };
+}
+
+/** A provider's page or API reply: how many results it gave, or the reason it was a block page. */
+async function runBlockedBody(input: { provider: string; body: string; status?: number }) {
+  const web = fakeWeb({ [input.provider]: { body: input.body, status: input.status } });
+  try {
+    const results = await withFetch(web.fetchStub, () => providerById(input.provider).run("query", CONFIG, { scrape: web.scrape }));
+    return { count: results.length };
+  } catch (error) {
+    const blocked = error as { blocked?: boolean; reason?: string };
+    if (blocked.blocked === true) return { blocked: blocked.reason };
+    throw error;
+  }
+}
+
 function runRedirect(input: { url: string }) {
   return search.unwrapRedirect(input.url);
 }
@@ -258,6 +277,30 @@ function runDecode(input: { contentType: string | null; bytes: number[] }) {
     return decodeLabelled(charsetOf(input.contentType) ?? "utf-8", bytes);
   } catch {
     return new TextDecoder("utf-8").decode(bytes);
+  }
+}
+
+const pageExtract = require("../../../electron/pageExtract.cjs") as {
+  extractMetadata: (html: string, url: string) => unknown;
+  isScriptShell: (html: string) => boolean;
+  needsRender: (markdown: string, html: string) => boolean;
+  isPdfSource: (contentType: string, url: string) => boolean;
+  splitPages: (markdown: string, size?: number) => string[];
+  pageNote: (page: number, count: number) => string;
+};
+
+function runPageExtract(input: { op: string; html?: string; url?: string; markdown?: string; contentType?: string; size?: number; page?: number; count?: number }) {
+  switch (input.op) {
+    case "metadata": return pageExtract.extractMetadata(input.html ?? "", input.url ?? "");
+    case "shell": return pageExtract.isScriptShell(input.html ?? "");
+    case "needsRender": return pageExtract.needsRender(input.markdown ?? "", input.html ?? "");
+    case "pdf": return pageExtract.isPdfSource(input.contentType ?? "", input.url ?? "");
+    case "note": return pageExtract.pageNote(input.page ?? 1, input.count ?? 1);
+    case "split": {
+      const pages = pageExtract.splitPages(input.markdown ?? "", input.size);
+      return { lengths: pages.map((page) => page.length), starts: pages.map((page) => page.slice(0, 2)) };
+    }
+    default: throw new Error(`unknown op ${input.op}`);
   }
 }
 
@@ -453,11 +496,14 @@ const RUNNERS: Record<string, (input: never) => unknown> = {
   "search-brave-html.json": runProviderBody,
   "search-searxng.json": runProviderBody,
   "search-brave.json": runProviderBody,
+  "search-blocked.json": runBlockedBody,
+  "url-canonical.json": runCanonical,
   "search-run.json": runSearchOps,
   "search-log.json": runSearchLog,
   "connectivity.json": runConnectivity,
   "connectivity-log.json": runConnectivityLog,
   "page-decode.json": runDecode,
+  "page-extract.json": runPageExtract,
   "permissions.json": runPermission,
   "search-redact.json": runRedact,
   "policy-counts.json": runPolicyOps,
@@ -465,7 +511,7 @@ const RUNNERS: Record<string, (input: never) => unknown> = {
 // RUNNERS END
 
 describe("web fixtures", () => {
-  for (const file of fs.readdirSync(FIXTURE_DIR).filter((name) => name.endsWith(".json")).sort()) {
+  for (const file of fs.readdirSync(FIXTURE_DIR).filter((name) => name.endsWith(".json") && name !== "config.json" && !name.startsWith("sources-")).sort()) {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, file), "utf8")) as { cases: Case[] };
     describe(file, () => {
       for (const testCase of fixture.cases) {

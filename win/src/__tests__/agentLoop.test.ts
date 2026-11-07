@@ -9,6 +9,8 @@ import { parsePlan } from "../plan/plan";
 import { registerPlanTools } from "../tools/plan";
 import type { PlanItem } from "../plan/plan";
 import { registerTool, resetRegistry } from "../tools/registry";
+import { addNote, addSource, createRun, readPlan, type ResearchRun } from "../research/run";
+import { setRun } from "../research/session";
 import { BUILTIN_TOOLS } from "../tools/builtin";
 import type { ToolEnvironment, ToolSpec } from "../tools/registry";
 import { forgetContextSize, forgetModelInfo, getModelInfo, warmModel } from "../llama";
@@ -38,6 +40,9 @@ vi.mock("../llama", async (importOriginal) => {
 });
 
 const SETTINGS = {
+  researchModelStart: true,
+  researchMaxDepth: "deep",
+  researchKeep: "forever",
   theme: "light",
   accent: "vermilion",
   fontSize: "base",
@@ -2922,3 +2927,67 @@ describe("local model metrics collection", () => {
   });
 });
 
+
+describe("a research run when the turn does not end cleanly", () => {
+  let memo: Map<string, unknown> | undefined;
+  const openRun = (onRun?: () => void): ToolSpec => ({
+    name: "open_run",
+    group: "web",
+    description: "Opens a run.",
+    parameters: {},
+    required: [],
+    usage: "{}",
+    available: () => true,
+    run: async (_args, ctx) => {
+      const made = createRun("rx", readPlan({ question: "Q", subQuestions: "A\nB" })!, 0);
+      addSource(made, { url: "https://a.example/x", title: "A", status: "read" });
+      addSource(made, { url: "https://b.example/y", status: "reading" });
+      addNote(made, { claim: "A is fast", quote: "A is fast", source: "s1" });
+      setRun(ctx, made);
+      memo = ctx.memo;
+      onRun?.();
+      return "ok";
+    },
+  });
+  const opening = { toolCalls: [{ function: { name: "open_run", arguments: {} } }] };
+
+  beforeEach(() => {
+    memo = undefined;
+  });
+
+  it("settles as cancelled with the notes kept when the user stops", async () => {
+    const save = vi.fn(async () => ({ success: true }));
+    const stop = new AbortController();
+    registerTool(openRun(() => stop.abort()));
+    installFetch([opening, { content: ["done"] }], ["tools"]);
+    (window as unknown as { electronAPI: Record<string, unknown> }).electronAPI.research = { save };
+
+    const result = await run([userMessage("go")], stop.signal).promise;
+
+    const settled = memo!.get("research:run") as ResearchRun;
+    expect(result.aborted).toBe(true);
+    expect(settled.status).toBe("cancelled");
+    expect(settled.endedAt).toBeDefined();
+    expect(settled.notes).toHaveLength(1);
+    expect(settled.sources[1].status).toBe("skipped");
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ id: "rx", status: "cancelled" }));
+  });
+
+  it("settles as cancelled when the loop throws", async () => {
+    const save = vi.fn(async () => ({ success: true }));
+    registerTool(openRun());
+    const { requests } = installFetch([opening], ["tools"]);
+    (window as unknown as { electronAPI: Record<string, unknown> }).electronAPI.research = { save };
+    const inner = globalThis.fetch;
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      if (url === "draggy-ai://chat" && requests.length >= 1) throw new Error("engine fell over");
+      return inner(url, init);
+    });
+
+    await expect(run([userMessage("go")]).promise).rejects.toThrow();
+
+    const settled = memo!.get("research:run") as ResearchRun;
+    expect(settled.status).toBe("cancelled");
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ id: "rx", status: "cancelled" }));
+  });
+});

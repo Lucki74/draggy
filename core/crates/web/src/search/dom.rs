@@ -162,6 +162,19 @@ fn select_first<'a>(scope: ElementRef<'a>, css: &str) -> Option<ElementRef<'a>> 
     scope.select(&selector).next()
 }
 
+/// The page title and body text, which is all a block page has to recognise it by.
+pub fn page_text(document: &Html) -> (String, String) {
+    let title = select_all(document, "title")
+        .first()
+        .map(|element| element.text().collect::<String>())
+        .unwrap_or_default();
+    let body = select_all(document, "body")
+        .first()
+        .map(|element| inner_text(*element))
+        .unwrap_or_default();
+    (title, body)
+}
+
 /// The document base URL: the first `<base href>` resolved against the page, or the page itself when there is no usable one.
 pub fn document_base(document: &Html, page: &Url) -> Url {
     let Ok(selector) = Selector::parse("base[href]") else {

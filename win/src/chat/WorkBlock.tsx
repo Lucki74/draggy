@@ -1,7 +1,10 @@
 import { Fragment, useContext, useEffect, useState } from "react";
 import { Icon, Spark } from "../ui";
+import SiteBadge from "./SiteBadge";
+import ResearchRunCard from "./ResearchRunCard";
+import { fillComposer } from "./mentions";
 import ReactMarkdown from "react-markdown";
-import { hostnameOf, hueFor, siteLabel } from "../utils";
+import { hostnameOf } from "../utils";
 import { INLINE_COMPONENTS, REHYPE_PLUGINS, REMARK_PLUGINS } from "./markdown";
 import AppFrame from "./AppFrame";
 import { displayModelName } from "../llama";
@@ -10,6 +13,7 @@ import { diffStats } from "../project/gitView";
 import ApprovalCard from "./ApprovalCard";
 import LiveArgs from "./LiveArgs";
 import QuestionCard from "./QuestionCard";
+import ResearchPlanCard from "./ResearchPlanCard";
 import { useTranscriptView } from "./transcriptView";
 import { OpenFileContext } from "./openFileContext";
 import DiffBlock from "./DiffBlock";
@@ -250,41 +254,6 @@ function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string
   );
 }
 
-// Hostname-based icon or fallback letter to protect user privacy.
-function SiteBadge({ hostname }: { hostname: string }) {
-  const label = siteLabel(hostname);
-  const hue = hueFor(label);
-
-  // Tracks host errors so reused rows retry instead of sticking to missing icons.
-  const [failedFor, setFailedFor] = useState<string | null>(null);
-
-  if (hostname && failedFor !== hostname) {
-    return (
-      <img
-        src={`draggy://favicon/${encodeURIComponent(hostname)}`}
-        alt=""
-        aria-hidden="true"
-        loading="lazy"
-        onError={() => setFailedFor(hostname)}
-        className="w-5 h-5 rounded-sm flex-shrink-0 mt-0.5 object-contain select-none"
-      />
-    );
-  }
-
-  return (
-    <span
-      aria-hidden="true"
-      className="w-5 h-5 rounded-sm flex-shrink-0 mt-0.5 flex items-center justify-center text-[10px] font-semibold select-none"
-      style={{
-        backgroundColor: `hsl(${hue} 62% 46%)`,
-        color: "white",
-      }}
-    >
-      {label.slice(0, 1)}
-    </span>
-  );
-}
-
 export interface WorkBlockProps {
   step: SearchStep;
   live?: boolean;
@@ -431,6 +400,14 @@ export function WorkBlock({
     return <QuestionCard key={step.id} step={step} t={t} />;
   }
 
+  if (step.type === "research_plan") {
+    return <ResearchPlanCard key={step.id} step={step} t={t} />;
+  }
+
+  if (step.type === "research_run") {
+    return <ResearchRunCard key={step.id} step={step} t={t} />;
+  }
+
   if (step.type === "approval") {
     return (
       <ApprovalCard
@@ -550,6 +527,26 @@ export function WorkBlock({
             >
               {isReverted ? t("changeUndone") : t("undoChange")}
             </button>
+          )}
+          {failed && step.retryUrl && (
+            <>
+              <button
+                type="button"
+                onClick={() => fillComposer(t("researchRetryPrompt").replace("{url}", step.retryUrl!))}
+                className="text-[12px] text-text-secondary hover:text-text-primary underline-offset-2 hover:underline"
+              >
+                {t("researchRetry")}
+              </button>
+              {/^https?:/i.test(step.retryUrl) && (
+                <button
+                  type="button"
+                  onClick={() => window.open(step.retryUrl, "_blank")}
+                  className="text-[12px] text-text-secondary hover:text-text-primary underline-offset-2 hover:underline"
+                >
+                  {t("researchOpenInBrowser")}
+                </button>
+              )}
+            </>
           )}
           {isActive && step.type === "command" && step.runId && (
             <button

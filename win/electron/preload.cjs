@@ -81,11 +81,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   searchWeb: (query) => ipcRenderer.invoke("search-web", query),
   searchWebDetailed: (query) => ipcRenderer.invoke("search-web-detailed", query),
+  searchSource: (query, source) => ipcRenderer.invoke("search-source", query, source),
   setSearchConfig: (config) => ipcRenderer.invoke("set-search-config", config),
   // Write-only, like a provider's key: the status says whether one is set and its last four.
   setBraveKey: (key) => ipcRenderer.invoke("search:set-brave-key", key),
   braveKeyStatus: () => ipcRenderer.invoke("search:brave-key-status"),
-  readUrl: (url) => ipcRenderer.invoke("get-page-content", url),
+  setServiceKey: (id, key) => ipcRenderer.invoke("search:set-service-key", id, key),
+  serviceKeyStatus: (id) => ipcRenderer.invoke("search:service-key-status", id),
+  readUrl: (url, page) => ipcRenderer.invoke("get-page-content", url, page),
 
   browserNavigate: (url) => ipcRenderer.invoke("browser-navigate", url),
   browserGetElements: () => ipcRenderer.invoke("browser-get-elements"),
@@ -217,6 +220,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     search: (query, limit, model, options) =>
       ipcRenderer.invoke("library:search", query, limit, model, options),
     onProgress: (callback) => subscribe("library-progress", callback),
+  },
+  research: {
+    list: (workspaceId) => ipcRenderer.invoke("research:list", workspaceId),
+    get: (id) => ipcRenderer.invoke("research:get", id),
+    save: (run) => ipcRenderer.invoke("research:save", run),
+    remove: (id) => ipcRenderer.invoke("research:remove", id),
+    search: (query, options) => ipcRenderer.invoke("research:search", query, options),
   },
 
   chats: {

@@ -26,6 +26,10 @@ export interface ToolParameter {
 
 export interface ToolEnvironment {
   webMode: AppSettings["webMode"];
+  /** Whether the model may start research on its own. When false, it may not. */
+  researchModelStart?: boolean;
+  /** The deepest run the user allows. */
+  researchMaxDepth?: AppSettings["researchMaxDepth"];
   /** Whether the agent may use the pane beyond reading and plain clicks: coordinates, hover, drag, scroll and the rest. */
   browserActions?: boolean;
   codeExecution: boolean;
@@ -77,6 +81,8 @@ export interface ToolContext {
   onPlan?: (items: PlanItem[]) => void;
   /** Puts a question to the user and waits. Null means they dismissed it; missing means no one is there. */
   askUser?: (question: UserQuestion) => Promise<UserReply | null>;
+  /** Shows a research plan for approval and editing. Null means the user cancelled it. */
+  approveResearch?: (plan: import("../research/run").ResearchPlan) => Promise<import("../research/run").ResearchPlan | null>;
   pushStep: (step: SearchStep) => void;
   patchStep: (id: string, patch: Partial<SearchStep>) => void;
   findStep?: (predicate: (step: SearchStep) => boolean) => SearchStep | undefined;

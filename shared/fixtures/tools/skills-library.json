@@ -1533,7 +1533,7 @@
         {
           "id": "deep-research",
           "name": "deep-research",
-          "description": "Answers a hard question with a cited report. Splits it into sub-questions, searches, reads primary sources in full, cross-checks them and writes up what is established, what is disputed and what is unknown. Use when the user asks for deep research, a thorough investigation, or a report with sources.",
+          "description": "Answers a hard question with a cited report. Plans sub-questions, gathers sourced notes, cross-checks them and writes up what is established, what is disputed and what is unknown. Use when the user asks for deep research, a thorough investigation, or a report with sources.",
           "summary": "Multi-source cited research report",
           "source": "library",
           "category": "research",

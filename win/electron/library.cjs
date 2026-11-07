@@ -824,6 +824,7 @@ function close() {
 
 module.exports = {
   init,
+  database: () => db,
   indexSource,
   search,
   listSources,

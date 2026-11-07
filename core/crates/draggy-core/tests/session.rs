@@ -397,7 +397,15 @@ fn the_web_tools_are_offered_only_when_the_web_is_on() {
     assert_eq!(names_in(&bodies[0]), ["update_plan"]);
     assert_eq!(
         names_in(&bodies[1]),
-        ["search_web", "read_url", "update_plan"]
+        [
+            "search_web",
+            "read_url",
+            "start_research",
+            "add_note",
+            "search_notes",
+            "finish_research",
+            "update_plan"
+        ]
     );
 }
 

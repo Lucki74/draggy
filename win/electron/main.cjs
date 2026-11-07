@@ -15,6 +15,7 @@ const {
   protocol,
   screen,
   session,
+  net,
 } = require("electron");
 const path = require("path");
 const os = require("os");
@@ -26,6 +27,7 @@ const favicon = require("./favicon.cjs");
 const logger = require("./logger.cjs");
 const { log } = logger;
 const { createIpc, sendTo } = require("./ipcLog.cjs");
+const searchSources = require("./sources.cjs");
 const ipc = createIpc(ipcMain);
 const lifecycle = require("./lifecycleLog.cjs");
 const spawnLog = require("./spawnLog.cjs");
@@ -49,6 +51,8 @@ const mcpRegistry = require("./mcpRegistry.cjs");
 const skills = require("./skills.cjs");
 const fileOperations = require("./fileOps.cjs");
 const library = require("./library.cjs");
+const researchLibrary = require("./researchLibrary.cjs");
+const pageExtract = require("./pageExtract.cjs");
 const runner = require("./runner.cjs");
 const commands = require("./commands.cjs");
 const { createTaskManager } = require("./tasks.cjs");
@@ -846,6 +850,8 @@ let codexAccounts = null;
 let claudeAccounts = null;
 let providerAutoRefresh = null;
 let searchKey = null;
+let openAlexKey = null;
+let githubKey = null;
 
 /** An existing install is recorded as done on the spot, so later launches need one read to know. */
 function decideOnboarding() {
@@ -1165,6 +1171,7 @@ app.whenReady().then(() => {
 
   try {
     library.init(app.getPath("userData"));
+    researchLibrary.init(library.database());
   } catch (error) {
     log.error("library", "could not open the document index", error);
   }
@@ -1182,6 +1189,20 @@ app.whenReady().then(() => {
     searchKey.adopt();
   } catch (error) {
     log.warn("search", `could not move the Brave key into the store: ${error.message}`);
+  }
+  openAlexKey = createSearchKey({ secrets, storage, owner: "search:openalex" });
+  githubKey = createSearchKey({ secrets, storage, owner: "search:github" });
+  try {
+    let keep = "forever";
+    try {
+      keep = JSON.parse(storage.getValue("draggy_settings") || "null")?.researchKeep ?? "forever";
+    } catch (error) {
+      log.swallow("research", error, "unreadable settings keep research forever");
+    }
+    const dropped = researchLibrary.applyRetention(keep);
+    if (dropped) log.info("research", "old runs removed", { count: dropped });
+  } catch (error) {
+    log.warn("research", `could not prune old runs: ${error.message}`);
   }
   providers = createRegistry({ storage, secrets });
   const remoteCatalog = createRemoteCatalog({ storage, instances: () => providers.list(), log: (line) => log.warn("providers", line) });
@@ -1745,6 +1766,14 @@ const searchSettings = () => ({ ...searchConfig, braveApiKey: searchKey?.get() |
 ipc.handle("search:set-brave-key", (event, key) => searchKey.set(key));
 ipc.handle("search:brave-key-status", () => searchKey.status());
 
+// Only "is it set" goes back to the renderer for these two, never any part of the key.
+const serviceKeys = () => ({ openalex: openAlexKey, github: githubKey });
+ipc.handle("search:set-service-key", (event, id, key) => serviceKeys()[String(id)]?.set(key) ?? { success: false, kept: false });
+ipc.handle("search:service-key-status", (event, id) => {
+  const status = serviceKeys()[String(id)]?.status();
+  return { hasKey: Boolean(status?.hasKey), keystore: Boolean(status?.keystore) };
+});
+
 ipc.handle("search-web", async (event, query) => {
   const { results } = await runSearch(query, searchSettings(), {
     scrape: scrapeInHiddenWindow,
@@ -1752,16 +1781,21 @@ ipc.handle("search-web", async (event, query) => {
   return results;
 });
 
+ipc.handle("search-source", async (event, query, source) =>
+  searchSources.searchSource(String(query ?? ""), String(source ?? ""), {
+    fetch: (target, init) => net.fetch(target, init),
+    version: app.getVersion(),
+    openAlexKey: openAlexKey?.get() || "",
+    githubToken: githubKey?.get() || "",
+  }),
+);
+
 ipc.handle("search-web-detailed", async (event, query) =>
   runSearch(query, searchSettings(), { scrape: scrapeInHiddenWindow }),
 );
 
-ipc.handle("get-page-content", async (event, url) => {
-  if (!urlPolicy.isFetchableUrl(url)) {
-    log.warn("read-url", `refused ${String(url).slice(0, 120)}`);
-    return { title: "", text: "", blocked: "refused", reason: urlPolicy.refusalFor(url), url };
-  }
-
+/** Loads the page in a hidden window and reads the rendered DOM. The slow path of read_url. */
+async function renderPageInHiddenWindow(url) {
   const win = new BrowserWindow({
     show: false,
     webPreferences: {
@@ -1838,32 +1872,56 @@ ipc.handle("get-page-content", async (event, url) => {
       return { title: "", text: "", blocked: "refused", reason: urlPolicy.refusalFor(refusedHop), url };
     }
 
-    const result = await win.webContents.executeJavaScript(`
-      (() => {
-        document.querySelectorAll('script, style, nav, footer, header, aside, .ad, .ads, [role="banner"], [role="navigation"]')
-          .forEach(el => el.remove());
-
-        const title = document.title || '';
-        const mainEl = document.querySelector('main, article, [role="main"]') || document.body;
-        const text = mainEl.innerText
-          .replace(/[ \\t]+/g, ' ')       
-          .replace(/\\n{3,}/g, '\\n\\n')  
-          .trim()
-          .substring(0, 15000);           
-
-        return JSON.stringify({ title, text });
-      })();
-    `);
-
+    const bundles = pageBundles();
+    const out = JSON.parse(
+      await win.webContents.executeJavaScript(
+        pageExtract.buildExtractScript({ ...bundles, html: null, baseUrl: url }),
+      ),
+    );
+    const finalUrl = win.webContents.getURL();
     win.destroy();
-    return JSON.parse(result);
+    return { ...out, finalUrl };
   } catch (e) {
     win.destroy();
     const failure = classifyPageFailure(e);
     log.warn("read-url", `page read failed: ${failure.code}`);
     return { title: "", text: "", blocked: "unreachable", reason: failure.reason, url };
   }
-});
+}
+
+let bundlesCache = null;
+const pageBundles = () => (bundlesCache ??= pageExtract.loadBundles());
+
+/** Runs Readability and Turndown over fetched HTML inside a blank window. Scripts in the HTML never run. */
+async function extractHtmlInBlankWindow(html, url) {
+  const win = new BrowserWindow({
+    show: false,
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  });
+  try {
+    await win.loadURL("about:blank");
+    const out = await win.webContents.executeJavaScript(
+      pageExtract.buildExtractScript({ ...pageBundles(), html, baseUrl: url }),
+    );
+    return JSON.parse(out);
+  } finally {
+    if (!win.isDestroyed()) win.destroy();
+  }
+}
+
+ipc.handle("get-page-content", async (event, url, page) =>
+  pageExtract.readPage(url, Number(page) || 1, {
+    fetch: (target, init) => net.fetch(target, init),
+    userAgent: DESKTOP_USER_AGENT,
+    isFetchable: (target) => urlPolicy.isFetchableUrl(target),
+    refusalFor: (target) => urlPolicy.refusalFor(target),
+    extractHtml: extractHtmlInBlankWindow,
+    render: renderPageInHiddenWindow,
+    readPdf: (buffer) => documents.readPdf(buffer),
+    saveSnapshot: (markdown, metadata) => researchLibrary.saveSnapshot(markdown, metadata),
+    log,
+  }),
+);
 
 const AGENT_WORLD = 1000;
 
@@ -3465,6 +3523,31 @@ ipc.handle("library:remove", wrap("library", async (event, id) =>
 ));
 
 ipc.handle("library:clear", wrap("library", async () => library.clear()));
+
+ipc.handle("research:list", wrap("research", async (event, workspaceId) => ({
+  success: true,
+  runs: researchLibrary.listRuns(workspaceId ? String(workspaceId) : undefined),
+})));
+
+ipc.handle("research:get", wrap("research", async (event, id) => ({
+  success: true,
+  run: researchLibrary.getRun(String(id)),
+})));
+
+ipc.handle("research:save", wrap("research", async (event, run) => {
+  researchLibrary.saveRun(run);
+  return { success: true };
+}));
+
+ipc.handle("research:remove", wrap("research", async (event, id) => {
+  researchLibrary.removeRun(String(id));
+  return { success: true };
+}));
+
+ipc.handle("research:search", wrap("research", async (event, query, options) => ({
+  success: true,
+  hits: researchLibrary.searchRuns(String(query ?? ""), options || {}),
+})));
 
 ipc.handle("library:search", wrap("library", async (event, query, limit, model, options) =>
   library.search(

@@ -7,6 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use draggy_agent::agent_loop::Permission;
 use draggy_agent::agent_loop::ToolContext;
+use draggy_agent::agent_loop::WireMessage;
 use draggy_agent::agent_loop::{
     AgentResult, ApprovalAnswer, ApprovalRequest, Clock, DraggyRef, Engine, FixedContext, IdSource,
     MessageRefs, ModelProfile, Ports, TailNotes, ToolAccess, ToolRuntime, TurnHost, TurnRequest,
@@ -37,6 +38,9 @@ use crate::records::{
     ApprovalChoice, ApprovalRecord, ImageRecord, MessageRecord, PlanStepRecord, SessionConfig,
     TaskRecord, TurnOutcome,
 };
+use crate::research::run::Depth;
+use crate::research::tools::ResearchLibrary;
+use crate::research_library::ResearchStore;
 use crate::skills::{self, SkillStore};
 use crate::task_tools::TaskSet;
 use crate::tools::{FileTools, NoTools, definitions};
@@ -193,6 +197,10 @@ pub struct Session {
     plan: SharedPlan,
     /// Background commands. They outlive a turn, so the session keeps them rather than the turn's tools.
     tasks: TaskSet,
+    /// Where finished research runs are saved, when the host opened a library.
+    library: Mutex<Option<ResearchLibrary>>,
+    /// Whether the model may start research itself, and the deepest plan allowed.
+    research_options: Mutex<(bool, Option<Depth>)>,
 }
 
 impl Drop for Session {
@@ -293,9 +301,24 @@ impl ToolRuntime for CompositeTools {
         }
         self.files.run(name, args, ctx)
     }
+
+    fn prepare_wire(&mut self, wire: &mut [WireMessage]) {
+        if let Some(web) = self.web.as_mut() {
+            web.prepare_wire(wire);
+        }
+    }
+
+    fn loop_limit(&self, base: usize) -> usize {
+        self.web.as_ref().map_or(base, |web| web.loop_limit(base))
+    }
 }
 
 impl Session {
+    /// Saves finished research runs to `storage`, under this workspace and chat. The shells use `set_research_store`.
+    pub fn set_research_library(&self, library: Option<ResearchLibrary>) {
+        *self.library.lock().unwrap_or_else(PoisonError::into_inner) = library;
+    }
+
     fn create(config: SessionConfig, mcp: Option<Arc<McpManager>>) -> Result<Arc<Self>, CoreError> {
         let net = Net::new().map_err(|message| CoreError::Internal { message })?;
         if config.base_url.trim().is_empty() || config.model.trim().is_empty() {
@@ -310,6 +333,8 @@ impl Session {
             state: Mutex::new(State::default()),
             plan: SharedPlan::default(),
             tasks: TaskSet::new(),
+            library: Mutex::new(None),
+            research_options: Mutex::new((true, None)),
         }))
     }
 
@@ -336,6 +361,13 @@ impl Session {
         };
         if web {
             tools.extend(web_tools::definitions());
+            let (allow, _) = *self
+                .research_options
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            if !allow {
+                tools.retain(|tool| tool.function.name != "start_research");
+            }
         }
         tools.extend(extra_tools.iter().cloned());
         let shelf = self
@@ -450,6 +482,21 @@ impl Session {
             .ok(),
             _ => None,
         };
+        let mut web_tools = web_tools;
+        if let Some(web) = web_tools.as_mut() {
+            web.set_library(
+                self.library
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .clone(),
+            );
+            web.set_max_depth(
+                self.research_options
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .1,
+            );
+        }
         let request = self.request(messages, grants, extra_tools, web_tools.is_some());
         let mut model = OpenAiModel::new(
             Arc::clone(&self.net),
@@ -501,6 +548,17 @@ impl Session {
                 cancel: cancel.signal(),
             },
         );
+        // A run the model left open still gets its quotes checked and its record saved.
+        // Stop and failure leave it cancelled.
+        let mut result = result;
+        if let Some(web) = composite.web.as_mut() {
+            let cancelled = result.as_ref().map_or(true, |done| done.aborted);
+            let mut scratch = Vec::new();
+            web.settle_open(
+                cancelled,
+                result.as_mut().map_or(&mut scratch, |done| &mut done.steps),
+            );
+        }
         let result: AgentResult = match result {
             Ok(result) => result,
             Err(error) => {
@@ -542,6 +600,25 @@ impl Session {
     #[uniffi::constructor(name = "with_mcp")]
     pub fn with_mcp(config: SessionConfig, mcp: Arc<McpManager>) -> Result<Arc<Self>, CoreError> {
         Self::create(config, Some(mcp))
+    }
+
+    /// Whether the model may start research on its own, and the deepest depth (`quick`, `standard` or `deep`) a run
+    /// may take.
+    pub fn set_research_options(&self, allow_model_start: bool, max_depth: String) {
+        let depth = Depth::from_id(&max_depth);
+        *self
+            .research_options
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = (allow_model_start, depth);
+    }
+
+    /// Saves finished research runs to the library under `chat_id`; `None` stops saving.
+    pub fn set_research_store(&self, store: Option<Arc<ResearchStore>>, chat_id: Option<String>) {
+        self.set_research_library(store.map(|store| ResearchLibrary {
+            storage: Arc::clone(&store.storage),
+            workspace_id: None,
+            chat_id,
+        }));
     }
 
     /// The background commands of this session, running or ended.

@@ -15,6 +15,8 @@ use crate::js::{js_trim, text_or_empty, truthy, utf16_prefix};
 pub enum ProviderError {
     #[error("{name} returned {status}")]
     Status { name: &'static str, status: u16 },
+    #[error("blocked: {0}")]
+    Blocked(String),
     #[error("invalid body")]
     InvalidBody,
     #[error(transparent)]
@@ -39,6 +41,7 @@ pub fn parse_response(
 }
 
 fn parse_searxng(status: u16, body: &str) -> Result<Vec<SearchResult>, ProviderError> {
+    check_throttled(status, body)?;
     check_status("SearXNG", status)?;
     let parsed = parse_json(body)?;
     let entries = entries_at(&parsed, &["results"])?;
@@ -49,6 +52,7 @@ fn parse_searxng(status: u16, body: &str) -> Result<Vec<SearchResult>, ProviderE
 }
 
 fn parse_brave(status: u16, body: &str) -> Result<Vec<SearchResult>, ProviderError> {
+    check_throttled(status, body)?;
     check_status("Brave", status)?;
     let parsed = parse_json(body)?;
     let entries = entries_at(&parsed, &["web", "results"])?;
@@ -68,7 +72,66 @@ fn parse_page(
     let page = Url::parse(page_url).map_err(|_| ProviderError::InvalidBody)?;
     let document = Html::parse_document(body);
     let base = dom::document_base(&document, &page);
-    Ok(normalise_results(&Value::Array(extract(&document, &base))))
+    let rows = extract(&document, &base);
+    if rows.is_empty() {
+        let (title, text) = dom::page_text(&document);
+        if let Some(reason) = block_reason(&title, &text) {
+            return Err(ProviderError::Blocked(reason.to_owned()));
+        }
+    }
+    Ok(normalise_results(&Value::Array(rows)))
+}
+
+/// Names a block page from its title and text, or None. The phrases are the CJS list, matched case-insensitively.
+pub fn block_reason(title: &str, text: &str) -> Option<&'static str> {
+    const RULES: [(&str, &[&str]); 3] = [
+        (
+            "unusual-traffic",
+            &[
+                "unusual traffic",
+                "bots use duckduckgo too",
+                "anomaly in the request",
+                "automated requests",
+                "unusual activity",
+            ],
+        ),
+        (
+            "captcha",
+            &[
+                "captcha",
+                "verify you are human",
+                "verify you're human",
+                "are you a robot",
+                "are you human",
+                "not a robot",
+                "select all squares",
+            ],
+        ),
+        (
+            "consent",
+            &[
+                "before you continue to google",
+                "consent.google",
+                "before you continue",
+                "cookie consent",
+                "accept all cookies",
+            ],
+        ),
+    ];
+    let joined = format!("{title} {text}").to_lowercase();
+    let haystack = joined.split_whitespace().collect::<Vec<_>>().join(" ");
+    RULES
+        .iter()
+        .find(|(_, phrases)| phrases.iter().any(|phrase| haystack.contains(phrase)))
+        .map(|(reason, _)| *reason)
+}
+
+/// An API that answers 202 with nothing is throttling, not reporting an empty web.
+fn check_throttled(status: u16, body: &str) -> Result<(), ProviderError> {
+    if status == 202 && js_trim(body).is_empty() {
+        return Err(ProviderError::Blocked("rate-limited".to_owned()));
+    }
+    Ok(())
 }
 
 fn check_status(name: &'static str, status: u16) -> Result<(), ProviderError> {
@@ -129,7 +192,7 @@ pub fn normalise_results(raw: &Value) -> Vec<SearchResult> {
         let raw_url = text_or_empty(field(entry, "url"));
         let url = unwrap_redirect(js_trim(&raw_url));
         let title = js_trim(&text_or_empty(field(entry, "title"))).to_owned();
-        if title.is_empty() || !is_http_url(&url) || !seen.insert(url.clone()) {
+        if title.is_empty() || !is_http_url(&url) || !seen.insert(canonical_url(&url)) {
             continue;
         }
         let snippet =
@@ -165,4 +228,64 @@ pub fn unwrap_redirect(url: &str) -> String {
 fn is_http_url(url: &str) -> bool {
     let lower = url.to_ascii_lowercase();
     lower.starts_with("http://") || lower.starts_with("https://")
+}
+
+/// One key for a page however it was linked: tracking parameters, AMP markers, the fragment and a trailing slash go.
+/// The host is only lowercased, because a www host and its bare twin can serve different pages.
+pub fn canonical_url(url: &str) -> String {
+    let Ok(parsed) = Url::parse(url) else {
+        return url.to_owned();
+    };
+    let mut path = parsed
+        .path()
+        .split('/')
+        .filter(|segment| !segment.eq_ignore_ascii_case("amp"))
+        .collect::<Vec<_>>()
+        .join("/");
+    if !path.starts_with('/') {
+        path.insert(0, '/');
+    }
+    if path.len() > 1 && path.ends_with('/') {
+        path.pop();
+    }
+    let kept: Vec<&str> = parsed
+        .query()
+        .unwrap_or_default()
+        .split('&')
+        .filter(|pair| !pair.is_empty() && !is_dropped_param(pair))
+        .collect();
+    let host = parsed.host_str().unwrap_or_default();
+    let port = parsed
+        .port()
+        .map_or(String::new(), |port| format!(":{port}"));
+    let query = if kept.is_empty() {
+        String::new()
+    } else {
+        format!("?{}", kept.join("&"))
+    };
+    format!("{}://{host}{port}{path}{query}", parsed.scheme())
+}
+
+/// A tracking parameter or an AMP switch, given as a raw `name=value` pair.
+fn is_dropped_param(pair: &str) -> bool {
+    let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
+    let name = name.to_ascii_lowercase();
+    let value = value.to_ascii_lowercase();
+    const TRACKING: [&str; 9] = [
+        "gclid", "fbclid", "mc_cid", "mc_eid", "ref", "ref_src", "igshid", "yclid", "msclkid",
+    ];
+    name.starts_with("utm_")
+        || TRACKING.contains(&name.as_str())
+        || (name == "amp" && value == "1")
+        || (name == "outputtype" && value == "amp")
+}
+
+/// The host without a leading `www.`, or an empty string when the url does not parse.
+pub fn domain_of(url: &str) -> String {
+    let host = Url::parse(url)
+        .ok()
+        .and_then(|parsed| parsed.host_str().map(str::to_lowercase))
+        .unwrap_or_default();
+    host.strip_prefix("www.")
+        .map_or(host.clone(), str::to_owned)
 }

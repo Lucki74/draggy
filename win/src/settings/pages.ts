@@ -8,6 +8,7 @@ export type SettingsTab =
   | "models"
   | "providers"
   | "web"
+  | "research"
   | "usage"
   | "data"
   | "diagnostics"
@@ -43,7 +44,8 @@ export const SETTINGS_GROUPS: SettingsGroupEntry[] = [
       { id: "general", label: "settingsGeneral", icon: "palette", keywords: ["appearance", "theme", "language", "textSize", "showMetrics", "onbRunAgain"] },
       { id: "models", label: "models", icon: "cpu", keywords: ["installed", "downloadModel", "embeddingModel", "contextGroup", "fixedContextSize", "library"] },
       { id: "providers", label: "providers", icon: "cloud", keywords: ["onThisComputer", "apiKeysGroup", "accountsGroup"] },
-      { id: "web", label: "webSearchPage", icon: "globe-simple", keywords: ["searchProvider", "searxngUrl", "braveApiKey"] },
+      { id: "web", label: "webSearchPage", icon: "globe-simple", keywords: ["searchProvider", "searxngUrl", "braveApiKey", "openAlexKey", "githubToken", "researchModelStart", "researchMaxDepth", "researchKeep"] },
+      { id: "research", label: "researchPage", icon: "book-open" },
       { id: "usage", label: "statistics", icon: "chart-bar" },
       { id: "data", label: "data", icon: "database", keywords: ["conversations", "messages", "attachments", "attachmentSize", "clearChats", "clearSessions", "eraseData"] },
       { id: "diagnostics", label: "diagnostics", icon: "terminal-window", keywords: ["openLogFolder", "diagVerbose", "diagViewer", "diagExport"] },
@@ -96,6 +98,18 @@ export const searchProviderOptions = (t: Translate) =>
     id,
     label: t(`provider_${id.replace(/-/g, "_")}`),
   }));
+
+export const researchDepthOptions = (t: Translate) => [
+  { id: "quick" as const, label: t("researchDepthQuick") },
+  { id: "standard" as const, label: t("researchDepthStandard") },
+  { id: "deep" as const, label: t("researchDepthDeep") },
+];
+
+export const researchKeepOptions = (t: Translate) => [
+  { id: "forever" as const, label: t("keepForever") },
+  { id: "90" as const, label: t("keep90") },
+  { id: "30" as const, label: t("keep30") },
+];
 
 export const newChatStartOptions = (t: Translate) => [
   { id: "defaults" as const, label: t("newChatStartDefaults") },

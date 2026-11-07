@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use draggy_core::{EngineHost, LocalEngine, McpManager, ModelLibrary};
 use draggy_linux::models;
+use draggy_linux::research::ResearchSettings;
 use draggy_linux::secrets::{KeyringStore, SecretStore};
 use draggy_linux::servers::PlainValues;
 use draggy_linux::settings::Settings;
@@ -17,6 +18,7 @@ pub const BRAVE_KEY: &str = "brave-search";
 
 pub struct AppState {
     pub settings: RefCell<Settings>,
+    pub research: RefCell<ResearchSettings>,
     pub secrets: Arc<dyn SecretStore>,
     /// The non-secret values of MCP server inputs. `None` when there is no home directory.
     pub plain: Option<PlainValues>,
@@ -40,6 +42,7 @@ impl AppState {
     pub fn new() -> Self {
         Self {
             settings: RefCell::new(Settings::default()),
+            research: RefCell::new(ResearchSettings::default()),
             secrets: Arc::new(KeyringStore),
             plain: PlainValues::in_config_dir(),
             mcp: RefCell::new(None),
