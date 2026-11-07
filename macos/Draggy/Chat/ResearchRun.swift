@@ -35,7 +35,13 @@ struct ResearchRunView: Decodable, Equatable {
 
     /// The run in a step, or nil for any other step.
     init?(step: Transcript.Step) {
-        guard step.kind == "research_run", let data = step.detail.data(using: .utf8),
+        guard step.kind == "research_run" else { return nil }
+        self.init(json: step.detail)
+    }
+
+    /// The run from its view JSON, or nil when the text is not one.
+    init?(json: String) {
+        guard let data = json.data(using: .utf8),
               let run = try? JSONDecoder().decode(ResearchRunView.self, from: data) else { return nil }
         self = run
     }
@@ -52,6 +58,8 @@ struct ResearchRunView: Decodable, Equatable {
         return (index + 1, citedSources[index], note.verified == true)
     }
 }
+
+extension ResearchRunView: Identifiable {}
 
 /// The /research command: the message shows as typed and the model is sent an instruction.
 enum ResearchCommand {

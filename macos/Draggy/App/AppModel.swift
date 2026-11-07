@@ -102,6 +102,7 @@ final class AppModel {
         static let speakReplies = "speakReplies"
         static let researchModelStart = "researchModelStart"
         static let researchMaxDepth = "researchMaxDepth"
+        static let researchKeep = "researchKeep"
     }
 
     private let defaults: UserDefaults
@@ -205,6 +206,17 @@ final class AppModel {
         didSet { defaults.set(researchMaxDepth, forKey: Key.researchMaxDepth) }
     }
 
+    /// How long saved research runs are kept: forever, 90 or 30. A shorter choice deletes older runs now.
+    var researchKeep: String {
+        didSet {
+            defaults.set(researchKeep, forKey: Key.researchKeep)
+            _ = try? researchStore?.applyRetention(keep: researchKeep)
+        }
+    }
+
+    /// The saved research runs, or nil when the data folder cannot open.
+    @ObservationIgnored let researchStore: ResearchStore?
+
     /// Reads each finished reply aloud with the system voice.
     var speakReplies: Bool {
         didSet {
@@ -248,6 +260,11 @@ final class AppModel {
         speakReplies = defaults.bool(forKey: Key.speakReplies)
         researchModelStart = defaults.object(forKey: Key.researchModelStart) as? Bool ?? true
         researchMaxDepth = defaults.string(forKey: Key.researchMaxDepth) ?? "deep"
+        researchKeep = defaults.string(forKey: Key.researchKeep) ?? "forever"
+        let dataFolder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Draggy")
+        try? FileManager.default.createDirectory(at: dataFolder, withIntermediateDirectories: true)
+        researchStore = try? ResearchStore.open(dataDir: dataFolder.path)
         broker = ApprovalBroker { [weak self] request in
             self?.pendingApproval = request
         }
@@ -255,6 +272,7 @@ final class AppModel {
             self?.baseURL = info.baseUrl
             self?.modelName = info.model
         }
+        _ = try? researchStore?.applyRetention(keep: researchKeep)
     }
 
     func hasAPIKey() -> Bool {
@@ -491,6 +509,8 @@ final class AppModel {
             MessageRecord(id: "m\(index + 1)", role: line.role == .user ? "user" : "assistant", content: line.text)
         }
         if !records.isEmpty { try created.restore(saved: records) }
+        // Finished research runs are saved to the library under this conversation.
+        created.setResearchStore(store: researchStore, chatId: currentID.uuidString)
         session = created
         return created
     }

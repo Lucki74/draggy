@@ -92,6 +92,12 @@ struct SettingsView: View {
                     Text("Standard").tag("standard")
                     Text("Deep").tag("deep")
                 }
+                Picker("Keep research for", selection: $model.researchKeep) {
+                    Text("Forever").tag("forever")
+                    Text("90 days").tag("90")
+                    Text("30 days").tag("30")
+                }
+                ResearchLibraryView(store: model.researchStore)
             }
 
             Section("Voice & Updates") {
