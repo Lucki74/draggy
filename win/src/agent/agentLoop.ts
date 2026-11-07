@@ -753,14 +753,25 @@ const LIVE_INTERVAL_MS = 250;
 
 export async function runAgentTurn(request: AgentRequest, host: AgentHost): Promise<AgentResult> {
   const end = beginLlamaWork(request.model);
+  let context: ToolContext | undefined;
   try {
-    return await runTurn(request, host);
+    const result = await runTurn(request, host, (made) => (context = made));
+    // Stop skips the end of the loop, so a run still open is settled here as cancelled.
+    if (result.aborted && context) await settleRun(context, "cancelled");
+    return result;
+  } catch (error) {
+    if (context) await settleRun(context, "cancelled").catch(() => undefined);
+    throw error;
   } finally {
     end();
   }
 }
 
-async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentResult> {
+async function runTurn(
+  request: AgentRequest,
+  host: AgentHost,
+  onContext?: (context: ToolContext) => void,
+): Promise<AgentResult> {
   const { model, settings, environment, signal } = request;
   // One id for every pass and tool round-trip in this turn, so its log lines join back together.
   const correlationId = request.correlationId ?? newCorrelationId();
@@ -1042,6 +1053,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
     wire,
     invokedSkills,
   } = await prepareTurn(request);
+  onContext?.(toolContext);
   toolContext.vision = nativeVision;
   // The tool list was built with this flag, so a call to a tool that needs it is checked against the same one.
   environment.vision = nativeVision;
@@ -1924,7 +1936,7 @@ async function runTurn(request: AgentRequest, host: AgentHost): Promise<AgentRes
 
   // A run the model never finished, such as after Stop, is still checked and saved.
   const openRun = activeRun(toolContext);
-  if (openRun && openRun.endedAt === undefined) await settleRun(toolContext);
+  if (openRun && openRun.endedAt === undefined) await settleRun(toolContext, signal.aborted ? "cancelled" : "done");
 
   const exhausted = !isFinished && loopCount >= currentLimit();
 

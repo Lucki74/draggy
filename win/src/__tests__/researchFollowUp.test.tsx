@@ -90,6 +90,18 @@ describe("settleRun", () => {
     expect(run.notes[0].verified).toBe(true);
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ id: "r1", chatId: "c1" }));
   });
+
+  it("marks a page still reading as skipped and a stop as cancelled", async () => {
+    vi.stubGlobal("window", { electronAPI: { research: { save: vi.fn(async () => ({ success: true })) } } });
+    const run = runWithNote();
+    addSource(run, { url: "https://c.example/z", status: "reading" });
+    const ctx = { memo: new Map<string, unknown>([["research:run", run]]) } as unknown as ToolContext;
+    await settleRun(ctx, "cancelled");
+    expect(run.status).toBe("cancelled");
+    expect(run.sources.map((source) => source.status)).toEqual(["read", "read", "skipped"]);
+    expect(run.notes).toHaveLength(1);
+    expect(await settleRun(ctx, "cancelled")).toBeNull();
+  });
 });
 
 describe("finish_research", () => {

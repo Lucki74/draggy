@@ -70,10 +70,14 @@ export function syncRun(ctx: RunScreen): void {
  * The report still gets written if the library cannot save. */
 export async function settleRun(
   ctx: RunScreen & Partial<Pick<ToolContext, "workspaceId" | "chatId">>,
+  outcome: "done" | "cancelled" = "done",
 ): Promise<{ dropped: number } | null> {
   const run = activeRun(ctx);
-  if (!run) return null;
+  if (!run || (outcome === "cancelled" && run.endedAt !== undefined)) return null;
   finish(run);
+  // A page opened but never resolved was left behind, so it reads as skipped.
+  for (const source of run.sources) if (source.status === "reading") source.status = "skipped";
+  if (outcome === "cancelled") run.status = "cancelled";
   const verdicts = verifyCitations(run.notes, pageTexts(ctx));
   for (const note of run.notes) note.verified = verdicts.get(note.id) === "verified";
   const now = Date.now();
