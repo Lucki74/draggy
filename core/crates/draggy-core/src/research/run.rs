@@ -145,7 +145,7 @@ pub const fn depth_spec(depth: Depth) -> DepthSpec {
 /// The share of the budget after which the model is told to start writing.
 pub const WRAP_AT: f64 = 0.8;
 /// Searches in a row that add no note before the run stops looking.
-pub const DRY_SEARCHES: usize = 2;
+pub const DRY_SEARCHES: usize = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResearchPlan {
@@ -269,6 +269,8 @@ pub struct ResearchRun {
     pub contacted_hosts: Vec<String>,
     pub dry_streak: usize,
     pub notes_at_last_search: usize,
+    #[serde(default)]
+    pub reads_at_last_search: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<StopReason>,
 }
@@ -287,6 +289,7 @@ pub fn create_run(id: &str, plan: ResearchPlan, now: u64) -> ResearchRun {
         contacted_hosts: Vec::new(),
         dry_streak: 0,
         notes_at_last_search: 0,
+        reads_at_last_search: 0,
         stop_reason: None,
     }
 }
@@ -395,16 +398,22 @@ pub fn find_repeat<'a>(run: &'a ResearchRun, query: &str, kind: SourceKind) -> O
     run.queries.iter().find(|entry| entry.key == key && entry.kind == kind)
 }
 
-/// Logs a search and moves the dry streak: a search with no note since the previous one counts as dry.
+fn opened(run: &ResearchRun) -> usize {
+    run.sources
+        .iter()
+        .filter(|source| !matches!(source.status, SourceStatus::Reading | SourceStatus::Skipped))
+        .count()
+}
+
+/// Moves the dry streak: pages opened since the last search with no new note count as dry; no pages leaves it.
 pub fn log_search(run: &mut ResearchRun, query: &str, kind: SourceKind, urls: Vec<String>) {
-    if !run.queries.is_empty() {
-        run.dry_streak = if run.notes.len() > run.notes_at_last_search {
-            0
-        } else {
-            run.dry_streak + 1
-        };
+    if run.notes.len() > run.notes_at_last_search {
+        run.dry_streak = 0;
+    } else if opened(run) > run.reads_at_last_search {
+        run.dry_streak += 1;
     }
     run.notes_at_last_search = run.notes.len();
+    run.reads_at_last_search = opened(run);
     run.queries.push(QueryEntry {
         query: query.trim().to_owned(),
         key: normalise_query(query),
@@ -914,13 +923,27 @@ mod tests {
     }
 
     #[test]
-    fn stop_rule_stops_after_two_searches_in_a_row_add_no_note() {
+    fn stop_rule_stops_after_three_rounds_of_reading_add_no_note() {
         let mut r = run_of("standard", &["What", "Why"]);
         log_search(&mut r, "one", SourceKind::Web, vec![]);
-        log_search(&mut r, "two", SourceKind::Web, vec![]);
+        for n in 1..=2 {
+            read_source(&mut r, &format!("https://example.com/{n}"));
+            log_search(&mut r, &format!("q{n}"), SourceKind::Web, vec![]);
+        }
         assert_eq!(stop_reason(&r, 0), None);
-        log_search(&mut r, "three", SourceKind::Web, vec![]);
+        read_source(&mut r, "https://example.com/3");
+        log_search(&mut r, "q3", SourceKind::Web, vec![]);
         assert_eq!(stop_reason(&r, 0), Some(StopReason::Dry));
+    }
+
+    #[test]
+    fn stop_rule_ignores_parallel_searches_with_no_page_read_between() {
+        let mut r = run_of("deep", &["What", "Why"]);
+        for q in ["a", "b", "c", "d", "e"] {
+            log_search(&mut r, q, SourceKind::Web, vec![]);
+        }
+        assert_eq!(r.dry_streak, 0);
+        assert_eq!(stop_reason(&r, 0), None);
     }
 
     #[test]

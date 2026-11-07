@@ -308,7 +308,7 @@ impl WebTools {
             .and_then(|page| page.as_u64().or_else(|| page.as_str()?.trim().parse().ok()));
         if self.spend_call() {
             return format!(
-                "TOOL RESULT (read_url): The research budget is spent. Stop gathering, call finish_research and write the report from your notes.{}",
+                "TOOL RESULT (read_url): Gathering has ended for the reason below. Stop gathering, call finish_research and write the report from your notes.{}",
                 self.run_footer()
             );
         }

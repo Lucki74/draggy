@@ -78,6 +78,24 @@ describe("web tools during a research run", () => {
     expect(window.electronAPI!.readUrl).not.toHaveBeenCalled();
   });
 
+  it("still read pages after a burst of searches with no note yet", async () => {
+    const ctx = researching();
+    for (const query of ["alpha engines", "beta rockets", "gamma fuel", "delta orbits"]) {
+      await runTool("search_web", { query }, ctx, WEB);
+    }
+    const read = await runTool("read_url", { url: hit.url }, ctx, WEB);
+    expect(read).toMatch(/Source id: s1/);
+    expect(activeRun(ctx)!.status).toBe("gathering");
+  });
+
+  it("name the real reason when gathering stops", async () => {
+    const ctx = researching();
+    activeRun(ctx)!.dryStreak = 3;
+    const result = await runTool("read_url", { url: hit.url }, ctx, WEB);
+    expect(result).toMatch(/found nothing new/);
+    expect(result).not.toMatch(/budget is spent/);
+  });
+
   it("mark a page that failed as a failed source", async () => {
     const ctx = researching();
     vi.mocked(window.electronAPI!.readUrl).mockRejectedValueOnce(new Error("boom"));

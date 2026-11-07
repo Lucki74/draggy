@@ -124,13 +124,24 @@ describe("stop rule", () => {
     expect(coverage(r)[0].notes).toBe(0);
   });
 
-  it("stops after two searches in a row add no note", () => {
+  it("stops after three rounds of reading add no note", () => {
     const r = run();
     logSearch(r, "one", "web", []);
-    logSearch(r, "two", "web", []);
+    for (const n of [1, 2]) {
+      readSource(r, `https://example.com/${n}`);
+      logSearch(r, `q${n}`, "web", []);
+    }
     expect(stopReason(r, 0)).toBeNull();
-    logSearch(r, "three", "web", []);
+    readSource(r, "https://example.com/3");
+    logSearch(r, "q3", "web", []);
     expect(stopReason(r, 0)).toBe("dry");
+  });
+
+  it("does not count parallel searches with no page read between them as dry", () => {
+    const r = run("deep");
+    for (const q of ["a", "b", "c", "d", "e"]) logSearch(r, q, "web", []);
+    expect(r.dryStreak).toBe(0);
+    expect(stopReason(r, 0)).toBeNull();
   });
 
   it("resets the dry streak when a note lands between searches", () => {

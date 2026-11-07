@@ -36,7 +36,7 @@ export const SOURCE_KINDS: SourceKind[] = ["web", "papers", "wiki", "code"];
 /** The share of the budget after which the model is told to start writing. */
 export const WRAP_AT = 0.8;
 /** Searches in a row that add no note before the run stops looking. */
-export const DRY_SEARCHES = 2;
+export const DRY_SEARCHES = 3;
 
 export interface ResearchPlan {
   question: string;
@@ -85,6 +85,7 @@ export interface ResearchRun {
   contactedHosts: string[];
   dryStreak: number;
   notesAtLastSearch: number;
+  readsAtLastSearch?: number;
   stopReason?: StopReason;
 }
 
@@ -129,6 +130,7 @@ export function createRun(id: string, plan: ResearchPlan, now: number): Research
     contactedHosts: [],
     dryStreak: 0,
     notesAtLastSearch: 0,
+    readsAtLastSearch: 0,
   };
 }
 
@@ -182,12 +184,15 @@ export function findRepeat(run: ResearchRun, query: string, kind: SourceKind): Q
   return run.queries.find((entry) => entry.key === key && entry.kind === kind) ?? null;
 }
 
-/** Logs a search and moves the dry streak: a search with no note since the previous one counts as dry. */
+const opened = (run: ResearchRun) =>
+  run.sources.filter((source) => source.status !== "reading" && source.status !== "skipped").length;
+
+/** Moves the dry streak: pages opened since the last search with no new note count as dry; no pages leaves it. */
 export function logSearch(run: ResearchRun, query: string, kind: SourceKind, urls: string[]): QueryEntry {
-  if (run.queries.length > 0) {
-    run.dryStreak = run.notes.length > run.notesAtLastSearch ? 0 : run.dryStreak + 1;
-  }
+  if (run.notes.length > run.notesAtLastSearch) run.dryStreak = 0;
+  else if (opened(run) > (run.readsAtLastSearch ?? 0)) run.dryStreak += 1;
   run.notesAtLastSearch = run.notes.length;
+  run.readsAtLastSearch = opened(run);
   const entry: QueryEntry = { query: query.trim(), key: normaliseQuery(query), kind, urls };
   run.queries.push(entry);
   return entry;

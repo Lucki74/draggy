@@ -19,7 +19,7 @@ const SEARCH_FAILURE_BUDGET = 3;
 
 /** What a gathering tool says once the research run has used its budget. */
 const runSpent = (tool: string, ctx: ToolContext) =>
-  `TOOL RESULT (${tool}): The research budget is spent. Stop gathering, call finish_research and write the report from your notes.${runFooter(ctx)}`;
+  `TOOL RESULT (${tool}): Gathering has ended for the reason below. Stop gathering, call finish_research and write the report from your notes.${runFooter(ctx)}`;
 
 const SEARCH_MEMO = "search:asked";
 const SEARCH_FAILURES = "search:failures";
