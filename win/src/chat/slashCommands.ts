@@ -19,7 +19,6 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { id: "new", label: "newDiscussion" },
   { id: "model", label: "model" },
   { id: "web", label: "webSearch" },
-  { id: "research", label: "researchCommand", takesArgument: true },
   { id: "think", label: "effort" },
   { id: "voice", label: "voiceInput" },
   { id: "files", label: "addFiles" },

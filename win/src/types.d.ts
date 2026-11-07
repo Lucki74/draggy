@@ -1292,7 +1292,7 @@ export interface AppSettings {
   interfaceSounds: boolean;
   searchProvider: SearchProvider;
   searxngUrl: string;
-  /** Whether the model may call start_research itself. Off means only after /research. */
+  /** Whether the model may call start_research itself. Off means it may not. */
   researchModelStart: boolean;
   /** The deepest research the model may plan. */
   researchMaxDepth: "quick" | "standard" | "deep";

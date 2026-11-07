@@ -518,14 +518,9 @@ impl DraggyChat {
             };
             chat.imp().input.buffer().set_text("");
             let images = chat.imp().images.take();
-            // /research shows as typed and sends the model its instruction.
-            let sent = match research::command_question(&text) {
-                Some(question) => research::instruction(&question),
-                None => text.clone(),
-            };
             let options = state.research.borrow().clone();
             session.set_research_options(options.model_start, options.max_depth);
-            chat.run_turn(session, text, sent, images);
+            chat.run_turn(session, text.clone(), text, images);
         });
     }
 

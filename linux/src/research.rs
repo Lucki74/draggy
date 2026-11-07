@@ -1,4 +1,4 @@
-//! Research on Linux: the run the core reports as a `research_run` step, citation chips, and the /research command.
+//! Research on Linux: the run the core reports as a `research_run` step, citation chips.
 //! Everything here is plain data and text, so it is checked without a display.
 
 use draggy_core::StepRecord;
@@ -215,31 +215,6 @@ pub fn no_notes_line(run: &RunView) -> Option<String> {
     (run.ended_at.is_some() && !backed).then(|| t("researchRunNoNotes"))
 }
 
-/// The question after `/research`, or `None` when the text is not that command. The question may be empty.
-pub fn command_question(text: &str) -> Option<String> {
-    let trimmed = text.trim();
-    let head = trimmed.get(..9)?;
-    if !head.eq_ignore_ascii_case("/research") {
-        return None;
-    }
-    let rest = &trimmed[9..];
-    (rest.is_empty() || rest.starts_with(char::is_whitespace)).then(|| rest.trim().to_owned())
-}
-
-/// What the model is sent for `/research`. The first words are the core's marker, which lets the model start a run.
-pub fn instruction(question: &str) -> String {
-    if question.is_empty() {
-        return format!(
-            "{} but gave no question. Ask what to research before anything else.",
-            draggy_core::RESEARCH_ASK
-        );
-    }
-    format!(
-        "{} on: {question}\nStart with start_research: draft the sub-questions and pick a depth. Do not answer from memory first. Cite each claim with the note id in brackets, such as [n1].",
-        draggy_core::RESEARCH_ASK
-    )
-}
-
 /// The research settings, held in memory like the others. Kept apart from `Settings` so a change does not end the session.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResearchSettings {
@@ -290,13 +265,13 @@ const TEXTS: &[(&str, [&str; 4])] = &[
     ("researchDepthDeep", ["Deep", "Approfondie", "A fondo", "Глубоко"]),
     ("researchPage", ["Research", "Recherches", "Investigaciones", "Исследования"]),
     ("researchModelStart", ["Let the model start research", "Laisser le modèle lancer une recherche", "Dejar que el modelo inicie investigaciones", "Разрешить модели начинать исследование"]),
-    ("researchModelStartHint", ["When off, research starts only after /research.", "Désactivé, une recherche ne démarre qu'après /research.", "Si está desactivado, una investigación solo empieza tras /research.", "Если выключено, исследование начинается только после /research."]),
+    ("researchModelStartHint", ["When off, the model does not start research runs.", "Désactivé, le modèle ne lance pas de recherches.", "Si está desactivado, el modelo no inicia investigaciones.", "Если выключено, модель не запускает исследования."]),
     ("researchMaxDepth", ["Highest depth allowed", "Profondeur maximale autorisée", "Profundidad máxima permitida", "Максимальная глубина"]),
     ("researchKeep", ["Keep research for", "Conserver les recherches", "Conservar las investigaciones", "Хранить исследования"]),
     ("keepForever", ["Forever", "Toujours", "Siempre", "Всегда"]),
     ("keep90", ["90 days", "90 jours", "90 días", "90 дней"]),
     ("keep30", ["30 days", "30 jours", "30 días", "30 дней"]),
-    ("researchEmpty", ["No research yet. Start one with /research.", "Aucune recherche pour l'instant. Lancez-en une avec /research.", "Aún no hay investigaciones. Inicia una con /research.", "Исследований пока нет. Начните с команды /research."]),
+    ("researchEmpty", ["No research yet. Ask a question that needs sources and the model starts one.", "Aucune recherche pour l'instant. Posez une question qui demande des sources et le modèle en lance une.", "Aún no hay investigaciones. Haz una pregunta que necesite fuentes y el modelo inicia una.", "Исследований пока нет. Задайте вопрос, которому нужны источники, и модель начнёт его."]),
 ];
 
 /// The text for a key in the system language (English, French, Spanish or Russian). An unknown key reads as itself.
@@ -387,15 +362,6 @@ mod tests {
         };
         assert_eq!(parse_step(&step).map(|view| view.depth), Some("deep".to_owned()));
         assert!(parse_step(&StepRecord { kind: "search".into(), ..step }).is_none());
-    }
-
-    #[test]
-    fn the_command_needs_the_whole_word() {
-        assert_eq!(command_question("/research  cats "), Some("cats".to_owned()));
-        assert_eq!(command_question("/RESEARCH"), Some(String::new()));
-        assert_eq!(command_question("/researcher x"), None);
-        assert_eq!(command_question("research"), None);
-        assert!(instruction("cats").starts_with(draggy_core::RESEARCH_ASK));
     }
 
     #[test]

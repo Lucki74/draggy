@@ -39,7 +39,7 @@ struct ResearchLibraryView: View {
             Text("Past research")
                 .font(.headline)
             if model.runs.isEmpty {
-                Text("No research yet. Start one with /research.")
+                Text("No research yet. Ask a question that needs sources and the model starts one.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

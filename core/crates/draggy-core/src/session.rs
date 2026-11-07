@@ -313,9 +313,6 @@ impl ToolRuntime for CompositeTools {
     }
 }
 
-/// The words the shells' /research command puts in the message, which let the model start a run.
-pub const RESEARCH_ASK: &str = "The user asked for a research run";
-
 impl Session {
     /// Saves finished research runs to `storage`, under this workspace and chat. The shells use `set_research_store`.
     pub fn set_research_library(&self, library: Option<ResearchLibrary>) {
@@ -365,12 +362,7 @@ impl Session {
         if web {
             tools.extend(web_tools::definitions());
             let (allow, _) = *self.research_options.lock().unwrap_or_else(PoisonError::into_inner);
-            let asked = messages
-                .iter()
-                .rev()
-                .find(|m| m.role == "user")
-                .is_some_and(|m| m.content.contains(RESEARCH_ASK));
-            if !allow && !asked {
+            if !allow {
                 tools.retain(|tool| tool.function.name != "start_research");
             }
         }
@@ -595,7 +587,7 @@ impl Session {
     }
 
     /// Whether the model may start research on its own, and the deepest depth (`quick`, `standard` or `deep`) a run
-    /// may take. A message that holds the /research marker always may start one.
+    /// may take.
     pub fn set_research_options(&self, allow_model_start: bool, max_depth: String) {
         let depth = Depth::from_id(&max_depth);
         *self.research_options.lock().unwrap_or_else(PoisonError::into_inner) = (allow_model_start, depth);

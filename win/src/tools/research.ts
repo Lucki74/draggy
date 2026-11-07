@@ -17,9 +17,9 @@ import {
 
 const webOn = (env: { webMode: string }) => env.webMode !== "off";
 
-/** The model may start research unless the user turned that off; /research always allows it. */
-export const mayStartResearch = (env: { webMode: string; researchModelStart?: boolean; researchAsked?: boolean }) =>
-  webOn(env) && (env.researchModelStart !== false || env.researchAsked === true);
+/** The model may start research unless the user turned that off. */
+export const mayStartResearch = (env: { webMode: string; researchModelStart?: boolean }) =>
+  webOn(env) && env.researchModelStart !== false;
 
 const READ_ONLY = {
   readOnly: true,

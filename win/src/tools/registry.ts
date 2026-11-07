@@ -26,10 +26,8 @@ export interface ToolParameter {
 
 export interface ToolEnvironment {
   webMode: AppSettings["webMode"];
-  /** Whether the model may start research on its own. When false, only after /research. */
+  /** Whether the model may start research on its own. When false, it may not. */
   researchModelStart?: boolean;
-  /** The user typed /research in this turn. */
-  researchAsked?: boolean;
   /** The deepest run the user allows. */
   researchMaxDepth?: AppSettings["researchMaxDepth"];
   /** Whether the agent may use the pane beyond reading and plain clicks: coordinates, hover, drag, scroll and the rest. */

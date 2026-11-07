@@ -54,7 +54,7 @@ pub use records::{
     TaskRecord, TurnEventRecord, TurnOutcome, WebConfigRecord,
 };
 pub use research_library::{PastRunRecord, ResearchStore};
-pub use session::{RESEARCH_ASK, Session};
+pub use session::Session;
 pub use skills::{SkillRecord, install_skill, list_skills, remove_skill};
 pub use update::{UpdateChecker, UpdateRecord};
 pub use web::{web_address_allowed, web_address_refusal};

@@ -3957,25 +3957,25 @@
         }
       }
     },
-    "When off, research starts only after /research.": {
+    "When off, the model does not start research runs.": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Désactivé, une recherche ne démarre qu'après /research."
+            "value": "Désactivé, le modèle ne lance pas de recherches."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Si está desactivado, una investigación solo empieza tras /research."
+            "value": "Si está desactivado, el modelo no inicia investigaciones."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Если выключено, исследование начинается только после /research."
+            "value": "Если выключено, модель не запускает исследования."
           }
         }
       }
@@ -4118,25 +4118,25 @@
         }
       }
     },
-    "No research yet. Start one with /research.": {
+    "No research yet. Ask a question that needs sources and the model starts one.": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aucune recherche pour l'instant. Lancez-en une avec /research."
+            "value": "Aucune recherche pour l'instant. Posez une question qui demande des sources et le modèle en lance une."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aún no hay investigaciones. Inicia una con /research."
+            "value": "Aún no hay investigaciones. Haz una pregunta que necesite fuentes y el modelo inicia una."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Исследований пока нет. Начните с команды /research."
+            "value": "Исследований пока нет. Задайте вопрос, которому нужны источники, и модель начнёт его."
           }
         }
       }

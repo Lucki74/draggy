@@ -106,7 +106,7 @@ import { generateId, isBinary, safeJsonParse } from "../utils";
 import { raceAbort } from "./abortRace";
 import { describeEnded, inputFor, isHarmlessInput } from "../tools/tasks";
 import { activeRun, settleRun } from "../research/session";
-import { followUpInstruction, holdsFinishedRun, researchInstruction, researchRequest } from "../research/command";
+import { followUpInstruction, holdsFinishedRun } from "../research/command";
 import { applyReceipts } from "../research/receipts";
 import { loopLimitFor } from "../research/run";
 import type {
@@ -406,12 +406,10 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     compactTools: (info?.promptProfile ?? "compact") === "compact",
     vision: hasCapability(info, "vision"),
   };
-  const lastUser = request.messages[request.messages.length - 1];
   const withResearch = {
     ...sized,
     researchModelStart: settings.researchModelStart !== false,
     researchMaxDepth: settings.researchMaxDepth,
-    researchAsked: !request.isContinuation && lastUser?.role === "user" && researchRequest(lastUser.content) !== null,
   };
   const environment = cannotUseTools ? withoutTools(withResearch) : withResearch;
 
@@ -459,12 +457,6 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       ? skillInvocations(lastMessage.content, skills)
       : null;
 
-  // "/research" only means something while the research tools are offered.
-  const researchAsked =
-    !request.isContinuation && lastMessage?.role === "user" && environment.webMode !== "off"
-      ? researchRequest(lastMessage.content)
-      : null;
-
   const alreadyLoaded = new Set(loadedSkillIds(messages, skills));
   const invokedSkillBodies: LoadedSkill[] = [];
   if (invoked) {
@@ -504,8 +496,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     ),
     loadedSection,
     environment.imageReady ? imageIndex(trackImages(messages)) : "",
-    researchAsked !== null ? researchInstruction(researchAsked) : "",
-    researchAsked === null && environment.webMode !== "off" && holdsFinishedRun(messages) ? followUpInstruction() : "",
+    environment.webMode !== "off" && holdsFinishedRun(messages) ? followUpInstruction() : "",
   ]
     .filter(Boolean)
     .join("\n\n");

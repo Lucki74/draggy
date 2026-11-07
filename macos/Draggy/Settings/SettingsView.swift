@@ -84,7 +84,7 @@ struct SettingsView: View {
 
             Section("Research") {
                 Toggle("Let the model start research", isOn: $model.researchModelStart)
-                Text("When off, research starts only after /research.")
+                Text("When off, the model does not start research runs.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Picker("Highest depth allowed", selection: $model.researchMaxDepth) {

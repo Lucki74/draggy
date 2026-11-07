@@ -61,29 +61,6 @@ struct ResearchRunView: Decodable, Equatable {
 
 extension ResearchRunView: Identifiable {}
 
-/// The /research command: the message shows as typed and the model is sent an instruction.
-enum ResearchCommand {
-    /// Tells the core the user asked for a run, which lets the model start one.
-    private static let marker = "The user asked for a research run"
-    private static let pattern = try? NSRegularExpression(pattern: "^/research(?:\\s+([\\s\\S]*))?$", options: .caseInsensitive)
-
-    /// The instruction for a /research message, or nil for any other message.
-    static func instruction(for text: String) -> String? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let range = NSRange(trimmed.startIndex..., in: trimmed)
-        guard let match = pattern?.firstMatch(in: trimmed, range: range) else { return nil }
-        var question = ""
-        if match.range(at: 1).location != NSNotFound, let part = Range(match.range(at: 1), in: trimmed) {
-            question = trimmed[part].trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        if question.isEmpty {
-            return "\(marker) but gave no question. Ask what to research before anything else."
-        }
-        return "\(marker) on: \(question)\nStart with start_research: draft the sub-questions and pick a depth. "
-            + "Do not answer from memory first. Cite each claim with the note id in brackets, such as [n1]."
-    }
-}
-
 /// Draws a run as styled text: the card above the reply, citation chips in it and the source list below it.
 @MainActor
 enum ResearchText {

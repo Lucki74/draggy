@@ -65,13 +65,12 @@ describe("start_research gate", () => {
     expect(offered(env({ researchModelStart: true }))).toBe(true);
   });
 
-  it("is hidden when the model may not start research, until /research", () => {
+  it("is hidden when the model may not start research", () => {
     expect(offered(env({ researchModelStart: false }))).toBe(false);
-    expect(offered(env({ researchModelStart: false, researchAsked: true }))).toBe(true);
   });
 
   it("stays hidden with the web off", () => {
-    expect(offered(env({ webMode: "off", researchAsked: true }))).toBe(false);
+    expect(offered(env({ webMode: "off" }))).toBe(false);
   });
 });
 

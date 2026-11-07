@@ -196,7 +196,7 @@ final class AppModel {
         }
     }
 
-    /// Whether the model may start a research run on its own. /research always can.
+    /// Whether the model may start a research run on its own.
     var researchModelStart: Bool {
         didSet { defaults.set(researchModelStart, forKey: Key.researchModelStart) }
     }
@@ -456,9 +456,8 @@ final class AppModel {
         do {
             let session = try currentSession()
             session.setResearchOptions(allowModelStart: researchModelStart, maxDepth: researchMaxDepth)
-            // /research shows as typed and sends the model its instruction.
             let outcome = try await session.sendWithImages(
-                text: ResearchCommand.instruction(for: text) ?? text, images: images, observer: sink, approvals: broker, cancel: token)
+                text: text, images: images, observer: sink, approvals: broker, cancel: token)
             transcript.finishReply(outcome.textContent)
             if let metrics = outcome.metrics {
                 let turn = TurnPricer.record(
