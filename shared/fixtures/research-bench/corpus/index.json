@@ -1,0 +1,1263 @@
+[
+  {
+    "file": "pages/quillmark-home.md",
+    "url": "https://quillmark.example/",
+    "title": "Quillmark: a fast Markdown renderer for Rust",
+    "date": "2026-02-10",
+    "keywords": [
+      "quillmark",
+      "markdown",
+      "renderer",
+      "rust",
+      "library",
+      "maintainer",
+      "ines",
+      "valkonen",
+      "sponsor",
+      "lumen",
+      "oar",
+      "stable",
+      "release"
+    ]
+  },
+  {
+    "file": "pages/quillmark-changelog.md",
+    "url": "https://docs.quillmark.example/changelog",
+    "title": "Quillmark changelog",
+    "date": "2026-02-10",
+    "keywords": [
+      "quillmark",
+      "changelog",
+      "release",
+      "notes",
+      "license",
+      "mpl",
+      "mit",
+      "msrv",
+      "minimum",
+      "rust",
+      "version",
+      "3.0",
+      "3.2",
+      "3.4",
+      "2.9.2",
+      "legacy_tables"
+    ]
+  },
+  {
+    "file": "pages/quillmark-v2-install.md",
+    "url": "https://docs.quillmark.example/v2/install",
+    "title": "Installing Quillmark 2.x",
+    "date": "2024-06-01",
+    "keywords": [
+      "quillmark",
+      "install",
+      "installation",
+      "2.x",
+      "license",
+      "mit",
+      "minimum",
+      "rust",
+      "version",
+      "1.65",
+      "legacy_tables",
+      "cargo"
+    ]
+  },
+  {
+    "file": "pages/quillmark-3-0-blog.md",
+    "url": "https://blog.quillmark.example/3-0-release",
+    "title": "Quillmark 3.0 is here",
+    "date": "2025-03-14",
+    "keywords": [
+      "quillmark",
+      "3.0",
+      "announcement",
+      "relicense",
+      "mpl-2.0",
+      "sponsor",
+      "request",
+      "lumen",
+      "oar",
+      "benchmark",
+      "faster",
+      "atlas",
+      "corpus"
+    ]
+  },
+  {
+    "file": "pages/quillmark-lite.md",
+    "url": "https://quillmark-lite.example/readme",
+    "title": "quillmark-lite: a small MIT fork",
+    "date": "2025-08-20",
+    "keywords": [
+      "quillmark-lite",
+      "lite",
+      "fork",
+      "dario",
+      "estrada",
+      "mit",
+      "license",
+      "2.9.2",
+      "tracks",
+      "rust",
+      "1.65",
+      "faster"
+    ]
+  },
+  {
+    "file": "pages/lumen-oar-about.md",
+    "url": "https://lumenandoar.example/about",
+    "title": "About Lumen & Oar",
+    "date": "2025-06-05",
+    "keywords": [
+      "lumen",
+      "oar",
+      "ltd",
+      "about",
+      "company",
+      "typesetting",
+      "founded",
+      "2009",
+      "veldmoor",
+      "beatrix",
+      "hollin",
+      "employees",
+      "inkwell",
+      "quillmark",
+      "sponsor"
+    ]
+  },
+  {
+    "file": "pages/brindle-home.md",
+    "url": "https://brindle.example/",
+    "title": "Brindle: a task queue for Python",
+    "date": "2026-05-03",
+    "keywords": [
+      "brindle",
+      "python",
+      "task",
+      "queue",
+      "maintainer",
+      "tomasz",
+      "okafor-reyes",
+      "marlow",
+      "systems",
+      "version",
+      "4.6",
+      "workers"
+    ]
+  },
+  {
+    "file": "pages/brindle-4x-retries.md",
+    "url": "https://docs.brindle.example/4.x/retries",
+    "title": "Retries in Brindle 4.x",
+    "date": "2025-04-22",
+    "keywords": [
+      "brindle",
+      "4.x",
+      "retries",
+      "retry",
+      "max_retries",
+      "default",
+      "backoff",
+      "base",
+      "factor",
+      "delay",
+      "seconds"
+    ]
+  },
+  {
+    "file": "pages/brindle-3x-retries.md",
+    "url": "https://docs.brindle.example/3.x/retries",
+    "title": "Retries in Brindle 3.x",
+    "date": "2023-02-14",
+    "keywords": [
+      "brindle",
+      "3.x",
+      "retries",
+      "retry",
+      "max_retries",
+      "default",
+      "backoff",
+      "base",
+      "factor",
+      "delay",
+      "seconds"
+    ]
+  },
+  {
+    "file": "pages/brindle-changelog.md",
+    "url": "https://docs.brindle.example/changelog",
+    "title": "Brindle changelog",
+    "date": "2026-05-03",
+    "keywords": [
+      "brindle",
+      "changelog",
+      "release",
+      "notes",
+      "4.0.0",
+      "4.3.0",
+      "4.5.0",
+      "4.6.0",
+      "max_retries",
+      "dead-letter",
+      "queue",
+      "concurrency",
+      "backoff"
+    ]
+  },
+  {
+    "file": "pages/brindle-ruby.md",
+    "url": "https://brindle-ruby.example/",
+    "title": "brindle: background jobs for Ruby",
+    "date": "2025-09-18",
+    "keywords": [
+      "brindle",
+      "ruby",
+      "gem",
+      "background",
+      "jobs",
+      "jules",
+      "ferreira",
+      "retries",
+      "default",
+      "10",
+      "maintainer"
+    ]
+  },
+  {
+    "file": "pages/brindle-retries-blog.md",
+    "url": "https://blog.brindle.example/why-we-changed-retries",
+    "title": "Why we changed the retry defaults",
+    "date": "2025-04-15",
+    "keywords": [
+      "brindle",
+      "blog",
+      "retries",
+      "defaults",
+      "changed",
+      "4.0",
+      "flaky",
+      "network",
+      "jobs",
+      "backoff"
+    ]
+  },
+  {
+    "file": "pages/marlow-about.md",
+    "url": "https://marlow.example/about",
+    "title": "About Marlow Systems",
+    "date": "2025-09-01",
+    "keywords": [
+      "marlow",
+      "systems",
+      "about",
+      "company",
+      "headquarters",
+      "kessing",
+      "bay",
+      "founded",
+      "2014",
+      "odalys",
+      "brandt",
+      "hearthdb",
+      "database",
+      "employees"
+    ]
+  },
+  {
+    "file": "pages/hearthdb-home.md",
+    "url": "https://hearthdb.example/",
+    "title": "Hearthdb: an embedded key-value store",
+    "date": "2026-01-15",
+    "keywords": [
+      "hearthdb",
+      "embedded",
+      "key-value",
+      "store",
+      "go",
+      "marlow",
+      "systems",
+      "maker",
+      "compaction",
+      "snapshots"
+    ]
+  },
+  {
+    "file": "pages/hearthdb-compaction.md",
+    "url": "https://hearthdb.example/docs/compaction",
+    "title": "Compaction in Hearthdb",
+    "date": "2026-01-15",
+    "keywords": [
+      "hearthdb",
+      "compaction",
+      "threshold",
+      "level",
+      "size",
+      "mib",
+      "64",
+      "trigger",
+      "merge"
+    ]
+  },
+  {
+    "file": "pages/hearthdb-2-1-compaction.md",
+    "url": "https://hearthdb.example/2.1/docs/compaction",
+    "title": "Compaction in Hearthdb 2.1",
+    "date": "2023-07-09",
+    "keywords": [
+      "hearthdb",
+      "2.1",
+      "compaction",
+      "threshold",
+      "level",
+      "size",
+      "mib",
+      "32",
+      "trigger",
+      "merge"
+    ]
+  },
+  {
+    "file": "pages/hearthdb-releases.md",
+    "url": "https://hearthdb.example/releases",
+    "title": "Hearthdb release notes",
+    "date": "2026-01-15",
+    "keywords": [
+      "hearthdb",
+      "release",
+      "notes",
+      "2.4.0",
+      "2.6.0",
+      "compaction",
+      "threshold",
+      "doubled",
+      "32",
+      "64",
+      "mib",
+      "snapshots",
+      "s3"
+    ]
+  },
+  {
+    "file": "pages/hearthdb-forum-128.md",
+    "url": "https://forum.hearthdb.example/t/tuning-for-big-nodes",
+    "title": "Tuning for big nodes",
+    "date": "2026-03-02",
+    "keywords": [
+      "hearthdb",
+      "forum",
+      "tuning",
+      "compaction",
+      "threshold",
+      "128",
+      "mib",
+      "big",
+      "nodes",
+      "user",
+      "setting"
+    ]
+  },
+  {
+    "file": "pages/pellucid-home.md",
+    "url": "https://pellucid.example/",
+    "title": "Pellucid: charts for the web",
+    "date": "2026-03-12",
+    "keywords": [
+      "pellucid",
+      "typescript",
+      "charting",
+      "library",
+      "chart",
+      "v7",
+      "maintainer",
+      "rosalind",
+      "achterberg",
+      "bundle",
+      "size",
+      "gzipped"
+    ]
+  },
+  {
+    "file": "pages/pellucid-6-docs.md",
+    "url": "https://v6.pellucid.example/docs/install",
+    "title": "Installing Pellucid 6",
+    "date": "2024-05-10",
+    "keywords": [
+      "pellucid",
+      "6",
+      "install",
+      "bundle",
+      "size",
+      "gzipped",
+      "112",
+      "kb",
+      "d3",
+      "peer",
+      "dependency"
+    ]
+  },
+  {
+    "file": "pages/pellucid-migration.md",
+    "url": "https://pellucid.example/docs/migrate-6-to-7",
+    "title": "Migrating from Pellucid 6 to 7",
+    "date": "2025-11-20",
+    "keywords": [
+      "pellucid",
+      "migration",
+      "6",
+      "to",
+      "7",
+      "d3",
+      "dependency",
+      "dropped",
+      "legacyAxis",
+      "removed",
+      "upgrade"
+    ]
+  },
+  {
+    "file": "pages/pellucid-charts.md",
+    "url": "https://pellucid-charts.example/",
+    "title": "pellucid-charts",
+    "date": "2025-01-15",
+    "keywords": [
+      "pellucid-charts",
+      "chart",
+      "library",
+      "naveen",
+      "chowdhury",
+      "bundle",
+      "21",
+      "kb",
+      "gzipped"
+    ]
+  },
+  {
+    "file": "pages/pellucid-issue-d3.md",
+    "url": "https://github.example/pellucid/pellucid/issues/931",
+    "title": "Custom axes broke after dropping d3",
+    "date": "2025-12-04",
+    "keywords": [
+      "pellucid",
+      "issue",
+      "931",
+      "custom",
+      "axes",
+      "d3",
+      "removal",
+      "broke",
+      "workaround"
+    ]
+  },
+  {
+    "file": "pages/corvane-about.md",
+    "url": "https://corvane.example/about",
+    "title": "About Corvane Robotics",
+    "date": "2025-04-02",
+    "keywords": [
+      "corvane",
+      "robotics",
+      "about",
+      "company",
+      "founded",
+      "2017",
+      "halvern",
+      "mikael",
+      "soderqvist",
+      "yetunde",
+      "adeyemi-park",
+      "employees",
+      "tern",
+      "drone"
+    ]
+  },
+  {
+    "file": "pages/tern-t3.md",
+    "url": "https://corvane.example/products/tern-t3",
+    "title": "Tern T3 specifications",
+    "date": "2026-06-18",
+    "keywords": [
+      "tern",
+      "t3",
+      "drone",
+      "specifications",
+      "flight",
+      "time",
+      "minutes",
+      "payload",
+      "kg",
+      "price",
+      "euro",
+      "corvane",
+      "current",
+      "model"
+    ]
+  },
+  {
+    "file": "pages/tern-t2.md",
+    "url": "https://corvane.example/products/tern-t2",
+    "title": "Tern T2 specifications",
+    "date": "2024-09-30",
+    "keywords": [
+      "tern",
+      "t2",
+      "drone",
+      "specifications",
+      "flight",
+      "time",
+      "minutes",
+      "payload",
+      "kg",
+      "price",
+      "euro",
+      "corvane",
+      "previous",
+      "model"
+    ]
+  },
+  {
+    "file": "pages/corvane-acquires-aldous.md",
+    "url": "https://corvane.example/press/aldous-acquisition",
+    "title": "Corvane acquires Aldous Instruments",
+    "date": "2026-02-03",
+    "keywords": [
+      "corvane",
+      "acquires",
+      "acquisition",
+      "aldous",
+      "instruments",
+      "million",
+      "euro",
+      "ai-90",
+      "sensor",
+      "deal",
+      "press",
+      "release"
+    ]
+  },
+  {
+    "file": "pages/aldous-about.md",
+    "url": "https://aldous-instruments.example/about",
+    "title": "About Aldous Instruments",
+    "date": "2024-07-12",
+    "keywords": [
+      "aldous",
+      "instruments",
+      "about",
+      "company",
+      "founded",
+      "1998",
+      "veldmoor",
+      "cornelius",
+      "aldous",
+      "sensors",
+      "ai-90",
+      "employees"
+    ]
+  },
+  {
+    "file": "pages/ai90-datasheet.md",
+    "url": "https://aldous-instruments.example/ai-90/datasheet",
+    "title": "AI-90 datasheet (rev C)",
+    "date": "2025-05-05",
+    "keywords": [
+      "ai-90",
+      "datasheet",
+      "pressure",
+      "sensor",
+      "accuracy",
+      "range",
+      "kpa",
+      "supply",
+      "voltage",
+      "rev",
+      "c",
+      "aldous"
+    ]
+  },
+  {
+    "file": "pages/ai90-datasheet-rev-a.md",
+    "url": "https://aldous-instruments.example/ai-90/datasheet-rev-a",
+    "title": "AI-90 datasheet (rev A)",
+    "date": "2022-03-01",
+    "keywords": [
+      "ai-90",
+      "datasheet",
+      "pressure",
+      "sensor",
+      "accuracy",
+      "range",
+      "kpa",
+      "supply",
+      "voltage",
+      "rev",
+      "a",
+      "aldous"
+    ]
+  },
+  {
+    "file": "pages/tern-payloads.md",
+    "url": "https://corvane.example/docs/tern-payloads",
+    "title": "Payload guide for the Tern T3",
+    "date": "2026-06-18",
+    "keywords": [
+      "tern",
+      "t3",
+      "payload",
+      "guide",
+      "accessories",
+      "ai-90",
+      "sensor",
+      "pod",
+      "camera",
+      "mounting"
+    ]
+  },
+  {
+    "file": "pages/corvane-careers.md",
+    "url": "https://corvane.example/careers",
+    "title": "Careers at Corvane",
+    "date": "2026-04-15",
+    "keywords": [
+      "corvane",
+      "careers",
+      "jobs",
+      "hiring",
+      "halvern",
+      "engineers",
+      "open",
+      "source",
+      "gantry",
+      "ottilie",
+      "marchetti"
+    ]
+  },
+  {
+    "file": "pages/veldmoor-history.md",
+    "url": "https://veldmoor.example/history",
+    "title": "A short history of Veldmoor",
+    "date": "2024-03-11",
+    "keywords": [
+      "veldmoor",
+      "history",
+      "founded",
+      "1788",
+      "salt",
+      "works",
+      "saltry",
+      "renamed",
+      "1851",
+      "town",
+      "council",
+      "archive"
+    ]
+  },
+  {
+    "file": "pages/veldmoor-history-old.md",
+    "url": "https://veldmoor-council.example/about-the-town",
+    "title": "About the town",
+    "date": "2018-05-02",
+    "keywords": [
+      "veldmoor",
+      "town",
+      "history",
+      "saltry",
+      "renamed",
+      "1849",
+      "bridge",
+      "1930",
+      "council"
+    ]
+  },
+  {
+    "file": "pages/veldmoor-railway.md",
+    "url": "https://veldmoor.example/railway",
+    "title": "The railway comes to Veldmoor",
+    "date": "2023-08-21",
+    "keywords": [
+      "veldmoor",
+      "railway",
+      "station",
+      "opened",
+      "1873",
+      "line",
+      "kessing",
+      "bay",
+      "trains"
+    ]
+  },
+  {
+    "file": "pages/veldmoor-flood.md",
+    "url": "https://veldmoor.example/flood-1926",
+    "title": "The flood of 1926",
+    "date": "2023-10-02",
+    "keywords": [
+      "veldmoor",
+      "flood",
+      "1926",
+      "bridge",
+      "destroyed",
+      "rebuilt",
+      "1931",
+      "henrietta",
+      "rousseau",
+      "architect",
+      "engineer"
+    ]
+  },
+  {
+    "file": "pages/veldmoor-population.md",
+    "url": "https://veldmoor.example/census",
+    "title": "Veldmoor population over time",
+    "date": "2025-01-30",
+    "keywords": [
+      "veldmoor",
+      "population",
+      "census",
+      "1901",
+      "1951",
+      "2021",
+      "inhabitants",
+      "town",
+      "size"
+    ]
+  },
+  {
+    "file": "pages/veldmoor-heights.md",
+    "url": "https://veldmoor-heights.example/about",
+    "title": "About Veldmoor Heights",
+    "date": "2024-11-19",
+    "keywords": [
+      "veldmoor",
+      "heights",
+      "village",
+      "founded",
+      "1802",
+      "population",
+      "1901",
+      "history",
+      "not",
+      "veldmoor"
+    ]
+  },
+  {
+    "file": "pages/veldmoor-museum.md",
+    "url": "https://veldmoor.example/museum",
+    "title": "Veldmoor Salt Museum",
+    "date": "2025-04-04",
+    "keywords": [
+      "veldmoor",
+      "salt",
+      "museum",
+      "opening",
+      "hours",
+      "tickets",
+      "visit"
+    ]
+  },
+  {
+    "file": "pages/halvern-city.md",
+    "url": "https://halvern.example/about",
+    "title": "Halvern",
+    "date": "2025-02-14",
+    "keywords": [
+      "halvern",
+      "city",
+      "coastal",
+      "population",
+      "2021",
+      "58,400",
+      "university",
+      "institute",
+      "technology",
+      "fenwright",
+      "labs",
+      "corvane"
+    ]
+  },
+  {
+    "file": "pages/halvern-tech.md",
+    "url": "https://hit.halvern.example/about",
+    "title": "About the Halvern Institute of Technology",
+    "date": "2024-10-10",
+    "keywords": [
+      "halvern",
+      "institute",
+      "of",
+      "technology",
+      "about",
+      "founded",
+      "1962",
+      "university",
+      "fenwright",
+      "labs",
+      "hosts",
+      "since",
+      "1994"
+    ]
+  },
+  {
+    "file": "pages/halvern-tram.md",
+    "url": "https://halvern.example/tram",
+    "title": "Halvern tram history",
+    "date": "2023-05-30",
+    "keywords": [
+      "halvern",
+      "tram",
+      "history",
+      "line",
+      "electric",
+      "1911",
+      "timetable"
+    ]
+  },
+  {
+    "file": "pages/kessing-bay.md",
+    "url": "https://kessingbay.example/about",
+    "title": "Kessing Bay",
+    "date": "2025-03-03",
+    "keywords": [
+      "kessing",
+      "bay",
+      "port",
+      "town",
+      "population",
+      "2021",
+      "31,900",
+      "lighthouse",
+      "built",
+      "1889",
+      "marlow",
+      "systems",
+      "headquarters"
+    ]
+  },
+  {
+    "file": "pages/kessing-ferry.md",
+    "url": "https://kessingbay.example/ferry",
+    "title": "Kessing Bay ferry",
+    "date": "2026-05-20",
+    "keywords": [
+      "kessing",
+      "bay",
+      "ferry",
+      "timetable",
+      "summer",
+      "harbour",
+      "crossing"
+    ]
+  },
+  {
+    "file": "pages/fenwright-about.md",
+    "url": "https://fenwright.example/about",
+    "title": "About Fenwright Labs",
+    "date": "2025-06-30",
+    "keywords": [
+      "fenwright",
+      "labs",
+      "about",
+      "research",
+      "lab",
+      "director",
+      "ludovica",
+      "brandao",
+      "halvern",
+      "institute",
+      "founded",
+      "1994",
+      "researchers"
+    ]
+  },
+  {
+    "file": "pages/fenwright-papers.md",
+    "url": "https://fenwright.example/papers",
+    "title": "Publications",
+    "date": "2026-01-09",
+    "keywords": [
+      "fenwright",
+      "labs",
+      "publications",
+      "papers",
+      "list",
+      "gossip",
+      "tide",
+      "gauge",
+      "compaction",
+      "stalls",
+      "erratum"
+    ]
+  },
+  {
+    "file": "pages/paper-gossip-2021.md",
+    "url": "https://fenwright.example/papers/sparse-gossip",
+    "title": "Sparse Gossip Protocols for Mesh Sensors",
+    "date": "2021-09-14",
+    "keywords": [
+      "sparse",
+      "gossip",
+      "protocols",
+      "mesh",
+      "sensors",
+      "paper",
+      "fenwright",
+      "anneliese",
+      "prokop",
+      "testbed",
+      "nodes",
+      "messages",
+      "reduction",
+      "63"
+    ]
+  },
+  {
+    "file": "pages/paper-gossip-2024.md",
+    "url": "https://fenwright.example/papers/gossip-revisited",
+    "title": "Gossip Revisited",
+    "date": "2024-09-05",
+    "keywords": [
+      "gossip",
+      "revisited",
+      "paper",
+      "fenwright",
+      "sparse",
+      "gossip",
+      "update",
+      "message",
+      "reduction",
+      "71",
+      "supersedes"
+    ]
+  },
+  {
+    "file": "pages/paper-tide-2022.md",
+    "url": "https://fenwright.example/papers/tide-gauge-drift",
+    "title": "Tide Gauge Drift Under Cold Stress",
+    "date": "2022-06-21",
+    "keywords": [
+      "tide",
+      "gauge",
+      "drift",
+      "cold",
+      "stress",
+      "paper",
+      "fenwright",
+      "ravindra",
+      "sethi",
+      "ai-90",
+      "pressure",
+      "sensor",
+      "aldous"
+    ]
+  },
+  {
+    "file": "pages/paper-compaction-2023.md",
+    "url": "https://fenwright.example/papers/compaction-stalls",
+    "title": "Compaction Stalls in Log-Structured Stores",
+    "date": "2023-11-08",
+    "keywords": [
+      "compaction",
+      "stalls",
+      "log-structured",
+      "stores",
+      "paper",
+      "fenwright",
+      "anneliese",
+      "prokop",
+      "daichi",
+      "moriyama",
+      "hearthdb",
+      "p99",
+      "stall",
+      "ms"
+    ]
+  },
+  {
+    "file": "pages/paper-compaction-erratum.md",
+    "url": "https://fenwright.example/papers/compaction-stalls-erratum",
+    "title": "Erratum: Compaction Stalls in Log-Structured Stores",
+    "date": "2024-02-20",
+    "keywords": [
+      "erratum",
+      "compaction",
+      "stalls",
+      "fenwright",
+      "correction",
+      "hearthdb",
+      "p99",
+      "stall",
+      "128",
+      "ms",
+      "digits",
+      "transposed"
+    ]
+  },
+  {
+    "file": "pages/fenwick-labs.md",
+    "url": "https://fenwick-labs.example/gossip",
+    "title": "Sparse Gossip for Mesh Sensors",
+    "date": "2022-02-02",
+    "keywords": [
+      "fenwick",
+      "labs",
+      "sparse",
+      "gossip",
+      "mesh",
+      "sensors",
+      "dunmere",
+      "testbed",
+      "800",
+      "nodes",
+      "messages",
+      "reduction",
+      "48",
+      "not",
+      "fenwright"
+    ]
+  },
+  {
+    "file": "pages/fenwright-seminar.md",
+    "url": "https://fenwright.example/seminars",
+    "title": "Seminars 2026",
+    "date": "2026-09-01",
+    "keywords": [
+      "fenwright",
+      "seminar",
+      "2026",
+      "talk",
+      "schedule",
+      "anneliese",
+      "prokop",
+      "guest",
+      "speakers"
+    ]
+  },
+  {
+    "file": "pages/inkwell-52-docs.md",
+    "url": "https://inkwell.example/docs/5/export",
+    "title": "Exporting from Inkwell 5",
+    "date": "2026-03-20",
+    "keywords": [
+      "inkwell",
+      "5",
+      "export",
+      "pdf",
+      "default",
+      "pdf/x-4",
+      "image",
+      "resolution",
+      "dpi",
+      "docs",
+      "current"
+    ]
+  },
+  {
+    "file": "pages/inkwell-4-docs.md",
+    "url": "https://inkwell.example/docs/4/export",
+    "title": "Exporting from Inkwell 4",
+    "date": "2023-11-02",
+    "keywords": [
+      "inkwell",
+      "4",
+      "export",
+      "pdf",
+      "default",
+      "pdf/x-1a",
+      "image",
+      "resolution",
+      "dpi",
+      "docs"
+    ]
+  },
+  {
+    "file": "pages/inkwell-pricing.md",
+    "url": "https://inkwell.example/pricing",
+    "title": "Inkwell pricing",
+    "date": "2026-04-09",
+    "keywords": [
+      "inkwell",
+      "pricing",
+      "price",
+      "plans",
+      "solo",
+      "team",
+      "seat",
+      "month",
+      "euro",
+      "student",
+      "current"
+    ]
+  },
+  {
+    "file": "pages/inkwell-pricing-old.md",
+    "url": "https://inkwell.example/pricing-2024",
+    "title": "Inkwell pricing",
+    "date": "2024-01-15",
+    "keywords": [
+      "inkwell",
+      "pricing",
+      "price",
+      "plans",
+      "solo",
+      "team",
+      "seat",
+      "month",
+      "euro"
+    ]
+  },
+  {
+    "file": "pages/inkwell-5-notes.md",
+    "url": "https://inkwell.example/releases/5-0",
+    "title": "Inkwell 5.0 release notes",
+    "date": "2025-05-12",
+    "keywords": [
+      "inkwell",
+      "5.0",
+      "release",
+      "notes",
+      "markdown",
+      "import",
+      "engine",
+      "quillmark",
+      "lumen",
+      "oar",
+      "new"
+    ]
+  },
+  {
+    "file": "pages/inkwell-5-blog.md",
+    "url": "https://lumenandoar.example/blog/inkwell-5",
+    "title": "Inkwell 5 is out",
+    "date": "2025-05-12",
+    "keywords": [
+      "lumen",
+      "oar",
+      "blog",
+      "inkwell",
+      "5",
+      "launch",
+      "markdown",
+      "import",
+      "books",
+      "reports"
+    ]
+  },
+  {
+    "file": "pages/gantry-home.md",
+    "url": "https://gantry.example/",
+    "title": "Gantry: a build tool written in Zig",
+    "date": "2026-07-01",
+    "keywords": [
+      "gantry",
+      "build",
+      "tool",
+      "zig",
+      "cli",
+      "maintainer",
+      "ottilie",
+      "marchetti",
+      "corvane",
+      "robotics",
+      "version",
+      "1.9",
+      "cache"
+    ]
+  },
+  {
+    "file": "pages/gantry-cache.md",
+    "url": "https://gantry.example/docs/cache",
+    "title": "The Gantry cache",
+    "date": "2026-07-01",
+    "keywords": [
+      "gantry",
+      "cache",
+      "directory",
+      "max",
+      "size",
+      "gib",
+      "limit",
+      "eviction",
+      "docs"
+    ]
+  },
+  {
+    "file": "pages/gantry-1-2-cache.md",
+    "url": "https://gantry.example/1.2/docs/cache",
+    "title": "The Gantry cache (1.2)",
+    "date": "2024-04-04",
+    "keywords": [
+      "gantry",
+      "1.2",
+      "cache",
+      "directory",
+      "max",
+      "size",
+      "gib",
+      "limit",
+      "eviction",
+      "docs"
+    ]
+  },
+  {
+    "file": "pages/gantry-changelog.md",
+    "url": "https://gantry.example/changelog",
+    "title": "Gantry changelog",
+    "date": "2026-07-01",
+    "keywords": [
+      "gantry",
+      "changelog",
+      "release",
+      "notes",
+      "1.5.0",
+      "1.8.2",
+      "1.9.0",
+      "cache",
+      "eviction",
+      "fix",
+      "windows",
+      "arm"
+    ]
+  },
+  {
+    "file": "pages/gantry-issue-482.md",
+    "url": "https://github.example/gantry/gantry/issues/482",
+    "title": "Cache eviction deletes in-use entries",
+    "date": "2026-02-18",
+    "keywords": [
+      "gantry",
+      "issue",
+      "482",
+      "cache",
+      "eviction",
+      "deletes",
+      "in-use",
+      "entries",
+      "bug",
+      "report",
+      "build",
+      "fails"
+    ]
+  },
+  {
+    "file": "pages/gantry-go.md",
+    "url": "https://gantry-deploy.example/",
+    "title": "gantry: deploy containers",
+    "date": "2025-03-27",
+    "keywords": [
+      "gantry",
+      "go",
+      "deploy",
+      "containers",
+      "sven",
+      "lindqvist",
+      "cache",
+      "512",
+      "mib",
+      "not",
+      "zig",
+      "build",
+      "tool"
+    ]
+  }
+]
