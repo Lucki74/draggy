@@ -203,6 +203,7 @@ async function runInBox(
     ctx.patchStep(stepId, {
       isComplete: true,
       content: `${verb} \`${command}\`${result.success || result.cancelled ? "" : ` (exit ${result.exitCode ?? "?"})`}`,
+      ...(result.success || result.cancelled ? {} : { failed: true }),
       stdout: output,
       language: result.shell ?? shell,
     });

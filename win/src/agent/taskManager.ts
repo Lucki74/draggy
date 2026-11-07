@@ -906,7 +906,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       return;
     }
     wakes.set(chatId, (wakes.get(chatId) ?? 0) + 1);
-    deliver(chatId, note);
+    deliver(chatId, note, undefined, "tasks_ended");
   }
 
   if (typeof window !== "undefined") {
@@ -948,7 +948,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   /** Starts the turn, and the conversation if this is its first message. */
-  function deliver(chatId: string, content: string, attachments?: Attachment[]) {
+  function deliver(chatId: string, content: string, attachments?: Attachment[], notice?: Message["notice"]) {
     const existing = host.getSession(chatId);
 
     const userMessage: Message = {
@@ -956,6 +956,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       role: "user",
       content,
       attachments,
+      ...(notice ? { notice } : {}),
     };
 
     if (!existing) {

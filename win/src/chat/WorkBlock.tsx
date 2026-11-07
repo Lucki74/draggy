@@ -422,6 +422,8 @@ export function WorkBlock({
   }
 
   if (step.type === "approval") {
+    // The call it allowed shows right after it, so only the verbose view repeats the yes.
+    if (step.answer && step.answer !== "no" && !verbose) return null;
     return (
       <ApprovalCard
         key={step.id}
@@ -468,7 +470,7 @@ export function WorkBlock({
     );
   }
 
-  const failed = step.type === "error";
+  const failed = step.type === "error" || Boolean(step.failed);
   const isActive = !step.isComplete;
   // A file read opens from its step; a folder listing has no file to open. File changes show only their diff.
   const openable = !isActive && step.filepath && step.type === "reading" && step.filename;

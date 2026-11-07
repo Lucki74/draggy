@@ -51,7 +51,7 @@ export function summarizeWork(steps: SearchStep[], language: string, t: (key: st
   const sites = new Set<string>();
   let failed = 0;
   for (const step of steps) {
-    if (step.type === "error") {
+    if (step.type === "error" || step.failed) {
       failed += 1;
       continue;
     }

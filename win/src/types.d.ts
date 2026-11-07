@@ -459,6 +459,8 @@ export interface SearchStep {
   lines?: number;
   /** Why a failed step failed, shown under it. */
   reason?: string;
+  /** A command that ran but exited non-zero or timed out: it keeps its output and shows as failed. */
+  failed?: boolean;
   filepath?: string;
   filename?: string;
   fileContent?: string;
@@ -907,6 +909,8 @@ export interface Message {
   stopped?: boolean;
   /** The app closed while this reply was being written. */
   interrupted?: boolean;
+  /** A note the app sent for the user, such as background tasks ending: shown as a quiet line, not a bubble. */
+  notice?: "tasks_ended";
   /** The conversation after the newest version, kept while an older version is shown. */
   tail?: Message[];
 }

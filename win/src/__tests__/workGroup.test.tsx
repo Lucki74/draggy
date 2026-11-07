@@ -105,4 +105,24 @@ describe("a finished step", () => {
     unfold();
     expect(container.querySelector("details")?.open).toBe(false);
   });
+  it("marks a command that exited non-zero as failed", () => {
+    const { container } = turn("normal", [
+      step("one", "command", { content: "Ran `npm test` (exit 1)", failed: true }),
+      step("two", "reading"),
+    ]);
+    unfold();
+    expect(container.querySelectorAll(".step-dot")).toHaveLength(1);
+    expect(container.querySelectorAll(".text-danger").length).toBeGreaterThan(0);
+  });
+
+  it("hides an allowed approval outside the verbose view", () => {
+    const approval = { id: "p1", kind: "command", tool: "run_command", target: "npm test" } as SearchStep["approval"];
+    const steps = [step("ok", "approval", { approval, answer: "once" }), step("one", "command"), step("two", "reading")];
+    turn("normal", steps);
+    unfold();
+    expect(screen.queryByText(/Allowed/)).toBeNull();
+    cleanup();
+    turn("verbose", steps);
+    expect(screen.getByText(/Allowed/)).toBeTruthy();
+  });
 });
