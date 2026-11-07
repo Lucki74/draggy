@@ -83,3 +83,26 @@ describe("a finished reply with several steps", () => {
     expect(screen.getByText("Searching for x")).toBeTruthy();
   });
 });
+
+describe("a finished step", () => {
+  it("folds to one line naming its target, and shows its details on a click", () => {
+    const { container } = turn("normal", [
+      step("one", "reading", { content: "Read **a.ts**", lines: 12 }),
+      step("two", "reading", { content: "Read **b.ts**", lines: 3 }),
+    ]);
+    unfold();
+    expect(screen.getByText("a.ts")).toBeTruthy();
+    expect(container.querySelector("dl")).toBeNull();
+    fireEvent.click(screen.getAllByTestId("step-details-toggle")[0]);
+    expect(container.querySelectorAll("dl")).toHaveLength(1);
+  });
+
+  it("keeps its search results folded", () => {
+    const { container } = turn("normal", [
+      step("Search results for x", "results", { results: [{ title: "T", url: "https://a.test", snippet: "s" }] }),
+      step("two", "reading"),
+    ]);
+    unfold();
+    expect(container.querySelector("details")?.open).toBe(false);
+  });
+});
