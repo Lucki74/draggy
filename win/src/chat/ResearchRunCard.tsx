@@ -97,6 +97,13 @@ export function ResearchRunCard({ step, t }: { step: SearchStep; t: (key: string
         ))}
       </ul>
 
+      {run.endedAt !== undefined && !run.notes.some((note) => note.verified !== false) && (
+        <p role="note" className="m-0 flex items-start gap-2 px-4 pb-2 text-[12px] text-danger">
+          <Icon name="warning" size={14} className="mt-px flex-shrink-0" />
+          <span>{t("researchRunNoNotes")}</span>
+        </p>
+      )}
+
       {run.sources.length > 0 && (
         <div className="flex max-h-64 flex-col overflow-y-auto px-2 pb-1">
           {run.sources.map((source) => {

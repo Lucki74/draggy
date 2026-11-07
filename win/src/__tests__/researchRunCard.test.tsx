@@ -69,6 +69,18 @@ describe("ResearchRunCard", () => {
     render(<ResearchRunCard step={runStep({ isComplete: true, researchRun: view({ endedAt: Date.now(), gathering: false }) })} t={t} />);
     expect(screen.queryByRole("button", { name: /researchRunStop/ })).toBeNull();
   });
+
+  it("warns when a finished run kept no sourced notes", () => {
+    const ended = { endedAt: Date.now(), gathering: false };
+    render(<ResearchRunCard step={runStep({ isComplete: true, researchRun: view({ ...ended, notes: [] }) })} t={t} />);
+    expect(screen.getByText("researchRunNoNotes")).toBeTruthy();
+    cleanup();
+    render(<ResearchRunCard step={runStep({ isComplete: true, researchRun: view(ended) })} t={t} />);
+    expect(screen.queryByText("researchRunNoNotes")).toBeNull();
+    cleanup();
+    render(<ResearchRunCard step={runStep({ researchRun: view({ notes: [] }) })} t={t} />);
+    expect(screen.queryByText("researchRunNoNotes")).toBeNull();
+  });
 });
 
 describe("Stop", () => {
