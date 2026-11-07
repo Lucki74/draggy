@@ -543,8 +543,12 @@ impl Session {
             },
         );
         // A run the model left open still gets its quotes checked and its record saved.
+        // Stop and failure leave it cancelled.
+        let mut result = result;
         if let Some(web) = composite.web.as_mut() {
-            web.settle_open();
+            let cancelled = result.as_ref().map_or(true, |done| done.aborted);
+            let mut scratch = Vec::new();
+            web.settle_open(cancelled, result.as_mut().map_or(&mut scratch, |done| &mut done.steps));
         }
         let result: AgentResult = match result {
             Ok(result) => result,

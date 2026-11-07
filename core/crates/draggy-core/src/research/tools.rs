@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 
 use super::citations::{Citable, CitationVerdict, verify_citations};
 use super::run::{
-    Depth, NoteInput, RawList, StopReason, DEPTH_IDS, add_note, budget_of, coverage, create_run, depth_spec, finish, read_plan,
+    Depth, NoteInput, RawList, RunStatus, SourceStatus, StopReason, DEPTH_IDS, add_note, budget_of, coverage, create_run, depth_spec, finish, read_plan,
 };
 use crate::web_tools::{WebTools, now_ms};
 
@@ -129,6 +129,11 @@ impl WebTools {
     /// Shows the run to the shells as one `research_run` step whose content is the run view as JSON.
     /// The step id is the run id, so each call patches the same row.
     pub(crate) fn sync_run_step(&self, ctx: &mut ToolContext<'_>) {
+        self.patch_run_step(ctx.steps);
+    }
+
+    /// Writes the current run view onto its step in `steps`, or adds the step.
+    fn patch_run_step(&self, steps: &mut Vec<draggy_agent::resume::SearchStep>) {
         let Some(run) = self.research.as_ref() else {
             return;
         };
@@ -152,11 +157,11 @@ impl WebTools {
         })
         .to_string();
         let complete = Some(run.ended_at.is_some());
-        if let Some(step) = ctx.steps.iter_mut().find(|s| s.kind == "research_run" && s.id.as_deref() == Some(&run.id)) {
+        if let Some(step) = steps.iter_mut().find(|s| s.kind == "research_run" && s.id.as_deref() == Some(&run.id)) {
             step.content = Some(view);
             step.is_complete = complete;
         } else {
-            ctx.steps.push(draggy_agent::resume::SearchStep {
+            steps.push(draggy_agent::resume::SearchStep {
                 id: Some(run.id.clone()),
                 kind: "research_run".to_owned(),
                 content: Some(view),
@@ -345,10 +350,15 @@ impl WebTools {
         parts.join("\n\n")
     }
 
-    /// Settles a run the model never finished, as the turn ends.
-    pub fn settle_open(&mut self) {
+    /// Settles a run the model never finished, as the turn ends. A stopped or failed turn leaves it cancelled.
+    /// The run step in `steps` is redrawn, so the card shows the end state.
+    pub fn settle_open(&mut self, cancelled: bool, steps: &mut Vec<draggy_agent::resume::SearchStep>) {
         if self.research.as_ref().is_some_and(|run| run.ended_at.is_none()) {
+            if cancelled && let Some(run) = self.research.as_mut() {
+                run.status = RunStatus::Cancelled;
+            }
             self.settle();
+            self.patch_run_step(steps);
         }
     }
 
@@ -358,6 +368,12 @@ impl WebTools {
         let now = now_ms();
         let run = self.research.as_mut()?;
         finish(run, StopReason::Finished);
+        // A page opened but never resolved was left behind, so it reads as skipped.
+        for source in &mut run.sources {
+            if source.status == SourceStatus::Reading {
+                source.status = SourceStatus::Skipped;
+            }
+        }
         let citable: Vec<Citable> = run
             .notes
             .iter()
@@ -549,10 +565,44 @@ mod tests {
         let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
         let mut web = tools(&rt);
         call(&mut web, "start_research", &json!({"question": "Why", "sub_questions": "One"}));
-        web.settle_open();
+        web.settle_open(false, &mut Vec::new());
         let ended = web.research.as_ref().unwrap().ended_at;
         assert!(ended.is_some());
-        web.settle_open();
+        web.settle_open(false, &mut Vec::new());
         assert_eq!(web.research.as_ref().unwrap().ended_at, ended);
+    }
+
+    #[test]
+    fn a_cancelled_turn_keeps_notes_and_skips_unread_pages() {
+        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let mut web = tools(&rt);
+        call(&mut web, "start_research", &json!({"question": "Why", "sub_questions": "One"}));
+        let run = web.research.as_mut().unwrap();
+        let read = SourceInput { url: "https://a.test/p", status: Some(SourceStatus::Read), ..SourceInput::default() };
+        let open = SourceInput { url: "https://b.test/q", status: Some(SourceStatus::Reading), ..SourceInput::default() };
+        add_source(run, read);
+        add_source(run, open);
+        web.page_texts.insert("s1".into(), "The sky is blue because of scattering.".into());
+        call(&mut web, "add_note", &json!({"claim": "C", "quote": "blue because of scattering", "source_id": "s1"}));
+        let mut steps = Vec::new();
+        web.settle_open(true, &mut steps);
+        let run = web.research.as_ref().unwrap();
+        assert_eq!(run.status, RunStatus::Cancelled);
+        assert!(run.ended_at.is_some());
+        assert_eq!(run.notes.len(), 1);
+        assert_eq!(run.notes[0].verified, Some(true));
+        assert_eq!(run.sources[1].status, SourceStatus::Skipped);
+        let view = steps[0].content.as_deref().unwrap();
+        assert!(view.contains("\"status\":\"skipped\"") && view.contains("\"gathering\":false"));
+        assert_eq!(steps[0].is_complete, Some(true));
+    }
+
+    #[test]
+    fn a_failed_turn_without_cancel_still_finishes_as_done() {
+        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let mut web = tools(&rt);
+        call(&mut web, "start_research", &json!({"question": "Why", "sub_questions": "One"}));
+        web.settle_open(false, &mut Vec::new());
+        assert_eq!(web.research.as_ref().unwrap().status, RunStatus::Writing);
     }
 }
