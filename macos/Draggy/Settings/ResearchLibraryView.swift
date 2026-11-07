@@ -1,3 +1,4 @@
+import DraggyCore
 import SwiftUI
 
 /// The saved research runs behind Settings → Research: open one to read it, or delete it.

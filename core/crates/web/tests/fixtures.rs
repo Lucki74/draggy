@@ -10,6 +10,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 use draggy_testkit::{cases, files, load};
 use draggy_web::connectivity::Connectivity;
 use draggy_web::http::{HttpClient, HttpError, HttpRequest, HttpResponse, Method, decode_page};
+use draggy_web::page::{
+    extract_metadata, is_pdf_source, is_script_shell, needs_render, page_note, split_pages,
+};
 use draggy_web::policy::{
     Refusals, UrlPolicy, is_private_hostname, permission_granted, refusal_for,
 };
@@ -18,9 +21,6 @@ use draggy_web::search::{
     Provider, ProviderError, RESULT_LIMIT, Search, SearchConfig, SearchResult, build_chain,
     build_request, canonical_url, domain_of, failure_log_text, normalise_results, parse_response,
     unwrap_redirect,
-};
-use draggy_web::page::{
-    extract_metadata, is_pdf_source, is_script_shell, needs_render, page_note, split_pages,
 };
 use draggy_web::sources;
 use serde_json::{Map, Value, json};
@@ -805,7 +805,8 @@ fn run_sources(file: &str, input: &Value) -> Value {
 }
 
 fn row_json(row: &sources::SourceResult) -> Value {
-    let mut out = json!({ "title": row.title, "url": row.url, "snippet": row.snippet, "source": row.source });
+    let mut out =
+        json!({ "title": row.title, "url": row.url, "snippet": row.snippet, "source": row.source });
     if let Some(year) = row.year {
         out["year"] = json!(year);
     }
@@ -840,7 +841,10 @@ fn sources_openalex_reads_doi_authors_and_abstract() {
     assert_eq!(rows[0]["year"], 2021);
     assert_eq!(rows[0]["source"], "openalex");
     assert_eq!(rows[0]["snippet"], "Proteins are essential");
-    assert_eq!(rows[0]["authors"], "John Jumper, Richard Evans, Alexander Pritzel, et al.");
+    assert_eq!(
+        rows[0]["authors"],
+        "John Jumper, Richard Evans, Alexander Pritzel, et al."
+    );
     assert_eq!(rows[0]["url"], "https://doi.org/10.1038/s41586-021-03819-2");
     assert!(rows[1].get("doi").is_none());
 }
@@ -849,10 +853,16 @@ fn sources_openalex_reads_doi_authors_and_abstract() {
 #[test]
 fn sources_arxiv_reads_the_feed() {
     let rows = source_rows("sources-arxiv.json");
-    assert_eq!(rows[0]["title"], "Highly accurate protein structure prediction with AlphaFold");
+    assert_eq!(
+        rows[0]["title"],
+        "Highly accurate protein structure prediction with AlphaFold"
+    );
     assert_eq!(rows[0]["year"], 2021);
     assert_eq!(rows[0]["doi"], "10.1038/s41586-021-03819-2");
-    assert_eq!(rows[0]["snippet"], "Proteins are essential & hard to predict.");
+    assert_eq!(
+        rows[0]["snippet"],
+        "Proteins are essential & hard to predict."
+    );
     assert_eq!(rows[1]["url"], "https://arxiv.org/abs/2201.00001v1");
     assert_eq!(rows[1]["pdf"], "https://arxiv.org/pdf/2201.00001v1");
 }
@@ -870,9 +880,11 @@ fn sources_crossref_skips_items_without_a_title() {
 /// The JS `merges by DOI` test, across the three paper bodies.
 #[test]
 fn sources_merge_keeps_one_row_per_doi() {
-    let openalex = sources::parse_openalex(&load("web", "sources-openalex.json").to_string()).expect("openalex");
+    let openalex = sources::parse_openalex(&load("web", "sources-openalex.json").to_string())
+        .expect("openalex");
     let arxiv = sources::parse_arxiv(&str_field(&load("web", "sources-arxiv.json"), "xml"));
-    let crossref = sources::parse_crossref(&load("web", "sources-crossref.json").to_string()).expect("crossref");
+    let crossref = sources::parse_crossref(&load("web", "sources-crossref.json").to_string())
+        .expect("crossref");
     let merged = sources::merge_papers(&[openalex, arxiv, crossref]);
     let alpha: Vec<_> = merged
         .iter()
@@ -880,13 +892,22 @@ fn sources_merge_keeps_one_row_per_doi() {
         .collect();
     assert_eq!(alpha.len(), 1);
     assert_eq!(alpha[0].source, "openalex");
-    assert!(alpha[0].pdf.as_deref().unwrap_or_default().contains("nature.com"));
+    assert!(
+        alpha[0]
+            .pdf
+            .as_deref()
+            .unwrap_or_default()
+            .contains("nature.com")
+    );
 }
 
 /// The JS `normalises DOI spellings` test.
 #[test]
 fn sources_normalise_doi_spellings() {
-    assert_eq!(sources::normalise_doi("https://doi.org/10.1000/ABC"), "10.1000/abc");
+    assert_eq!(
+        sources::normalise_doi("https://doi.org/10.1000/ABC"),
+        "10.1000/abc"
+    );
     assert_eq!(sources::normalise_doi("doi:10.1000/abc"), "10.1000/abc");
     assert_eq!(sources::normalise_doi("not a doi"), "");
 }
@@ -896,10 +917,22 @@ fn sources_normalise_doi_spellings() {
 fn sources_wiki_reads_search_summary_and_wikidata() {
     let rows = source_rows("sources-wikipedia.json");
     assert_eq!(rows[0]["title"], "Alan Turing");
-    assert_eq!(rows[0]["snippet"], "English mathematician & computer scientist");
+    assert_eq!(
+        rows[0]["snippet"],
+        "English mathematician & computer scientist"
+    );
     assert_eq!(rows[0]["url"], "https://en.wikipedia.org/wiki/Alan_Turing");
-    assert_eq!(run("sources-wikipedia-summary.json", &load("web", "sources-wikipedia-summary.json"))["url"], "https://en.wikipedia.org/wiki/Alan_Turing");
-    assert_eq!(run("sources-wikipedia-summary.json", &json!({})), Value::Null);
+    assert_eq!(
+        run(
+            "sources-wikipedia-summary.json",
+            &load("web", "sources-wikipedia-summary.json")
+        )["url"],
+        "https://en.wikipedia.org/wiki/Alan_Turing"
+    );
+    assert_eq!(
+        run("sources-wikipedia-summary.json", &json!({})),
+        Value::Null
+    );
     assert_eq!(
         source_rows("sources-wikidata.json"),
         vec![json!({
@@ -914,15 +947,29 @@ fn sources_wiki_reads_search_summary_and_wikidata() {
 /// The JS `reads GitHub, npm, PyPI and crates.io` test.
 #[test]
 fn sources_code_registries_read_names_and_urls() {
-    assert_eq!(source_rows("sources-github.json")[0]["title"], "ggml-org/llama.cpp");
+    assert_eq!(
+        source_rows("sources-github.json")[0]["title"],
+        "ggml-org/llama.cpp"
+    );
     let npm = source_rows("sources-npm.json");
     assert_eq!(
-        npm.iter().map(|row| row["url"].as_str().unwrap_or_default()).collect::<Vec<_>>(),
-        ["https://www.npmjs.com/package/left-pad", "https://www.npmjs.com/package/nolinks"]
+        npm.iter()
+            .map(|row| row["url"].as_str().unwrap_or_default())
+            .collect::<Vec<_>>(),
+        [
+            "https://www.npmjs.com/package/left-pad",
+            "https://www.npmjs.com/package/nolinks"
+        ]
     );
-    assert_eq!(source_rows("sources-pypi.json")[0]["title"], "requests 2.32.3");
+    assert_eq!(
+        source_rows("sources-pypi.json")[0]["title"],
+        "requests 2.32.3"
+    );
     assert_eq!(run("sources-pypi.json", &json!({})), json!([]));
-    assert_eq!(source_rows("sources-crates.json")[1]["url"], "https://crates.io/crates/serde_json");
+    assert_eq!(
+        source_rows("sources-crates.json")[1]["url"],
+        "https://crates.io/crates/serde_json"
+    );
 }
 
 /// The page-reading helpers, one op per case, as `runPageExtract` in the TypeScript runner does.
@@ -946,14 +993,18 @@ fn run_page_extract(input: &Value) -> Value {
         "pdf" => json!(is_pdf_source(&text("contentType"), &text("url"))),
         "note" => {
             let number = |key: &str, default: usize| {
-                input[key].as_u64().map_or(default, |n| usize::try_from(n).unwrap_or(default))
+                input[key]
+                    .as_u64()
+                    .map_or(default, |n| usize::try_from(n).unwrap_or(default))
             };
             json!(page_note(number("page", 1), number("count", 1)))
         }
         "split" => {
             let size = input["size"]
                 .as_u64()
-                .map_or(draggy_web::page::PAGE_SIZE, |n| usize::try_from(n).unwrap_or(0));
+                .map_or(draggy_web::page::PAGE_SIZE, |n| {
+                    usize::try_from(n).unwrap_or(0)
+                });
             let pages = split_pages(&text("markdown"), size);
             json!({
                 "lengths": pages.iter().map(|page| page.chars().count()).collect::<Vec<_>>(),

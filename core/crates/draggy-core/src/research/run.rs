@@ -53,7 +53,12 @@ impl SourceKind {
     }
 }
 
-pub const SOURCE_KINDS: [SourceKind; 4] = [SourceKind::Web, SourceKind::Papers, SourceKind::Wiki, SourceKind::Code];
+pub const SOURCE_KINDS: [SourceKind; 4] = [
+    SourceKind::Web,
+    SourceKind::Papers,
+    SourceKind::Wiki,
+    SourceKind::Code,
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -163,7 +168,12 @@ pub enum RawList {
 }
 
 /// Trims the plan to what the depth allows, so a model that drafts twelve questions still fits the budget.
-pub fn read_plan(question: &str, sub_questions: RawList, depth: Option<&str>, sources: RawList) -> Option<ResearchPlan> {
+pub fn read_plan(
+    question: &str,
+    sub_questions: RawList,
+    depth: Option<&str>,
+    sources: RawList,
+) -> Option<ResearchPlan> {
     let question = question.trim();
     if question.is_empty() {
         return None;
@@ -295,8 +305,9 @@ pub fn create_run(id: &str, plan: ResearchPlan, now: u64) -> ResearchRun {
 }
 
 const STOP_WORDS: &[&str] = &[
-    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "how", "in", "is", "it", "of", "on", "or", "the", "to",
-    "what", "when", "where", "which", "who", "why", "with", "vs", "versus",
+    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "how", "in", "is", "it", "of",
+    "on", "or", "the", "to", "what", "when", "where", "which", "who", "why", "with", "vs",
+    "versus",
 ];
 
 /// Word order, case, punctuation and filler words do not make a new query.
@@ -304,7 +315,13 @@ pub fn normalise_query(query: &str) -> String {
     let cleaned: String = query
         .to_lowercase()
         .chars()
-        .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
+        .map(|c| {
+            if c.is_alphanumeric() || c.is_whitespace() {
+                c
+            } else {
+                ' '
+            }
+        })
         .collect();
     let mut words: Vec<&str> = cleaned
         .split_whitespace()
@@ -325,7 +342,9 @@ struct ParsedUrl {
 fn parse_url(input: &str) -> Option<ParsedUrl> {
     let (scheme, rest) = input.split_once("://")?;
     let valid_scheme = scheme.starts_with(|c: char| c.is_ascii_alphabetic())
-        && scheme.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'));
+        && scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'));
     if !valid_scheme {
         return None;
     }
@@ -334,7 +353,9 @@ fn parse_url(input: &str) -> Option<ParsedUrl> {
     let (authority, path) = before_query
         .find('/')
         .map_or((before_query, ""), |index| before_query.split_at(index));
-    let host_port = authority.rsplit_once('@').map_or(authority, |(_, host)| host);
+    let host_port = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_, host)| host);
     let host = if host_port.starts_with('[') {
         host_port.split_inclusive(']').next().unwrap_or("")
     } else {
@@ -353,7 +374,11 @@ fn parse_url(input: &str) -> Option<ParsedUrl> {
 
 fn is_tracking_param(name: &str) -> bool {
     let lower = name.to_ascii_lowercase();
-    lower.starts_with("utm_") || matches!(lower.as_str(), "fbclid" | "gclid" | "ref" | "ref_src" | "mc_cid" | "mc_eid")
+    lower.starts_with("utm_")
+        || matches!(
+            lower.as_str(),
+            "fbclid" | "gclid" | "ref" | "ref_src" | "mc_cid" | "mc_eid"
+        )
 }
 
 /// The same page reached through tracking links or a trailing slash is one source.
@@ -366,7 +391,11 @@ pub fn source_key(url: &str) -> String {
         .split('&')
         .filter(|pair| !pair.is_empty() && !is_tracking_param(pair.split('=').next().unwrap_or("")))
         .collect();
-    let search = if kept.is_empty() { String::new() } else { format!("?{}", kept.join("&")) };
+    let search = if kept.is_empty() {
+        String::new()
+    } else {
+        format!("?{}", kept.join("&"))
+    };
     let path = if parsed.path.len() > 1 {
         parsed.path.trim_end_matches('/')
     } else {
@@ -390,12 +419,18 @@ pub fn record_host(run: &mut ResearchRun, url: &str) {
 }
 
 /// A repeat returns the earlier entry, so the tool can answer it without spending a search.
-pub fn find_repeat<'a>(run: &'a ResearchRun, query: &str, kind: SourceKind) -> Option<&'a QueryEntry> {
+pub fn find_repeat<'a>(
+    run: &'a ResearchRun,
+    query: &str,
+    kind: SourceKind,
+) -> Option<&'a QueryEntry> {
     let key = normalise_query(query);
     if key.is_empty() {
         return None;
     }
-    run.queries.iter().find(|entry| entry.key == key && entry.kind == kind)
+    run.queries
+        .iter()
+        .find(|entry| entry.key == key && entry.kind == kind)
 }
 
 fn opened(run: &ResearchRun) -> usize {
@@ -514,7 +549,10 @@ fn parse_int_prefix(text: &str) -> Option<i64> {
     if count == 0 {
         return None;
     }
-    digits[..count].parse::<i64>().ok().map(|value| sign * value)
+    digits[..count]
+        .parse::<i64>()
+        .ok()
+        .map(|value| sign * value)
 }
 
 /// A note must point at a page the model actually read, so a citation can never name an unopened URL.
@@ -525,10 +563,18 @@ pub fn add_note(run: &mut ResearchRun, input: NoteInput<'_>) -> Result<ResearchN
     }
     let quote = input.quote.trim();
     if quote.is_empty() {
-        return Err("The note had no quote. Copy the exact sentence from the page that supports it.".to_owned());
+        return Err(
+            "The note had no quote. Copy the exact sentence from the page that supports it."
+                .to_owned(),
+        );
     }
-    let Some((source_id, status)) = find_source(run, input.source).map(|source| (source.id.clone(), source.status)) else {
-        return Err("That source is not one you have read. Use the source id read_url gave, such as s1.".to_owned());
+    let Some((source_id, status)) =
+        find_source(run, input.source).map(|source| (source.id.clone(), source.status))
+    else {
+        return Err(
+            "That source is not one you have read. Use the source id read_url gave, such as s1."
+                .to_owned(),
+        );
     };
     if status != SourceStatus::Read {
         return Err(format!(
@@ -574,7 +620,8 @@ pub struct Budget {
 pub fn budget_of(run: &ResearchRun, now: u64) -> Budget {
     let spec = depth_spec(run.plan.depth);
     let elapsed_ms = now.saturating_sub(run.started_at);
-    let used = (elapsed_ms as f64 / spec.wall_ms as f64).max(run.tool_calls as f64 / spec.tool_calls as f64);
+    let used = (elapsed_ms as f64 / spec.wall_ms as f64)
+        .max(run.tool_calls as f64 / spec.tool_calls as f64);
     Budget {
         elapsed_ms,
         wall_ms: spec.wall_ms,
@@ -591,7 +638,9 @@ fn supporting_notes(run: &ResearchRun, sub_question: usize) -> usize {
     run.notes
         .iter()
         .filter(|note| {
-            note.sub_question == sub_question && note.confidence != NoteConfidence::Disputed && note.verified != Some(false)
+            note.sub_question == sub_question
+                && note.confidence != NoteConfidence::Disputed
+                && note.verified != Some(false)
         })
         .count()
 }
@@ -736,7 +785,10 @@ pub fn render_run_state(run: &ResearchRun, now: u64) -> String {
     } else if budget.wrap {
         lines.push("Most of the budget is used. Fill only the sub-questions without notes, then write the report.".to_owned());
     } else if let Some(open) = coverage(run).into_iter().find(|entry| !entry.enough) {
-        lines.push(format!("Next: find support for sub-question {}.", open.sub_question));
+        lines.push(format!(
+            "Next: find support for sub-question {}.",
+            open.sub_question
+        ));
     }
     lines.join("\n")
 }
@@ -755,7 +807,13 @@ mod tests {
 
     fn run_of(depth: &str, questions: &[&str]) -> ResearchRun {
         let subs = RawList::Items(questions.iter().map(|q| (*q).to_owned()).collect());
-        let plan = read_plan("Topic", subs, Some(depth), RawList::Items(vec!["web".to_owned()])).expect("plan");
+        let plan = read_plan(
+            "Topic",
+            subs,
+            Some(depth),
+            RawList::Items(vec!["web".to_owned()]),
+        )
+        .expect("plan");
         create_run("r1", plan, 0)
     }
 
@@ -782,14 +840,25 @@ mod tests {
 
     #[test]
     fn read_plan_strips_list_markers_dedupes_and_caps_by_depth() {
-        let plan = read_plan("Q", RawList::Text("1. a\n- b\n* a\n2) c\nd".to_owned()), Some("quick"), RawList::Text(String::new())).expect("plan");
+        let plan = read_plan(
+            "Q",
+            RawList::Text("1. a\n- b\n* a\n2) c\nd".to_owned()),
+            Some("quick"),
+            RawList::Text(String::new()),
+        )
+        .expect("plan");
         assert_eq!(plan.sub_questions, vec!["a", "b", "c"]);
         assert_eq!(plan.depth, Depth::Quick);
     }
 
     #[test]
     fn read_plan_falls_back_to_standard_depth_web_source_and_the_question() {
-        let plan = read_plan("Q", RawList::Items(vec![]), Some("huge"), RawList::Text("nope".to_owned()));
+        let plan = read_plan(
+            "Q",
+            RawList::Items(vec![]),
+            Some("huge"),
+            RawList::Text("nope".to_owned()),
+        );
         assert_eq!(
             plan,
             Some(ResearchPlan {
@@ -803,13 +872,29 @@ mod tests {
 
     #[test]
     fn read_plan_rejects_an_empty_question() {
-        assert!(read_plan("  ", RawList::Text(String::new()), None, RawList::Text(String::new())).is_none());
+        assert!(
+            read_plan(
+                "  ",
+                RawList::Text(String::new()),
+                None,
+                RawList::Text(String::new())
+            )
+            .is_none()
+        );
     }
 
     #[test]
     fn read_plan_keeps_known_source_kinds_from_a_comma_list() {
-        let plan = read_plan("Q", RawList::Text(String::new()), None, RawList::Text("papers, wiki,bogus".to_owned()));
-        assert_eq!(plan.map(|p| p.sources), Some(vec![SourceKind::Papers, SourceKind::Wiki]));
+        let plan = read_plan(
+            "Q",
+            RawList::Text(String::new()),
+            None,
+            RawList::Text("papers, wiki,bogus".to_owned()),
+        );
+        assert_eq!(
+            plan.map(|p| p.sources),
+            Some(vec![SourceKind::Papers, SourceKind::Wiki])
+        );
     }
 
     #[test]
@@ -834,13 +919,22 @@ mod tests {
             source_key("https://www.example.com/a/?utm_source=x#top"),
             source_key("https://example.com/a")
         );
-        assert_ne!(source_key("https://example.com/a?id=2"), source_key("https://example.com/a"));
+        assert_ne!(
+            source_key("https://example.com/a?id=2"),
+            source_key("https://example.com/a")
+        );
     }
 
     #[test]
     fn add_source_gives_one_id_per_page_and_updates_its_status() {
         let mut r = run_of("standard", &["What", "Why"]);
-        let first = add_source(&mut r, SourceInput { url: "https://example.com/a", ..Default::default() });
+        let first = add_source(
+            &mut r,
+            SourceInput {
+                url: "https://example.com/a",
+                ..Default::default()
+            },
+        );
         let again = add_source(
             &mut r,
             SourceInput {
@@ -866,11 +960,33 @@ mod tests {
     #[test]
     fn add_note_needs_a_claim_a_quote_and_a_read_source() {
         let mut r = run_of("standard", &["What", "Why"]);
-        add_source(&mut r, SourceInput { url: "https://example.com/unread", ..Default::default() });
-        assert!(add_note(&mut r, note_of("", "q", "s1")).unwrap_err().contains("no claim"));
-        assert!(add_note(&mut r, note_of("c", "", "s1")).unwrap_err().contains("no quote"));
-        assert!(add_note(&mut r, note_of("c", "q", "s9")).unwrap_err().contains("not one you have read"));
-        assert!(add_note(&mut r, note_of("c", "q", "s1")).unwrap_err().contains("not read successfully"));
+        add_source(
+            &mut r,
+            SourceInput {
+                url: "https://example.com/unread",
+                ..Default::default()
+            },
+        );
+        assert!(
+            add_note(&mut r, note_of("", "q", "s1"))
+                .unwrap_err()
+                .contains("no claim")
+        );
+        assert!(
+            add_note(&mut r, note_of("c", "", "s1"))
+                .unwrap_err()
+                .contains("no quote")
+        );
+        assert!(
+            add_note(&mut r, note_of("c", "q", "s9"))
+                .unwrap_err()
+                .contains("not one you have read")
+        );
+        assert!(
+            add_note(&mut r, note_of("c", "q", "s1"))
+                .unwrap_err()
+                .contains("not read successfully")
+        );
     }
 
     #[test]
@@ -906,9 +1022,23 @@ mod tests {
     fn stop_rule_stops_when_every_sub_question_has_enough_notes() {
         let mut r = run_of("quick", &["a", "b"]);
         read_source(&mut r, "https://example.com/a");
-        add_note(&mut r, NoteInput { sub_question: Some("1"), ..note_of("c", "q", "s1") }).expect("note");
+        add_note(
+            &mut r,
+            NoteInput {
+                sub_question: Some("1"),
+                ..note_of("c", "q", "s1")
+            },
+        )
+        .expect("note");
         assert_eq!(stop_reason(&r, 0), None);
-        add_note(&mut r, NoteInput { sub_question: Some("2"), ..note_of("c", "q", "s1") }).expect("note");
+        add_note(
+            &mut r,
+            NoteInput {
+                sub_question: Some("2"),
+                ..note_of("c", "q", "s1")
+            },
+        )
+        .expect("note");
         assert_eq!(stop_reason(&r, 0), Some(StopReason::Covered));
     }
 
@@ -916,7 +1046,14 @@ mod tests {
     fn stop_rule_does_not_count_disputed_or_unverified_notes() {
         let mut r = run_of("quick", &["a"]);
         read_source(&mut r, "https://example.com/a");
-        add_note(&mut r, NoteInput { confidence: Some("disputed"), ..note_of("c", "q", "s1") }).expect("note");
+        add_note(
+            &mut r,
+            NoteInput {
+                confidence: Some("disputed"),
+                ..note_of("c", "q", "s1")
+            },
+        )
+        .expect("note");
         add_note(&mut r, note_of("c", "q", "s1")).expect("note");
         r.notes[1].verified = Some(false);
         assert_eq!(coverage(&r)[0].notes, 0);
@@ -993,13 +1130,18 @@ mod tests {
     #[test]
     fn render_run_state_tells_the_model_to_write_once_gathering_stops() {
         let r = run_of("quick", &["What", "Why"]);
-        assert!(render_run_state(&r, depth_spec(Depth::Quick).wall_ms).contains("write the report now"));
+        assert!(
+            render_run_state(&r, depth_spec(Depth::Quick).wall_ms).contains("write the report now")
+        );
     }
 
     #[test]
     fn loop_limit_for_raises_the_cap_only_during_a_run() {
         assert_eq!(loop_limit_for(None, 30), 30);
         let r = run_of("deep", &["What", "Why"]);
-        assert_eq!(loop_limit_for(Some(&r), 30), depth_spec(Depth::Deep).tool_calls + 20);
+        assert_eq!(
+            loop_limit_for(Some(&r), 30),
+            depth_spec(Depth::Deep).tool_calls + 20
+        );
     }
 }

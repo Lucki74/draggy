@@ -75,7 +75,13 @@ mod tests {
     };
 
     fn run_with_note() -> ResearchRun {
-        let plan = read_plan("Q", RawList::Text("one".into()), Some("quick"), RawList::Text("web".into())).unwrap();
+        let plan = read_plan(
+            "Q",
+            RawList::Text("one".into()),
+            Some("quick"),
+            RawList::Text("web".into()),
+        )
+        .unwrap();
         let mut run = create_run("r1", plan, 0);
         add_source(
             &mut run,
@@ -102,7 +108,8 @@ mod tests {
     #[test]
     fn a_noted_page_becomes_a_receipt() {
         let run = run_with_note();
-        let page = "TOOL RESULT (read_url):\nSource id: s1. Record it.\nTitle: Page\nContent:\nlong";
+        let page =
+            "TOOL RESULT (read_url):\nSource id: s1. Record it.\nTitle: Page\nContent:\nlong";
         let receipt = receipt_for(&run, page).expect("receipt");
         assert!(receipt.contains("Notes taken: n1 A claim"));
         assert!(receipt.contains("URL: https://a.test/p"));

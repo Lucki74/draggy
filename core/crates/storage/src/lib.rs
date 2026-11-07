@@ -25,7 +25,8 @@ pub use chats::{Attachment, Chat, ChatSummary, Message, SearchHit, Stats};
 pub use checkpoints::{Checkpoint, CheckpointInput};
 pub use metrics::{Metric, MetricInput};
 pub use research::{
-    NoteSave, RunHit, RunSave, RunSummary, SavedRun, SourceSave, hash_text, retention_days, to_match,
+    NoteSave, RunHit, RunSave, RunSummary, SavedRun, SourceSave, hash_text, retention_days,
+    to_match,
 };
 pub use schema::SCHEMA_VERSION;
 pub use workspaces::{DEFAULT_WORKSPACE_ID, Workspace, WorkspaceKind};

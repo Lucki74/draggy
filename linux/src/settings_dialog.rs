@@ -239,7 +239,9 @@ impl DraggySettings {
             .active(current.model_start)
             .build();
         let keep = Rc::clone(state);
-        start.connect_active_notify(move |row| keep.research.borrow_mut().model_start = row.is_active());
+        start.connect_active_notify(move |row| {
+            keep.research.borrow_mut().model_start = row.is_active()
+        });
         imp.research_group.add(&start);
 
         let depth_labels: Vec<String> = DEPTHS
@@ -248,12 +250,22 @@ impl DraggySettings {
             .collect();
         let depth = adw::ComboRow::builder()
             .title(t("researchMaxDepth"))
-            .model(&gtk::StringList::new(&depth_labels.iter().map(String::as_str).collect::<Vec<_>>()))
-            .selected(DEPTHS.iter().position(|id| *id == current.max_depth).unwrap_or(2) as u32)
+            .model(&gtk::StringList::new(
+                &depth_labels.iter().map(String::as_str).collect::<Vec<_>>(),
+            ))
+            .selected(
+                DEPTHS
+                    .iter()
+                    .position(|id| *id == current.max_depth)
+                    .unwrap_or(2) as u32,
+            )
             .build();
         let keep = Rc::clone(state);
         depth.connect_selected_notify(move |row| {
-            let id = DEPTHS.get(row.selected() as usize).copied().unwrap_or("deep");
+            let id = DEPTHS
+                .get(row.selected() as usize)
+                .copied()
+                .unwrap_or("deep");
             keep.research.borrow_mut().max_depth = id.to_owned();
         });
         imp.research_group.add(&depth);
@@ -261,15 +273,21 @@ impl DraggySettings {
         let keep_labels = [t("keepForever"), t("keep90"), t("keep30")];
         let retention = adw::ComboRow::builder()
             .title(t("researchKeep"))
-            .model(&gtk::StringList::new(&keep_labels.iter().map(String::as_str).collect::<Vec<_>>()))
+            .model(&gtk::StringList::new(
+                &keep_labels.iter().map(String::as_str).collect::<Vec<_>>(),
+            ))
             .selected(KEEPS.iter().position(|id| *id == current.keep).unwrap_or(0) as u32)
             .build();
         let kept = Rc::clone(state);
         retention.connect_selected_notify(move |row| {
-            let id = KEEPS.get(row.selected() as usize).copied().unwrap_or("forever");
+            let id = KEEPS
+                .get(row.selected() as usize)
+                .copied()
+                .unwrap_or("forever");
             kept.research.borrow_mut().keep = id.to_owned();
             if let Some(storage) = kept.storage() {
-                let _ = storage.apply_research_retention(draggy_storage::retention_days(id), now_ms());
+                let _ =
+                    storage.apply_research_retention(draggy_storage::retention_days(id), now_ms());
             }
         });
         imp.research_group.add(&retention);
@@ -279,12 +297,17 @@ impl DraggySettings {
             .and_then(|storage| storage.list_research_runs(None, 50).ok())
             .unwrap_or_default();
         if runs.is_empty() {
-            imp.research_runs.add(&adw::ActionRow::builder().title(t("researchEmpty")).build());
+            imp.research_runs
+                .add(&adw::ActionRow::builder().title(t("researchEmpty")).build());
         }
         for run in runs {
             let row = adw::ActionRow::builder()
                 .title(glib::markup_escape_text(&run.question))
-                .subtitle(research::past_run_line(&run.depth, run.source_count, run.started_at))
+                .subtitle(research::past_run_line(
+                    &run.depth,
+                    run.source_count,
+                    run.started_at,
+                ))
                 .build();
             imp.research_runs.add(&row);
         }
@@ -309,7 +332,10 @@ fn now_ms() -> i64 {
 /// `quick` as `Quick`, to build a text key.
 fn capital(word: &str) -> String {
     let mut chars = word.chars();
-    chars.next().map(|first| first.to_uppercase().chain(chars).collect()).unwrap_or_default()
+    chars
+        .next()
+        .map(|first| first.to_uppercase().chain(chars).collect())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

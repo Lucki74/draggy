@@ -751,7 +751,7 @@ export async function runAgentTurn(request: AgentRequest, host: AgentHost): Prom
     if (result.aborted && context) await settleRun(context, "cancelled");
     return result;
   } catch (error) {
-    if (context) await settleRun(context, "cancelled").catch(() => undefined);
+    if (context) await settleRun(context, "cancelled").catch(swallowed("agent", "the turn error is rethrown below"));
     throw error;
   } finally {
     end();

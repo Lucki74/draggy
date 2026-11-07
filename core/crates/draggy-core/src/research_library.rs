@@ -29,7 +29,9 @@ pub struct ResearchStore {
 }
 
 fn failed(error: impl std::fmt::Display) -> CoreError {
-    CoreError::Internal { message: error.to_string() }
+    CoreError::Internal {
+        message: error.to_string(),
+    }
 }
 
 /// The run as the shells' run card reads it, the same shape as the live `research_run` step.
@@ -42,7 +44,11 @@ fn view_json(saved: &SavedRun) -> String {
             list.iter()
                 .enumerate()
                 .map(|(at, text)| {
-                    let notes = saved.notes.iter().filter(|n| usize::try_from(n.sub_question).is_ok_and(|q| q == at + 1)).count();
+                    let notes = saved
+                        .notes
+                        .iter()
+                        .filter(|n| usize::try_from(n.sub_question).is_ok_and(|q| q == at + 1))
+                        .count();
                     json!({"text": text.as_str().unwrap_or_default(), "notes": notes})
                 })
                 .collect()
@@ -83,7 +89,9 @@ impl ResearchStore {
     #[uniffi::constructor]
     pub fn open(data_dir: String) -> Result<Arc<Self>, CoreError> {
         let storage = Storage::open(std::path::Path::new(&data_dir)).map_err(failed)?;
-        Ok(Arc::new(Self { storage: Arc::new(storage) }))
+        Ok(Arc::new(Self {
+            storage: Arc::new(storage),
+        }))
     }
 
     /// Applies a keep time (`30`, `90` or `forever`) now: runs older than it are deleted. Returns how many went.
@@ -97,7 +105,10 @@ impl ResearchStore {
 
     /// Saved runs, newest first.
     pub fn list_runs(&self, limit: u32) -> Result<Vec<PastRunRecord>, CoreError> {
-        let runs = self.storage.list_research_runs(None, limit as usize).map_err(failed)?;
+        let runs = self
+            .storage
+            .list_research_runs(None, limit as usize)
+            .map_err(failed)?;
         Ok(runs
             .into_iter()
             .map(|run| PastRunRecord {
@@ -114,7 +125,11 @@ impl ResearchStore {
 
     /// One run as run-card JSON, or `None` when it is gone.
     pub fn run_view(&self, id: String) -> Result<Option<String>, CoreError> {
-        Ok(self.storage.get_research_run(&id).map_err(failed)?.map(|saved| view_json(&saved)))
+        Ok(self
+            .storage
+            .get_research_run(&id)
+            .map_err(failed)?
+            .map(|saved| view_json(&saved)))
     }
 
     /// Deletes one run and any page copies nothing else uses.
@@ -139,7 +154,12 @@ mod tests {
             started_at,
             ended_at: Some(started_at + 500),
             hosts_json: r#"["a.test"]"#.into(),
-            sources: vec![SourceSave { id: "s1".into(), url: "https://a.test/p".into(), status: "read".into(), ..Default::default() }],
+            sources: vec![SourceSave {
+                id: "s1".into(),
+                url: "https://a.test/p".into(),
+                status: "read".into(),
+                ..Default::default()
+            }],
             notes: vec![NoteSave {
                 id: "n1".into(),
                 sub_question: 2,
@@ -158,13 +178,20 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = ResearchStore::open(dir.path().to_string_lossy().into_owned()).unwrap();
         store.storage.save_research_run(&run("old", 1)).unwrap();
-        store.storage.save_research_run(&run("new", now_ms())).unwrap();
+        store
+            .storage
+            .save_research_run(&run("new", now_ms()))
+            .unwrap();
         assert_eq!(store.apply_retention("forever".into()).unwrap(), 0);
         assert_eq!(store.list_runs(10).unwrap().len(), 2);
         assert_eq!(store.apply_retention("30".into()).unwrap(), 1);
         let runs = store.list_runs(10).unwrap();
-        assert_eq!((runs.len(), runs[0].id.as_str(), runs[0].note_count), (1, "new", 1));
-        let view: Value = serde_json::from_str(&store.run_view("new".into()).unwrap().unwrap()).unwrap();
+        assert_eq!(
+            (runs.len(), runs[0].id.as_str(), runs[0].note_count),
+            (1, "new", 1)
+        );
+        let view: Value =
+            serde_json::from_str(&store.run_view("new".into()).unwrap().unwrap()).unwrap();
         assert_eq!(view["questions"][1]["notes"], 1);
         assert_eq!(view["sources"][0]["status"], "read");
         assert_eq!(view["hosts"][0], "a.test");

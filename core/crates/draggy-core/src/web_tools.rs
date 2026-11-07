@@ -10,15 +10,14 @@ use draggy_agent::resume::{SearchResult as StepResult, SearchStep};
 use draggy_agent::tool_channel::{FunctionDefinition, ToolDefinition};
 use draggy_web::http::ReqwestClient;
 use draggy_web::page::{BlockKind, PageCache, PageRead, ReadOutcome, ReqwestPageSource, read_page};
-use draggy_web::search::{
-    Search, SearchConfig, Status, SystemClock, domain_of,
-};
+use draggy_web::search::{Search, SearchConfig, Status, SystemClock, domain_of};
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
 
 use crate::research::receipts::apply_receipts;
 use crate::research::run::{
-    ResearchRun, RunStatus, SourceInput, SourceStatus, add_source, loop_limit_for, record_host, render_run_state, tick,
+    ResearchRun, RunStatus, SourceInput, SourceStatus, add_source, loop_limit_for, record_host,
+    render_run_state, tick,
 };
 use crate::research::tools::{self as research_tools, ResearchLibrary};
 use draggy_agent::agent_loop::WireMessage;
@@ -253,9 +252,9 @@ impl WebTools {
 
     /// The run state as a tool-result footer, or nothing outside a run.
     pub(crate) fn run_footer(&self) -> String {
-        self.research
-            .as_ref()
-            .map_or_else(String::new, |run| format!("\n\n{}", render_run_state(run, now_ms())))
+        self.research.as_ref().map_or_else(String::new, |run| {
+            format!("\n\n{}", render_run_state(run, now_ms()))
+        })
     }
 
     fn record_reading(&mut self, url: &str) {
@@ -350,16 +349,26 @@ impl WebTools {
             ReadOutcome::Page(read) => read,
         };
         patch(ctx, &id, "reading", Some(format!("Read **{url}**")));
-        let cite = self.record_read(&url, Some(&read)).map_or_else(String::new, |id| {
-            format!("Source id: {id}. Record what it says with add_note and this id.\n")
-        });
+        let cite = self
+            .record_read(&url, Some(&read))
+            .map_or_else(String::new, |id| {
+                format!("Source id: {id}. Record what it says with add_note and this id.\n")
+            });
         let meta = &read.meta;
         let facts: Vec<String> = [
             meta.site.as_ref().map(|site| format!("Site: {site}")),
-            meta.author.as_ref().map(|author| format!("Author: {author}")),
-            meta.published.as_ref().map(|date| format!("Published: {date}")),
-            meta.modified.as_ref().map(|date| format!("Modified: {date}")),
-            meta.language.as_ref().map(|language| format!("Language: {language}")),
+            meta.author
+                .as_ref()
+                .map(|author| format!("Author: {author}")),
+            meta.published
+                .as_ref()
+                .map(|date| format!("Published: {date}")),
+            meta.modified
+                .as_ref()
+                .map(|date| format!("Modified: {date}")),
+            meta.language
+                .as_ref()
+                .map(|language| format!("Language: {language}")),
             Some(&read.canonical_url)
                 .filter(|canonical| **canonical != url)
                 .map(|canonical| format!("Canonical: {canonical}")),
@@ -468,7 +477,14 @@ mod tests {
         let names: Vec<String> = definitions().into_iter().map(|d| d.function.name).collect();
         assert_eq!(
             names,
-            ["search_web", "read_url", "start_research", "add_note", "search_notes", "finish_research"]
+            [
+                "search_web",
+                "read_url",
+                "start_research",
+                "add_note",
+                "search_notes",
+                "finish_research"
+            ]
         );
     }
 

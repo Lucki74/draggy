@@ -26,14 +26,25 @@ const clip = (text, max = 300) => {
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 };
 
+const dropTags = (text) => {
+  let out = text;
+  for (let before = ""; before !== out; ) {
+    before = out;
+    out = out.replace(/<[^>]*>/g, "");
+  }
+  return out;
+};
+
+// Decoding can rebuild a tag from &lt; and &gt;, so tags are dropped again after it.
 const stripTags = (text) =>
-  String(text ?? "")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
+  dropTags(
+    dropTags(String(text ?? ""))
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&"),
+  );
 
 function normaliseDoi(value) {
   const doi = String(value ?? "")

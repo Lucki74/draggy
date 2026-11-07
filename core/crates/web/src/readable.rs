@@ -16,24 +16,60 @@ pub struct Extracted {
 
 /// Tags that are never part of the reading text.
 const NOISE_TAGS: [&str; 15] = [
-    "script", "style", "noscript", "template", "svg", "iframe", "nav", "footer", "aside", "head", "canvas", "object",
-    "embed", "dialog", "select",
+    "script", "style", "noscript", "template", "svg", "iframe", "nav", "footer", "aside", "head",
+    "canvas", "object", "embed", "dialog", "select",
 ];
 /// Class or id words that mark page chrome, unless a word of `LIKELY` is also there.
 const UNLIKELY: [&str; 18] = [
-    "comment", "sidebar", "sidenav", "menu", "cookie", "consent", "banner", "advert", "sponsor", "popup", "modal",
-    "newsletter", "subscribe", "social", "breadcrumb", "promo", "toolbar", "skip-link",
+    "comment",
+    "sidebar",
+    "sidenav",
+    "menu",
+    "cookie",
+    "consent",
+    "banner",
+    "advert",
+    "sponsor",
+    "popup",
+    "modal",
+    "newsletter",
+    "subscribe",
+    "social",
+    "breadcrumb",
+    "promo",
+    "toolbar",
+    "skip-link",
 ];
-const LIKELY: [&str; 8] = ["article", "body", "content", "main", "post", "entry", "story", "text"];
+const LIKELY: [&str; 8] = [
+    "article", "body", "content", "main", "post", "entry", "story", "text",
+];
 const NEGATIVE: [&str; 10] = [
-    "hidden", "foot", "masthead", "meta", "related", "share", "shopping", "tags", "widget", "outbrain",
+    "hidden", "foot", "masthead", "meta", "related", "share", "shopping", "tags", "widget",
+    "outbrain",
 ];
 const BLOCKS: [&str; 18] = [
-    "div", "section", "article", "main", "header", "figure", "figcaption", "details", "summary", "address", "dl", "dt",
-    "dd", "fieldset", "body", "center", "form", "li",
+    "div",
+    "section",
+    "article",
+    "main",
+    "header",
+    "figure",
+    "figcaption",
+    "details",
+    "summary",
+    "address",
+    "dl",
+    "dt",
+    "dd",
+    "fieldset",
+    "body",
+    "center",
+    "form",
+    "li",
 ];
 const SKIPPED_INLINE: [&str; 11] = [
-    "img", "input", "textarea", "button", "video", "audio", "picture", "source", "map", "label", "option",
+    "img", "input", "textarea", "button", "video", "audio", "picture", "source", "map", "label",
+    "option",
 ];
 /// Fewer characters than this and a container is not the article; the whole body is used instead.
 const MIN_CONTAINER: usize = 200;
@@ -66,7 +102,10 @@ fn is_noise(element: ElementRef<'_>) -> bool {
         return true;
     }
     if let Some(style) = value.attr("style")
-        && style.to_lowercase().replace(' ', "").contains("display:none")
+        && style
+            .to_lowercase()
+            .replace(' ', "")
+            .contains("display:none")
     {
         return true;
     }
@@ -211,7 +250,10 @@ fn pick_container(document: &Html) -> Option<ElementRef<'_>> {
             .and_then(ElementRef::wrap)
             .filter(|parent| !matches!(parent.value().name(), "html" | "body"));
         let Some(parent) = parent else { break };
-        match ranked.iter().find(|(_, other)| id_of(*other) == id_of(parent)) {
+        match ranked
+            .iter()
+            .find(|(_, other)| id_of(*other) == id_of(parent))
+        {
             Some(entry) if entry.0 > score => best = Some(*entry),
             _ => break,
         }
@@ -469,9 +511,11 @@ impl Writer {
             .find(|node| node.value().name() == "code")
             .and_then(|node| node.value().attr("class"))
             .and_then(|classes| {
-                classes
-                    .split_whitespace()
-                    .find_map(|class| class.strip_prefix("language-").or_else(|| class.strip_prefix("lang-")))
+                classes.split_whitespace().find_map(|class| {
+                    class
+                        .strip_prefix("language-")
+                        .or_else(|| class.strip_prefix("lang-"))
+                })
             })
             .unwrap_or("");
         let code: String = element.text().collect();
@@ -500,7 +544,9 @@ impl Writer {
                 match child.value() {
                     Node::Text(text) => inner.text(text),
                     Node::Element(_) => {
-                        let Some(child) = ElementRef::wrap(child) else { continue };
+                        let Some(child) = ElementRef::wrap(child) else {
+                            continue;
+                        };
                         if matches!(child.value().name(), "ul" | "ol") {
                             inner.newline();
                             inner.list(child, depth + 1);
@@ -584,9 +630,21 @@ mod tests {
         assert_eq!(out.title, "The Story");
         assert_eq!(out.byline, "By Ada Lovelace");
         assert!(text.starts_with("# The Story"), "{text}");
-        assert!(text.contains("**reason**") && text.contains("*patterns*"), "{text}");
-        assert!(text.contains("[rules](https://example.com/docs/rules?a=1)"), "{text}");
-        for chrome in ["Home", "newsletter", "Related links", "Copyright", "track()"] {
+        assert!(
+            text.contains("**reason**") && text.contains("*patterns*"),
+            "{text}"
+        );
+        assert!(
+            text.contains("[rules](https://example.com/docs/rules?a=1)"),
+            "{text}"
+        );
+        for chrome in [
+            "Home",
+            "newsletter",
+            "Related links",
+            "Copyright",
+            "track()",
+        ] {
             assert!(!text.contains(chrome), "{chrome} leaked into {text}");
         }
     }
@@ -594,23 +652,36 @@ mod tests {
     #[test]
     fn converts_lists_code_and_tables() {
         let text = extract(ARTICLE, "https://example.com/").markdown;
-        assert!(text.contains("- First item\n- Second item\n  - Nested item"), "{text}");
+        assert!(
+            text.contains("- First item\n- Second item\n  - Nested item"),
+            "{text}"
+        );
         assert!(text.contains("1. One\n2. Two"), "{text}");
-        assert!(text.contains("```rust\nfn main() {\n    println!(\"hi\");\n}\n```"), "{text}");
+        assert!(
+            text.contains("```rust\nfn main() {\n    println!(\"hi\");\n}\n```"),
+            "{text}"
+        );
         assert!(text.contains("`cargo test`"), "{text}");
         assert!(text.contains("Name | Score\nAnn | 3"), "{text}");
     }
 
     #[test]
     fn a_page_with_no_paragraphs_falls_back_to_the_body() {
-        let out = extract("<html><body><div>Just a short line</div></body></html>", "https://example.com/");
+        let out = extract(
+            "<html><body><div>Just a short line</div></body></html>",
+            "https://example.com/",
+        );
         assert_eq!(out.markdown, "Just a short line");
     }
 
     #[test]
     fn a_link_dense_list_loses_to_the_prose() {
         let links: String = (0..12)
-            .map(|n| format!("<li><a href=\"/p{n}\">Linked headline number {n} of the front page</a></li>"))
+            .map(|n| {
+                format!(
+                    "<li><a href=\"/p{n}\">Linked headline number {n} of the front page</a></li>"
+                )
+            })
             .collect();
         let html = format!(
             "<html><body><div id=\"nav-list\"><ul>{links}</ul></div><div id=\"story\"><p>{}</p><p>{}</p></div></body></html>",

@@ -39,7 +39,10 @@ struct PaperFields {
 
 /// `text.trim()` for a whitespace run collapsed to one space, as `clip` and the tag reader use.
 fn flatten(text: &str) -> String {
-    text.split(is_js_space).filter(|part| !part.is_empty()).collect::<Vec<_>>().join(" ")
+    text.split(is_js_space)
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// `clip`: flattens whitespace and cuts at `max` UTF-16 units with an ellipsis.
@@ -57,7 +60,9 @@ fn strip_tags(text: &str) -> String {
     let mut kept = String::new();
     let mut rest = text;
     while let Some(open) = rest.find('<') {
-        let Some(close) = rest[open..].find('>') else { break };
+        let Some(close) = rest[open..].find('>') else {
+            break;
+        };
         kept.push_str(&rest[..open]);
         rest = &rest[open + close + 1..];
     }
@@ -72,7 +77,12 @@ fn strip_tags(text: &str) -> String {
 /// `normaliseDoi`: strips a doi.org URL or `doi:` prefix, lowercases, and keeps only a `10.NNNN/` shaped value.
 pub fn normalise_doi(value: &str) -> String {
     let mut doi = js_trim(value);
-    for prefix in ["https://doi.org/", "http://doi.org/", "https://dx.doi.org/", "http://dx.doi.org/"] {
+    for prefix in [
+        "https://doi.org/",
+        "http://doi.org/",
+        "https://dx.doi.org/",
+        "http://dx.doi.org/",
+    ] {
         if let Some(rest) = strip_prefix_ci(doi, prefix) {
             doi = rest;
             break;
@@ -82,24 +92,34 @@ pub fn normalise_doi(value: &str) -> String {
         doi = rest;
     }
     let doi = doi.to_lowercase();
-    if is_doi_shape(&doi) { doi } else { String::new() }
+    if is_doi_shape(&doi) {
+        doi
+    } else {
+        String::new()
+    }
 }
 
 fn strip_prefix_ci<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
     let head = text.get(..prefix.len())?;
-    head.eq_ignore_ascii_case(prefix).then(|| &text[prefix.len()..])
+    head.eq_ignore_ascii_case(prefix)
+        .then(|| &text[prefix.len()..])
 }
 
 /// Matches `^10\.\d{4,9}\/`, where the digit run must end right before the slash.
 fn is_doi_shape(doi: &str) -> bool {
-    let Some(rest) = doi.strip_prefix("10.") else { return false };
+    let Some(rest) = doi.strip_prefix("10.") else {
+        return false;
+    };
     let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
     (4..=9).contains(&digits) && rest.as_bytes().get(digits) == Some(&b'/')
 }
 
 /// `authorLine`: up to three names joined, then `et al.` when there are more.
 fn author_line(names: impl Iterator<Item = String>) -> String {
-    let list: Vec<String> = names.map(|name| js_trim(&name).to_owned()).filter(|name| !name.is_empty()).collect();
+    let list: Vec<String> = names
+        .map(|name| js_trim(&name).to_owned())
+        .filter(|name| !name.is_empty())
+        .collect();
     match list.len() {
         0 => String::new(),
         count if count > 3 => format!("{}, et al.", list[..3].join(", ")),
@@ -112,7 +132,11 @@ fn paper(fields: PaperFields) -> SourceResult {
     let doi = normalise_doi(&fields.doi);
     SourceResult {
         title: clip(&fields.title, TITLE_MAX),
-        url: if doi.is_empty() { fields.url } else { format!("https://doi.org/{doi}") },
+        url: if doi.is_empty() {
+            fields.url
+        } else {
+            format!("https://doi.org/{doi}")
+        },
         snippet: clip(&fields.snippet, SNIPPET_MAX),
         source: fields.source,
         year: fields.year.filter(|year| *year != 0),
@@ -155,7 +179,9 @@ fn label_part(value: &Value) -> String {
 
 /// The OpenAlex abstract is a word to positions map, rebuilt in position order.
 fn openalex_abstract(index: &Value) -> String {
-    let Some(map) = index.as_object() else { return String::new() };
+    let Some(map) = index.as_object() else {
+        return String::new();
+    };
     let mut words: BTreeMap<u64, &str> = BTreeMap::new();
     for (word, positions) in map {
         for position in array(positions) {
@@ -164,7 +190,12 @@ fn openalex_abstract(index: &Value) -> String {
             }
         }
     }
-    words.values().filter(|word| !word.is_empty()).copied().collect::<Vec<_>>().join(" ")
+    words
+        .values()
+        .filter(|word| !word.is_empty())
+        .copied()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 pub fn parse_openalex(body: &str) -> Result<Vec<SourceResult>, serde_json::Error> {
@@ -174,7 +205,11 @@ pub fn parse_openalex(body: &str) -> Result<Vec<SourceResult>, serde_json::Error
         .filter(|row| !text(&row["display_name"]).is_empty())
         .map(|row| {
             let landing = text(&row["primary_location"]["landing_page_url"]);
-            let url = if landing.is_empty() { text(&row["id"]) } else { landing };
+            let url = if landing.is_empty() {
+                text(&row["id"])
+            } else {
+                landing
+            };
             paper(PaperFields {
                 title: text(&row["display_name"]).to_owned(),
                 doi: text(&row["doi"]).to_owned(),
@@ -182,7 +217,11 @@ pub fn parse_openalex(body: &str) -> Result<Vec<SourceResult>, serde_json::Error
                 snippet: openalex_abstract(&row["abstract_inverted_index"]),
                 source: "openalex",
                 year: year_of(&row["publication_year"]),
-                authors: author_line(array(&row["authorships"]).iter().map(|entry| text(&entry["author"]["display_name"]).to_owned())),
+                authors: author_line(
+                    array(&row["authorships"])
+                        .iter()
+                        .map(|entry| text(&entry["author"]["display_name"]).to_owned()),
+                ),
                 pdf: text(&row["open_access"]["oa_url"]).to_owned(),
             })
         })
@@ -207,9 +246,13 @@ fn arxiv_entries(xml: &str) -> Vec<&str> {
 /// The text of the first `<tag ...>...</tag>` in a block, with tags stripped and whitespace collapsed.
 fn tag_text(block: &str, tag: &str) -> String {
     let open = format!("<{tag}");
-    let Some(start) = block.find(&open) else { return String::new() };
+    let Some(start) = block.find(&open) else {
+        return String::new();
+    };
     let after = &block[start + open.len()..];
-    let Some(gt) = after.find('>') else { return String::new() };
+    let Some(gt) = after.find('>') else {
+        return String::new();
+    };
     let content = &after[gt + 1..];
     content
         .find(&format!("</{tag}>"))
@@ -222,9 +265,13 @@ fn arxiv_author_names(entry: &str) -> Vec<String> {
     let mut rest = entry;
     while let Some(at) = rest.find("<author>") {
         let after = &rest[at + "<author>".len()..];
-        let Some(name_at) = after.find("<name>") else { break };
+        let Some(name_at) = after.find("<name>") else {
+            break;
+        };
         let name = &after[name_at + "<name>".len()..];
-        let Some(end) = name.find("</name>") else { break };
+        let Some(end) = name.find("</name>") else {
+            break;
+        };
         names.push(strip_tags(&name[..end]));
         rest = &name[end + "</name>".len()..];
     }
@@ -267,7 +314,11 @@ fn crossref_author(author: &Value) -> String {
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join(" ");
-    if full.is_empty() { text(&author["name"]).to_owned() } else { full }
+    if full.is_empty() {
+        text(&author["name"]).to_owned()
+    } else {
+        full
+    }
 }
 
 pub fn parse_crossref(body: &str) -> Result<Vec<SourceResult>, serde_json::Error> {
@@ -350,7 +401,10 @@ pub fn parse_wiki_search(body: &str) -> Result<Vec<SourceResult>, serde_json::Er
             let title = text(&row["title"]);
             SourceResult {
                 title: title.to_owned(),
-                url: format!("https://en.wikipedia.org/wiki/{}", encode_uri_component(&title.replace(' ', "_"))),
+                url: format!(
+                    "https://en.wikipedia.org/wiki/{}",
+                    encode_uri_component(&title.replace(' ', "_"))
+                ),
                 snippet: clip(&strip_tags(text(&row["snippet"])), SNIPPET_MAX),
                 source: "wikipedia",
                 ..SourceResult::default()
@@ -408,7 +462,10 @@ pub fn parse_github(body: &str) -> Result<Vec<SourceResult>, serde_json::Error> 
             SourceResult {
                 title: text(&row["full_name"]).to_owned(),
                 url: text(&row["html_url"]).to_owned(),
-                snippet: clip(&format!("{} ({language}, {stars} stars)", text(&row["description"])), SNIPPET_MAX),
+                snippet: clip(
+                    &format!("{} ({language}, {stars} stars)", text(&row["description"])),
+                    SNIPPET_MAX,
+                ),
                 source: "github",
                 ..SourceResult::default()
             }
@@ -427,7 +484,11 @@ pub fn parse_npm(body: &str) -> Result<Vec<SourceResult>, serde_json::Error> {
             let link = text(&item["links"]["npm"]);
             SourceResult {
                 title: format!("{name}@{}", label_part(&item["version"])),
-                url: if link.is_empty() { format!("https://www.npmjs.com/package/{name}") } else { link.to_owned() },
+                url: if link.is_empty() {
+                    format!("https://www.npmjs.com/package/{name}")
+                } else {
+                    link.to_owned()
+                },
                 snippet: clip(text(&item["description"]), SNIPPET_MAX),
                 source: "npm",
                 ..SourceResult::default()
@@ -447,7 +508,11 @@ pub fn parse_pypi(body: &str) -> Result<Vec<SourceResult>, serde_json::Error> {
     let package_url = text(&info["package_url"]);
     Ok(vec![SourceResult {
         title: format!("{name} {}", label_part(&info["version"])),
-        url: if package_url.is_empty() { format!("https://pypi.org/project/{name}/") } else { package_url.to_owned() },
+        url: if package_url.is_empty() {
+            format!("https://pypi.org/project/{name}/")
+        } else {
+            package_url.to_owned()
+        },
         snippet: clip(text(&info["summary"]), SNIPPET_MAX),
         source: "pypi",
         ..SourceResult::default()

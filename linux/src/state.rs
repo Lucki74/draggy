@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use draggy_core::{EngineHost, LocalEngine, McpManager, ModelLibrary};
 use draggy_linux::models;
-use draggy_linux::secrets::{KeyringStore, SecretStore};
 use draggy_linux::research::ResearchSettings;
+use draggy_linux::secrets::{KeyringStore, SecretStore};
 use draggy_linux::servers::PlainValues;
 use draggy_linux::settings::Settings;
 use draggy_storage::Storage;

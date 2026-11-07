@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use draggy_agent::agent_loop::Permission;
-use draggy_agent::agent_loop::WireMessage;
 use draggy_agent::agent_loop::ToolContext;
+use draggy_agent::agent_loop::WireMessage;
 use draggy_agent::agent_loop::{
     AgentResult, ApprovalAnswer, ApprovalRequest, Clock, DraggyRef, Engine, FixedContext, IdSource,
     MessageRefs, ModelProfile, Ports, TailNotes, ToolAccess, ToolRuntime, TurnHost, TurnRequest,
@@ -38,12 +38,12 @@ use crate::records::{
     ApprovalChoice, ApprovalRecord, ImageRecord, MessageRecord, PlanStepRecord, SessionConfig,
     TaskRecord, TurnOutcome,
 };
-use crate::skills::{self, SkillStore};
-use crate::task_tools::TaskSet;
-use crate::tools::{FileTools, NoTools, definitions};
 use crate::research::run::Depth;
 use crate::research::tools::ResearchLibrary;
 use crate::research_library::ResearchStore;
+use crate::skills::{self, SkillStore};
+use crate::task_tools::TaskSet;
+use crate::tools::{FileTools, NoTools, definitions};
 use crate::web_tools::{self, WebTools};
 
 struct WallClock;
@@ -361,7 +361,10 @@ impl Session {
         };
         if web {
             tools.extend(web_tools::definitions());
-            let (allow, _) = *self.research_options.lock().unwrap_or_else(PoisonError::into_inner);
+            let (allow, _) = *self
+                .research_options
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
             if !allow {
                 tools.retain(|tool| tool.function.name != "start_research");
             }
@@ -481,8 +484,18 @@ impl Session {
         };
         let mut web_tools = web_tools;
         if let Some(web) = web_tools.as_mut() {
-            web.set_library(self.library.lock().unwrap_or_else(PoisonError::into_inner).clone());
-            web.set_max_depth(self.research_options.lock().unwrap_or_else(PoisonError::into_inner).1);
+            web.set_library(
+                self.library
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .clone(),
+            );
+            web.set_max_depth(
+                self.research_options
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .1,
+            );
         }
         let request = self.request(messages, grants, extra_tools, web_tools.is_some());
         let mut model = OpenAiModel::new(
@@ -541,7 +554,10 @@ impl Session {
         if let Some(web) = composite.web.as_mut() {
             let cancelled = result.as_ref().map_or(true, |done| done.aborted);
             let mut scratch = Vec::new();
-            web.settle_open(cancelled, result.as_mut().map_or(&mut scratch, |done| &mut done.steps));
+            web.settle_open(
+                cancelled,
+                result.as_mut().map_or(&mut scratch, |done| &mut done.steps),
+            );
         }
         let result: AgentResult = match result {
             Ok(result) => result,
@@ -590,7 +606,10 @@ impl Session {
     /// may take.
     pub fn set_research_options(&self, allow_model_start: bool, max_depth: String) {
         let depth = Depth::from_id(&max_depth);
-        *self.research_options.lock().unwrap_or_else(PoisonError::into_inner) = (allow_model_start, depth);
+        *self
+            .research_options
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = (allow_model_start, depth);
     }
 
     /// Saves finished research runs to the library under `chat_id`; `None` stops saving.

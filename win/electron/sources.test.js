@@ -123,7 +123,7 @@ describe("searchSource", () => {
     const times = [];
     const base = d.fetch;
     d.fetch = vi.fn(async (...a) => {
-      if (a[0].includes("wikipedia.org")) times.push(d.now());
+      if (new URL(a[0]).hostname.endsWith(".wikipedia.org")) times.push(d.now());
       return base(...a);
     });
     await sources.searchSource("turing", "wiki", d);

@@ -96,7 +96,6 @@ fn collapse(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-
 // Page reading for read_url, ported from electron/pageExtract.cjs: metadata, script-shell detection, paging and the
 // fetch-first flow. There is no hidden browser here, so a page that needs scripts comes back with a note instead.
 
@@ -141,7 +140,9 @@ fn replace_numeric(text: &str, hex: bool) -> String {
             Some(after)
         };
         let decoded = body.and_then(|body| {
-            let digits = body.find(|c: char| !c.is_digit(radix)).unwrap_or(body.len());
+            let digits = body
+                .find(|c: char| !c.is_digit(radix))
+                .unwrap_or(body.len());
             if digits == 0 || !body[digits..].starts_with(';') {
                 return None;
             }
@@ -250,7 +251,10 @@ fn types_of(node: &Value) -> Vec<String> {
     match node.get("@type") {
         Some(Value::Array(items)) => items
             .iter()
-            .map(|item| item.as_str().map_or_else(|| item.to_string(), str::to_owned))
+            .map(|item| {
+                item.as_str()
+                    .map_or_else(|| item.to_string(), str::to_owned)
+            })
             .collect(),
         Some(Value::String(kind)) => vec![kind.clone()],
         _ => Vec::new(),
@@ -266,7 +270,10 @@ fn has_type(node: &Value, wanted: &[&str]) -> bool {
 fn name_of(value: Option<&Value>) -> Option<String> {
     match value? {
         Value::Array(items) => {
-            let names: Vec<String> = items.iter().filter_map(|item| name_of(Some(item))).collect();
+            let names: Vec<String> = items
+                .iter()
+                .filter_map(|item| name_of(Some(item)))
+                .collect();
             (!names.is_empty()).then(|| names.join(", "))
         }
         Value::Object(object) => clean_json(object.get("name")),
@@ -352,9 +359,7 @@ pub fn extract_metadata(html: &str, page_url: &str) -> PageMeta {
             .or_else(|| tagged("og:updated_time"))
             .or_else(|| tagged("datemodified"))
             .or_else(|| tagged("last-modified")),
-        language: field("inLanguage")
-            .or_else(|| tagged("og:locale"))
-            .or(lang),
+        language: field("inLanguage").or_else(|| tagged("og:locale")).or(lang),
         canonical: canonical_href
             .or_else(|| meta.get("og:url").map(String::as_str))
             .and_then(|href| resolve_url(href, page_url)),
@@ -397,7 +402,9 @@ fn strip_comments(html: &str) -> String {
     let mut out = String::with_capacity(html.len());
     let mut rest = html;
     while let Some(start) = rest.find("<!--") {
-        let Some(len) = rest[start + 4..].find("-->") else { break };
+        let Some(len) = rest[start + 4..].find("-->") else {
+            break;
+        };
         out.push_str(&rest[..start]);
         out.push(' ');
         rest = &rest[start + 4 + len + 3..];
@@ -459,7 +466,10 @@ pub fn is_pdf_source(content_type: &str, url: &str) -> bool {
 }
 
 fn split_at_chars(text: &str, count: usize) -> (&str, &str) {
-    let at = text.char_indices().nth(count).map_or(text.len(), |(at, _)| at);
+    let at = text
+        .char_indices()
+        .nth(count)
+        .map_or(text.len(), |(at, _)| at);
     text.split_at(at)
 }
 
@@ -470,7 +480,10 @@ fn paragraphs(text: &str) -> Vec<&str> {
     let mut at = 0;
     while at < bytes.len() {
         if bytes[at] == b'\n' {
-            let run = bytes[at..].iter().take_while(|byte| **byte == b'\n').count();
+            let run = bytes[at..]
+                .iter()
+                .take_while(|byte| **byte == b'\n')
+                .count();
             if run >= 2 {
                 parts.push(&text[start..at]);
                 start = at + run;
@@ -554,12 +567,18 @@ pub fn page_note(page: usize, count: usize) -> String {
 
 /// The charset a `<meta>` tag in the first bytes names.
 fn sniff_charset(bytes: &[u8]) -> Option<String> {
-    let head: String = bytes.iter().take(2048).map(|byte| char::from(*byte)).collect();
+    let head: String = bytes
+        .iter()
+        .take(2048)
+        .map(|byte| char::from(*byte))
+        .collect();
     let lower = head.to_lowercase();
     let mut from = 0;
     while let Some(start) = lower[from..].find("<meta") {
         let start = from + start;
-        let end = lower[start..].find('>').map_or(lower.len(), |at| start + at);
+        let end = lower[start..]
+            .find('>')
+            .map_or(lower.len(), |at| start + at);
         let tag = &lower[start..end];
         if let Some(at) = tag.find("charset") {
             let rest = tag[at + 7..].trim_start();
@@ -675,7 +694,9 @@ impl PageSource for ReqwestPageSource {
         };
         let mut bytes = Vec::new();
         while bytes.len() < limit {
-            let Some(chunk) = response.chunk().await.map_err(map_error)? else { break };
+            let Some(chunk) = response.chunk().await.map_err(map_error)? else {
+                break;
+            };
             bytes.extend_from_slice(&chunk);
         }
         bytes.truncate(limit);
@@ -990,7 +1011,9 @@ pub async fn read_page<S: PageSource>(
             let extracted = readable::extract(&html, &raw.final_url);
             markdown = extracted.markdown.trim().to_owned();
             meta.title = meta.title.or_else(|| clean(Some(extracted.title.as_str())));
-            meta.author = meta.author.or_else(|| clean(Some(extracted.byline.as_str())));
+            meta.author = meta
+                .author
+                .or_else(|| clean(Some(extracted.byline.as_str())));
             needs_browser = needs_render(&markdown, &html);
             let title = meta.title.as_deref().unwrap_or("");
             if is_challenge(title, &markdown) || is_challenge(title, &visible_text(&html)) {
@@ -1092,7 +1115,10 @@ mod read_tests {
     fn run<T>(future: impl Future<Output = T>) -> T {
         tokio::runtime::Builder::new_current_thread()
             .build()
-            .map_or_else(|_| unreachable!("runtime"), |runtime| runtime.block_on(future))
+            .map_or_else(
+                |_| unreachable!("runtime"),
+                |runtime| runtime.block_on(future),
+            )
     }
 
     fn no_pdf(_: &[u8]) -> Result<String, String> {
@@ -1111,16 +1137,37 @@ mod read_tests {
     fn a_redirect_to_a_private_address_is_refused() {
         let source = Canned::new(vec![Ok(Hop::Redirect("http://127.0.0.1/admin".to_owned()))]);
         let mut cache = PageCache::new();
-        let out = run(read_page(&mut cache, &source, "https://example.com/a", None, 0, &no_pdf));
-        assert!(matches!(out, ReadOutcome::Blocked(Blocked { kind: BlockKind::Refused, .. })), "{out:?}");
+        let out = run(read_page(
+            &mut cache,
+            &source,
+            "https://example.com/a",
+            None,
+            0,
+            &no_pdf,
+        ));
+        assert!(
+            matches!(
+                out,
+                ReadOutcome::Blocked(Blocked {
+                    kind: BlockKind::Refused,
+                    ..
+                })
+            ),
+            "{out:?}"
+        );
         assert_eq!(source.asked(), 1);
     }
 
     #[test]
     fn redirects_stop_after_five_hops() {
-        let hops = (0..8).map(|n| Ok(Hop::Redirect(format!("/hop{n}")))).collect();
+        let hops = (0..8)
+            .map(|n| Ok(Hop::Redirect(format!("/hop{n}"))))
+            .collect();
         let source = Canned::new(hops);
-        assert_eq!(run(fetch_following(&source, "https://example.com/")), Fetched::Failed);
+        assert_eq!(
+            run(fetch_following(&source, "https://example.com/")),
+            Fetched::Failed
+        );
         assert_eq!(source.asked(), MAX_HOPS + 1);
     }
 
@@ -1132,25 +1179,42 @@ mod read_tests {
         ]);
         let mut cache = PageCache::new();
         let url = "https://example.com/a";
-        let ReadOutcome::Page(first) = run(read_page(&mut cache, &source, url, None, 0, &no_pdf)) else {
+        let ReadOutcome::Page(first) = run(read_page(&mut cache, &source, url, None, 0, &no_pdf))
+        else {
             unreachable!("first page");
         };
         assert_eq!(first.page, 1);
         assert!(first.page_count > 1);
         assert!(first.page_note.contains("page=2"), "{}", first.page_note);
         assert_eq!(first.title, "Long read");
-        let ReadOutcome::Page(second) = run(read_page(&mut cache, &source, url, Some(2), 1_000, &no_pdf)) else {
+        let ReadOutcome::Page(second) =
+            run(read_page(&mut cache, &source, url, Some(2), 1_000, &no_pdf))
+        else {
             unreachable!("second page");
         };
         assert_eq!(second.page, 2);
         assert!(!second.text.is_empty());
         assert_eq!(source.asked(), 1);
-        let ReadOutcome::Page(beyond) = run(read_page(&mut cache, &source, url, Some(99), 1_000, &no_pdf)) else {
+        let ReadOutcome::Page(beyond) = run(read_page(
+            &mut cache,
+            &source,
+            url,
+            Some(99),
+            1_000,
+            &no_pdf,
+        )) else {
             unreachable!("beyond");
         };
         assert!(beyond.text.is_empty() && beyond.page_note.contains("does not exist"));
         // After the TTL the page is fetched again.
-        let _ = run(read_page(&mut cache, &source, url, None, CACHE_TTL_MS + 1_001, &no_pdf));
+        let _ = run(read_page(
+            &mut cache,
+            &source,
+            url,
+            None,
+            CACHE_TTL_MS + 1_001,
+            &no_pdf,
+        ));
         assert_eq!(source.asked(), 2);
     }
 
@@ -1185,7 +1249,9 @@ mod read_tests {
         let reader = |_: &[u8]| Ok("Page one text".to_owned());
         let url = "https://example.com/files/Annual%20Report.pdf";
         let out = run(read_page(&mut cache, &source, url, None, 0, &reader));
-        let ReadOutcome::Page(read) = out else { unreachable!("{out:?}") };
+        let ReadOutcome::Page(read) = out else {
+            unreachable!("{out:?}")
+        };
         assert_eq!(read.title, "Annual Report");
         assert_eq!(read.text, "Page one text");
     }
@@ -1195,20 +1261,54 @@ mod read_tests {
         let html = "<html><head><title>App</title><script src=\"/a.js\"></script></head><body><div id=\"root\"></div><p>Loading the application for you, one moment please, thanks.</p></body></html>";
         let source = Canned::new(vec![page("text/html", html.as_bytes())]);
         let mut cache = PageCache::new();
-        let out = run(read_page(&mut cache, &source, "https://example.com/a", None, 0, &no_pdf));
-        let ReadOutcome::Page(read) = out else { unreachable!("{out:?}") };
+        let out = run(read_page(
+            &mut cache,
+            &source,
+            "https://example.com/a",
+            None,
+            0,
+            &no_pdf,
+        ));
+        let ReadOutcome::Page(read) = out else {
+            unreachable!("{out:?}")
+        };
         assert!(read.page_note.contains("browser"), "{}", read.page_note);
     }
 
     #[test]
     fn a_challenge_page_and_a_non_page_are_blocked() {
         let wall = "<html><head><title>Just a moment...</title><script>a()</script></head><body>Checking your browser</body></html>";
-        let source = Canned::new(vec![page("text/html", wall.as_bytes()), page("image/png", b"x")]);
+        let source = Canned::new(vec![
+            page("text/html", wall.as_bytes()),
+            page("image/png", b"x"),
+        ]);
         let mut cache = PageCache::new();
-        let first = run(read_page(&mut cache, &source, "https://example.com/a", None, 0, &no_pdf));
-        assert!(matches!(first, ReadOutcome::Blocked(Blocked { kind: BlockKind::HumanVerification, .. })));
-        let second = run(read_page(&mut cache, &source, "https://example.com/b", None, 0, &no_pdf));
-        let ReadOutcome::Blocked(Blocked { reason, .. }) = second else { unreachable!() };
+        let first = run(read_page(
+            &mut cache,
+            &source,
+            "https://example.com/a",
+            None,
+            0,
+            &no_pdf,
+        ));
+        assert!(matches!(
+            first,
+            ReadOutcome::Blocked(Blocked {
+                kind: BlockKind::HumanVerification,
+                ..
+            })
+        ));
+        let second = run(read_page(
+            &mut cache,
+            &source,
+            "https://example.com/b",
+            None,
+            0,
+            &no_pdf,
+        ));
+        let ReadOutcome::Blocked(Blocked { reason, .. }) = second else {
+            unreachable!()
+        };
         assert!(reason.contains("image/png"), "{reason}");
     }
 
@@ -1221,12 +1321,18 @@ mod read_tests {
 
     #[test]
     fn entities_decode_once() {
-        assert_eq!(decode_entities("a &amp;lt; b &#65;&#x42; &quot;"), "a &lt; b AB \"");
+        assert_eq!(
+            decode_entities("a &amp;lt; b &#65;&#x42; &quot;"),
+            "a &lt; b AB \""
+        );
     }
 
     #[test]
     fn the_body_charset_comes_from_the_header_then_the_meta_tag() {
-        assert_eq!(decode_body(&[0xE9], "text/html; charset=iso-8859-1"), "\u{e9}");
+        assert_eq!(
+            decode_body(&[0xE9], "text/html; charset=iso-8859-1"),
+            "\u{e9}"
+        );
         let sniffed = [b"<meta charset=\"windows-1252\">".as_slice(), &[0xE9]].concat();
         assert!(decode_body(&sniffed, "text/html").ends_with('\u{e9}'));
     }

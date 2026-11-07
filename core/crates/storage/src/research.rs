@@ -349,7 +349,9 @@ impl Storage {
                 .query_map(params![id, limit], summary_row)?
                 .collect::<Result<Vec<_>, _>>()?,
             None => conn
-                .prepare(&format!("{SUMMARY_SQL} ORDER BY r.started_at DESC LIMIT ?1"))?
+                .prepare(&format!(
+                    "{SUMMARY_SQL} ORDER BY r.started_at DESC LIMIT ?1"
+                ))?
                 .query_map([limit], summary_row)?
                 .collect::<Result<Vec<_>, _>>()?,
         };
@@ -537,33 +539,59 @@ mod tests {
     #[test]
     fn saves_and_reads_back_with_a_snapshot_hash() {
         let (_dir, storage) = store();
-        storage.save_research_run(&run("r1", 10, "page text")).unwrap();
+        storage
+            .save_research_run(&run("r1", 10, "page text"))
+            .unwrap();
         let saved = storage.get_research_run("r1").unwrap().expect("run");
         assert_eq!(saved.summary.source_count, 1);
         assert_eq!(saved.notes[0].claim, "Rayleigh scattering");
         let hash = saved.sources[0].snapshot_hash.clone().expect("hash");
         assert_eq!(hash, hash_text("page text"));
-        assert_eq!(storage.research_snapshot(&hash).unwrap().unwrap().0, "page text");
+        assert_eq!(
+            storage.research_snapshot(&hash).unwrap().unwrap().0,
+            "page text"
+        );
     }
 
     #[test]
     fn search_finds_notes_and_survives_operators() {
         let (_dir, storage) = store();
-        storage.save_research_run(&run("r1", 10, "page text")).unwrap();
-        let hits = storage.search_research("scattering AND \"", Some("r1"), 5).unwrap();
-        assert!(hits.iter().any(|hit| hit.kind == "note" && hit.reference == "n1"));
+        storage
+            .save_research_run(&run("r1", 10, "page text"))
+            .unwrap();
+        let hits = storage
+            .search_research("scattering AND \"", Some("r1"), 5)
+            .unwrap();
+        assert!(
+            hits.iter()
+                .any(|hit| hit.kind == "note" && hit.reference == "n1")
+        );
     }
 
     #[test]
     fn retention_drops_old_runs_and_orphan_snapshots() {
         let (_dir, storage) = store();
         let now = 100 * DAY_MS;
-        storage.save_research_run(&run("old", now - 40 * DAY_MS, "old page")).unwrap();
-        storage.save_research_run(&run("new", now - DAY_MS, "new page")).unwrap();
+        storage
+            .save_research_run(&run("old", now - 40 * DAY_MS, "old page"))
+            .unwrap();
+        storage
+            .save_research_run(&run("new", now - DAY_MS, "new page"))
+            .unwrap();
         assert_eq!(storage.apply_research_retention(None, now).unwrap(), 0);
         assert_eq!(storage.apply_research_retention(Some(30), now).unwrap(), 1);
         assert!(storage.get_research_run("old").unwrap().is_none());
-        assert!(storage.research_snapshot(&hash_text("old page")).unwrap().is_none());
-        assert!(storage.research_snapshot(&hash_text("new page")).unwrap().is_some());
+        assert!(
+            storage
+                .research_snapshot(&hash_text("old page"))
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            storage
+                .research_snapshot(&hash_text("new page"))
+                .unwrap()
+                .is_some()
+        );
     }
 }

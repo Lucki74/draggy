@@ -11,12 +11,18 @@ use serde_json::{Value, json};
 
 use super::citations::{Citable, CitationVerdict, verify_citations};
 use super::run::{
-    Depth, NoteInput, RawList, RunStatus, SourceStatus, StopReason, DEPTH_IDS, add_note, budget_of, coverage, create_run, depth_spec, finish, read_plan,
+    DEPTH_IDS, Depth, NoteInput, RawList, RunStatus, SourceStatus, StopReason, add_note, budget_of,
+    coverage, create_run, depth_spec, finish, read_plan,
 };
 use crate::web_tools::{WebTools, now_ms};
 
 /// The names of the research tools.
-pub const NAMES: [&str; 4] = ["start_research", "add_note", "search_notes", "finish_research"];
+pub const NAMES: [&str; 4] = [
+    "start_research",
+    "add_note",
+    "search_notes",
+    "finish_research",
+];
 
 /// Where finished runs are saved, and which chat a follow-up question finds them under.
 #[derive(Clone)]
@@ -26,7 +32,12 @@ pub struct ResearchLibrary {
     pub chat_id: Option<String>,
 }
 
-fn definition(name: &str, description: &str, properties: &Value, required: &[&str]) -> ToolDefinition {
+fn definition(
+    name: &str,
+    description: &str,
+    properties: &Value,
+    required: &[&str],
+) -> ToolDefinition {
     ToolDefinition {
         kind: "function".to_owned(),
         function: FunctionDefinition {
@@ -117,7 +128,12 @@ impl WebTools {
         self.max_depth = depth;
     }
 
-    pub(crate) fn run_research(&mut self, name: &str, args: &Value, ctx: &mut ToolContext<'_>) -> String {
+    pub(crate) fn run_research(
+        &mut self,
+        name: &str,
+        args: &Value,
+        ctx: &mut ToolContext<'_>,
+    ) -> String {
         match name {
             "start_research" => self.start_research(args, ctx),
             "add_note" => self.add_note_tool(args),
@@ -157,7 +173,10 @@ impl WebTools {
         })
         .to_string();
         let complete = Some(run.ended_at.is_some());
-        if let Some(step) = steps.iter_mut().find(|s| s.kind == "research_run" && s.id.as_deref() == Some(&run.id)) {
+        if let Some(step) = steps
+            .iter_mut()
+            .find(|s| s.kind == "research_run" && s.id.as_deref() == Some(&run.id))
+        {
             step.content = Some(view);
             step.is_complete = complete;
         } else {
@@ -190,7 +209,8 @@ impl WebTools {
         };
         let mut plan = plan;
         if let Some(max) = self.max_depth
-            && DEPTH_IDS.iter().position(|d| *d == plan.depth) > DEPTH_IDS.iter().position(|d| *d == max)
+            && DEPTH_IDS.iter().position(|d| *d == plan.depth)
+                > DEPTH_IDS.iter().position(|d| *d == max)
         {
             plan.depth = max;
             plan.sub_questions.truncate(depth_spec(max).max_questions);
@@ -207,7 +227,8 @@ impl WebTools {
 
     fn add_note_tool(&mut self, args: &Value) -> String {
         if self.research.is_none() {
-            return "TOOL RESULT (add_note): There is no research run. Call start_research first.".to_owned();
+            return "TOOL RESULT (add_note): There is no research run. Call start_research first."
+                .to_owned();
         }
         self.spend_call();
         let sub_question = match args.get("sub_question") {
@@ -234,7 +255,11 @@ impl WebTools {
         );
         match added {
             Err(message) => format!("TOOL RESULT (add_note): {message}"),
-            Ok(note) => format!("TOOL RESULT (add_note): Saved as {}.{}", note.id, self.run_footer()),
+            Ok(note) => format!(
+                "TOOL RESULT (add_note): Saved as {}.{}",
+                note.id,
+                self.run_footer()
+            ),
         }
     }
 
@@ -254,22 +279,44 @@ impl WebTools {
     }
 
     fn search_notes(&self, args: &Value) -> String {
-        let saved = if self.research.is_some() { None } else { self.prior_run() };
+        let saved = if self.research.is_some() {
+            None
+        } else {
+            self.prior_run()
+        };
         if self.research.is_none() && saved.is_none() {
             return "TOOL RESULT (search_notes): There is no research run.".to_owned();
         }
         let query = text(args, "query");
-        let words: Vec<String> = query.to_lowercase().split_whitespace().map(str::to_owned).collect();
+        let words: Vec<String> = query
+            .to_lowercase()
+            .split_whitespace()
+            .map(str::to_owned)
+            .collect();
         let notes: Vec<(String, String, String, String)> = match (&self.research, &saved) {
             (Some(run), _) => run
                 .notes
                 .iter()
-                .map(|n| (n.id.clone(), n.source_id.clone(), n.claim.clone(), n.quote.clone()))
+                .map(|n| {
+                    (
+                        n.id.clone(),
+                        n.source_id.clone(),
+                        n.claim.clone(),
+                        n.quote.clone(),
+                    )
+                })
                 .collect(),
             (None, Some(saved)) => saved
                 .notes
                 .iter()
-                .map(|n| (n.id.clone(), n.source_id.clone(), n.claim.clone(), n.quote.clone()))
+                .map(|n| {
+                    (
+                        n.id.clone(),
+                        n.source_id.clone(),
+                        n.claim.clone(),
+                        n.quote.clone(),
+                    )
+                })
                 .collect(),
             _ => Vec::new(),
         };
@@ -312,7 +359,11 @@ impl WebTools {
         let Some(run) = self.research.as_ref() else {
             return String::new();
         };
-        let kept: Vec<_> = run.notes.iter().filter(|note| note.verified == Some(true)).collect();
+        let kept: Vec<_> = run
+            .notes
+            .iter()
+            .filter(|note| note.verified == Some(true))
+            .collect();
         let sources: Vec<_> = run
             .sources
             .iter()
@@ -323,7 +374,13 @@ impl WebTools {
             .filter(|entry| !entry.enough)
             .map(|entry| format!("{}. {}", entry.sub_question, entry.text))
             .collect();
-        let list = |lines: Vec<String>| if lines.is_empty() { "(none)".to_owned() } else { lines.join("\n") };
+        let list = |lines: Vec<String>| {
+            if lines.is_empty() {
+                "(none)".to_owned()
+            } else {
+                lines.join("\n")
+            }
+        };
         let mut parts = vec![
             "TOOL RESULT (finish_research): Write the report now. Answer the question first, then one section per sub-question. Cite every fact with its note id like [n1]; do not cite anything else. Write the report in the reply when it fits. When the user asked for a file, or it would run past about 1,500 words, write it with create_file and keep the reply to a short summary.".to_owned(),
             format!(
@@ -342,18 +399,31 @@ impl WebTools {
             ),
         ];
         if dropped > 0 {
-            parts.push(format!("{dropped} notes were left out because their quote was not found on the page."));
+            parts.push(format!(
+                "{dropped} notes were left out because their quote was not found on the page."
+            ));
         }
         if !gaps.is_empty() {
-            parts.push(format!("Say plainly that these were not answered:\n{}", gaps.join("\n")));
+            parts.push(format!(
+                "Say plainly that these were not answered:\n{}",
+                gaps.join("\n")
+            ));
         }
         parts.join("\n\n")
     }
 
     /// Settles a run the model never finished, as the turn ends. A stopped or failed turn leaves it cancelled.
     /// The run step in `steps` is redrawn, so the card shows the end state.
-    pub fn settle_open(&mut self, cancelled: bool, steps: &mut Vec<draggy_agent::resume::SearchStep>) {
-        if self.research.as_ref().is_some_and(|run| run.ended_at.is_none()) {
+    pub fn settle_open(
+        &mut self,
+        cancelled: bool,
+        steps: &mut Vec<draggy_agent::resume::SearchStep>,
+    ) {
+        if self
+            .research
+            .as_ref()
+            .is_some_and(|run| run.ended_at.is_none())
+        {
             if cancelled && let Some(run) = self.research.as_mut() {
                 run.status = RunStatus::Cancelled;
             }
@@ -389,7 +459,11 @@ impl WebTools {
             note.verified = Some(verdicts.get(&note.id) == Some(&CitationVerdict::Verified));
         }
         run.ended_at = Some(now);
-        let dropped = run.notes.iter().filter(|note| note.verified != Some(true)).count();
+        let dropped = run
+            .notes
+            .iter()
+            .filter(|note| note.verified != Some(true))
+            .count();
         if let Some(library) = &self.library
             && let Some(record) = self.record(now)
             && let Err(error) = library.storage.save_research_run(&record)
@@ -416,13 +490,19 @@ impl WebTools {
             chat_id: library.chat_id.clone(),
             question: run.plan.question.clone(),
             depth: Depth::id(run.plan.depth).to_owned(),
-            status: if id_of(&run.status) == "cancelled" { "cancelled" } else { "done" }.to_owned(),
+            status: if id_of(&run.status) == "cancelled" {
+                "cancelled"
+            } else {
+                "done"
+            }
+            .to_owned(),
             plan_json: plan.to_string(),
             sub_questions: run.plan.sub_questions.clone(),
             started_at: to_i64(run.started_at),
             ended_at: Some(to_i64(run.ended_at.unwrap_or(now))),
             budget_used: budget_of(run, now).used,
-            hosts_json: serde_json::to_string(&run.contacted_hosts).unwrap_or_else(|_| "[]".to_owned()),
+            hosts_json: serde_json::to_string(&run.contacted_hosts)
+                .unwrap_or_else(|_| "[]".to_owned()),
             report_ref: None,
             sources: run
                 .sources
@@ -492,13 +572,28 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let mut web = tools(&rt);
         let (mut steps, mut ids, cancel) = (Vec::new(), Ids(0), CancelSignal::new());
-        let mut ctx = ToolContext { steps: &mut steps, ids: &mut ids, cancel: &cancel, plan: None };
-        web.run_research("start_research", &json!({"question": "Why is the sky blue"}), &mut ctx);
+        let mut ctx = ToolContext {
+            steps: &mut steps,
+            ids: &mut ids,
+            cancel: &cancel,
+            plan: None,
+        };
+        web.run_research(
+            "start_research",
+            &json!({"question": "Why is the sky blue"}),
+            &mut ctx,
+        );
         web.sync_run_step(&mut ctx);
         web.sync_run_step(&mut ctx);
         assert_eq!(steps.len(), 1);
         assert_eq!(steps[0].kind, "research_run");
-        assert!(steps[0].content.as_deref().unwrap().contains("\"question\""));
+        assert!(
+            steps[0]
+                .content
+                .as_deref()
+                .unwrap()
+                .contains("\"question\"")
+        );
     }
 
     fn tools(rt: &tokio::runtime::Runtime) -> WebTools {
@@ -507,7 +602,9 @@ mod tests {
 
     #[test]
     fn a_run_notes_a_read_page_and_saves_on_settle() {
-        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
         let dir = tempfile::tempdir().unwrap();
         let storage = Arc::new(Storage::open(dir.path()).unwrap());
         let mut web = tools(&rt);
@@ -517,7 +614,11 @@ mod tests {
             chat_id: Some("c1".into()),
         }));
         assert!(call(&mut web, "add_note", &json!({})).contains("Call start_research first"));
-        let started = call(&mut web, "start_research", &json!({"question": "Why", "sub_questions": "One\nTwo"}));
+        let started = call(
+            &mut web,
+            "start_research",
+            &json!({"question": "Why", "sub_questions": "One\nTwo"}),
+        );
         assert!(started.contains("The plan is approved") && started.contains("RESEARCH: Why"));
         let run = web.research.as_mut().unwrap();
         let source = add_source(
@@ -529,16 +630,23 @@ mod tests {
                 ..SourceInput::default()
             },
         );
-        web.page_texts.insert(source.id.clone(), "The sky is blue because of scattering.".into());
+        web.page_texts.insert(
+            source.id.clone(),
+            "The sky is blue because of scattering.".into(),
+        );
         let args = json!({"claim": "Scattering", "quote": "blue because of scattering", "source_id": "s1"});
         assert!(call(&mut web, "add_note", &args).contains("Saved as n1."));
-        let fake = json!({"claim": "Made up", "quote": "this is not on the page", "source_id": "s1"});
+        let fake =
+            json!({"claim": "Made up", "quote": "this is not on the page", "source_id": "s1"});
         call(&mut web, "add_note", &fake);
         let finished = call(&mut web, "finish_research", &json!({}));
         assert!(finished.contains("n1 q1 single_source: Scattering"));
         assert!(!finished.contains("Made up"));
         assert!(finished.contains("1 notes were left out"));
-        let saved = storage.get_research_run(&web.research.as_ref().unwrap().id).unwrap().expect("saved");
+        let saved = storage
+            .get_research_run(&web.research.as_ref().unwrap().id)
+            .unwrap()
+            .expect("saved");
         assert_eq!(saved.summary.status, "done");
         assert_eq!(saved.notes.len(), 2);
         assert!(saved.sources[0].snapshot_hash.is_some());
@@ -552,7 +660,9 @@ mod tests {
 
     #[test]
     fn search_notes_without_a_run_says_so() {
-        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
         let mut web = tools(&rt);
         assert_eq!(
             call(&mut web, "search_notes", &json!({"query": "x"})),
@@ -562,9 +672,15 @@ mod tests {
 
     #[test]
     fn settle_open_leaves_a_finished_run_alone() {
-        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
         let mut web = tools(&rt);
-        call(&mut web, "start_research", &json!({"question": "Why", "sub_questions": "One"}));
+        call(
+            &mut web,
+            "start_research",
+            &json!({"question": "Why", "sub_questions": "One"}),
+        );
         web.settle_open(false, &mut Vec::new());
         let ended = web.research.as_ref().unwrap().ended_at;
         assert!(ended.is_some());
@@ -574,16 +690,35 @@ mod tests {
 
     #[test]
     fn a_cancelled_turn_keeps_notes_and_skips_unread_pages() {
-        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
         let mut web = tools(&rt);
-        call(&mut web, "start_research", &json!({"question": "Why", "sub_questions": "One"}));
+        call(
+            &mut web,
+            "start_research",
+            &json!({"question": "Why", "sub_questions": "One"}),
+        );
         let run = web.research.as_mut().unwrap();
-        let read = SourceInput { url: "https://a.test/p", status: Some(SourceStatus::Read), ..SourceInput::default() };
-        let open = SourceInput { url: "https://b.test/q", status: Some(SourceStatus::Reading), ..SourceInput::default() };
+        let read = SourceInput {
+            url: "https://a.test/p",
+            status: Some(SourceStatus::Read),
+            ..SourceInput::default()
+        };
+        let open = SourceInput {
+            url: "https://b.test/q",
+            status: Some(SourceStatus::Reading),
+            ..SourceInput::default()
+        };
         add_source(run, read);
         add_source(run, open);
-        web.page_texts.insert("s1".into(), "The sky is blue because of scattering.".into());
-        call(&mut web, "add_note", &json!({"claim": "C", "quote": "blue because of scattering", "source_id": "s1"}));
+        web.page_texts
+            .insert("s1".into(), "The sky is blue because of scattering.".into());
+        call(
+            &mut web,
+            "add_note",
+            &json!({"claim": "C", "quote": "blue because of scattering", "source_id": "s1"}),
+        );
         let mut steps = Vec::new();
         web.settle_open(true, &mut steps);
         let run = web.research.as_ref().unwrap();
@@ -599,9 +734,15 @@ mod tests {
 
     #[test]
     fn a_failed_turn_without_cancel_still_finishes_as_done() {
-        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
         let mut web = tools(&rt);
-        call(&mut web, "start_research", &json!({"question": "Why", "sub_questions": "One"}));
+        call(
+            &mut web,
+            "start_research",
+            &json!({"question": "Why", "sub_questions": "One"}),
+        );
         web.settle_open(false, &mut Vec::new());
         assert_eq!(web.research.as_ref().unwrap().status, RunStatus::Writing);
     }

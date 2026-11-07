@@ -107,7 +107,7 @@ describe("keys", () => {
     const fetch = vi.fn(async (..._args: unknown[]) => response);
     await sources.searchSource("graphs", "papers", { ...base, fetch, openAlexKey: "oa-secret" });
     const calls = fetch.mock.calls.map((call) => String(call[0]));
-    expect(calls.some((url) => url.includes("openalex.org") && url.includes("api_key=oa-secret"))).toBe(true);
+    expect(calls.some((url) => new URL(url).hostname.endsWith(".openalex.org") && url.includes("api_key=oa-secret"))).toBe(true);
     fetch.mockClear();
     await sources.searchSource("graphs", "papers", { ...base, fetch });
     expect(fetch.mock.calls.every((call) => !String(call[0]).includes("api_key"))).toBe(true);
@@ -120,7 +120,7 @@ describe("keys", () => {
       const host = new URL(url).hostname;
       expect(Boolean(init.headers.Authorization)).toBe(host === "api.github.com");
     }
-    expect(fetch.mock.calls.some((call) => String(call[0]).includes("api.github.com"))).toBe(true);
+    expect(fetch.mock.calls.some((call) => new URL(String(call[0])).hostname === "api.github.com")).toBe(true);
   });
 
   it("each service keeps its key under its own owner", () => {

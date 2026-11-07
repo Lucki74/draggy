@@ -99,7 +99,10 @@ pub fn judge_citation_at(quote: &str, page: &str, near_threshold: f64) -> Citati
 }
 
 /// Judges every note against the page of its source. A missing page is unverified.
-pub fn verify_citations(notes: &[Citable], pages: &HashMap<String, String>) -> HashMap<String, CitationVerdict> {
+pub fn verify_citations(
+    notes: &[Citable],
+    pages: &HashMap<String, String>,
+) -> HashMap<String, CitationVerdict> {
     notes
         .iter()
         .map(|note| {
@@ -113,7 +116,10 @@ pub fn verify_citations(notes: &[Citable], pages: &HashMap<String, String>) -> H
 }
 
 fn split_words(normalised: &str) -> Vec<&str> {
-    normalised.split(' ').filter(|word| !word.is_empty()).collect()
+    normalised
+        .split(' ')
+        .filter(|word| !word.is_empty())
+        .collect()
 }
 
 #[cfg(test)]
@@ -122,7 +128,10 @@ mod tests {
 
     #[test]
     fn normalise_for_match_collapses_whitespace_and_strips_punctuation() {
-        assert_eq!(normalise_for_match("  Hello,   world!\n\tagain.  "), "hello world again");
+        assert_eq!(
+            normalise_for_match("  Hello,   world!\n\tagain.  "),
+            "hello world again"
+        );
     }
 
     #[test]
@@ -153,12 +162,18 @@ mod tests {
 
     #[test]
     fn quote_appears_ignores_case_differences() {
-        assert!(quote_appears("THE GREAT WALL stands", "the great wall stands tall"));
+        assert!(quote_appears(
+            "THE GREAT WALL stands",
+            "the great wall stands tall"
+        ));
     }
 
     #[test]
     fn quote_appears_rejects_a_two_word_quote() {
-        assert!(!quote_appears("climate change", "Climate change is real and urgent."));
+        assert!(!quote_appears(
+            "climate change",
+            "Climate change is real and urgent."
+        ));
     }
 
     #[test]
@@ -181,13 +196,19 @@ mod tests {
     #[test]
     fn quote_appears_matches_french_accents_and_apostrophes() {
         let page = "Hier, le café où l’élève réfléchit longtemps, près de la gare.";
-        assert!(quote_appears("Le café où l'élève réfléchit longtemps", page));
+        assert!(quote_appears(
+            "Le café où l'élève réfléchit longtemps",
+            page
+        ));
     }
 
     #[test]
     #[ignore = "needs NFKC composition; unicode-normalization is not a draggy-core dependency"]
     fn quote_appears_matches_decomposed_and_composed_french_accents() {
-        assert!(quote_appears("le café est ouvert", "Ici le café est ouvert le matin."));
+        assert!(quote_appears(
+            "le café est ouvert",
+            "Ici le café est ouvert le matin."
+        ));
     }
 
     #[test]
@@ -198,12 +219,18 @@ mod tests {
 
     #[test]
     fn best_match_ratio_returns_1_for_a_verbatim_quote() {
-        assert_eq!(best_match_ratio("one two three four", "x one two three four y"), 1.0);
+        assert_eq!(
+            best_match_ratio("one two three four", "x one two three four y"),
+            1.0
+        );
     }
 
     #[test]
     fn best_match_ratio_returns_0_when_no_words_overlap() {
-        assert_eq!(best_match_ratio("alpha beta gamma", "delta epsilon zeta"), 0.0);
+        assert_eq!(
+            best_match_ratio("alpha beta gamma", "delta epsilon zeta"),
+            0.0
+        );
     }
 
     #[test]
@@ -228,13 +255,19 @@ mod tests {
     fn judge_citation_gives_unverified_when_the_near_threshold_is_not_reached() {
         let quote = "the committee approved the new budget for the coming fiscal year";
         let page = "the committee adopted the new budget for the coming fiscal year";
-        assert_eq!(judge_citation_at(quote, page, 0.9), CitationVerdict::Unverified);
+        assert_eq!(
+            judge_citation_at(quote, page, 0.9),
+            CitationVerdict::Unverified
+        );
     }
 
     #[test]
     fn judge_citation_gives_verified_for_an_exact_quote() {
         assert_eq!(
-            judge_citation("the new budget was approved", "Yes: the new budget was approved."),
+            judge_citation(
+                "the new budget was approved",
+                "Yes: the new budget was approved."
+            ),
             CitationVerdict::Verified
         );
     }
@@ -256,8 +289,14 @@ mod tests {
     #[test]
     fn verify_citations_judges_each_note_against_its_source_page() {
         let pages = HashMap::from([
-            ("s1".to_owned(), "Report: the new budget was approved in May.".to_owned()),
-            ("s2".to_owned(), "Completely unrelated content about gardens.".to_owned()),
+            (
+                "s1".to_owned(),
+                "Report: the new budget was approved in May.".to_owned(),
+            ),
+            (
+                "s2".to_owned(),
+                "Completely unrelated content about gardens.".to_owned(),
+            ),
         ]);
         let verdicts = verify_citations(&sample_notes(), &pages);
         assert_eq!(verdicts.get("n1"), Some(&CitationVerdict::Verified));
@@ -273,11 +312,17 @@ mod tests {
 
     #[test]
     fn quote_appears_matches_a_hyphenated_phrase_against_spaced_words() {
-        assert!(quote_appears("a well-known result here", "It is a well known result here."));
+        assert!(quote_appears(
+            "a well-known result here",
+            "It is a well known result here."
+        ));
     }
 
     #[test]
     fn judge_citation_gives_unverified_for_a_two_word_quote_even_when_it_appears() {
-        assert_eq!(judge_citation("borrow checker", "The borrow checker runs."), CitationVerdict::Unverified);
+        assert_eq!(
+            judge_citation("borrow checker", "The borrow checker runs."),
+            CitationVerdict::Unverified
+        );
     }
 }

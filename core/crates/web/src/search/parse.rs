@@ -255,7 +255,9 @@ pub fn canonical_url(url: &str) -> String {
         .filter(|pair| !pair.is_empty() && !is_dropped_param(pair))
         .collect();
     let host = parsed.host_str().unwrap_or_default();
-    let port = parsed.port().map_or(String::new(), |port| format!(":{port}"));
+    let port = parsed
+        .port()
+        .map_or(String::new(), |port| format!(":{port}"));
     let query = if kept.is_empty() {
         String::new()
     } else {
@@ -284,5 +286,6 @@ pub fn domain_of(url: &str) -> String {
         .ok()
         .and_then(|parsed| parsed.host_str().map(str::to_lowercase))
         .unwrap_or_default();
-    host.strip_prefix("www.").map_or(host.clone(), str::to_owned)
+    host.strip_prefix("www.")
+        .map_or(host.clone(), str::to_owned)
 }

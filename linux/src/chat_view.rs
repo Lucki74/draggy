@@ -839,11 +839,17 @@ impl DraggyChat {
         }
     }
 
-    fn run_turn(&self, session: Arc<Session>, text: String, sent: String, images: Vec<ImageRecord>) {
+    fn run_turn(
+        &self,
+        session: Arc<Session>,
+        text: String,
+        sent: String,
+        images: Vec<ImageRecord>,
+    ) {
         let imp = self.imp();
-        let shown = images.iter().fold(text, |shown, image| {
-            format!("{shown}\n[{}]", image.name)
-        });
+        let shown = images
+            .iter()
+            .fold(text, |shown, image| format!("{shown}\n[{}]", image.name));
         imp.log.borrow_mut().begin_turn(&shown);
         {
             let log = imp.log.borrow();
@@ -1132,7 +1138,10 @@ fn draw_body(body: &gtk::Box, entry: &Entry, text: &str, run: Option<&RunView>) 
             if let Some(run) = run.filter(|run| run.ended_at.is_some()) {
                 let lines = research::source_list_markup(run);
                 if !lines.is_empty() {
-                    let title = format!("<b>{}</b>", markdown::escape(&research::t("researchSourceList")));
+                    let title = format!(
+                        "<b>{}</b>",
+                        markdown::escape(&research::t("researchSourceList"))
+                    );
                     body.append(&markup_label(&title, "message-text"));
                     for line in lines {
                         body.append(&markup_label(&line, "caption"));

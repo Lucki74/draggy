@@ -88,7 +88,9 @@ impl RunView {
         }
         let note = self.notes.iter().find(|note| note.id == reference)?;
         let cited = self.cited_sources();
-        let index = cited.iter().position(|source| source.id == note.source_id)?;
+        let index = cited
+            .iter()
+            .position(|source| source.id == note.source_id)?;
         Some(Cite {
             n: index + 1,
             source: cited[index],
@@ -130,13 +132,32 @@ pub fn link_citations(markup: &str, run: &RunView) -> String {
 
 fn chip_markup(cite: &Cite<'_>) -> String {
     let source = cite.source;
-    let name = if source.title.is_empty() { &source.url } else { &source.title };
+    let name = if source.title.is_empty() {
+        &source.url
+    } else {
+        &source.title
+    };
     let site = source.site.as_deref().unwrap_or_default();
-    let day = source.published.as_deref().map(|date| date.chars().take(10).collect::<String>());
-    let meta = [Some(site.to_owned()), day].into_iter().flatten().filter(|part| !part.is_empty()).collect::<Vec<_>>().join(" · ");
-    let check = t(if cite.verified { "citeVerified" } else { "citeNotVerified" });
+    let day = source
+        .published
+        .as_deref()
+        .map(|date| date.chars().take(10).collect::<String>());
+    let meta = [Some(site.to_owned()), day]
+        .into_iter()
+        .flatten()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ");
+    let check = t(if cite.verified {
+        "citeVerified"
+    } else {
+        "citeNotVerified"
+    });
     let tip = escape(&format!("{name}\n{meta}\n\"{}\"\n{check}", cite.quote));
-    let number = format!("<span bgcolor=\"#8888883c\" size=\"smaller\" rise=\"3000\"> {} </span>", cite.n);
+    let number = format!(
+        "<span bgcolor=\"#8888883c\" size=\"smaller\" rise=\"3000\"> {} </span>",
+        cite.n
+    );
     match web_link(&source.url) {
         Some(url) => format!("<a href=\"{url}\" title=\"{tip}\">{number}</a>"),
         None => number,
@@ -149,18 +170,34 @@ pub fn source_list_markup(run: &RunView) -> Vec<String> {
         .iter()
         .enumerate()
         .map(|(index, source)| {
-            let name = escape(if source.title.is_empty() { &source.url } else { &source.title });
+            let name = escape(if source.title.is_empty() {
+                &source.url
+            } else {
+                &source.title
+            });
             let title = match web_link(&source.url) {
                 Some(url) => format!("<a href=\"{url}\">{name}</a>"),
                 None => name,
             };
             let site = source.site.as_deref().unwrap_or_default();
-            let day = source.published.as_deref().map(|date| date.chars().take(10).collect::<String>());
-            let meta = [Some(site.to_owned()), day].into_iter().flatten().filter(|part| !part.is_empty()).collect::<Vec<_>>().join(" · ");
+            let day = source
+                .published
+                .as_deref()
+                .map(|date| date.chars().take(10).collect::<String>());
+            let meta = [Some(site.to_owned()), day]
+                .into_iter()
+                .flatten()
+                .filter(|part| !part.is_empty())
+                .collect::<Vec<_>>()
+                .join(" · ");
             if meta.is_empty() {
                 format!("{}. {title}", index + 1)
             } else {
-                format!("{}. {title} <span alpha=\"60%\">{}</span>", index + 1, escape(&meta))
+                format!(
+                    "{}. {title} <span alpha=\"60%\">{}</span>",
+                    index + 1,
+                    escape(&meta)
+                )
             }
         })
         .collect()
@@ -173,7 +210,11 @@ pub fn card_header(run: &RunView) -> String {
         "deep" => "researchDepthDeep",
         _ => "researchDepthStandard",
     });
-    let read = run.sources.iter().filter(|source| source.status == "read").count();
+    let read = run
+        .sources
+        .iter()
+        .filter(|source| source.status == "read")
+        .count();
     format!(
         "{} · {depth} · {} · {}",
         t("researchRunTitle"),
@@ -197,7 +238,11 @@ pub fn source_line(source: &RunSource) -> String {
         "blocked" => "researchStatusBlocked",
         _ => "researchStatusFailed",
     });
-    let name = if source.title.is_empty() { source.url.as_str() } else { source.title.as_str() };
+    let name = if source.title.is_empty() {
+        source.url.as_str()
+    } else {
+        source.title.as_str()
+    };
     match source.site.as_deref().filter(|site| !site.is_empty()) {
         Some(site) => format!("[{status}] {name} · {site}"),
         None => format!("[{status}] {name}"),
@@ -206,7 +251,8 @@ pub fn source_line(source: &RunSource) -> String {
 
 /// The services line under the card, or `None` before anything was contacted.
 pub fn services_line(run: &RunView) -> Option<String> {
-    (!run.hosts.is_empty()).then(|| t("researchRunServices").replace("{hosts}", &run.hosts.join(", ")))
+    (!run.hosts.is_empty())
+        .then(|| t("researchRunServices").replace("{hosts}", &run.hosts.join(", ")))
 }
 
 /// The warning for a finished run that kept no sourced note, so its answer stands on nothing.
@@ -242,36 +288,144 @@ pub const DEPTHS: [&str; 3] = ["quick", "standard", "deep"];
 pub const KEEPS: [&str; 3] = ["forever", "90", "30"];
 
 const TEXTS: &[(&str, [&str; 4])] = &[
-    ("researchRunTitle", ["Research", "Recherche", "Investigación", "Исследование"]),
-    ("researchSourceList", ["Sources", "Sources", "Fuentes", "Источники"]),
-    ("researchRunSources", ["{n} sources read", "{n} sources lues", "{n} fuentes leídas", "Прочитано источников: {n}"]),
-    ("researchRunNotes", ["{n} notes", "{n} notes", "{n} notas", "Заметок: {n}"]),
-    ("researchRunServices", ["Contacted: {hosts}", "Services contactés : {hosts}", "Servicios contactados: {hosts}", "Обращения к сервисам: {hosts}"]),
-    ("researchRunNoNotes", [
-        "No sourced notes were kept. The answer below is not backed by any source.",
-        "Aucune note sourcée n'a été retenue. La réponse ci-dessous ne s'appuie sur aucune source.",
-        "No se conservó ninguna nota con fuente. La respuesta de abajo no se apoya en ninguna fuente.",
-        "Не сохранено ни одной заметки с источником. Ответ ниже не опирается на источники.",
-    ]),
-    ("researchStatusReading", ["Reading", "Lecture", "Leyendo", "Чтение"]),
+    (
+        "researchRunTitle",
+        ["Research", "Recherche", "Investigación", "Исследование"],
+    ),
+    (
+        "researchSourceList",
+        ["Sources", "Sources", "Fuentes", "Источники"],
+    ),
+    (
+        "researchRunSources",
+        [
+            "{n} sources read",
+            "{n} sources lues",
+            "{n} fuentes leídas",
+            "Прочитано источников: {n}",
+        ],
+    ),
+    (
+        "researchRunNotes",
+        ["{n} notes", "{n} notes", "{n} notas", "Заметок: {n}"],
+    ),
+    (
+        "researchRunServices",
+        [
+            "Contacted: {hosts}",
+            "Services contactés : {hosts}",
+            "Servicios contactados: {hosts}",
+            "Обращения к сервисам: {hosts}",
+        ],
+    ),
+    (
+        "researchRunNoNotes",
+        [
+            "No sourced notes were kept. The answer below is not backed by any source.",
+            "Aucune note sourcée n'a été retenue. La réponse ci-dessous ne s'appuie sur aucune source.",
+            "No se conservó ninguna nota con fuente. La respuesta de abajo no se apoya en ninguna fuente.",
+            "Не сохранено ни одной заметки с источником. Ответ ниже не опирается на источники.",
+        ],
+    ),
+    (
+        "researchStatusReading",
+        ["Reading", "Lecture", "Leyendo", "Чтение"],
+    ),
     ("researchStatusRead", ["Read", "Lue", "Leída", "Прочитан"]),
-    ("researchStatusSkipped", ["Skipped", "Ignorée", "Omitida", "Пропущен"]),
-    ("researchStatusBlocked", ["Blocked", "Bloquée", "Bloqueada", "Заблокирован"]),
-    ("researchStatusFailed", ["Failed", "Échec", "Fallida", "Не удалось"]),
-    ("citeVerified", ["Quote found on the page", "Citation retrouvée dans la page", "Cita encontrada en la página", "Цитата найдена на странице"]),
-    ("citeNotVerified", ["Quote not checked", "Citation non vérifiée", "Cita sin comprobar", "Цитата не проверена"]),
-    ("researchDepthQuick", ["Quick", "Rapide", "Rápida", "Быстро"]),
-    ("researchDepthStandard", ["Standard", "Standard", "Estándar", "Стандартно"]),
-    ("researchDepthDeep", ["Deep", "Approfondie", "A fondo", "Глубоко"]),
-    ("researchPage", ["Research", "Recherches", "Investigaciones", "Исследования"]),
-    ("researchModelStart", ["Let the model start research", "Laisser le modèle lancer une recherche", "Dejar que el modelo inicie investigaciones", "Разрешить модели начинать исследование"]),
-    ("researchModelStartHint", ["When off, the model does not start research runs.", "Désactivé, le modèle ne lance pas de recherches.", "Si está desactivado, el modelo no inicia investigaciones.", "Если выключено, модель не запускает исследования."]),
-    ("researchMaxDepth", ["Highest depth allowed", "Profondeur maximale autorisée", "Profundidad máxima permitida", "Максимальная глубина"]),
-    ("researchKeep", ["Keep research for", "Conserver les recherches", "Conservar las investigaciones", "Хранить исследования"]),
+    (
+        "researchStatusSkipped",
+        ["Skipped", "Ignorée", "Omitida", "Пропущен"],
+    ),
+    (
+        "researchStatusBlocked",
+        ["Blocked", "Bloquée", "Bloqueada", "Заблокирован"],
+    ),
+    (
+        "researchStatusFailed",
+        ["Failed", "Échec", "Fallida", "Не удалось"],
+    ),
+    (
+        "citeVerified",
+        [
+            "Quote found on the page",
+            "Citation retrouvée dans la page",
+            "Cita encontrada en la página",
+            "Цитата найдена на странице",
+        ],
+    ),
+    (
+        "citeNotVerified",
+        [
+            "Quote not checked",
+            "Citation non vérifiée",
+            "Cita sin comprobar",
+            "Цитата не проверена",
+        ],
+    ),
+    (
+        "researchDepthQuick",
+        ["Quick", "Rapide", "Rápida", "Быстро"],
+    ),
+    (
+        "researchDepthStandard",
+        ["Standard", "Standard", "Estándar", "Стандартно"],
+    ),
+    (
+        "researchDepthDeep",
+        ["Deep", "Approfondie", "A fondo", "Глубоко"],
+    ),
+    (
+        "researchPage",
+        ["Research", "Recherches", "Investigaciones", "Исследования"],
+    ),
+    (
+        "researchModelStart",
+        [
+            "Let the model start research",
+            "Laisser le modèle lancer une recherche",
+            "Dejar que el modelo inicie investigaciones",
+            "Разрешить модели начинать исследование",
+        ],
+    ),
+    (
+        "researchModelStartHint",
+        [
+            "When off, the model does not start research runs.",
+            "Désactivé, le modèle ne lance pas de recherches.",
+            "Si está desactivado, el modelo no inicia investigaciones.",
+            "Если выключено, модель не запускает исследования.",
+        ],
+    ),
+    (
+        "researchMaxDepth",
+        [
+            "Highest depth allowed",
+            "Profondeur maximale autorisée",
+            "Profundidad máxima permitida",
+            "Максимальная глубина",
+        ],
+    ),
+    (
+        "researchKeep",
+        [
+            "Keep research for",
+            "Conserver les recherches",
+            "Conservar las investigaciones",
+            "Хранить исследования",
+        ],
+    ),
     ("keepForever", ["Forever", "Toujours", "Siempre", "Всегда"]),
     ("keep90", ["90 days", "90 jours", "90 días", "90 дней"]),
     ("keep30", ["30 days", "30 jours", "30 días", "30 дней"]),
-    ("researchEmpty", ["No research yet. Ask a question that needs sources and the model starts one.", "Aucune recherche pour l'instant. Posez une question qui demande des sources et le modèle en lance une.", "Aún no hay investigaciones. Haz una pregunta que necesite fuentes y el modelo inicia una.", "Исследований пока нет. Задайте вопрос, которому нужны источники, и модель начнёт его."]),
+    (
+        "researchEmpty",
+        [
+            "No research yet. Ask a question that needs sources and the model starts one.",
+            "Aucune recherche pour l'instant. Posez une question qui demande des sources et le modèle en lance une.",
+            "Aún no hay investigaciones. Haz una pregunta que necesite fuentes y el modelo inicia una.",
+            "Исследований пока нет. Задайте вопрос, которому нужны источники, и модель начнёт его.",
+        ],
+    ),
 ];
 
 /// The text for a key in the system language (English, French, Spanish or Russian). An unknown key reads as itself.
@@ -296,7 +450,11 @@ fn text_in(locale: &str, key: &str) -> String {
 pub fn past_run_line(depth: &str, sources: i64, started_ms: i64) -> String {
     let days = started_ms / 86_400_000;
     let (year, month, day) = civil(days);
-    format!("{} · {} · {year:04}-{month:02}-{day:02}", t(depth_key(depth)), t("researchRunSources").replace("{n}", &sources.to_string()))
+    format!(
+        "{} · {} · {year:04}-{month:02}-{day:02}",
+        t(depth_key(depth)),
+        t("researchRunSources").replace("{n}", &sources.to_string())
+    )
 }
 
 fn depth_key(depth: &str) -> &'static str {
@@ -360,8 +518,17 @@ mod tests {
             content: Some(r#"{"id":"r","depth":"deep"}"#.into()),
             ..StepRecord::default()
         };
-        assert_eq!(parse_step(&step).map(|view| view.depth), Some("deep".to_owned()));
-        assert!(parse_step(&StepRecord { kind: "search".into(), ..step }).is_none());
+        assert_eq!(
+            parse_step(&step).map(|view| view.depth),
+            Some("deep".to_owned())
+        );
+        assert!(
+            parse_step(&StepRecord {
+                kind: "search".into(),
+                ..step
+            })
+            .is_none()
+        );
     }
 
     #[test]
