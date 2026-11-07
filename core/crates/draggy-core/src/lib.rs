@@ -22,6 +22,7 @@ pub mod observer;
 pub mod plan;
 pub mod records;
 pub mod research;
+pub mod research_library;
 pub mod session;
 pub mod skills;
 pub mod task_tools;
@@ -52,6 +53,7 @@ pub use records::{
     MessageRecord, MetricsRecord, PermissionModeRecord, PlanStepRecord, SessionConfig, StepRecord,
     TaskRecord, TurnEventRecord, TurnOutcome, WebConfigRecord,
 };
+pub use research_library::{PastRunRecord, ResearchStore};
 pub use session::{RESEARCH_ASK, Session};
 pub use skills::{SkillRecord, install_skill, list_skills, remove_skill};
 pub use update::{UpdateChecker, UpdateRecord};

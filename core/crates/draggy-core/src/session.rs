@@ -43,6 +43,7 @@ use crate::task_tools::TaskSet;
 use crate::tools::{FileTools, NoTools, definitions};
 use crate::research::run::Depth;
 use crate::research::tools::ResearchLibrary;
+use crate::research_library::ResearchStore;
 use crate::web_tools::{self, WebTools};
 
 struct WallClock;
@@ -316,7 +317,7 @@ impl ToolRuntime for CompositeTools {
 pub const RESEARCH_ASK: &str = "The user asked for a research run";
 
 impl Session {
-    /// Saves finished research runs to `storage`, under this workspace and chat. Rust-only: the shells do not call it yet.
+    /// Saves finished research runs to `storage`, under this workspace and chat. The shells use `set_research_store`.
     pub fn set_research_library(&self, library: Option<ResearchLibrary>) {
         *self.library.lock().unwrap_or_else(PoisonError::into_inner) = library;
     }
@@ -598,6 +599,15 @@ impl Session {
     pub fn set_research_options(&self, allow_model_start: bool, max_depth: String) {
         let depth = Depth::from_id(&max_depth);
         *self.research_options.lock().unwrap_or_else(PoisonError::into_inner) = (allow_model_start, depth);
+    }
+
+    /// Saves finished research runs to the library under `chat_id`; `None` stops saving.
+    pub fn set_research_store(&self, store: Option<Arc<ResearchStore>>, chat_id: Option<String>) {
+        self.set_research_library(store.map(|store| ResearchLibrary {
+            storage: Arc::clone(&store.storage),
+            workspace_id: None,
+            chat_id,
+        }));
     }
 
     /// The background commands of this session, running or ended.
