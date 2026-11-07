@@ -100,6 +100,8 @@ final class AppModel {
         static let searchProvider = "searchProvider"
         static let searxng = "searxngURL"
         static let speakReplies = "speakReplies"
+        static let researchModelStart = "researchModelStart"
+        static let researchMaxDepth = "researchMaxDepth"
     }
 
     private let defaults: UserDefaults
@@ -193,6 +195,16 @@ final class AppModel {
         }
     }
 
+    /// Whether the model may start a research run on its own. /research always can.
+    var researchModelStart: Bool {
+        didSet { defaults.set(researchModelStart, forKey: Key.researchModelStart) }
+    }
+
+    /// The deepest run the model may plan: quick, standard or deep.
+    var researchMaxDepth: String {
+        didSet { defaults.set(researchMaxDepth, forKey: Key.researchMaxDepth) }
+    }
+
     /// Reads each finished reply aloud with the system voice.
     var speakReplies: Bool {
         didSet {
@@ -234,6 +246,8 @@ final class AppModel {
         searxngURL = defaults.string(forKey: Key.searxng) ?? ""
         permission = defaults.string(forKey: Key.permission).flatMap(PermissionChoice.init(rawValue:)) ?? .ask
         speakReplies = defaults.bool(forKey: Key.speakReplies)
+        researchModelStart = defaults.object(forKey: Key.researchModelStart) as? Bool ?? true
+        researchMaxDepth = defaults.string(forKey: Key.researchMaxDepth) ?? "deep"
         broker = ApprovalBroker { [weak self] request in
             self?.pendingApproval = request
         }
@@ -423,8 +437,10 @@ final class AppModel {
 
         do {
             let session = try currentSession()
+            session.setResearchOptions(allowModelStart: researchModelStart, maxDepth: researchMaxDepth)
+            // /research shows as typed and sends the model its instruction.
             let outcome = try await session.sendWithImages(
-                text: text, images: images, observer: sink, approvals: broker, cancel: token)
+                text: ResearchCommand.instruction(for: text) ?? text, images: images, observer: sink, approvals: broker, cancel: token)
             transcript.finishReply(outcome.textContent)
             if let metrics = outcome.metrics {
                 let turn = TurnPricer.record(

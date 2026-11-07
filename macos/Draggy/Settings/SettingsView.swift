@@ -82,6 +82,18 @@ struct SettingsView: View {
                 .disabled(!model.webEnabled || braveDraft.isEmpty)
             }
 
+            Section("Research") {
+                Toggle("Let the model start research", isOn: $model.researchModelStart)
+                Text("When off, research starts only after /research.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("Highest depth allowed", selection: $model.researchMaxDepth) {
+                    Text("Quick").tag("quick")
+                    Text("Standard").tag("standard")
+                    Text("Deep").tag("deep")
+                }
+            }
+
             Section("Voice & Updates") {
                 CloudTTSView()
                 UpdateSettingsView()

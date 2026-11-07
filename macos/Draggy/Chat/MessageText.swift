@@ -34,7 +34,9 @@ enum MessageText {
                 .link: StepsToggle(line.id),
             ]))
         }
-        for step in line.steps where !line.foldsSteps || line.stepsOpen {
+        let run = line.steps.lazy.compactMap { ResearchRunView(step: $0) }.first
+        if let run { out.append(ResearchText.card(run)) }
+        for step in line.steps where step.kind != "research_run" && (!line.foldsSteps || line.stepsOpen) {
             let mark = step.isDone ? "\u{2713}" : "\u{2026}"
             let title = step.kind == "thinking" ? String(localized: "Thinking") : step.label
             out.append(NSAttributedString(
@@ -44,7 +46,12 @@ enum MessageText {
             guard !step.detail.isEmpty else { continue }
             out.append(NSAttributedString(string: step.detail + "\n", attributes: detailAttributes(for: step)))
         }
-        out.append(message(line.text))
+        guard let run, line.role == .assistant else {
+            out.append(message(line.text))
+            return out
+        }
+        out.append(ResearchText.linkCitations(message(line.text), run: run))
+        out.append(ResearchText.sourceList(run))
         return out
     }
 
