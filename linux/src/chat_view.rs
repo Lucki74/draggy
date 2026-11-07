@@ -1172,6 +1172,9 @@ fn draw_card(card: &gtk::Box, run: Option<&RunView>) {
     for question in &run.questions {
         card.append(&line(&research::question_line(question), "caption"));
     }
+    if let Some(warning) = research::no_notes_line(run) {
+        card.append(&line(&warning, "error"));
+    }
     for source in &run.sources {
         card.append(&line(&research::source_line(source), "caption"));
     }

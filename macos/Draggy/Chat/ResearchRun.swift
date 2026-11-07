@@ -130,6 +130,9 @@ enum ResearchText {
         for question in run.questions {
             out.append(line("\(question.notes > 0 ? "\u{2713}" : "\u{25CB}") \(question.text) (\(question.notes))"))
         }
+        if run.endedAt != nil, !run.notes.contains(where: { $0.verified != false }) {
+            out.append(line(String(localized: "No sourced notes were kept. The answer below is not backed by any source."), color: .systemRed))
+        }
         for source in run.sources {
             let name = [source.title, source.url].compactMap { $0 }.first { !$0.isEmpty } ?? source.url
             let site = (source.site ?? "").isEmpty ? "" : " \u{00B7} \(source.site ?? "")"

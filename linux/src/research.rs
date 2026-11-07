@@ -209,6 +209,12 @@ pub fn services_line(run: &RunView) -> Option<String> {
     (!run.hosts.is_empty()).then(|| t("researchRunServices").replace("{hosts}", &run.hosts.join(", ")))
 }
 
+/// The warning for a finished run that kept no sourced note, so its answer stands on nothing.
+pub fn no_notes_line(run: &RunView) -> Option<String> {
+    let backed = run.notes.iter().any(|note| note.verified != Some(false));
+    (run.ended_at.is_some() && !backed).then(|| t("researchRunNoNotes"))
+}
+
 /// The question after `/research`, or `None` when the text is not that command. The question may be empty.
 pub fn command_question(text: &str) -> Option<String> {
     let trimmed = text.trim();
@@ -266,6 +272,12 @@ const TEXTS: &[(&str, [&str; 4])] = &[
     ("researchRunSources", ["{n} sources read", "{n} sources lues", "{n} fuentes leídas", "Прочитано источников: {n}"]),
     ("researchRunNotes", ["{n} notes", "{n} notes", "{n} notas", "Заметок: {n}"]),
     ("researchRunServices", ["Contacted: {hosts}", "Services contactés : {hosts}", "Servicios contactados: {hosts}", "Обращения к сервисам: {hosts}"]),
+    ("researchRunNoNotes", [
+        "No sourced notes were kept. The answer below is not backed by any source.",
+        "Aucune note sourcée n'a été retenue. La réponse ci-dessous ne s'appuie sur aucune source.",
+        "No se conservó ninguna nota con fuente. La respuesta de abajo no se apoya en ninguna fuente.",
+        "Не сохранено ни одной заметки с источником. Ответ ниже не опирается на источники.",
+    ]),
     ("researchStatusReading", ["Reading", "Lecture", "Leyendo", "Чтение"]),
     ("researchStatusRead", ["Read", "Lue", "Leída", "Прочитан"]),
     ("researchStatusSkipped", ["Skipped", "Ignorée", "Omitida", "Пропущен"]),
@@ -393,6 +405,16 @@ mod tests {
         }
         assert_eq!(text_in("ru", "researchRunTitle"), "Исследование");
         assert_eq!(text_in("de", "researchRunTitle"), "Research");
+    }
+
+    #[test]
+    fn a_finished_run_without_notes_warns() {
+        assert!(no_notes_line(&run()).is_none());
+        let mut bare = run();
+        bare.notes.clear();
+        assert!(no_notes_line(&bare).is_some());
+        bare.ended_at = None;
+        assert!(no_notes_line(&bare).is_none());
     }
 
     #[test]

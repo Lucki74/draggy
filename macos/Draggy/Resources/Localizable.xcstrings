@@ -3704,6 +3704,29 @@
         }
       }
     },
+    "No sourced notes were kept. The answer below is not backed by any source.": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune note sourcée n'a été retenue. La réponse ci-dessous ne s'appuie sur aucune source."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se conservó ninguna nota con fuente. La respuesta de abajo no se apoya en ninguna fuente."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не сохранено ни одной заметки с источником. Ответ ниже не опирается на источники."
+          }
+        }
+      }
+    },
     "Reading": {
       "extractionState": "manual",
       "localizations": {
