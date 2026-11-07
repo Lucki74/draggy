@@ -41,6 +41,7 @@ use crate::records::{
 use crate::skills::{self, SkillStore};
 use crate::task_tools::TaskSet;
 use crate::tools::{FileTools, NoTools, definitions};
+use crate::research::run::Depth;
 use crate::research::tools::ResearchLibrary;
 use crate::web_tools::{self, WebTools};
 
@@ -197,6 +198,8 @@ pub struct Session {
     tasks: TaskSet,
     /// Where finished research runs are saved, when the host opened a library.
     library: Mutex<Option<ResearchLibrary>>,
+    /// Whether the model may start research itself, and the deepest plan allowed.
+    research_options: Mutex<(bool, Option<Depth>)>,
 }
 
 impl Drop for Session {
@@ -309,6 +312,9 @@ impl ToolRuntime for CompositeTools {
     }
 }
 
+/// The words the shells' /research command puts in the message, which let the model start a run.
+pub const RESEARCH_ASK: &str = "The user asked for a research run";
+
 impl Session {
     /// Saves finished research runs to `storage`, under this workspace and chat. Rust-only: the shells do not call it yet.
     pub fn set_research_library(&self, library: Option<ResearchLibrary>) {
@@ -330,6 +336,7 @@ impl Session {
             plan: SharedPlan::default(),
             tasks: TaskSet::new(),
             library: Mutex::new(None),
+            research_options: Mutex::new((true, None)),
         }))
     }
 
@@ -356,6 +363,15 @@ impl Session {
         };
         if web {
             tools.extend(web_tools::definitions());
+            let (allow, _) = *self.research_options.lock().unwrap_or_else(PoisonError::into_inner);
+            let asked = messages
+                .iter()
+                .rev()
+                .find(|m| m.role == "user")
+                .is_some_and(|m| m.content.contains(RESEARCH_ASK));
+            if !allow && !asked {
+                tools.retain(|tool| tool.function.name != "start_research");
+            }
         }
         tools.extend(extra_tools.iter().cloned());
         let shelf = self
@@ -473,6 +489,7 @@ impl Session {
         let mut web_tools = web_tools;
         if let Some(web) = web_tools.as_mut() {
             web.set_library(self.library.lock().unwrap_or_else(PoisonError::into_inner).clone());
+            web.set_max_depth(self.research_options.lock().unwrap_or_else(PoisonError::into_inner).1);
         }
         let request = self.request(messages, grants, extra_tools, web_tools.is_some());
         let mut model = OpenAiModel::new(
@@ -570,6 +587,13 @@ impl Session {
     #[uniffi::constructor(name = "with_mcp")]
     pub fn with_mcp(config: SessionConfig, mcp: Arc<McpManager>) -> Result<Arc<Self>, CoreError> {
         Self::create(config, Some(mcp))
+    }
+
+    /// Whether the model may start research on its own, and the deepest depth (`quick`, `standard` or `deep`) a run
+    /// may take. A message that holds the /research marker always may start one.
+    pub fn set_research_options(&self, allow_model_start: bool, max_depth: String) {
+        let depth = Depth::from_id(&max_depth);
+        *self.research_options.lock().unwrap_or_else(PoisonError::into_inner) = (allow_model_start, depth);
     }
 
     /// The background commands of this session, running or ended.

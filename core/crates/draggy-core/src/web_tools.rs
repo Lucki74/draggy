@@ -84,6 +84,7 @@ pub struct WebTools {
     cache: PageCache,
     pub(crate) research: Option<ResearchRun>,
     pub(crate) library: Option<ResearchLibrary>,
+    pub(crate) max_depth: Option<crate::research::run::Depth>,
     pub(crate) page_texts: HashMap<String, String>,
     asked: HashMap<String, String>,
     failures: u32,
@@ -114,6 +115,7 @@ impl WebTools {
             cache: PageCache::new(),
             research: None,
             library: None,
+            max_depth: None,
             page_texts: HashMap::new(),
             asked: HashMap::new(),
             failures: 0,
@@ -395,12 +397,14 @@ impl ToolRuntime for WebTools {
     }
 
     fn run(&mut self, name: &str, args: &Value, ctx: &mut ToolContext<'_>) -> String {
-        match name {
+        let result = match name {
             "search_web" => self.search_web(args, ctx),
             "read_url" => self.read_url(args, ctx),
             other if research_tools::NAMES.contains(&other) => self.run_research(other, args, ctx),
-            other => format!("TOOL ERROR: There is no tool called \"{other}\"."),
-        }
+            other => return format!("TOOL ERROR: There is no tool called \"{other}\"."),
+        };
+        self.sync_run_step(ctx);
+        result
     }
 
     fn prepare_wire(&mut self, wire: &mut [WireMessage]) {

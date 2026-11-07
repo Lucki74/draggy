@@ -52,7 +52,7 @@ pub use records::{
     MessageRecord, MetricsRecord, PermissionModeRecord, PlanStepRecord, SessionConfig, StepRecord,
     TaskRecord, TurnEventRecord, TurnOutcome, WebConfigRecord,
 };
-pub use session::Session;
+pub use session::{RESEARCH_ASK, Session};
 pub use skills::{SkillRecord, install_skill, list_skills, remove_skill};
 pub use update::{UpdateChecker, UpdateRecord};
 pub use web::{web_address_allowed, web_address_refusal};

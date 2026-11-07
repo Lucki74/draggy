@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 
 use super::citations::{Citable, CitationVerdict, verify_citations};
 use super::run::{
-    Depth, NoteInput, RawList, StopReason, add_note, budget_of, coverage, create_run, finish, read_plan,
+    Depth, NoteInput, RawList, StopReason, DEPTH_IDS, add_note, budget_of, coverage, create_run, depth_spec, finish, read_plan,
 };
 use crate::web_tools::{WebTools, now_ms};
 
@@ -112,12 +112,57 @@ impl WebTools {
         self.library = library;
     }
 
+    /// The deepest plan a run may take; a deeper one is cut down to it.
+    pub fn set_max_depth(&mut self, depth: Option<Depth>) {
+        self.max_depth = depth;
+    }
+
     pub(crate) fn run_research(&mut self, name: &str, args: &Value, ctx: &mut ToolContext<'_>) -> String {
         match name {
             "start_research" => self.start_research(args, ctx),
             "add_note" => self.add_note_tool(args),
             "search_notes" => self.search_notes(args),
             _ => self.finish_research(),
+        }
+    }
+
+    /// Shows the run to the shells as one `research_run` step whose content is the run view as JSON.
+    /// The step id is the run id, so each call patches the same row.
+    pub(crate) fn sync_run_step(&self, ctx: &mut ToolContext<'_>) {
+        let Some(run) = self.research.as_ref() else {
+            return;
+        };
+        let view = json!({
+            "id": run.id,
+            "question": run.plan.question,
+            "depth": run.plan.depth.id(),
+            "startedAt": run.started_at,
+            "endedAt": run.ended_at,
+            "wallMs": budget_of(run, now_ms()).wall_ms,
+            "gathering": id_of(&run.status) == "gathering",
+            "questions": coverage(run).iter().map(|c| json!({"text": c.text, "notes": c.notes})).collect::<Vec<_>>(),
+            "sources": run.sources.iter().map(|s| json!({
+                "id": s.id, "url": s.url, "title": s.title, "site": s.site,
+                "published": s.published, "status": id_of(&s.status),
+            })).collect::<Vec<_>>(),
+            "notes": run.notes.iter().map(|n| json!({
+                "id": n.id, "sourceId": n.source_id, "quote": n.quote, "verified": n.verified,
+            })).collect::<Vec<_>>(),
+            "hosts": run.contacted_hosts,
+        })
+        .to_string();
+        let complete = Some(run.ended_at.is_some());
+        if let Some(step) = ctx.steps.iter_mut().find(|s| s.kind == "research_run" && s.id.as_deref() == Some(&run.id)) {
+            step.content = Some(view);
+            step.is_complete = complete;
+        } else {
+            ctx.steps.push(draggy_agent::resume::SearchStep {
+                id: Some(run.id.clone()),
+                kind: "research_run".to_owned(),
+                content: Some(view),
+                is_complete: complete,
+                ..Default::default()
+            });
         }
     }
 
@@ -138,6 +183,13 @@ impl WebTools {
         let Some(plan) = plan else {
             return "TOOL RESULT (start_research): There was no question. Send the question to research.".to_owned();
         };
+        let mut plan = plan;
+        if let Some(max) = self.max_depth
+            && DEPTH_IDS.iter().position(|d| *d == plan.depth) > DEPTH_IDS.iter().position(|d| *d == max)
+        {
+            plan.depth = max;
+            plan.sub_questions.truncate(depth_spec(max).max_questions);
+        }
         // The core has no approval card yet: the drafted plan stands as approved.
         let run = create_run(&ctx.new_id(), plan, now_ms());
         self.research = Some(run);
@@ -417,6 +469,20 @@ mod tests {
             plan: None,
         };
         web.run_research(name, args, &mut ctx)
+    }
+
+    #[test]
+    fn run_step_follows_the_run() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let mut web = tools(&rt);
+        let (mut steps, mut ids, cancel) = (Vec::new(), Ids(0), CancelSignal::new());
+        let mut ctx = ToolContext { steps: &mut steps, ids: &mut ids, cancel: &cancel, plan: None };
+        web.run_research("start_research", &json!({"question": "Why is the sky blue"}), &mut ctx);
+        web.sync_run_step(&mut ctx);
+        web.sync_run_step(&mut ctx);
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].kind, "research_run");
+        assert!(steps[0].content.as_deref().unwrap().contains("\"question\""));
     }
 
     fn tools(rt: &tokio::runtime::Runtime) -> WebTools {
