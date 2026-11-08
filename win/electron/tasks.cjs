@@ -218,15 +218,34 @@ function createTaskManager({
         const spawn = { file: invocation.file, args: invocation.args, cwd, env: childEnv, verbatim: invocation.verbatim };
         const launch = boxed ? sandbox.wrap(spawn, { ...boxed, chatKey: chatId }) : spawn;
         if (launch.error) throw new Error(launch.error);
-        const stream = spawnStreamImpl(
-          launch,
-          {
-            onStdout: (chunk) => append(task, chunk),
-            onStderr: (chunk) => append(task, chunk),
-            onExit: ({ code, signal, error }) => finish(task, { code, signal: signal || null, error: error ? error.message : null }),
-          },
-        );
-        task.handle = { write: null, resize: null, kill: () => stream.kill(), killSync: () => stream.kill() };
+        let stream = null;
+        let stopped = false;
+        const begin = () => {
+          if (stopped) return;
+          stream = spawnStreamImpl(
+            launch,
+            {
+              onStdout: (chunk) => append(task, chunk),
+              onStderr: (chunk) => append(task, chunk),
+              onExit: ({ code, signal, error }) => finish(task, { code, signal: signal || null, error: error ? error.message : null }),
+            },
+          );
+        };
+        // A task stopped while the sandbox grants its folder never starts.
+        const stop = () => {
+          if (stream) return stream.kill();
+          stopped = true;
+          finish(task, { code: null, signal: null, error: null });
+        };
+        task.handle = { write: null, resize: null, kill: stop, killSync: stop };
+        if (!sandbox.needsGrant(launch)) begin();
+        else {
+          append(task, "Setting up the sandbox for this folder. The first time can take a few minutes on a big project.\n");
+          sandbox.ready(launch).then((result) => {
+            if (result.error) finish(task, { error: `The sandbox could not get access to the folder: ${result.error}` });
+            else begin();
+          });
+        }
       }
     } catch (error) {
       log.warn("proc.task", "task failed to start", { name: error?.name ?? null });

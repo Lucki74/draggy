@@ -10,8 +10,10 @@ mod grant;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let Some(path) = args.get(1) else {
-        eprintln!("usage: draggy-sandbox <spec.json>");
+    // `--grant` sets up folder access and starts nothing, so a slow first grant has no command timeout.
+    let grant_only = args.get(1).is_some_and(|flag| flag == "--grant");
+    let Some(path) = args.get(if grant_only { 2 } else { 1 }) else {
+        eprintln!("usage: draggy-sandbox [--grant] <spec.json>");
         std::process::exit(64);
     };
     let spec = match spec::load(path) {
@@ -24,7 +26,11 @@ fn main() {
     // The spec is single use; it is gone before the command starts.
     let _ = std::fs::remove_file(path);
     #[cfg(windows)]
-    std::process::exit(container::run(&spec));
+    std::process::exit(if grant_only {
+        container::grant_only(&spec)
+    } else {
+        container::run(&spec)
+    });
     #[cfg(not(windows))]
     {
         let _ = spec;
