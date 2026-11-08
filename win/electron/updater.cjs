@@ -5,12 +5,6 @@ const { log } = require("./logger.cjs");
 const REPO_OWNER = "Lucki74";
 const REPO_NAME = "draggy";
 
-/** Checks after launch and every few hours, downloads in the background, installs on quit. The
- * first check is late: launch already competes for the network. */
-
-/** How long after launch the first check runs. */
-const FIRST_CHECK_MS = 20_000;
-
 /** How often to look again while the app stays open. */
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -19,10 +13,6 @@ let appInstance = null;
 let state = { status: "idle", version: null, percent: 0, notes: null, error: null };
 let broadcast = () => {};
 
-let automatic = false;
-/** True while a check or download the user started is running, so only those surface errors. */
-let userStarted = false;
-let firstCheckTimer = null;
 let intervalTimer = null;
 
 /** The signature check is a builder option, but electron-builder strips the build block from the packaged
@@ -144,9 +134,8 @@ function init(app, sendToWindows) {
     return null;
   }
 
-  // Downloading is only ever automatic when the user has asked for it; the
-  // setting arrives from the renderer a moment after this.
-  updater.autoDownload = automatic;
+  // Found updates download in the background, so a quit or relaunch installs without waiting.
+  updater.autoDownload = true;
   updater.autoInstallOnAppQuit = true;
 
   // Every build is a full release, so there is no prerelease channel to follow.
@@ -192,64 +181,36 @@ function init(app, sendToWindows) {
   updater.on("error", (error) => {
     if (error?.code === "ERR_UPDATER_INVALID_VERSION") {
       log.warn("updater", "latest.yml has an invalid version", { reason: error.message });
-    } else if (userStarted) {
-      log.fail("updater", "update error", error);
     } else {
       log.warn("updater", "silent check failed", { reason: error?.message ?? null });
     }
-    if (userStarted) publish({ status: "error", error: error?.message || "Update check failed." });
+    // Only a download the update window is waiting on needs to hear about the failure.
+    if (state.status === "available" || state.status === "downloading") {
+      publish({ status: "error", error: error?.message || "Update check failed." });
+    }
   });
 
   return updater;
 }
 
 function unschedule() {
-  if (firstCheckTimer) clearTimeout(firstCheckTimer);
   if (intervalTimer) clearInterval(intervalTimer);
-  firstCheckTimer = null;
   intervalTimer = null;
 }
 
+/** Starts the six-hour checks once. Called after the launch check, so it never runs twice. */
 function schedule() {
-  if (!updater || firstCheckTimer || intervalTimer) return;
+  if (!updater || intervalTimer) return;
 
-  firstCheckTimer = setTimeout(() => {
-    firstCheckTimer = null;
-    void check({ silent: true });
-  }, FIRST_CHECK_MS);
-
-  intervalTimer = setInterval(() => void check({ silent: true }), CHECK_INTERVAL_MS);
-
+  intervalTimer = setInterval(() => void check(), CHECK_INTERVAL_MS);
   // A pending check is never a reason to keep the process alive.
-  firstCheckTimer.unref?.();
   intervalTimer.unref?.();
 }
 
-/** Turns automatic updating on or off. Called by the renderer whenever the setting changes, and
- * once at startup with whatever it was left on. */
-function configure({ automatic: wanted } = {}) {
-  automatic = Boolean(wanted);
-
-  if (updater) {
-    updater.autoDownload = automatic;
-    updater.channel = null;
-    // electron-updater silently enables allowDowngrade whenever channel is assigned.
-    updater.allowDowngrade = false;
-    updater.allowPrerelease = false;
-  }
-  log.info("updater", "configured", { automatic });
-
-  if (automatic) schedule();
-  else unschedule();
-
-  return { ...state };
-}
-
-async function check({ silent } = {}) {
+async function check() {
   if (!updater) return { ...state };
 
-  userStarted = !silent;
-  const timer = log.time("updater", "check", { silent: Boolean(silent) });
+  const timer = log.time("updater", "check");
   try {
     const { feed, tag } = await resolveFeed();
     updater.setFeedURL(feed);
@@ -257,32 +218,32 @@ async function check({ silent } = {}) {
     timer.end({ tag, status: state.status, version: state.version });
   } catch (error) {
     timer.fail(error);
-    if (!silent) publish({ status: "error", error: error.message });
-  } finally {
-    userStarted = false;
   }
 
   return { ...state };
 }
 
-async function download() {
-  if (!updater) return { ...state };
-  if (!isNewer(state.version, getCurrentVersion())) return { ...state };
+/** Runs the launch check and waits at most budgetMs. A late result still lands in state and installs
+ * on quit, so launch never blocks on the network for longer than the budget. */
+async function checkAtLaunch({ budgetMs = 4000 } = {}) {
+  if (!updater) return "none";
 
-  const timer = log.time("updater", "download", { version: state.version });
-  userStarted = true;
+  let timer = null;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve("timeout"), budgetMs);
+  });
+  let outcome;
   try {
-    publish({ status: "downloading", percent: 0 });
-    await updater.downloadUpdate();
-    timer.end({ status: state.status });
-  } catch (error) {
-    timer.fail(error);
-    publish({ status: "error", error: error.message });
+    outcome = await Promise.race([check().then(() => "checked"), timeout]);
   } finally {
-    userStarted = false;
+    clearTimeout(timer);
+    schedule();
   }
 
-  return { ...state };
+  if (outcome === "timeout") return "timeout";
+  if (state.status === "ready") return "ready";
+  if (state.status === "available" || state.status === "downloading") return "downloading";
+  return "none";
 }
 
 function install() {
@@ -307,9 +268,8 @@ function dispose() {
 module.exports = {
   signatureCheck,
   init,
-  configure,
+  checkAtLaunch,
   check,
-  download,
   install,
   current,
   dispose,
