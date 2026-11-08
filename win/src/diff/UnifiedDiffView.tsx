@@ -57,7 +57,7 @@ export function UnifiedDiffView({
   const filePath = fileDiff.newPath || fileDiff.oldPath;
 
   return (
-    <div dir="ltr" className="font-mono text-[12px] leading-5 select-text overflow-x-auto">
+    <div dir="ltr" className="font-mono text-[12px] leading-5 select-text">
       {fileDiff.hunks.map((hunk, hIdx) => (
         <div key={hIdx} className="border-b border-rule last:border-b-0">
           <div className="flex items-center px-3 py-1 bg-surface-raised/60 text-text-tertiary text-[11px] select-none border-y border-rule">
@@ -91,7 +91,7 @@ export function UnifiedDiffView({
                   >
                     {GUTTER_MARKS[line.kind]}
                   </span>
-                  <span className="flex-1 whitespace-pre pe-4 break-words">
+                  <span className="flex-1 min-w-0 whitespace-pre-wrap pe-4 [overflow-wrap:anywhere]">
                     {line.text || " "}
                   </span>
 

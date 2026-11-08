@@ -794,7 +794,7 @@ export function Composer({
                             />
                         )}
 
-                        <div className={`flex items-center justify-end gap-1 min-w-0 ${compactToolbar ? "basis-full" : "ms-auto"}`}>
+                        <div className={`flex flex-wrap items-center justify-end gap-1 min-w-0 ${compactToolbar ? "basis-full" : "ms-auto"}`}>
                             {thinkingUnavailable ? (
                                 <Chip
                                     disabled

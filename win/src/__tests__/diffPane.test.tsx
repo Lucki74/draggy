@@ -190,4 +190,17 @@ describe("DiffPane", () => {
     });
     expect(git.checkout).toHaveBeenCalledWith("w1", "dev");
   });
+
+  it("stacks the file list over the diff in a narrow pane", async () => {
+    const shown = async (width: number) => {
+      cleanup();
+      await act(async () => {
+        render(<DiffPane workspaceId="w1" rootPath="/app" gitStatus={MOCK_GIT_STATUS} t={t} width={width} />);
+      });
+      return screen.getByTestId("diff-file-list").className;
+    };
+
+    expect(await shown(420)).toContain("border-b");
+    expect(await shown(960)).toContain("w-56");
+  });
 });

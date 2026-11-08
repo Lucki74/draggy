@@ -30,7 +30,7 @@ const sampleDiff: ParsedFileDiff = {
 };
 
 describe("SplitDiffView", () => {
-  it("enables horizontal scrolling instead of clipping code lines with text-ellipsis", () => {
+  it("wraps long code lines instead of clipping them", () => {
     const { container } = render(
       <SplitDiffView
         fileDiff={sampleDiff}
@@ -46,11 +46,11 @@ describe("SplitDiffView", () => {
       />,
     );
 
-    const codeSpans = container.querySelectorAll(".whitespace-pre");
+    const codeSpans = container.querySelectorAll(".whitespace-pre-wrap");
     expect(codeSpans.length).toBeGreaterThan(0);
 
     for (const span of codeSpans) {
-      expect(span.className).toContain("overflow-x-auto");
+      expect(span.className).toContain("[overflow-wrap:anywhere]");
       expect(span.className).not.toContain("overflow-hidden");
       expect(span.className).not.toContain("text-ellipsis");
     }

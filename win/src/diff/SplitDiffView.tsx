@@ -38,7 +38,7 @@ export function SplitDiffView({
   const filePath = fileDiff.newPath || fileDiff.oldPath;
 
   return (
-    <div dir="ltr" className="font-mono text-[12px] leading-5 select-text overflow-x-auto">
+    <div dir="ltr" className="font-mono text-[12px] leading-5 select-text">
       {fileDiff.hunks.map((hunk, hIdx) => {
         const rows = hunkToSplitRows(hunk);
 
@@ -76,7 +76,7 @@ export function SplitDiffView({
                       <span className="w-5 flex-shrink-0 select-none text-center text-danger font-semibold">
                         {before?.kind === "removed" ? "-" : " "}
                       </span>
-                      <span className="flex-1 whitespace-pre pe-2 overflow-x-auto">
+                      <span className="flex-1 min-w-0 whitespace-pre-wrap pe-2 [overflow-wrap:anywhere]">
                         {before?.text ?? " "}
                       </span>
                     </div>
@@ -93,7 +93,7 @@ export function SplitDiffView({
                       <span className="w-5 flex-shrink-0 select-none text-center text-ok font-semibold">
                         {after?.kind === "added" ? "+" : " "}
                       </span>
-                      <span className="flex-1 whitespace-pre pe-6 overflow-x-auto">
+                      <span className="flex-1 min-w-0 whitespace-pre-wrap pe-6 [overflow-wrap:anywhere]">
                         {after?.text ?? " "}
                       </span>
 

@@ -180,6 +180,8 @@ export function DiffPane({
   }, [comments.length, handleSendReview]);
 
   const canShowSplit = width >= 900;
+  // A narrow pane stacks the file list over the diff, so the diff keeps the full width.
+  const stacked = width < 640;
 
   return (
     <div className="flex flex-col h-full bg-surface-canvas overflow-hidden select-none">
@@ -302,9 +304,12 @@ export function DiffPane({
           />
         </div>
       )}
-      <div className={`flex-1 min-h-0 overflow-hidden ${tab === "changes" ? "flex" : "hidden"}`}>
+      <div className={`flex-1 min-h-0 overflow-hidden ${tab === "changes" ? "flex" : "hidden"} ${stacked ? "flex-col" : ""}`}>
         {/* Changed file list */}
-        <div className="w-56 flex-shrink-0 border-e border-rule flex flex-col bg-surface-base overflow-y-auto">
+        <div
+          data-testid="diff-file-list"
+          className={`flex-shrink-0 border-rule flex flex-col bg-surface-base overflow-y-auto ${stacked ? "max-h-36 border-b" : "w-56 border-e"}`}
+        >
           {files.length === 0 ? (
             <div className="p-4 text-center text-text-tertiary text-xs">
               {t("gitClean")}
