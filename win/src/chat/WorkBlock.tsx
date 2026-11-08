@@ -1,6 +1,7 @@
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon, Spark } from "../ui";
 import ResearchRunCard from "./ResearchRunCard";
+import SiteBadge from "./SiteBadge";
 import { fillComposer } from "./mentions";
 import ReactMarkdown from "react-markdown";
 import { hostnameOf } from "../utils";
@@ -427,30 +428,30 @@ export function WorkBlock({
     const query = resultsView?.args[0]?.[1];
     const open = clicked ?? verbose;
     const list = (
-      <ul className="m-0 grid list-none grid-cols-[minmax(0,1fr)] gap-0.5 p-0">
+      <div role="list" className="grid grid-cols-[minmax(0,1fr)] gap-0.5">
         {step.results.map((result, rIdx) => {
           const hostname = hostnameOf(result.url).replace(/^www\./i, "");
           return (
-            <li key={rIdx}>
+            <div role="listitem" key={rIdx}>
               <a
                 href={result.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 title={result.snippet || result.title}
-                className="-ms-1.5 flex min-h-[26px] items-center gap-2 rounded-xs px-1.5 text-[13px] text-text-secondary no-underline hover:bg-surface-tint hover:text-text-primary"
+                className="-ms-1.5 flex min-h-[26px] items-center gap-2 rounded-xs px-1.5 text-[13px] !text-text-secondary !no-underline hover:bg-surface-tint hover:!text-text-primary"
                 onClick={(e) => {
                   e.preventDefault();
                   window.open(result.url, "_blank");
                 }}
               >
-                <Icon name="globe-simple" size={12} className="flex-none text-text-tertiary" />
+                <SiteBadge hostname={hostname} small />
                 <span className="min-w-0 truncate">{result.title}</span>
                 <span className="ms-auto max-w-[40%] flex-none truncate ps-2 text-[12px] text-text-tertiary">{hostname}</span>
               </a>
-            </li>
+            </div>
           );
         })}
-      </ul>
+      </div>
     );
     return (
       <StepLine
