@@ -3580,8 +3580,8 @@ function boxFor(root, options) {
 // A command runs in the conversation's own project folder, which the main process looks up; the
 // renderer names a workspace and cannot pick a folder. With `background` it starts as a task and
 // returns at once; otherwise it runs in the foreground and can be moved to the background later.
-// A chat has no project, so it gets a folder of its own under the app data, made on first use and removed with
-// the chat. Commands there always run in the sandbox, with no network and the embedded Python on PATH.
+// A chat has no project, so it gets its own folder under the app data. Commands there are sandboxed with no
+// network and the embedded Python on PATH, unless the user approved leaving the box for one.
 function chatsRoot() {
   return path.join(app.getPath("userData"), "chats");
 }
@@ -3624,8 +3624,8 @@ ipc.handle(
       const python = pythonDir();
       options = {
         ...options,
-        sandbox: true,
-        outsideSandbox: false,
+        sandbox: options?.outsideSandbox !== true,
+        outsideSandbox: options?.outsideSandbox === true,
         network: false,
         writable: true,
         extras: python ? pythonExtras(python) : undefined,

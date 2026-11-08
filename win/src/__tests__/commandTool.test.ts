@@ -83,6 +83,17 @@ describe("where the command tool is offered", () => {
   });
 });
 
+describe("a chat with a folder", () => {
+  const names = (environment: ToolEnvironment) => availableTools(environment).map((tool) => tool.name);
+  const CHAT: ToolEnvironment = { ...CODE, hasFolder: false, canRunCommands: false, chatFolder: true };
+
+  it("can ask to leave the sandbox, since its commands have no network", () => {
+    expect(names(CHAT)).toContain("run_command");
+    expect(names(CHAT)).toContain("request_outside_sandbox");
+    expect(names(CHAT)).not.toContain("run_as_admin");
+  });
+});
+
 describe("running as administrator", () => {
   const names = (environment: ToolEnvironment) => availableTools(environment).map((tool) => tool.name);
 
