@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Spark } from "../ui";
 import { hostnameOf } from "../utils";
 import type { SearchStep } from "../types";
 import { advanceReveal, type RevealState } from "./streamReveal";
@@ -73,64 +72,41 @@ function toolLabel(tool: string | undefined): string {
 
 type Entry = NonNullable<SearchStep["liveArgs"]>["entries"][number];
 
-function ArgRow({ entry, live }: { entry: Entry; live: boolean }) {
-  const shown = useRevealed(entry.value, live && entry.open);
-  const long = entry.value.length > SHORT_VALUE || entry.value.includes("\n");
-  if (long) {
-    return (
-      <>
-        <dt className="step-fade col-span-2 text-text-tertiary">{entry.key}</dt>
-        <dd className="col-span-2 m-0">
-          <TailBox text={shown} open={entry.open} />
-        </dd>
-      </>
-    );
-  }
-  return (
-    <>
-      <dt className="step-fade text-text-tertiary">{entry.key}</dt>
-      <dd className="step-fade m-0 whitespace-pre-wrap break-words text-text-primary" data-kind={entry.kind}>
-        {shown}
-      </dd>
-    </>
-  );
+const isLong = (entry: Entry) => entry.value.length > SHORT_VALUE || entry.value.includes("\n");
+
+function ShortValue({ entry, live }: { entry: Entry; live: boolean }) {
+  return <>{useRevealed(entry.value, live && entry.open)}</>;
 }
 
-/** A tool call the model is still writing: its name and the arguments so far. Plain text only. */
+function LongValue({ entry, live }: { entry: Entry; live: boolean }) {
+  return <TailBox text={useRevealed(entry.value, live && entry.open)} open={entry.open} />;
+}
+
+/** A tool call the model is still writing, as one rail line: the verb, then its arguments so far. */
 export default function LiveArgs({ step }: { step: SearchStep }) {
   const args = step.liveArgs;
+  const live = !args?.complete;
   // A page address is not a file: it reads as the site, the way the finished step does.
   const address = args?.entries.find((entry) => entry.key === "url" && entry.kind === "string");
-  if (address) {
-    const site = hostnameOf(address.value).replace(/^www\./i, "") || address.value;
-    return (
-      <div className="step-rise mb-3.5 flex min-h-6 items-center gap-2 text-[13px] text-text-secondary" data-testid="live-args">
-        <span className="flex w-3 justify-center">
-          <Spark />
-        </span>
-        <span className="min-w-0 break-words">
-          {toolLabel(step.tool)} {site}
-        </span>
-      </div>
-    );
-  }
+  const site = address && (hostnameOf(address.value).replace(/^www\./i, "") || address.value);
+  const short = address ? [] : (args?.entries ?? []).filter((entry) => !isLong(entry));
+  const long = address ? [] : (args?.entries ?? []).filter(isLong);
   return (
-    <div className="step-rise mb-3.5" data-testid="live-args">
-      <div className="flex min-h-6 items-center gap-2 text-[13px] text-text-secondary">
-        <span className="flex w-3 justify-center">
-          <Spark />
+    <div className="step-rise" data-testid="live-args">
+      <div className="flex min-h-6 min-w-0 items-center gap-[7px] text-[14px] text-text-secondary">
+        <span className="live-sweep flex-none">{toolLabel(step.tool)}</span>{" "}
+        <span className="min-w-0 truncate font-mono text-[12px] text-text-tertiary">
+          {site ?? (args?.invalid ? "…" : short.map((entry, index) => (
+            <span key={`${index}:${entry.key}`} className="step-fade" data-kind={entry.kind}>
+              {index > 0 && "  "}
+              <ShortValue entry={entry} live={live} />
+            </span>
+          )))}
         </span>
-        <span>{toolLabel(step.tool)}</span>
       </div>
-      {args?.invalid ? (
-        <div className="ms-5 mt-0.5 break-words font-mono text-[12.5px] text-text-secondary">…</div>
-      ) : (
-        <dl className="ms-5 mt-0.5 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3.5 gap-y-0.5 font-mono text-[12.5px] leading-[1.6]">
-          {args?.entries.map((entry, index) => (
-            <ArgRow key={`${index}:${entry.key}`} entry={entry} live={!args.complete} />
-          ))}
-        </dl>
-      )}
+      {long.map((entry, index) => (
+        <LongValue key={`${index}:${entry.key}`} entry={entry} live={live} />
+      ))}
     </div>
   );
 }

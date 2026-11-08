@@ -354,6 +354,38 @@ describe.skipIf(!hasGit)("history, branches and changes made by the app", () => 
     expect(result.commits[0].hash).toMatch(/^[0-9a-f]{40}$/);
   });
 
+  it("gives each commit its parents and refs, and every branch with all", async () => {
+    run("switch", "-q", "-c", "side");
+    write("b.txt", "b\n");
+    run("add", ".");
+    run("commit", "-q", "-m", "on side");
+    run("tag", "v1");
+    run("switch", "-q", "main");
+
+    const mainOnly = await git.log(root, { limit: 10 });
+    const all = await git.log(root, { limit: 10, all: true });
+
+    expect(mainOnly.commits.map((commit) => commit.subject)).toEqual(["first"]);
+    expect(mainOnly.commits[0].refs).toEqual(expect.arrayContaining([{ name: "main", kind: "head" }]));
+    expect(all.commits.map((commit) => commit.subject)).toEqual(["on side", "first"]);
+    expect(all.commits[0].parents).toEqual([all.commits[1].hash]);
+    expect(all.commits[0].refs).toEqual(expect.arrayContaining([{ name: "side", kind: "branch" }, { name: "v1", kind: "tag" }]));
+  });
+
+  it("shows the diff one commit made", async () => {
+    write("a.txt", "a\n");
+    run("add", ".");
+    run("commit", "-q", "-m", "second");
+    const [latest] = (await git.log(root, { limit: 1 })).commits;
+
+    const result = await git.show(root, latest.hash);
+
+    expect(result.success).toBe(true);
+    expect(result.diff).toContain("+++ b/a.txt");
+    expect(result.diff).not.toContain("readme.md");
+    expect((await git.show(root, "--all")).success).toBe(false);
+  });
+
   it("lists branches and marks the current one", async () => {
     run("branch", "feature");
     const result = await git.branches(root);

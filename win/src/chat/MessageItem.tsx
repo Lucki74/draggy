@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { translations } from "./../translations";
 import UserTurn from "./UserTurn";
 import AssistantTurn from "./AssistantTurn";
+import TaskNotice from "./TaskNotice";
 import type {
   ApprovalAnswer,
   AppSettings,
@@ -68,12 +69,14 @@ const MessageItem = memo(
         key={msg.id}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`message-container group/msg flex max-w-[760px] mx-auto w-full ${
-          msg.role === "user" ? "justify-end" : "justify-start"
+        className={`message-container group/msg flex max-w-[var(--chat-column)] mx-auto w-full ${
+          msg.role === "user" && !msg.notice ? "justify-end" : "justify-start"
         }`}
       >
-        <div className={`flex flex-col min-w-0 ${msg.role === "user" ? "items-end max-w-[85%]" : "items-stretch w-full"}`}>
-          {msg.role === "user" ? (
+        <div className={`flex flex-col min-w-0 ${msg.role === "user" && !msg.notice ? "items-end max-w-[85%]" : "items-stretch w-full"}`}>
+          {msg.notice ? (
+            <TaskNotice msg={msg} t={t} />
+          ) : msg.role === "user" ? (
             <UserTurn
               msg={msg}
               idx={idx}

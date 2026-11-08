@@ -75,6 +75,13 @@ describe("chatToMarkdown", () => {
     expect(markdown).toContain("https://example.com/jwt");
   });
 
+  it("writes why a step failed", () => {
+    const failed = session({
+      messages: [message({ role: "assistant", content: "x", steps: [step({ type: "error", reason: "Outside the folder." })] })],
+    });
+    expect(chatToMarkdown(failed, { now: at })).toContain("Outside the folder.");
+  });
+
   it("writes the plan and the metrics", () => {
     const markdown = chatToMarkdown(busy, { now: at });
     expect(markdown).toContain("- [x] Read the auth module");

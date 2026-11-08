@@ -1038,7 +1038,7 @@ export default function AppShell({
       },
       {
         id: "pane-files",
-        label: t("files"),
+        label: t("projectFiles"),
         category: t("paletteSectionPanes"),
         icon: "folder-simple",
         shortcut: "Ctrl+Shift+F",
@@ -1213,7 +1213,7 @@ export default function AppShell({
         onOpenDiff={codePanes ? () => handleOpenDiff() : undefined}
         onOpenFiles={panesUsable ? handleOpenFiles : undefined}
         onOpenBrowser={panesUsable ? handleOpenBrowser : undefined}
-        onOpenTerminal={panesUsable ? () => void openShell() : undefined}
+        onOpenTerminal={panesUsable && active.rootPath ? () => void openShell() : undefined}
         onOpenPlan={codePanes ? () => updateDockLayout(openPane(currentDockLayout, "plan")) : undefined}
         planProgress={
           codePanes && currentChatId && runs.running.includes(currentChatId) && currentSession?.plan?.length

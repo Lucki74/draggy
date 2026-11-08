@@ -19,7 +19,7 @@ const runCommand: ToolSpec = {
   name: "run_command",
   group: "shell",
   description:
-    "Run a command in a sandbox that can reach the project folder and nothing else on this computer, the way a developer types it in a terminal: git, gh, npm, pnpm, cargo, python, tests, builds and linters. Returns what it printed and its exit code. The folder and environment variables it ends with carry over to the next command. A command that outlasts its time limit keeps running as a background task instead of being stopped. Pass flags that avoid prompts.",
+    "Run a command in a sandbox that can reach the project folder and nothing else on this computer, the way a developer types it in a terminal: git, gh, npm, pnpm, cargo, python, tests, builds and linters. Returns what it printed and its exit code. The folder and environment variables it ends with carry over to the next command. A command that outlasts its time limit keeps running as a background task instead of being stopped. Pass flags that avoid prompts. In a chat with no project the sandbox has no network, so pip and npm installs fail there: write code that needs only the standard library, or ask with request_outside_sandbox for the install.",
   parameters: {
     command: { type: "string", description: "The command line to run, as it would be typed." },
     shell: {
@@ -73,7 +73,8 @@ const requestOutsideSandbox: ToolSpec = {
   usage: '{"command": "npm install", "reason": "needs the network"} → asks, then runs it outside the sandbox',
   annotations: { ...runCommand.annotations, outsideSandbox: true },
   available: (environment) =>
-    Boolean(environment.hasFolder && environment.canRunCommands) && !environment.readOnlyTools,
+    Boolean((environment.hasFolder && environment.canRunCommands) || environment.chatFolder) &&
+    !environment.readOnlyTools,
   run: (args, ctx) => runInBox(args, ctx, true),
 };
 
@@ -134,11 +135,17 @@ async function runInBox(
 
     // The pane shows output as it arrives; the step keeps the whole of it when the command ends.
     let live = "";
+    let redraw: ReturnType<typeof setTimeout> | undefined;
     const unsubscribe = api.onOutput?.((event) => {
       if (event.runId !== runId) return;
       live = (live + event.chunk).slice(-LIVE_OUTPUT_CHARS);
       appendAgentBlock(runId, event.chunk);
       ctx.patchStep(stepId, { stdout: live });
+      // The transcript redraws a few times a second, not on every chunk.
+      redraw ??= setTimeout(() => {
+        redraw = undefined;
+        ctx.syncSteps();
+      }, 150);
     });
 
     const result = await api
@@ -155,6 +162,7 @@ async function runInBox(
         ctx.signal.removeEventListener("abort", stop);
         unmarkForeground(runId);
         unsubscribe?.();
+        clearTimeout(redraw);
       });
 
     if (result.error && result.exitCode === undefined) {
@@ -203,6 +211,7 @@ async function runInBox(
     ctx.patchStep(stepId, {
       isComplete: true,
       content: `${verb} \`${command}\`${result.success || result.cancelled ? "" : ` (exit ${result.exitCode ?? "?"})`}`,
+      ...(result.success || result.cancelled ? {} : { failed: true }),
       stdout: output,
       language: result.shell ?? shell,
     });

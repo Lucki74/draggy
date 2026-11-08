@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import StreamingMarkdown from "./StreamingMarkdown";
 import { normalizeMath } from "../utils";
@@ -27,6 +27,26 @@ function useElapsed(from: number, running: boolean) {
   return Math.max(0, Math.floor((now - from) / 1000));
 }
 
+/** A thought while it streams: only its newest lines, the top fading once there are more. */
+function ThoughtTail({ children }: { children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [over, setOver] = useState(false);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (el) setOver(el.scrollHeight > el.clientHeight + 1);
+  }, [children]);
+  return (
+    <div ref={box} className={`thought thought-tail soft-words text-[14px] leading-[22px] text-text-secondary markdown-body [&_p]:mb-0${over ? " is-over" : ""}`}>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+/** A finished thought as one plain line: markdown marks dropped, whitespace folded. */
+function excerpt(text: string) {
+  return text.replace(/[`*_#>~[\]]/g, "").replace(/\s+/g, " ").trim();
+}
+
 // Reasoning as a disclosure row: the spark and a running count while it thinks, "Thought for 4s" after.
 export function ThinkingRow({ step, live, isGenerating, inline = false, t }: ThinkingRowProps) {
   const thinking = !step.isComplete;
@@ -38,15 +58,21 @@ export function ThinkingRow({ step, live, isGenerating, inline = false, t }: Thi
   if (!step.content || (!inline && !thinking && view === "normal")) return null;
 
   if (inline) {
+    // The normal view keeps a thought short: its tail while it streams, one line once done.
+    if (view === "normal" && !thinking) {
+      return <div className="thought thought-brief text-[13px] leading-6 text-text-tertiary">{excerpt(step.content)}</div>;
+    }
+    const prose = live && thinking ? (
+      <StreamingMarkdown source={normalizeMath(step.content)} streaming={isGenerating} animateOnMount={isGenerating} />
+    ) : (
+      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
+        {normalizeMath(step.content)}
+      </ReactMarkdown>
+    );
+    if (view === "normal") return <ThoughtTail>{prose}</ThoughtTail>;
     return (
-      <div key={step.id} className="step-rise soft-words mb-3 text-[14px] leading-6 text-text-secondary markdown-body [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
-        {live && thinking ? (
-          <StreamingMarkdown source={normalizeMath(step.content)} streaming={isGenerating} animateOnMount={isGenerating} />
-        ) : (
-          <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
-            {normalizeMath(step.content)}
-          </ReactMarkdown>
-        )}
+      <div key={step.id} className="thought step-rise soft-words text-[14px] leading-[22px] text-text-secondary markdown-body [&_p]:mb-2 [&_p:last-child]:mb-0 [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
+        {prose}
       </div>
     );
   }

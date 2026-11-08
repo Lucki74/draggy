@@ -27,6 +27,8 @@ pub struct RunNote {
     #[serde(default)]
     pub quote: String,
     pub verified: Option<bool>,
+    /// 1-based; absent in chats saved before notes carried it.
+    pub sub_question: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -203,50 +205,147 @@ pub fn source_list_markup(run: &RunView) -> Vec<String> {
         .collect()
 }
 
-/// The header line of the run card: depth, sources read and notes kept.
+/// The run's rail line: what it is doing, then depth or questions, sources read and failures.
 pub fn card_header(run: &RunView) -> String {
-    let depth = t(match run.depth.as_str() {
-        "quick" => "researchDepthQuick",
-        "deep" => "researchDepthDeep",
-        _ => "researchDepthStandard",
-    });
     let read = run
         .sources
         .iter()
         .filter(|source| source.status == "read")
         .count();
-    format!(
-        "{} · {depth} · {} · {}",
-        t("researchRunTitle"),
-        t("researchRunSources").replace("{n}", &read.to_string()),
-        t("researchRunNotes").replace("{n}", &run.notes.len().to_string())
-    )
+    let failed = run.sources.iter().filter(|source| is_bad(source)).count();
+    let (verb, scope) = if run.ended_at.is_some() {
+        (
+            t("researchRunDone"),
+            count(
+                run.questions.len(),
+                "researchRunQuestionsOne",
+                "researchRunQuestions",
+            ),
+        )
+    } else {
+        let depth = match run.depth.as_str() {
+            "quick" => "researchDepthQuick",
+            "deep" => "researchDepthDeep",
+            _ => "researchDepthStandard",
+        };
+        (t("researchRunLive"), t(depth))
+    };
+    let mut parts = vec![
+        scope,
+        count(read, "researchRunSourcesOne", "researchRunSources"),
+    ];
+    if failed > 0 {
+        parts.push(t("researchRunFailed").replace("{n}", &failed.to_string()));
+    }
+    format!("{verb}  {}", parts.join(" · "))
 }
 
-/// One line for a sub-question: ticked once it has a note, with its note count.
+fn is_bad(source: &RunSource) -> bool {
+    source.status == "failed" || source.status == "blocked"
+}
+
+/// Each source once, under the first question a note of it answers; the rest come last.
+pub fn group_sources(run: &RunView) -> (Vec<Vec<&RunSource>>, Vec<&RunSource>) {
+    let mut groups: Vec<Vec<&RunSource>> = run.questions.iter().map(|_| Vec::new()).collect();
+    let mut placed = Vec::new();
+    for note in &run.notes {
+        let index = note.sub_question.unwrap_or(0).wrapping_sub(1);
+        let source = run
+            .sources
+            .iter()
+            .find(|source| source.id == note.source_id);
+        let (Some(group), Some(source)) = (groups.get_mut(index), source) else {
+            continue;
+        };
+        if !placed.contains(&source.id) {
+            group.push(source);
+            placed.push(source.id.clone());
+        }
+    }
+    let other = run
+        .sources
+        .iter()
+        .filter(|source| !placed.contains(&source.id))
+        .collect();
+    (groups, other)
+}
+
+/// One line for a sub-question: a filled dot once it has a note, then its note count.
 pub fn question_line(question: &RunQuestion) -> String {
-    let mark = if question.notes > 0 { "✓" } else { "○" };
-    format!("{mark} {} ({})", question.text, question.notes)
+    let mark = if question.notes > 0 { "●" } else { "○" };
+    let notes = count(question.notes, "researchRunNotesOne", "researchRunNotes");
+    format!("{mark}  {}  {notes}", question.text)
 }
 
-/// One line for a source in the card: its status, title and site.
+/// One source under its question: title and site, a quiet × when it could not be read.
 pub fn source_line(source: &RunSource) -> String {
-    let status = t(match source.status.as_str() {
-        "reading" => "researchStatusReading",
-        "read" => "researchStatusRead",
-        "skipped" => "researchStatusSkipped",
-        "blocked" => "researchStatusBlocked",
-        _ => "researchStatusFailed",
-    });
     let name = if source.title.is_empty() {
         source.url.as_str()
     } else {
         source.title.as_str()
     };
-    match source.site.as_deref().filter(|site| !site.is_empty()) {
-        Some(site) => format!("[{status}] {name} · {site}"),
-        None => format!("[{status}] {name}"),
+    let mut line = match source.site.as_deref().filter(|site| !site.is_empty()) {
+        Some(site) => format!("{name} · {site}"),
+        None => name.to_owned(),
+    };
+    match source.status.as_str() {
+        "reading" => line = format!("{line}  {}", t("researchStatusReading")),
+        "skipped" => line = format!("{line}  {}", t("researchStatusSkipped")),
+        _ if is_bad(source) => line.push_str("  ×"),
+        _ => {}
     }
+    line
+}
+
+/// A source's site badge as Pango markup: the site's first letter on a colour taken from its name.
+/// Windows draws the same badge when no icon loads; no icon is fetched, so no site learns what was read.
+pub fn site_badge(url: &str) -> String {
+    let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
+    let host = rest
+        .split(['/', '?', '#', ':'])
+        .next()
+        .unwrap_or("")
+        .to_lowercase();
+    let host = host.strip_prefix("www.").unwrap_or(&host);
+    let parts: Vec<&str> = host.split('.').filter(|part| !part.is_empty()).collect();
+    let name = match parts.len() {
+        0 => "?",
+        1 => parts[0],
+        n if n > 2 && ["co", "com", "org", "net", "gov", "ac", "edu"].contains(&parts[n - 2]) => {
+            parts[n - 3]
+        }
+        n => parts[n - 2],
+    };
+    let hue = name
+        .encode_utf16()
+        .fold(0u32, |hash, unit| (hash * 31 + u32::from(unit)) % 360_000)
+        % 360;
+    let letter = name
+        .chars()
+        .next()
+        .map_or_else(|| "?".to_owned(), |c| c.to_string());
+    format!(
+        "<span background=\"{}\" foreground=\"white\" font_weight=\"bold\"> {} </span>",
+        hsl_hex(hue),
+        escape(&letter)
+    )
+}
+
+/// The hue at 62% saturation and 46% lightness, as #rrggbb.
+fn hsl_hex(hue: u32) -> String {
+    let (s, l) = (0.62_f64, 0.46_f64);
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let x = c * (1.0 - ((f64::from(hue) / 60.0) % 2.0 - 1.0).abs());
+    let (r, g, b) = match hue / 60 {
+        0 => (c, x, 0.0),
+        1 => (x, c, 0.0),
+        2 => (0.0, c, x),
+        3 => (0.0, x, c),
+        4 => (x, 0.0, c),
+        _ => (c, 0.0, x),
+    };
+    let byte = |n: f64| ((n + l - c / 2.0) * 255.0).round() as u8;
+    format!("#{:02x}{:02x}{:02x}", byte(r), byte(g), byte(b))
 }
 
 /// The services line under the card, or `None` before anything was contacted.
@@ -288,6 +387,146 @@ pub const DEPTHS: [&str; 3] = ["quick", "standard", "deep"];
 pub const KEEPS: [&str; 3] = ["forever", "90", "30"];
 
 const TEXTS: &[(&str, [&str; 4])] = &[
+    ("gitGraph", ["Graph", "Graphe", "Gráfico", "Граф"]),
+    (
+        "gitChangedFiles",
+        [
+            "{count} changed",
+            "{count} modifiés",
+            "{count} cambiados",
+            "Изменено: {count}",
+        ],
+    ),
+    (
+        "gitClean",
+        [
+            "No changes",
+            "Aucune modification",
+            "Sin cambios",
+            "Нет изменений",
+        ],
+    ),
+    (
+        "gitDetached",
+        [
+            "Detached HEAD",
+            "HEAD détachée",
+            "HEAD separado",
+            "Отсоединённый HEAD",
+        ],
+    ),
+    (
+        "gitNoBranches",
+        ["No branches", "Aucune branche", "Sin ramas", "Веток нет"],
+    ),
+    (
+        "gitNoCommits",
+        [
+            "No commits yet",
+            "Aucun commit",
+            "Aún no hay commits",
+            "Коммитов пока нет",
+        ],
+    ),
+    (
+        "gitNoDiff",
+        [
+            "No changes to show",
+            "Aucune modification à afficher",
+            "No hay cambios que mostrar",
+            "Нет изменений для показа",
+        ],
+    ),
+    (
+        "gitSwitchBranch",
+        [
+            "Switch branch",
+            "Changer de branche",
+            "Cambiar de rama",
+            "Сменить ветку",
+        ],
+    ),
+    (
+        "reviewSplit",
+        [
+            "View split diff",
+            "Afficher côte à côte",
+            "Ver lado a lado",
+            "Показать рядом",
+        ],
+    ),
+    (
+        "reviewHideWhitespace",
+        [
+            "Hide whitespace changes",
+            "Masquer les changements d’espaces",
+            "Ocultar cambios de espacios",
+            "Скрыть изменения пробелов",
+        ],
+    ),
+    (
+        "reviewExpandAll",
+        [
+            "Expand all",
+            "Tout déplier",
+            "Expandir todo",
+            "Развернуть все",
+        ],
+    ),
+    (
+        "reviewCollapseAll",
+        [
+            "Collapse all",
+            "Tout replier",
+            "Contraer todo",
+            "Свернуть все",
+        ],
+    ),
+    (
+        "reviewBack",
+        [
+            "Back to changes",
+            "Retour aux modifications",
+            "Volver a los cambios",
+            "Назад к изменениям",
+        ],
+    ),
+    (
+        "reviewFilter",
+        [
+            "Filter files",
+            "Filtrer les fichiers",
+            "Filtrar archivos",
+            "Фильтр файлов",
+        ],
+    ),
+    (
+        "reviewRefresh",
+        ["Refresh", "Actualiser", "Actualizar", "Обновить"],
+    ),
+    ("reviewMore", ["More", "Plus", "Más", "Ещё"]),
+    (
+        "researchRunSourcesOne",
+        [
+            "{n} source read",
+            "{n} source lue",
+            "{n} fuente leída",
+            "Прочитано источников: {n}",
+        ],
+    ),
+    (
+        "researchRunNotesOne",
+        ["{n} note", "{n} note", "{n} nota", "Заметок: {n}"],
+    ),
+    (
+        "researchRunQuestionsOne",
+        [
+            "{n} question",
+            "{n} question",
+            "{n} pregunta",
+            "Вопросов: {n}",
+        ],
+    ),
     (
         "researchRunTitle",
         ["Research", "Recherche", "Investigación", "Исследование"],
@@ -308,6 +547,46 @@ const TEXTS: &[(&str, [&str; 4])] = &[
     (
         "researchRunNotes",
         ["{n} notes", "{n} notes", "{n} notas", "Заметок: {n}"],
+    ),
+    (
+        "researchRunLive",
+        [
+            "Researching",
+            "Recherche en cours",
+            "Investigando",
+            "Исследование",
+        ],
+    ),
+    (
+        "researchRunDone",
+        [
+            "Researched",
+            "Recherche terminée",
+            "Investigado",
+            "Исследовано",
+        ],
+    ),
+    (
+        "researchRunQuestions",
+        [
+            "{n} questions",
+            "{n} questions",
+            "{n} preguntas",
+            "Вопросов: {n}",
+        ],
+    ),
+    (
+        "researchRunFailed",
+        ["{n} failed", "{n} en échec", "{n} fallidas", "Ошибок: {n}"],
+    ),
+    (
+        "researchRunOtherSources",
+        [
+            "Other sources",
+            "Autres sources",
+            "Otras fuentes",
+            "Другие источники",
+        ],
     ),
     (
         "researchRunServices",
@@ -433,6 +712,11 @@ pub fn t(key: &str) -> String {
     text_in(&detect_system_locale(), key)
 }
 
+/// A count in its label, singular when it is one.
+fn count(n: usize, one: &str, other: &str) -> String {
+    t(if n == 1 { one } else { other }).replace("{n}", &n.to_string())
+}
+
 fn text_in(locale: &str, key: &str) -> String {
     let column = match locale {
         "fr" => 1,
@@ -453,7 +737,11 @@ pub fn past_run_line(depth: &str, sources: i64, started_ms: i64) -> String {
     format!(
         "{} · {} · {year:04}-{month:02}-{day:02}",
         t(depth_key(depth)),
-        t("researchRunSources").replace("{n}", &sources.to_string())
+        count(
+            sources.max(0) as usize,
+            "researchRunSourcesOne",
+            "researchRunSources"
+        )
     )
 }
 
@@ -532,12 +820,38 @@ mod tests {
     }
 
     #[test]
+    fn counts_are_singular_when_one() {
+        let one = t("researchRunNotesOne").replace("{n}", "1");
+        assert_eq!(count(1, "researchRunNotesOne", "researchRunNotes"), one);
+        assert_ne!(count(2, "researchRunNotesOne", "researchRunNotes"), one);
+    }
+
+    #[test]
     fn texts_exist_in_all_four_locales() {
         for (key, texts) in TEXTS {
             assert!(texts.iter().all(|text| !text.is_empty()), "{key}");
         }
         assert_eq!(text_in("ru", "researchRunTitle"), "Исследование");
         assert_eq!(text_in("de", "researchRunTitle"), "Research");
+    }
+
+    #[test]
+    fn a_site_badge_is_its_name_letter_on_a_steady_colour() {
+        let badge = site_badge("https://www.bbc.co.uk/news");
+        assert!(badge.contains("> b <"), "{badge}");
+        assert_eq!(badge, site_badge("http://bbc.com:8080/"));
+        assert_eq!(hsl_hex(0), "#be2d2d");
+    }
+
+    #[test]
+    fn a_source_sits_under_the_question_its_note_answers() {
+        let mut view = run();
+        view.notes[0].sub_question = Some(2);
+        let (groups, other) = group_sources(&view);
+        assert!(groups[0].is_empty());
+        assert_eq!(groups[1][0].id, "s2");
+        assert_eq!(other.len(), 1);
+        assert_eq!(card_header(&view).matches(" · ").count(), 1);
     }
 
     #[test]

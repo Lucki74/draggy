@@ -1,5 +1,6 @@
 import { classifyDiff } from "../project/gitView";
 import type { DiffLineKind } from "../project/gitView";
+import { leadingSpaces } from "./railContext";
 
 const LINE_CLASS: Record<DiffLineKind, string> = {
   add: "bg-ok/10 text-ok",
@@ -16,12 +17,12 @@ export default function UnifiedDiff({ diff, maxHeight = 360 }: { diff: string; m
 
   return (
     <div
-      className="overflow-auto rounded-xl border border-rule bg-surface-base font-mono text-[11px] leading-[1.45]"
+      className="overflow-y-auto overflow-x-hidden rounded-xl border border-rule bg-surface-base font-mono text-[11px] leading-[1.45]"
       style={{ maxHeight }}
     >
-      <pre className="m-0 min-w-fit py-1">
+      <pre className="code-wrap m-0 py-1">
         {lines.map((line, index) => (
-          <div key={index} data-kind={line.kind} className={`px-3 whitespace-pre ${LINE_CLASS[line.kind]}`}>
+          <div key={index} data-kind={line.kind} className={`px-3 ${LINE_CLASS[line.kind]}`} style={{ "--ind": leadingSpaces(line.text.slice(1)) } as React.CSSProperties}>
             {line.text || " "}
           </div>
         ))}

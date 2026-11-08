@@ -8,31 +8,31 @@ public struct UnifiedDiffView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 1) {
-                ForEach(diff.lines) { line in
-                    HStack(spacing: 8) {
-                        Text(formatLineNumber(line))
-                            .font(.system(.caption2, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 44, alignment: .trailing)
+        LazyVStack(alignment: .leading, spacing: 1) {
+            ForEach(diff.lines) { line in
+                HStack(alignment: .top, spacing: 8) {
+                    Text(formatLineNumber(line))
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, alignment: .trailing)
 
-                        Text(prefixChar(line.type))
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(lineColor(line.type))
-                            .frame(width: 12)
+                    Text(prefixChar(line.type))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(lineColor(line.type))
+                        .frame(width: 12)
 
-                        Text(line.content)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(lineColor(line.type))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(.horizontal, 4)
-                    .background(lineBackground(line.type))
+                    // Code wraps, so the pane never scrolls sideways.
+                    Text(line.content)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(lineColor(line.type))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .padding(.horizontal, 4)
+                .background(lineBackground(line.type))
             }
-            .padding(.vertical, 4)
         }
+        .padding(.vertical, 4)
     }
 
     private func formatLineNumber(_ line: DiffLine) -> String {

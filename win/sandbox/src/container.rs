@@ -40,6 +40,29 @@ const EXIT_JOB: i32 = 74;
 const NETWORK_CAPABILITIES: [&str; 3] = ["S-1-15-3-1", "S-1-15-3-2", "S-1-15-3-3"];
 
 pub fn run(spec: &Spec) -> i32 {
+    let sid = match prepare(spec) {
+        Ok(sid) => sid,
+        Err(code) => return code,
+    };
+    let code = start(spec, sid);
+    // SAFETY: the SID came from the profile calls in `prepare`.
+    unsafe { FreeSid(sid) };
+    code
+}
+
+/// Grants the spec's folders and starts nothing. A first grant on a big project can take minutes.
+pub fn grant_only(spec: &Spec) -> i32 {
+    match prepare(spec) {
+        Ok(sid) => {
+            // SAFETY: the SID came from the profile calls in `prepare`.
+            unsafe { FreeSid(sid) };
+            0
+        }
+        Err(code) => code,
+    }
+}
+
+fn prepare(spec: &Spec) -> Result<PSID, i32> {
     for folder in spec
         .read_only
         .iter()
@@ -50,7 +73,7 @@ pub fn run(spec: &Spec) -> i32 {
             eprintln!(
                 "sandbox: {folder} is not on an NTFS or ReFS volume, so it cannot be isolated"
             );
-            return EXIT_VOLUME;
+            return Err(EXIT_VOLUME);
         }
     }
     let name = wide(&format!("dg.{}", spec.identity));
@@ -70,7 +93,7 @@ pub fn run(spec: &Spec) -> i32 {
             let derived = DeriveAppContainerSidFromAppContainerName(name.as_ptr(), &mut sid);
             if derived != 0 {
                 eprintln!("sandbox: cannot create the container ({code:#x})");
-                return EXIT_PROFILE;
+                return Err(EXIT_PROFILE);
             }
         }
     }
@@ -83,16 +106,15 @@ pub fn run(spec: &Spec) -> i32 {
                 // A toolchain folder the user cannot change is left as is; the project itself must be granted.
                 if mask == grant::MODIFY {
                     eprintln!("sandbox: cannot grant access to {folder} (error {code})");
-                    return EXIT_GRANT;
+                    // SAFETY: the SID came from the profile calls above.
+                    unsafe { FreeSid(sid) };
+                    return Err(EXIT_GRANT);
                 }
                 eprintln!("sandbox: warning: no access granted to {folder} (error {code})");
             }
         }
     }
-    let code = start(spec, sid);
-    // SAFETY: the SID came from the profile calls above.
-    unsafe { FreeSid(sid) };
-    code
+    Ok(sid)
 }
 
 fn start(spec: &Spec, sid: PSID) -> i32 {

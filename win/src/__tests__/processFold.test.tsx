@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import ProcessFold from "../chat/ProcessFold";
+import Rail, { type RailEntry } from "../chat/Rail";
 import { processFoldLength } from "../chat/workSummary";
 import type { SearchStep } from "../types";
 
@@ -16,9 +17,10 @@ const step = (id: string, type: SearchStep["type"], extra: Partial<SearchStep> =
 });
 
 describe("processFoldLength", () => {
-  it("folds reasoning, work and earlier prose but not the last prose block", () => {
-    const segments = [[step("a", "thinking")], [step("b", "reading"), step("c", "searching")], [step("d", "text")], [step("e", "command")], [step("f", "text")]];
-    expect(processFoldLength(segments)).toBe(4);
+  it("folds reasoning, work and finished prose but not prose still being written", () => {
+    const head = [[step("a", "thinking")], [step("b", "reading"), step("c", "searching")], [step("d", "text")], [step("e", "command")]];
+    expect(processFoldLength([...head, [step("f", "text")]])).toBe(5);
+    expect(processFoldLength([...head, [step("f", "text", { isComplete: false })]])).toBe(4);
   });
 
   it("stops at an unanswered approval or a question, and folds an error with the work", () => {
@@ -37,49 +39,65 @@ describe("processFoldLength", () => {
   });
 });
 
+const words: Record<string, string> = {
+  working: "Working",
+  workedFor: "Worked {time}",
+  workRead_one: "Read {n} file",
+  workRead_other: "Read {n} files",
+  earlierSteps_one: "{n} earlier step",
+  earlierSteps_other: "{n} earlier steps",
+};
+const t = (key: string) => words[key] ?? key;
+const entry = (key: string, state: RailEntry["state"] = "done"): RailEntry => ({ key, state, kind: "step", node: <p>{key}</p> });
+
 describe("ProcessFold", () => {
-  const t = (key: string) => (key === "processing" ? "Processing…" : key === "workRead_one" ? "Read {n} file" : key === "workRead_other" ? "Read {n} files" : key);
   const steps = [step("a", "reading"), step("b", "reading")];
+  const entries = [entry("inner")];
 
   it("is open and reads as working while the turn runs", () => {
-    render(
-      <ProcessFold steps={steps} live language="en" t={t}>
-        <p>inner</p>
-      </ProcessFold>,
-    );
-    expect(screen.getByText("Processing…")).toBeTruthy();
+    render(<ProcessFold steps={steps} entries={entries} live view="normal" language="en" t={t} />);
+    expect(screen.getByText("Working")).toBeTruthy();
     expect(screen.getByText("inner")).toBeTruthy();
   });
 
   it("folds under the summary once done and reopens in full on click", () => {
-    const { rerender } = render(
-      <ProcessFold steps={steps} live language="en" t={t}>
-        <p>inner</p>
-      </ProcessFold>,
-    );
-    rerender(
-      <ProcessFold steps={steps} live={false} language="en" t={t}>
-        <p>inner</p>
-      </ProcessFold>,
-    );
+    const { rerender } = render(<ProcessFold steps={steps} entries={entries} live view="normal" language="en" t={t} />);
+    rerender(<ProcessFold steps={steps} entries={entries} live={false} durationMs={9000} view="normal" language="en" t={t} />);
+    expect(screen.getByText("Worked 9s")).toBeTruthy();
     expect(screen.getByText("Read 2 files")).toBeTruthy();
     expect(screen.queryByText("inner")).toBeNull();
     fireEvent.click(screen.getByRole("button"));
     expect(screen.getByText("inner")).toBeTruthy();
   });
 
-  it("shows edit counts in the row only for several edited files", () => {
+  it("stays open once done in the thinking and verbose views", () => {
+    render(<ProcessFold steps={steps} entries={entries} live={false} view="thinking" language="en" t={t} />);
+    expect(screen.getByText("inner")).toBeTruthy();
+  });
+
+  it("shows edit counts in the row only while the turn is folded", () => {
     const edit = (id: string) => step(id, "edit_file", { before: "a\n", after: "b\n" });
-    const render1 = (list: SearchStep[]) =>
-      render(
-        <ProcessFold steps={list} live={false} language="en" t={t}>
-          <p>inner</p>
-        </ProcessFold>,
-      );
-    const one = render1([edit("a")]);
+    render(<ProcessFold steps={[edit("a")]} entries={entries} live={false} view="normal" language="en" t={t} />);
+    expect(screen.getByText("+1")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
     expect(screen.queryByText("+1")).toBeNull();
-    one.unmount();
-    render1([edit("a"), edit("b")]);
-    expect(screen.getByText("+2")).toBeTruthy();
+  });
+});
+
+describe("Rail", () => {
+  const five = ["a", "b", "c", "d", "e"].map((key, index) => entry(key, index === 4 ? "live" : "done"));
+
+  it("keeps only the newest steps in focus and counts the rest", () => {
+    const { container } = render(<Rail entries={five} focus running t={t} />);
+    expect(container.querySelectorAll(".rail-gone")).toHaveLength(2);
+    fireEvent.click(screen.getByText("2 earlier steps"));
+    expect(container.querySelectorAll(".rail-gone")).toHaveLength(0);
+  });
+
+  it("shows every step without focus and marks the live one", () => {
+    const { container } = render(<Rail entries={five} focus={false} running t={t} />);
+    expect(container.querySelectorAll(".rail-gone")).toHaveLength(0);
+    expect(container.querySelectorAll(".rail-item.is-live")).toHaveLength(1);
+    expect(screen.queryByText(/earlier step/)).toBeNull();
   });
 });

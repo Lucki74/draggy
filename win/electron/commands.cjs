@@ -178,70 +178,89 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatI
       return { success: true, taskId: adopted.task.id };
     };
 
-    // Set before the spawn, so a spawn that fails at once still clears it.
-    const timer = setTimeout(() => {
-      if (autoDetach && tasks && entry.detach().success) return;
-      timedOut = true;
-      log.warn("proc.command", "command timed out", { limitMs: limit });
-      entry.handle?.kill();
-    }, limit);
-
-    // Nothing may stop to ask: there is no terminal, so a prompt would hang until the timeout.
-    log.info("proc.command", "command spawning", { shell: invocation.shell, chars: text.length, timeoutMs: limit });
-    log.debug("proc.command", "invocation", { file: path.basename(invocation.file), args: invocation.args.length });
-
+    let timer = null;
     const spawn = { file: invocation.file, args: invocation.args, cwd: folder, env: childEnv, verbatim: invocation.verbatim };
     const launch = boxed ? sandbox.wrap(spawn, { ...boxed, chatKey: chatId }) : spawn;
     if (launch.error) {
       finish({ success: false, error: launch.error });
       return;
     }
-    entry.handle = spawnStream(
-      launch,
-      {
-        onStdout: collect,
-        onStderr: collect,
-        onExit: ({ code, signal, error }) => {
-          if (sink) {
-            const rest = filter ? filter.end() : "";
-            if (rest) sink.push(rest);
-            sink.exit({ code, signal: signal || null, error: error ? error.message : null });
-            return;
-          }
-          if (error) {
-            log.warn("proc.command", "process error", { code: error.code ?? null, name: error.name ?? null });
-            finish({ success: false, error: error.message });
-            return;
-          }
 
-          let shown = output;
-          if (marker) {
-            const parsed = taskText.parseState(output, marker);
-            shown = parsed.output;
-            if (parsed.state) {
-              const next = fromShellPath(parsed.state.cwd);
-              const diff = taskText.envDiff(pristine, parsed.state.env);
-              shellState.set(stateKey, {
-                cwd: insideRoot(cwd, next) && fs.existsSync(next) ? next : saved?.cwd || null,
-                env: { ...(saved?.env || {}), [invocation.shell]: diff },
-                note: insideRoot(cwd, next) ? null : next,
-              });
+    const begin = () => {
+      if (entry.cancelled) {
+        finish({ success: false, cancelled: true, error: "The command was cancelled." });
+        return;
+      }
+      // Set before the spawn, so a spawn that fails at once still clears it.
+      timer = setTimeout(() => {
+        if (autoDetach && tasks && entry.detach().success) return;
+        timedOut = true;
+        log.warn("proc.command", "command timed out", { limitMs: limit });
+        entry.handle?.kill();
+      }, limit);
+
+      // Nothing may stop to ask: there is no terminal, so a prompt would hang until the timeout.
+      log.info("proc.command", "command spawning", { shell: invocation.shell, chars: text.length, timeoutMs: limit });
+      log.debug("proc.command", "invocation", { file: path.basename(invocation.file), args: invocation.args.length });
+      entry.handle = spawnStream(
+        launch,
+        {
+          onStdout: collect,
+          onStderr: collect,
+          onExit: ({ code, signal, error }) => {
+            if (sink) {
+              const rest = filter ? filter.end() : "";
+              if (rest) sink.push(rest);
+              sink.exit({ code, signal: signal || null, error: error ? error.message : null });
+              return;
             }
-          }
-          const clipped = clip(shown);
-          finish({
-            success: !timedOut && !entry.cancelled && code === 0,
-            exitCode: code,
-            signal: signal || null,
-            timedOut,
-            cancelled: entry.cancelled,
-            output: clipped.text,
-            truncated: clipped.truncated,
-            ...(marker && shellState.get(stateKey)?.note ? { outside: shellState.get(stateKey).note } : {}),
-          });
+            if (error) {
+              log.warn("proc.command", "process error", { code: error.code ?? null, name: error.name ?? null });
+              finish({ success: false, error: error.message });
+              return;
+            }
+
+            let shown = output;
+            if (marker) {
+              const parsed = taskText.parseState(output, marker);
+              shown = parsed.output;
+              if (parsed.state) {
+                const next = fromShellPath(parsed.state.cwd);
+                const diff = taskText.envDiff(pristine, parsed.state.env);
+                shellState.set(stateKey, {
+                  cwd: insideRoot(cwd, next) && fs.existsSync(next) ? next : saved?.cwd || null,
+                  env: { ...(saved?.env || {}), [invocation.shell]: diff },
+                  note: insideRoot(cwd, next) ? null : next,
+                });
+              }
+            }
+            const clipped = clip(shown);
+            finish({
+              success: !timedOut && !entry.cancelled && code === 0,
+              exitCode: code,
+              signal: signal || null,
+              timedOut,
+              cancelled: entry.cancelled,
+              output: clipped.text,
+              truncated: clipped.truncated,
+              ...(marker && shellState.get(stateKey)?.note ? { outside: shellState.get(stateKey).note } : {}),
+            });
+          },
         },
-      },
-    );
+      );
+    };
+
+    if (!sandbox.needsGrant(launch)) {
+      begin();
+      return;
+    }
+    // The command's timeout starts once the folder is granted, so a slow first grant is never cut short.
+    log.info("proc.command", "granting the sandbox access first");
+    onOutput?.("Setting up the sandbox for this folder. The first time can take a few minutes on a big project.\n");
+    sandbox.ready(launch).then((result) => {
+      if (result.error) finish({ success: false, error: `The sandbox could not get access to the folder: ${result.error}` });
+      else begin();
+    });
   });
 }
 

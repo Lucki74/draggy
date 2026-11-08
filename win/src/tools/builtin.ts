@@ -1168,6 +1168,7 @@ const createFile: ToolSpec = {
         content: `${ctx.t("createFileFailed")} **${filename}**`,
         isComplete: true,
         type: "error",
+        reason: result?.error,
       });
       ctx.syncSteps();
       return `TOOL RESULT (create_file): Failed to create file: ${result?.error}`;
@@ -1180,7 +1181,8 @@ const createFile: ToolSpec = {
     });
     ctx.syncSteps();
 
-    return `TOOL RESULT (create_file): Saved to ${result.filepath}. Mention the file in your reply so the user knows it was created.`;
+    const where = chatDir ? " It is in this chat's folder, where run_command runs, so use the bare file name there." : "";
+    return `TOOL RESULT (create_file): Saved to ${result.filepath}.${where} Mention the file in your reply so the user knows it was created.`;
   },
 };
 

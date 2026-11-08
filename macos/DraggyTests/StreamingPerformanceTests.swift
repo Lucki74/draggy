@@ -74,7 +74,7 @@ final class StreamingPerformanceTests: XCTestCase {
         ])
         var line = transcript.lines[0]
         XCTAssertTrue(line.foldsSteps)
-        XCTAssertTrue(MessageText.attributed(line).string.contains("Process (2 steps)"))
+        XCTAssertTrue(MessageText.attributed(line).string.contains("Worked · 2 steps"))
         XCTAssertFalse(MessageText.attributed(line).string.contains("query: draggy"))
         line.stepsOpen = true
         XCTAssertTrue(MessageText.attributed(line).string.contains("query: draggy"))

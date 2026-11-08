@@ -127,6 +127,8 @@ describe("Dock", () => {
     const dockEl = container.querySelector('[data-region="dock"]');
     expect(dockEl).toBeTruthy();
     expect(dockEl?.className).toContain("absolute");
+    // A width saved in a wider window must not push the overlay past its left edge.
+    expect(dockEl?.className).toContain("max-w-full");
   });
 
   it("returns null if no panes are present", () => {

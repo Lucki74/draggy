@@ -234,7 +234,11 @@ function inPage(win, fn, ...args) {
 }
 
 async function setDark(win, dark) {
-  await inPage(win, (on) => document.body.classList.toggle("dark", on), dark);
+  // The accent colours set for the old theme would win over the stylesheet's, so drop them.
+  await inPage(win, (on) => {
+    document.body.classList.toggle("dark", on);
+    for (const name of [...document.body.style].filter((one) => one.startsWith("--"))) document.body.style.removeProperty(name);
+  }, dark);
   await sleep(400);
 }
 

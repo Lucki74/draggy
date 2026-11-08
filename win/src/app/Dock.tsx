@@ -214,7 +214,6 @@ export function Dock({
             gitStatus={gitStatus}
             t={t}
             onOpenFile={onOpenFile}
-            onSendReviewComment={onSendReviewComment}
             width={width}
           />
         );

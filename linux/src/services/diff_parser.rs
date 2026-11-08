@@ -93,6 +93,41 @@ pub fn parse_git_diff(raw: &str) -> Vec<FileDiff> {
     files
 }
 
+/// The lines as split rows: a run of deletions sits beside the run of additions that replaces it.
+pub fn pair_lines(lines: &[DiffLine]) -> Vec<(Option<&DiffLine>, Option<&DiffLine>)> {
+    let mut rows = Vec::new();
+    let mut at = 0;
+    while at < lines.len() {
+        let line = &lines[at];
+        match line.line_type {
+            DiffLineType::Delete | DiffLineType::Add => {
+                let end = lines[at..]
+                    .iter()
+                    .position(|l| !matches!(l.line_type, DiffLineType::Delete | DiffLineType::Add))
+                    .map_or(lines.len(), |n| at + n);
+                let run = &lines[at..end];
+                let old: Vec<_> = run
+                    .iter()
+                    .filter(|l| l.line_type == DiffLineType::Delete)
+                    .collect();
+                let new: Vec<_> = run
+                    .iter()
+                    .filter(|l| l.line_type == DiffLineType::Add)
+                    .collect();
+                for i in 0..old.len().max(new.len()) {
+                    rows.push((old.get(i).copied(), new.get(i).copied()));
+                }
+                at = end;
+            }
+            _ => {
+                rows.push((Some(line), Some(line)));
+                at += 1;
+            }
+        }
+    }
+    rows
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,5 +138,26 @@ mod tests {
         let parsed = parse_git_diff(diff);
         assert_eq!(parsed.len(), 1);
         assert_eq!(parsed[0].lines.len(), 3);
+    }
+
+    #[test]
+    fn deletions_sit_beside_the_additions_that_replace_them() {
+        let diff = "diff --git a/f b/f
+--- a/f
++++ b/f
+@@ -1,3 +1,3 @@
+ ctx
+-old1
+-old2
++new1
+ tail
+";
+        let file = &parse_git_diff(diff)[0];
+        let rows = pair_lines(&file.lines);
+        // header, ctx, two replaced rows, tail
+        assert_eq!(rows.len(), 5);
+        assert_eq!(rows[2].0.map(|l| l.text.as_str()), Some("old1"));
+        assert_eq!(rows[2].1.map(|l| l.text.as_str()), Some("new1"));
+        assert!(rows[3].1.is_none());
     }
 }

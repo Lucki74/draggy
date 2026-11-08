@@ -237,41 +237,138 @@ pub fn metrics_line(metrics: &MetricsRecord) -> String {
     )
 }
 
-/// A one-line description of a step the agent took, for the list under a reply. Steps that carry no visible content
-/// (the model's thinking, for one) give `None`.
-pub fn step_label(step: &StepRecord) -> Option<String> {
+/// One rail line: a verb, the thing it acted on and a short result, as in "Read a.ts 12 lines".
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct StepLine {
+    pub verb: String,
+    pub target: String,
+    pub meta: String,
+    /// The target is a command or a path, so it is set in monospace.
+    pub mono: bool,
+}
+
+/// The line for a step under a reply. Steps with nothing to show (the model's thinking, for one) give `None`.
+pub fn step_line(step: &StepRecord) -> Option<StepLine> {
     // The research run has its own card.
     if step.kind == "research_run" {
         return None;
     }
     if let Some(tool) = &step.tool_name {
-        return Some(live_call_label(tool, step));
+        let target = step
+            .live_args
+            .as_ref()
+            .and_then(|live| live.entries.first())
+            .map(|entry| entry.value.lines().next().unwrap_or_default().to_owned())
+            .unwrap_or_default();
+        return Some(StepLine {
+            verb: tool.clone(),
+            target,
+            meta: String::new(),
+            mono: true,
+        });
+    }
+    let first = step
+        .content
+        .as_deref()
+        .map(|text| text.lines().next().unwrap_or_default().trim())
+        .unwrap_or_default();
+    if let Some(mut line) = split_markdown(first) {
+        if line.verb == "Search results for" {
+            line.verb = "Searched for".to_owned();
+            line.target = format!("“{}”", line.target);
+        }
+        line.mono = line.mono || matches!(step.kind.as_str(), "command" | "run_code" | "reading");
+        return Some(line);
     }
     let detail = step
         .filepath
         .as_deref()
         .or(step.filename.as_deref())
-        .or(step.content.as_deref())
-        .map(|text| text.lines().next().unwrap_or_default().trim())
-        .filter(|text| !text.is_empty())?;
-    let state = if step.is_complete == Some(true) {
-        ""
-    } else {
-        " (running)"
-    };
-    Some(format!("{}: {detail}{state}", step.kind))
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .unwrap_or(first);
+    if detail.is_empty() {
+        return None;
+    }
+    Some(StepLine {
+        verb: step.kind.clone(),
+        target: detail.to_owned(),
+        meta: String::new(),
+        mono: true,
+    })
 }
 
-/// A call still being written: the tool name and one `key: value` line per argument seen so far.
-fn live_call_label(tool: &str, step: &StepRecord) -> String {
-    let mut text = format!("{tool} (writing)");
-    if let Some(live) = &step.live_args {
-        for entry in &live.entries {
-            let value = entry.value.lines().next().unwrap_or_default();
-            text.push_str(&format!("\n  {}: {value}", entry.key));
-        }
+/// Splits "Ran `npm test` (exit 1)" into the verb, the quoted target and the rest.
+fn split_markdown(text: &str) -> Option<StepLine> {
+    let (start, mark) = text.char_indices().find_map(|(index, c)| match c {
+        '`' => Some((index, "`")),
+        '*' if text[index..].starts_with("**") => Some((index, "**")),
+        _ => None,
+    })?;
+    let inner = &text[start + mark.len()..];
+    let end = inner.find(mark)?;
+    let meta = inner[end + mark.len()..]
+        .trim()
+        .trim_start_matches('·')
+        .trim()
+        .trim_start_matches('(')
+        .trim_end_matches(')')
+        .trim();
+    Some(StepLine {
+        verb: text[..start].trim().to_owned(),
+        target: inner[..end].to_owned(),
+        meta: meta.to_owned(),
+        mono: mark == "`",
+    })
+}
+
+/// Tools a research run reports in its own card; their rail lines would only repeat it.
+const RUN_TOOLS: [&str; 3] = ["add_note", "search_web", "read_url"];
+
+/// Whether the run card already shows this step.
+pub fn in_run(step: &StepRecord) -> bool {
+    matches!(step.kind.as_str(), "searching" | "results")
+        || step
+            .tool_name
+            .as_deref()
+            .is_some_and(|tool| RUN_TOOLS.contains(&tool))
+}
+
+/// The mark a step gets on the rail. The node says it, so labels carry no state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepState {
+    Live,
+    Done,
+    Failed,
+}
+
+pub fn step_state(step: &StepRecord) -> StepState {
+    let content = step.content.as_deref().unwrap_or_default();
+    if step.kind == "error" || content.starts_with("Failed ") || content.starts_with("Timed out ") {
+        StepState::Failed
+    } else if step.is_complete == Some(true) {
+        StepState::Done
+    } else {
+        StepState::Live
     }
-    text
+}
+
+/// The fold header: "Working" while the reply streams, then one summary line.
+pub fn rail_title(steps: &[StepRecord], streaming: bool) -> String {
+    if streaming {
+        return "Working".to_owned();
+    }
+    let shown: Vec<&StepRecord> = steps.iter().filter(|s| step_line(s).is_some()).collect();
+    let noun = if shown.len() == 1 { "step" } else { "steps" };
+    let mut title = format!("Worked · {} {noun}", shown.len());
+    let failed = shown
+        .iter()
+        .filter(|s| step_state(s) == StepState::Failed)
+        .count();
+    if failed > 0 {
+        title.push_str(&format!(" · {failed} failed"));
+    }
+    title
 }
 
 /// The core's messages in the form they are saved in.
@@ -391,6 +488,27 @@ mod tests {
             is_complete: Some(complete),
             ..StepRecord::default()
         }
+    }
+
+    #[test]
+    fn a_run_card_takes_its_searches_and_notes() {
+        let live = |tool: &str| StepRecord {
+            kind: "tool_call".to_owned(),
+            tool_name: Some(tool.to_owned()),
+            ..StepRecord::default()
+        };
+        assert!(in_run(&live("add_note")));
+        assert!(in_run(&step("results", "Search results for x", true)));
+        assert!(!in_run(&live("create_file")));
+        assert!(!in_run(&step("command", "Ran `ls`", true)));
+    }
+
+    #[test]
+    fn a_timed_out_command_is_failed() {
+        assert_eq!(
+            step_state(&step("command", "Timed out `sleep 9`", true)),
+            StepState::Failed
+        );
     }
 
     #[test]
@@ -553,21 +671,22 @@ mod tests {
             }),
             ..StepRecord::default()
         };
-        assert_eq!(
-            step_label(&live).as_deref(),
-            Some("search_web (writing)\n  query: flex gap")
-        );
+        assert_eq!(shown(&live).as_deref(), Some("search_web|flex gap|"));
+    }
+
+    fn shown(step: &StepRecord) -> Option<String> {
+        step_line(step).map(|line| format!("{}|{}|{}", line.verb, line.target, line.meta))
     }
 
     #[test]
     fn running_and_finished_steps_are_labelled() {
         assert_eq!(
-            step_label(&step("read_file", "a.txt\nmore", false)).as_deref(),
-            Some("read_file: a.txt (running)")
+            shown(&step("read_file", "a.txt\nmore", false)).as_deref(),
+            Some("read_file|a.txt|")
         );
         assert_eq!(
-            step_label(&step("list_directory", "src", true)).as_deref(),
-            Some("list_directory: src")
+            step_state(&step("read_file", "a.txt", false)),
+            StepState::Live
         );
         let path = StepRecord {
             kind: "write_file".to_owned(),
@@ -576,8 +695,38 @@ mod tests {
             is_complete: Some(true),
             ..StepRecord::default()
         };
-        assert_eq!(step_label(&path).as_deref(), Some("write_file: /p/x.rs"));
-        assert!(step_label(&step("think", "  ", true)).is_none());
+        assert_eq!(shown(&path).as_deref(), Some("write_file|/p/x.rs|"));
+        assert!(shown(&step("think", "  ", true)).is_none());
+    }
+
+    #[test]
+    fn a_step_splits_into_verb_target_and_result() {
+        let ran = step_line(&step("command", "Failed `node fail.js` (exit 3)", true)).unwrap();
+        assert_eq!(
+            (ran.verb.as_str(), ran.target.as_str(), ran.meta.as_str()),
+            ("Failed", "node fail.js", "exit 3")
+        );
+        assert!(ran.mono);
+        assert_eq!(
+            shown(&step("reading", "Read **a.ts** · 12 lines", true)).as_deref(),
+            Some("Read|a.ts|12 lines")
+        );
+        assert_eq!(
+            shown(&step("results", "Search results for **node lts**", true)).as_deref(),
+            Some("Searched for|“node lts”|")
+        );
+    }
+
+    #[test]
+    fn the_rail_title_works_then_sums_up() {
+        let steps = vec![
+            step("command", "Ran `npm test`", true),
+            step("command", "Failed `node fail.js` (exit 3)", true),
+        ];
+        assert_eq!(rail_title(&steps, true), "Working");
+        assert_eq!(rail_title(&steps, false), "Worked · 2 steps · 1 failed");
+        assert_eq!(step_state(&steps[1]), StepState::Failed);
+        assert_eq!(rail_title(&steps[..1], false), "Worked · 1 step");
     }
 
     #[test]

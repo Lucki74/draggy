@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { execFileHidden } = require("./platform.cjs");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -116,7 +117,43 @@ function wrap(spawn, options) {
   fs.writeFileSync(specFile, JSON.stringify(spec), { mode: 0o600 });
 
   const launcherEnv = { SystemRoot: process.env.SystemRoot, LOCALAPPDATA: process.env.LOCALAPPDATA, TEMP: os.tmpdir() };
-  return { file: launcherPath(), args: [specFile], cwd: spawn.cwd, env: launcherEnv, verbatim: false };
+  const access = { identity: spec.identity, cwd: spec.cwd, readOnly: spec.readOnly, readWrite: spec.readWrite, commandLine: "grant" };
+  const grant = { key: JSON.stringify([access.identity, access.readOnly, access.readWrite]), spec: access, specs };
+  return { file: launcherPath(), args: [specFile], cwd: spawn.cwd, env: launcherEnv, verbatim: false, grant };
 }
 
-module.exports = { available, launcherPath, identity, quoteArg, commandLine, toolchainFolders, wrap };
+const granted = new Map();
+const done = new Set();
+
+/** True while a launch still waits on its first grant this app run. */
+function needsGrant(launch) {
+  return Boolean(launch.grant) && !done.has(launch.grant.key);
+}
+
+/** Grants a launch's folders once per app run, with no timeout. The first grant on a big project walks every file
+ * and can take minutes, and a timeout that killed it would leave it to start over on every command. */
+function ready(launch, runGrant = defaultGrant) {
+  if (!launch.grant) return Promise.resolve({});
+  const { key } = launch.grant;
+  if (!granted.has(key)) {
+    const job = runGrant(launch).then((result) => {
+      if (result.error) granted.delete(key);
+      else done.add(key);
+      return result;
+    });
+    granted.set(key, job);
+  }
+  return granted.get(key);
+}
+
+function defaultGrant(launch) {
+  const specFile = path.join(launch.grant.specs, `${crypto.randomBytes(8).toString("hex")}.json`);
+  fs.writeFileSync(specFile, JSON.stringify(launch.grant.spec), { mode: 0o600 });
+  return new Promise((resolve) => {
+    execFileHidden(launch.file, ["--grant", specFile], { env: launch.env }, (error, _stdout, stderr) => {
+      resolve(error ? { error: String(stderr || "").trim() || error.message } : {});
+    });
+  });
+}
+
+module.exports = { available, launcherPath, identity, quoteArg, commandLine, toolchainFolders, wrap, ready, needsGrant };

@@ -432,6 +432,20 @@ describe("repo file matching", () => {
     ).toEqual(["Q4_K_M"]);
   });
 
+  it("resolves an Unsloth Dynamic tag to its UD file, whole or in shards", async () => {
+    mockTree([
+      ["Qwen3.8-27B-Q3_K_M.gguf", 13_000_000_000],
+      ["Qwen3.8-27B-UD-Q3_K_XL.gguf", 13_150_000_000],
+      ["UD-Q4_K_XL/Big-UD-Q4_K_XL-00001-of-00002.gguf", 30],
+      ["UD-Q4_K_XL/Big-UD-Q4_K_XL-00002-of-00002.gguf", 12],
+    ]);
+    const whole = await huggingface.resolveModelDownload("unsloth/Qwen3.8-27B-GGUF:UD-Q3_K_XL");
+    expect(whole.filename).toBe("Qwen3.8-27B-UD-Q3_K_XL.gguf");
+    const split = await huggingface.resolveModelDownload("unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_XL");
+    expect(split).toMatchObject({ filename: "Big-UD-Q4_K_XL-00001-of-00002.gguf", size: 42 });
+    expect(await huggingface.resolveModelDownload("unsloth/Qwen3.8-27B-GGUF:UD-Q3_K_M")).toBeNull();
+  });
+
   it("does not let Q2_0 pick up a PQ2_0 file", async () => {
     mockTree([["m-PQ2_0.gguf", 5]]);
     expect(await huggingface.resolveModelDownload("acme/PQ-GGUF:Q2_0")).toBeNull();

@@ -47,7 +47,7 @@ export function ShortcutsSheet({ open, onClose, t }: ShortcutsSheetProps) {
     {
       title: t("shortcutsSectionPanes"),
       items: [
-        { label: t("files"), keys: [`${mod}+Shift+F`] },
+        { label: t("projectFiles"), keys: [`${mod}+Shift+F`] },
         { label: t("diffPane"), keys: [`${mod}+Shift+D`] },
         { label: t("browser"), keys: [`${mod}+Shift+B`] },
         { label: t("plan"), keys: [`${mod}+Shift+L`] },
