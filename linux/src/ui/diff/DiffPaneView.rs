@@ -215,7 +215,7 @@ impl Pane {
             let next: HashSet<String> = if open {
                 HashSet::new()
             } else {
-                pane.shown().iter().map(|f| file_id(f)).collect()
+                pane.shown().iter().map(file_id).collect()
             };
             pane.state.borrow_mut().expanded = Some(next);
             button.set_label(&t(if open {
