@@ -79,11 +79,16 @@ export default function ResearchPlanCard({ step, t }: { step: SearchStep; t: (ke
               <span aria-hidden="true" className="w-4 flex-shrink-0 text-end font-mono text-[11px] text-text-tertiary">
                 {at + 1}
               </span>
-              <input
+              {/* A long question wraps; it stays one line of text, so a newline becomes a space. */}
+              <textarea
+                rows={1}
                 value={text}
-                onChange={(event) => setQuestions((now) => now.map((one, i) => (i === at ? event.target.value : one)))}
+                onChange={(event) => {
+                  const value = event.target.value.replace(/\n/g, " ");
+                  setQuestions((now) => now.map((one, i) => (i === at ? value : one)));
+                }}
                 aria-label={`${t("researchSubQuestions")} ${at + 1}`}
-                className="min-w-0 flex-1 rounded-sm border border-rule bg-surface-canvas px-2.5 py-1.5 text-[14px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="min-w-0 flex-1 resize-none rounded-sm border border-rule bg-surface-canvas px-2.5 py-1.5 text-[14px] [field-sizing:content] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus"
               />
               <button
                 type="button"
