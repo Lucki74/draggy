@@ -56,7 +56,9 @@ pub use records::{
 pub use research_library::{PastRunRecord, ResearchStore};
 pub use session::Session;
 pub use skills::{SkillRecord, install_skill, list_skills, remove_skill};
-pub use update::{UpdateChecker, UpdateRecord};
+pub use update::{
+    UpdateChecker, UpdateObserver, UpdateProgressRecord, UpdateRecord, parse_sha256sums,
+};
 pub use web::{web_address_allowed, web_address_refusal};
 
 uniffi::setup_scaffolding!();

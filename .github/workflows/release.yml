@@ -251,6 +251,12 @@ jobs:
 
           gh release download "b-$n" --repo "$GITHUB_REPOSITORY" --pattern latest-linux.yml --dir out
 
+      - name: Generate SHA256SUMS.txt
+        shell: bash
+        run: |
+          cd out
+          sha256sum -- $(ls -1 | grep -v '^SHA256SUMS.txt$') > SHA256SUMS.txt
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
