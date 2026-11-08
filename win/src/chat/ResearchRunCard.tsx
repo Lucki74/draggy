@@ -25,6 +25,10 @@ const STATUS_KEY: Record<SourceStatus, string> = {
 };
 
 /** 125000 ms as 2:05. */
+/** A count in its label, singular when it is one. */
+const count = (t: (key: string) => string, n: number, one: string, other: string) =>
+  t(n === 1 ? one : other).replace("{n}", String(n));
+
 function clock(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -106,7 +110,7 @@ function RunTree({ run, t }: { run: ResearchRunView; t: (key: string) => string 
               />
               <span className="min-w-0 flex-1 break-words pt-0.5">{question.text}</span>
               <span className="flex-none pt-0.5 text-[12px] tabular-nums text-text-tertiary">
-                {t("researchRunNotes").replace("{n}", String(question.notes))}
+                {count(t, question.notes, "researchRunNotesOne", "researchRunNotes")}
               </span>
             </div>
             {groups[index].length > 0 && <SourceList sources={groups[index]} t={t} />}
@@ -156,8 +160,8 @@ export function ResearchRunCard({ step, t }: { step: SearchStep; t: (key: string
   const open = clicked ?? (live || view !== "normal");
   const parts = live
     ? [t(DEPTH_KEY[run.depth]), `${clock(elapsed)} / ${clock(run.wallMs)}`]
-    : [t("researchRunQuestions").replace("{n}", String(run.questions.length))];
-  parts.push(t("researchRunSources").replace("{n}", String(read)));
+    : [count(t, run.questions.length, "researchRunQuestionsOne", "researchRunQuestions")];
+  parts.push(count(t, read, "researchRunSourcesOne", "researchRunSources"));
   if (failed > 0) parts.push(t("researchRunFailed").replace("{n}", String(failed)));
 
   return (

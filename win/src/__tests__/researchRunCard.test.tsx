@@ -46,7 +46,7 @@ describe("ResearchRunCard", () => {
   it("reads as one rail line with the questions and their sources inside", () => {
     render(<ResearchRunCard step={runStep()} t={t} />);
     expect(screen.getByText("researchRunLive")).toBeTruthy();
-    expect(screen.getByText(/researchDepthStandard · 1:0\d \/ 10:00 · researchRunSources · researchRunFailed/)).toBeTruthy();
+    expect(screen.getByText(/researchDepthStandard · 1:0\d \/ 10:00 · researchRunSourcesOne · researchRunFailed/)).toBeTruthy();
     expect(screen.getByText("Speed")).toBeTruthy();
     expect(screen.getAllByText("researchRunNotes")).toHaveLength(2);
     expect(screen.getByText("Alpha page")).toBeTruthy();

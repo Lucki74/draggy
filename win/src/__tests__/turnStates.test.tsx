@@ -115,3 +115,23 @@ describe("versions", () => {
     expect(screen.getByText("2 / 2")).toBeTruthy();
   });
 });
+
+describe("research runs", () => {
+  const run = {
+    id: "run1", depth: "quick", startedAt: Date.now(), wallMs: 120_000, gathering: true,
+    questions: [], sources: [], notes: [], hosts: [],
+  };
+  const live = (tool: string) =>
+    ({ id: tool, type: "tool_call", tool, content: "", isComplete: false, liveArgs: { entries: [], invalid: false, complete: false } }) as SearchStep;
+
+  it("hides the live calls the run row already reports", () => {
+    const steps = [
+      { id: "r", type: "research_run", content: "", isComplete: false, researchRun: run } as SearchStep,
+      live("add_note"),
+      live("read_url"),
+      live("create_file"),
+    ];
+    renderTurn(baseMessage({ content: "" }), { live: true, isGenerating: true }, steps);
+    expect(screen.getAllByTestId("live-args")).toHaveLength(1);
+  });
+});

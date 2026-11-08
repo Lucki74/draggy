@@ -37,6 +37,9 @@ import type {
 } from "../types";
 
 // Friendly line per failure kind; unknown failures show only the raw error.
+/** Tools a research run reports in its own row; their live calls would only repeat it. */
+const RUN_TOOLS = new Set(["add_note", "search_web", "read_url"]);
+
 const ERROR_KIND_KEYS: Record<Exclude<TurnErrorKind, "unknown">, string> = {
   engine: "errorKindEngine",
   memory: "errorKindMemory",
@@ -245,7 +248,11 @@ export function AssistantTurn({
   // In a research reply the run block lists what was searched and read, so those rows stay out of the chain.
   const run = runOf(steps);
   const inRunBlock = (step: SearchStep) =>
-    Boolean(run) && (step.type === "searching" || step.type === "results" || ((step.type === "reading" || step.type === "error") && Boolean(step.retryUrl)));
+    Boolean(run) &&
+    (step.type === "searching" ||
+      step.type === "results" ||
+      ((step.type === "reading" || step.type === "error") && Boolean(step.retryUrl)) ||
+      (step.type === "tool_call" && RUN_TOOLS.has(step.tool ?? "")));
   for (const [index, entry] of steps.entries()) {
     if (invisible(entry) || inRunBlock(entry)) continue;
     // A finished search shows only its results row; "Searched for" is shown while it runs.
