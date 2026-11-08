@@ -1273,9 +1273,17 @@ fn draw_card(card: &gtk::Box, run: Option<&RunView>) {
         card.append(&line(&run.question, "message-text"));
     }
     let source = |source: &research::RunSource| {
-        let row = line(&research::source_line(source), "caption");
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
         row.set_margin_start(18);
-        row.add_css_class("dim-label");
+        let badge = markup_label(&research::site_badge(&source.url), "caption");
+        badge.set_valign(gtk::Align::Start);
+        badge.set_hexpand(false);
+        badge.set_selectable(false);
+        row.append(&badge);
+        let text = line(&research::source_line(source), "caption");
+        text.add_css_class("dim-label");
+        text.set_hexpand(true);
+        row.append(&text);
         row
     };
     let (groups, other) = research::group_sources(run);

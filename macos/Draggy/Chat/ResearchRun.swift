@@ -110,10 +110,35 @@ enum ResearchText {
         return (groups, run.sources.filter { !placed.contains($0.id) })
     }
 
+    /// The site's name without www or its public suffix, as Windows labels a site badge.
+    static func siteName(_ url: String) -> String {
+        var host = (URL(string: url)?.host ?? "").lowercased()
+        if host.hasPrefix("www.") { host.removeFirst(4) }
+        let parts = host.split(separator: ".").map(String.init)
+        let short: Set<String> = ["co", "com", "org", "net", "gov", "ac", "edu"]
+        switch parts.count {
+        case 0: return "?"
+        case 1: return parts[0]
+        case let n where n > 2 && short.contains(parts[n - 2]): return parts[n - 3]
+        default: return parts[parts.count - 2]
+        }
+    }
+
+    /// The site's first letter on a colour taken from its name. No icon is fetched, so no site learns what was read.
+    private static func badge(_ url: String) -> NSAttributedString {
+        let name = siteName(url)
+        let hue = name.utf16.reduce(0) { ($0 * 31 + Int($1)) % 360_000 } % 360
+        // HSL 62% / 46%, the Windows badge colour, in HSB.
+        let color = NSColor(hue: CGFloat(hue) / 360, saturation: 0.7655, brightness: 0.7452, alpha: 1)
+        return NSAttributedString(string: " \(name.prefix(1)) ", attributes: [.font: chip, .foregroundColor: NSColor.white, .backgroundColor: color])
+    }
+
     private static func sourceLine(_ source: ResearchRunView.Source) -> NSAttributedString {
         let name = [source.title, source.url].compactMap { $0 }.first { !$0.isEmpty } ?? source.url
         let site = (source.site ?? "").isEmpty ? "" : " \u{00B7} \(source.site ?? "")"
-        let out = NSMutableAttributedString(string: "    \(name)\(site)", attributes: [.font: small, .foregroundColor: NSColor.tertiaryLabelColor])
+        let out = NSMutableAttributedString(string: "    ", attributes: [.font: small])
+        out.append(badge(source.url))
+        out.append(NSAttributedString(string: " \(name)\(site)", attributes: [.font: small, .foregroundColor: NSColor.tertiaryLabelColor]))
         if source.status == "reading" || source.status == "skipped" {
             out.append(NSAttributedString(string: "  \(status(source.status))", attributes: [.font: small, .foregroundColor: NSColor.tertiaryLabelColor]))
         } else if isBad(source) {

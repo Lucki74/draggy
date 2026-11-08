@@ -294,6 +294,57 @@ pub fn source_line(source: &RunSource) -> String {
     line
 }
 
+/// A source's site badge as Pango markup: the site's first letter on a colour taken from its name.
+/// Windows draws the same badge when no icon loads; no icon is fetched, so no site learns what was read.
+pub fn site_badge(url: &str) -> String {
+    let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
+    let host = rest
+        .split(['/', '?', '#', ':'])
+        .next()
+        .unwrap_or("")
+        .to_lowercase();
+    let host = host.strip_prefix("www.").unwrap_or(&host);
+    let parts: Vec<&str> = host.split('.').filter(|part| !part.is_empty()).collect();
+    let name = match parts.len() {
+        0 => "?",
+        1 => parts[0],
+        n if n > 2 && ["co", "com", "org", "net", "gov", "ac", "edu"].contains(&parts[n - 2]) => {
+            parts[n - 3]
+        }
+        n => parts[n - 2],
+    };
+    let hue = name
+        .encode_utf16()
+        .fold(0u32, |hash, unit| (hash * 31 + u32::from(unit)) % 360_000)
+        % 360;
+    let letter = name
+        .chars()
+        .next()
+        .map_or_else(|| "?".to_owned(), |c| c.to_string());
+    format!(
+        "<span background=\"{}\" foreground=\"white\" font_weight=\"bold\"> {} </span>",
+        hsl_hex(hue),
+        escape(&letter)
+    )
+}
+
+/// The hue at 62% saturation and 46% lightness, as #rrggbb.
+fn hsl_hex(hue: u32) -> String {
+    let (s, l) = (0.62_f64, 0.46_f64);
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let x = c * (1.0 - ((f64::from(hue) / 60.0) % 2.0 - 1.0).abs());
+    let (r, g, b) = match hue / 60 {
+        0 => (c, x, 0.0),
+        1 => (x, c, 0.0),
+        2 => (0.0, c, x),
+        3 => (0.0, x, c),
+        4 => (x, 0.0, c),
+        _ => (c, 0.0, x),
+    };
+    let byte = |n: f64| ((n + l - c / 2.0) * 255.0).round() as u8;
+    format!("#{:02x}{:02x}{:02x}", byte(r), byte(g), byte(b))
+}
+
 /// The services line under the card, or `None` before anything was contacted.
 pub fn services_line(run: &RunView) -> Option<String> {
     (!run.hosts.is_empty())
@@ -623,6 +674,14 @@ mod tests {
         }
         assert_eq!(text_in("ru", "researchRunTitle"), "Исследование");
         assert_eq!(text_in("de", "researchRunTitle"), "Research");
+    }
+
+    #[test]
+    fn a_site_badge_is_its_name_letter_on_a_steady_colour() {
+        let badge = site_badge("https://www.bbc.co.uk/news");
+        assert!(badge.contains("> b <"), "{badge}");
+        assert_eq!(badge, site_badge("http://bbc.com:8080/"));
+        assert_eq!(hsl_hex(0), "#be2d2d");
     }
 
     #[test]
