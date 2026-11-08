@@ -184,7 +184,7 @@ export function DiffPane({
   return (
     <div className="flex flex-col h-full bg-surface-canvas overflow-hidden select-none">
       {/* GitStrip Header embedded at the top of the Diff pane */}
-      <div className="h-10 px-3 flex items-center justify-between border-b border-rule bg-surface-base flex-shrink-0 gap-2 text-xs">
+      <div className="min-h-10 px-3 py-1 flex flex-wrap items-center justify-between border-b border-rule bg-surface-base flex-shrink-0 gap-x-2 gap-y-1 text-xs">
         <div className="flex items-center gap-2 min-w-0">
           <Icon name="git-branch" size={14} className="text-text-secondary flex-shrink-0" />
           <span className="font-semibold text-text-primary truncate" title={branch}>
@@ -210,7 +210,7 @@ export function DiffPane({
             </span>
           )}
 
-          <span className="text-[11px] text-text-secondary ms-1">
+          <span className="text-[11px] text-text-secondary ms-1 whitespace-nowrap">
             {files.length === 0
               ? t("gitClean")
               : t("gitChangedFiles").replace("{count}", String(files.length))}

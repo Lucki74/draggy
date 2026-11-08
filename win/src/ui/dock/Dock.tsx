@@ -99,7 +99,7 @@ export function Dock({
         isMaximized
           ? "absolute inset-0 z-30 flex bg-surface-base"
           : isOverlay
-          ? "absolute inset-y-0 end-0 z-30 flex shadow-2xl bg-surface-base border-s border-rule"
+          ? "absolute inset-y-0 end-0 z-30 flex max-w-full shadow-2xl bg-surface-base border-s border-rule"
           : "flex h-full flex-shrink-0 relative"
       } ${className}`}
     >
