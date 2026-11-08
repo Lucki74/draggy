@@ -17,6 +17,8 @@ struct ResearchRunView: Decodable, Equatable {
         let sourceId: String
         var quote: String?
         var verified: Bool?
+        /// 1-based; absent in chats saved before notes carried it.
+        var subQuestion: Int?
     }
 
     struct Question: Decodable, Equatable {
@@ -90,30 +92,65 @@ enum ResearchText {
         NSAttributedString(string: text + "\n", attributes: [.font: small, .foregroundColor: color])
     }
 
-    /// The question, the sub-questions with their notes, the sources and the services contacted.
+    private static func isBad(_ source: ResearchRunView.Source) -> Bool {
+        source.status == "failed" || source.status == "blocked"
+    }
+
+    /// Each source once, under the first question a note of it answers; the rest go last.
+    static func groupSources(_ run: ResearchRunView) -> (groups: [[ResearchRunView.Source]], other: [ResearchRunView.Source]) {
+        var groups = run.questions.map { _ in [ResearchRunView.Source]() }
+        var placed = Set<String>()
+        for note in run.notes {
+            let index = (note.subQuestion ?? 0) - 1
+            guard groups.indices.contains(index), !placed.contains(note.sourceId),
+                  let source = run.sources.first(where: { $0.id == note.sourceId }) else { continue }
+            groups[index].append(source)
+            placed.insert(source.id)
+        }
+        return (groups, run.sources.filter { !placed.contains($0.id) })
+    }
+
+    private static func sourceLine(_ source: ResearchRunView.Source) -> NSAttributedString {
+        let name = [source.title, source.url].compactMap { $0 }.first { !$0.isEmpty } ?? source.url
+        let site = (source.site ?? "").isEmpty ? "" : " \u{00B7} \(source.site ?? "")"
+        let out = NSMutableAttributedString(string: "    \(name)\(site)", attributes: [.font: small, .foregroundColor: NSColor.tertiaryLabelColor])
+        if source.status == "reading" || source.status == "skipped" {
+            out.append(NSAttributedString(string: "  \(status(source.status))", attributes: [.font: small, .foregroundColor: NSColor.tertiaryLabelColor]))
+        } else if isBad(source) {
+            out.append(NSAttributedString(string: "  \u{00D7}", attributes: [.font: small, .foregroundColor: NSColor.systemRed, .toolTip: status(source.status)]))
+        }
+        if let url = URL(string: source.url) { out.addAttribute(.link, value: url, range: NSRange(location: 4, length: out.length - 4)) }
+        out.append(NSAttributedString(string: "\n", attributes: [.font: small]))
+        return out
+    }
+
+    /// The header line saying how far the run got.
+    static func header(_ run: ResearchRunView) -> String {
+        let read = run.sources.filter { $0.status == "read" }.count
+        let failed = run.sources.filter(isBad).count
+        let done = run.endedAt != nil
+        var parts = [done ? String(format: String(localized: "%lld questions"), run.questions.count) : depth(run.depth)]
+        parts.append(String(format: String(localized: "%lld sources read"), read))
+        if failed > 0 { parts.append(String(format: String(localized: "%lld failed"), failed)) }
+        return (done ? String(localized: "Researched") : String(localized: "Researching")) + "  " + parts.joined(separator: " \u{00B7} ")
+    }
+
+    /// The header, the questions with the sources that answer them, other sources and the services contacted.
     static func card(_ run: ResearchRunView) -> NSAttributedString {
         let out = NSMutableAttributedString()
-        let read = run.sources.filter { $0.status == "read" }.count
-        let header = [
-            String(localized: "Research"),
-            depth(run.depth),
-            String(format: String(localized: "%lld sources read"), read),
-            String(format: String(localized: "%lld notes"), run.notes.count),
-        ].joined(separator: " \u{00B7} ")
-        out.append(line(header))
-        if let question = run.question, !question.isEmpty {
-            out.append(line(question, color: .labelColor))
+        out.append(line(header(run)))
+        let (groups, other) = groupSources(run)
+        for (index, question) in run.questions.enumerated() {
+            let notes = String(format: String(localized: "%lld notes"), question.notes)
+            out.append(line("\(question.notes > 0 ? "\u{25CF}" : "\u{25CB}")  \(question.text)  \(notes)"))
+            groups[index].forEach { out.append(sourceLine($0)) }
         }
-        for question in run.questions {
-            out.append(line("\(question.notes > 0 ? "\u{2713}" : "\u{25CB}") \(question.text) (\(question.notes))"))
+        if !other.isEmpty {
+            out.append(line(String(localized: "Other sources"), color: .tertiaryLabelColor))
+            other.forEach { out.append(sourceLine($0)) }
         }
         if run.endedAt != nil, !run.notes.contains(where: { $0.verified != false }) {
-            out.append(line(String(localized: "No sourced notes were kept. The answer below is not backed by any source."), color: .systemRed))
-        }
-        for source in run.sources {
-            let name = [source.title, source.url].compactMap { $0 }.first { !$0.isEmpty } ?? source.url
-            let site = (source.site ?? "").isEmpty ? "" : " \u{00B7} \(source.site ?? "")"
-            out.append(line("[\(status(source.status))] \(name)\(site)"))
+            out.append(line(String(localized: "No sourced notes were kept. The answer below is not backed by any source."), color: .tertiaryLabelColor))
         }
         if !run.hosts.isEmpty {
             out.append(line(String(format: String(localized: "Contacted: %@"), run.hosts.joined(separator: ", "))))

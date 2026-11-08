@@ -25,6 +25,7 @@ import { loadLabel, type LoadStage } from "./loadLabel";
 import { stepTotals } from "./workSummary";
 import { stepView } from "./stepView";
 import { TailBox } from "./LiveArgs";
+import { StepLine, linkClass } from "./StepLine";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
 /** A written file sits off the rail, so it draws its own mark: the spark while it is written. */
@@ -145,67 +146,6 @@ function StepTime({ step }: { step: SearchStep }) {
   if (!text) return null;
   return <span className="ms-auto flex-none ps-2 text-[12px] tabular-nums text-text-tertiary">{text}</span>;
 }
-
-interface StepLineProps {
-  verb: React.ReactNode;
-  target?: string;
-  mono?: boolean;
-  /** One quiet note on how it went, shown once the step is done. */
-  meta?: string;
-  failed?: boolean;
-  active: boolean;
-  open: boolean;
-  /** Absent for a step with nothing more to show. */
-  onToggle?: () => void;
-  time?: React.ReactNode;
-  /** Quiet links after the line, such as Open or Undo. */
-  actions?: React.ReactNode;
-  details?: React.ReactNode;
-  t: (key: string) => string;
-}
-
-/** One step as one line: the verb, what it acted on, how it went, and a caret that opens the rest. */
-function StepLine({ verb, target, mono, meta, failed, active, open, onToggle, time, actions, details, t }: StepLineProps) {
-  return (
-    <div className={`step-rise${open ? " step-open" : ""}`}>
-      <div className="rail-row flex min-h-6 items-center gap-[7px] text-[13px] text-text-secondary">
-        <button
-          type="button"
-          data-testid={onToggle ? "step-details-toggle" : undefined}
-          aria-expanded={onToggle ? open : undefined}
-          title={onToggle ? (open ? t("hideStepDetails") : t("showStepDetails")) : undefined}
-          disabled={!onToggle}
-          onClick={onToggle}
-          className={`step-line flex min-h-6 min-w-0 flex-1 gap-[7px] text-start ${open ? "items-start [&>*]:pt-[3px]" : "items-center"} ${onToggle ? "cursor-pointer hover:text-text-primary" : "cursor-default"}`}
-        >
-          <span className={`flex-none${active ? " live-sweep" : ""}`}>{verb}</span>
-          {target && (
-            <span className={`min-w-0 text-text-tertiary ${open ? "whitespace-pre-wrap wrap-anywhere" : "truncate"}${mono ? " font-mono text-[12px]" : ""}`}>
-              {target}
-            </span>
-          )}
-          {meta && !active && <span className={`flex-none text-[12px] ${failed ? "text-danger" : "text-text-tertiary"}`}>{meta}</span>}
-          {onToggle && (
-            <span className="step-caret flex-none text-text-tertiary">
-              <Icon name="caret-right" size={11} mirrored className={`transition-transform duration-[250ms] ${open ? "rotate-90" : ""}`} />
-            </span>
-          )}
-          {time}
-        </button>
-        {actions && <span className="flex flex-none items-center gap-3 ps-1">{actions}</span>}
-      </div>
-      {details && (
-        <div className={`step-more grid transition-[grid-template-rows] duration-[350ms] ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
-          <div className="min-h-0 overflow-hidden" inert={!open}>
-            <div className="pt-1.5 pb-1">{details}</div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-const linkClass = "text-[12px] text-text-secondary hover:text-text-primary underline-offset-2 hover:underline";
 
 /** A file edit as a folded card: the file and counts on one line, the diff inside. */
 function EditCard({ step, verb, active, t }: { step: SearchStep; verb: string; active: boolean; t: (key: string) => string }) {

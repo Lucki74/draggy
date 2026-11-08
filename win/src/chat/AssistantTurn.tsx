@@ -245,7 +245,7 @@ export function AssistantTurn({
   // In a research reply the run block lists what was searched and read, so those rows stay out of the chain.
   const run = runOf(steps);
   const inRunBlock = (step: SearchStep) =>
-    Boolean(run) && (step.type === "searching" || step.type === "results" || (step.type === "reading" && Boolean(step.retryUrl)));
+    Boolean(run) && (step.type === "searching" || step.type === "results" || ((step.type === "reading" || step.type === "error") && Boolean(step.retryUrl)));
   for (const [index, entry] of steps.entries()) {
     if (invisible(entry) || inRunBlock(entry)) continue;
     // A finished search shows only its results row; "Searched for" is shown while it runs.
@@ -291,7 +291,7 @@ export function AssistantTurn({
       }));
 
   const renderSegment = (segment: SearchStep[]) =>
-    isWork(segment[0]) || segment[0].type === "create_file" ? (
+    isWork(segment[0]) || segment[0].type === "create_file" || segment[0].type === "research_run" ? (
       <Rail key={segment[0].id} entries={toEntries(segment, false)} running={runningNow} t={t} />
     ) : (
       renderStep(segment[0])

@@ -18,8 +18,8 @@ use draggy_core::{
     TurnOutcome, read_document,
 };
 use draggy_linux::chat::{
-    ChatMessage, Entry, Role, StepState, Transcript, cost_label, metrics_line, rail_title,
-    StepLine, start_turn, step_line, step_state, to_records, to_saved, with_document,
+    ChatMessage, Entry, Role, StepLine, StepState, Transcript, cost_label, metrics_line,
+    rail_title, start_turn, step_line, step_state, to_records, to_saved, with_document,
 };
 use draggy_linux::conversations::{self, Conversation, Store};
 use draggy_linux::markdown::{self, Block};
@@ -1272,14 +1272,27 @@ fn draw_card(card: &gtk::Box, run: Option<&RunView>) {
     if !run.question.is_empty() {
         card.append(&line(&run.question, "message-text"));
     }
-    for question in &run.questions {
+    let source = |source: &research::RunSource| {
+        let row = line(&research::source_line(source), "caption");
+        row.set_margin_start(18);
+        row.add_css_class("dim-label");
+        row
+    };
+    let (groups, other) = research::group_sources(run);
+    for (question, sources) in run.questions.iter().zip(&groups) {
         card.append(&line(&research::question_line(question), "caption"));
+        for entry in sources {
+            card.append(&source(entry));
+        }
+    }
+    if !other.is_empty() {
+        card.append(&line(&research::t("researchRunOtherSources"), "dim-label"));
+        for entry in other {
+            card.append(&source(entry));
+        }
     }
     if let Some(warning) = research::no_notes_line(run) {
-        card.append(&line(&warning, "error"));
-    }
-    for source in &run.sources {
-        card.append(&line(&research::source_line(source), "caption"));
+        card.append(&line(&warning, "dim-label"));
     }
     if let Some(services) = research::services_line(run) {
         card.append(&line(&services, "dim-label"));

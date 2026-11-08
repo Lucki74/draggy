@@ -15,6 +15,8 @@ export interface RunViewNote {
   sourceId: string;
   quote: string;
   verified?: boolean;
+  /** 1-based; absent in chats saved before notes carried it. */
+  subQuestion?: number;
 }
 
 export interface ResearchRunView {
@@ -52,6 +54,7 @@ export function toRunView(run: ResearchRun, now: number): ResearchRunView {
       id: note.id,
       sourceId: note.sourceId,
       quote: note.quote,
+      subQuestion: note.subQuestion,
       ...(note.verified !== undefined ? { verified: note.verified } : {}),
     })),
     hosts: [...run.contactedHosts],

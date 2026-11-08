@@ -27,6 +27,8 @@ pub struct RunNote {
     #[serde(default)]
     pub quote: String,
     pub verified: Option<bool>,
+    /// 1-based; absent in chats saved before notes carried it.
+    pub sub_question: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -203,50 +205,93 @@ pub fn source_list_markup(run: &RunView) -> Vec<String> {
         .collect()
 }
 
-/// The header line of the run card: depth, sources read and notes kept.
+/// The run's rail line: what it is doing, then depth or questions, sources read and failures.
 pub fn card_header(run: &RunView) -> String {
-    let depth = t(match run.depth.as_str() {
-        "quick" => "researchDepthQuick",
-        "deep" => "researchDepthDeep",
-        _ => "researchDepthStandard",
-    });
     let read = run
         .sources
         .iter()
         .filter(|source| source.status == "read")
         .count();
-    format!(
-        "{} · {depth} · {} · {}",
-        t("researchRunTitle"),
+    let failed = run.sources.iter().filter(|source| is_bad(source)).count();
+    let (verb, scope) = if run.ended_at.is_some() {
+        let n = run.questions.len().to_string();
+        (
+            t("researchRunDone"),
+            t("researchRunQuestions").replace("{n}", &n),
+        )
+    } else {
+        let depth = match run.depth.as_str() {
+            "quick" => "researchDepthQuick",
+            "deep" => "researchDepthDeep",
+            _ => "researchDepthStandard",
+        };
+        (t("researchRunLive"), t(depth))
+    };
+    let mut parts = vec![
+        scope,
         t("researchRunSources").replace("{n}", &read.to_string()),
-        t("researchRunNotes").replace("{n}", &run.notes.len().to_string())
-    )
+    ];
+    if failed > 0 {
+        parts.push(t("researchRunFailed").replace("{n}", &failed.to_string()));
+    }
+    format!("{verb}  {}", parts.join(" · "))
 }
 
-/// One line for a sub-question: ticked once it has a note, with its note count.
+fn is_bad(source: &RunSource) -> bool {
+    source.status == "failed" || source.status == "blocked"
+}
+
+/// Each source once, under the first question a note of it answers; the rest come last.
+pub fn group_sources(run: &RunView) -> (Vec<Vec<&RunSource>>, Vec<&RunSource>) {
+    let mut groups: Vec<Vec<&RunSource>> = run.questions.iter().map(|_| Vec::new()).collect();
+    let mut placed = Vec::new();
+    for note in &run.notes {
+        let index = note.sub_question.unwrap_or(0).wrapping_sub(1);
+        let source = run
+            .sources
+            .iter()
+            .find(|source| source.id == note.source_id);
+        let (Some(group), Some(source)) = (groups.get_mut(index), source) else {
+            continue;
+        };
+        if !placed.contains(&source.id) {
+            group.push(source);
+            placed.push(source.id.clone());
+        }
+    }
+    let other = run
+        .sources
+        .iter()
+        .filter(|source| !placed.contains(&source.id))
+        .collect();
+    (groups, other)
+}
+
+/// One line for a sub-question: a filled dot once it has a note, then its note count.
 pub fn question_line(question: &RunQuestion) -> String {
-    let mark = if question.notes > 0 { "✓" } else { "○" };
-    format!("{mark} {} ({})", question.text, question.notes)
+    let mark = if question.notes > 0 { "●" } else { "○" };
+    let notes = t("researchRunNotes").replace("{n}", &question.notes.to_string());
+    format!("{mark}  {}  {notes}", question.text)
 }
 
-/// One line for a source in the card: its status, title and site.
+/// One source under its question: title and site, a quiet × when it could not be read.
 pub fn source_line(source: &RunSource) -> String {
-    let status = t(match source.status.as_str() {
-        "reading" => "researchStatusReading",
-        "read" => "researchStatusRead",
-        "skipped" => "researchStatusSkipped",
-        "blocked" => "researchStatusBlocked",
-        _ => "researchStatusFailed",
-    });
     let name = if source.title.is_empty() {
         source.url.as_str()
     } else {
         source.title.as_str()
     };
-    match source.site.as_deref().filter(|site| !site.is_empty()) {
-        Some(site) => format!("[{status}] {name} · {site}"),
-        None => format!("[{status}] {name}"),
+    let mut line = match source.site.as_deref().filter(|site| !site.is_empty()) {
+        Some(site) => format!("{name} · {site}"),
+        None => name.to_owned(),
+    };
+    match source.status.as_str() {
+        "reading" => line = format!("{line}  {}", t("researchStatusReading")),
+        "skipped" => line = format!("{line}  {}", t("researchStatusSkipped")),
+        _ if is_bad(source) => line.push_str("  ×"),
+        _ => {}
     }
+    line
 }
 
 /// The services line under the card, or `None` before anything was contacted.
@@ -308,6 +353,46 @@ const TEXTS: &[(&str, [&str; 4])] = &[
     (
         "researchRunNotes",
         ["{n} notes", "{n} notes", "{n} notas", "Заметок: {n}"],
+    ),
+    (
+        "researchRunLive",
+        [
+            "Researching",
+            "Recherche en cours",
+            "Investigando",
+            "Исследование",
+        ],
+    ),
+    (
+        "researchRunDone",
+        [
+            "Researched",
+            "Recherche terminée",
+            "Investigado",
+            "Исследовано",
+        ],
+    ),
+    (
+        "researchRunQuestions",
+        [
+            "{n} questions",
+            "{n} questions",
+            "{n} preguntas",
+            "Вопросов: {n}",
+        ],
+    ),
+    (
+        "researchRunFailed",
+        ["{n} failed", "{n} en échec", "{n} fallidas", "Ошибок: {n}"],
+    ),
+    (
+        "researchRunOtherSources",
+        [
+            "Other sources",
+            "Autres sources",
+            "Otras fuentes",
+            "Другие источники",
+        ],
     ),
     (
         "researchRunServices",
@@ -538,6 +623,17 @@ mod tests {
         }
         assert_eq!(text_in("ru", "researchRunTitle"), "Исследование");
         assert_eq!(text_in("de", "researchRunTitle"), "Research");
+    }
+
+    #[test]
+    fn a_source_sits_under_the_question_its_note_answers() {
+        let mut view = run();
+        view.notes[0].sub_question = Some(2);
+        let (groups, other) = group_sources(&view);
+        assert!(groups[0].is_empty());
+        assert_eq!(groups[1][0].id, "s2");
+        assert_eq!(other.len(), 1);
+        assert_eq!(card_header(&view).matches(" · ").count(), 1);
     }
 
     #[test]

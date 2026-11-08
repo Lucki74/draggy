@@ -43,19 +43,38 @@ afterEach(() => {
 });
 
 describe("ResearchRunCard", () => {
-  it("shows the header, checklist, source feed and contacted services", () => {
+  it("reads as one rail line with the questions and their sources inside", () => {
     render(<ResearchRunCard step={runStep()} t={t} />);
-    expect(screen.getByText("researchDepthStandard")).toBeTruthy();
-    expect(screen.getByText("researchRunSources")).toBeTruthy();
-    expect(screen.getByText(/1:0\d \/ 10:00/)).toBeTruthy();
+    expect(screen.getByText("researchRunLive")).toBeTruthy();
+    expect(screen.getByText(/researchDepthStandard · 1:0\d \/ 10:00 · researchRunSources · researchRunFailed/)).toBeTruthy();
     expect(screen.getByText("Speed")).toBeTruthy();
     expect(screen.getAllByText("researchRunNotes")).toHaveLength(2);
     expect(screen.getByText("Alpha page")).toBeTruthy();
-    expect(screen.getByText("Example · 2026-05-01")).toBeTruthy();
-    expect(screen.getByText("researchStatusRead")).toBeTruthy();
+    expect(screen.getByText("researchRunOtherSources")).toBeTruthy();
     expect(screen.getByText("researchStatusReading")).toBeTruthy();
-    expect(screen.getByText("researchStatusBlocked")).toBeTruthy();
+    expect(screen.getAllByText("researchStatusBlocked").length).toBeGreaterThan(0);
     expect(screen.getByText("researchRunServices")).toBeTruthy();
+  });
+
+  it("puts a source under the question its note answers", () => {
+    const notes = [{ id: "n1", sourceId: "s1", quote: "q", subQuestion: 2 }];
+    render(<ResearchRunCard step={runStep({ researchRun: view({ notes }) })} t={t} />);
+    const cost = screen.getByText("Cost").closest("[role=listitem]")!;
+    expect(cost.textContent).toContain("Alpha page");
+  });
+
+  it("offers Retry on a failed source", () => {
+    const heard = vi.fn();
+    window.addEventListener(FILL_EVENT, (event) => heard((event as CustomEvent<string>).detail));
+    render(<ResearchRunCard step={runStep()} t={(key) => (key === "researchRetryPrompt" ? "Retry reading {url}" : key)} />);
+    fireEvent.click(screen.getByRole("button", { name: "researchRetry" }));
+    expect(heard).toHaveBeenCalledWith("Retry reading https://blocked.net/c");
+  });
+
+  it("folds once done in the normal view and sums up the run", () => {
+    render(<ResearchRunCard step={runStep({ isComplete: true, researchRun: view({ endedAt: Date.now(), gathering: false }) })} t={t} />);
+    expect(screen.getByText("researchRunDone")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /researchRunQuestions/ }).getAttribute("aria-expanded")).toBe("false");
   });
 
   it("opens a source through the external-link handler", () => {

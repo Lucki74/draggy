@@ -300,13 +300,11 @@ pub fn step_line(step: &StepRecord) -> Option<StepLine> {
 
 /// Splits "Ran `npm test` (exit 1)" into the verb, the quoted target and the rest.
 fn split_markdown(text: &str) -> Option<StepLine> {
-    let (start, mark) = text
-        .char_indices()
-        .find_map(|(index, c)| match c {
-            '`' => Some((index, "`")),
-            '*' if text[index..].starts_with("**") => Some((index, "**")),
-            _ => None,
-        })?;
+    let (start, mark) = text.char_indices().find_map(|(index, c)| match c {
+        '`' => Some((index, "`")),
+        '*' if text[index..].starts_with("**") => Some((index, "**")),
+        _ => None,
+    })?;
     let inner = &text[start + mark.len()..];
     let end = inner.find(mark)?;
     let meta = inner[end + mark.len()..]
@@ -360,7 +358,6 @@ pub fn rail_title(steps: &[StepRecord], streaming: bool) -> String {
     }
     title
 }
-
 
 /// The core's messages in the form they are saved in.
 pub fn to_saved(records: &[MessageRecord]) -> Vec<SavedMessage> {
