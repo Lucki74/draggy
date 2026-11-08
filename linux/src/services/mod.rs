@@ -56,6 +56,5 @@ pub mod tier_planner;
 pub mod tier_stats;
 pub mod tts_consent;
 pub mod tts_service;
-pub mod update_settings;
 pub mod vad;
 pub mod voice_enhancer;
