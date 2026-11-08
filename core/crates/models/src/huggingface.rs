@@ -1579,7 +1579,10 @@ mod tests {
         ];
         let whole = match_files_for_tag(&files, "UD-Q3_K_XL").map(|found| found.primary.path);
         assert_eq!(whole.as_deref(), Some("Qwen3.8-27B-UD-Q3_K_XL.gguf"));
-        assert_eq!(match_files_for_tag(&files, "UD-Q4_K_XL").map(|found| found.bytes), Some(42));
+        assert_eq!(
+            match_files_for_tag(&files, "UD-Q4_K_XL").map(|found| found.bytes),
+            Some(42)
+        );
         assert_eq!(match_files_for_tag(&files, "UD-Q3_K_M"), None);
     }
 
