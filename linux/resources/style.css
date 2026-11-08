@@ -116,3 +116,47 @@ window {
   50% { opacity: 0.45; }
   to { opacity: 1; }
 }
+
+/* Review: changed lines tint the row, code wraps, the graph reads as a list of refs and messages. */
+.diff-body {
+  font-size: 12px;
+}
+
+.diff-add {
+  background-color: alpha(@success_color, 0.16);
+}
+
+.diff-delete {
+  background-color: alpha(@error_color, 0.16);
+}
+
+.diff-header {
+  background-color: alpha(currentColor, 0.06);
+  color: alpha(currentColor, 0.6);
+}
+
+.diff-num {
+  min-width: 36px;
+  font-size: 11px;
+}
+
+.git-graph {
+  background: none;
+}
+
+.ref-chip {
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 9px;
+  border: 1px solid alpha(currentColor, 0.35);
+}
+
+.ref-chip.ref-branch {
+  color: @accent_color;
+  border-color: @accent_color;
+}
+
+.ref-chip.ref-tag {
+  color: @warning_color;
+  border-color: @warning_color;
+}

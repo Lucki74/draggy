@@ -18,7 +18,7 @@ use draggy_core::{
     TurnOutcome, read_document,
 };
 use draggy_linux::chat::{
-    ChatMessage, Entry, Role, StepLine, StepState, Transcript, cost_label, metrics_line,
+    ChatMessage, Entry, Role, StepLine, StepState, Transcript, cost_label, in_run, metrics_line,
     rail_title, start_turn, step_line, step_state, to_records, to_saved, with_document,
 };
 use draggy_linux::conversations::{self, Conversation, Store};
@@ -1170,8 +1170,14 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
         draw_card(&parts.card, run.as_ref());
         *parts.run_key.borrow_mut() = run_json;
     }
-    let steps: Vec<_> = entry
+    // A research run shows its own searches and notes, so the rail leaves them out.
+    let rail_steps: Vec<StepRecord> = entry
         .steps
+        .iter()
+        .filter(|step| run.is_none() || !in_run(step))
+        .cloned()
+        .collect();
+    let steps: Vec<_> = rail_steps
         .iter()
         .filter_map(|step| step_line(step).map(|label| (step, label)))
         .collect();
@@ -1180,7 +1186,7 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
     parts.fold.set_visible(!steps.is_empty());
     parts
         .fold
-        .set_label(Some(&rail_title(&entry.steps, entry.streaming)));
+        .set_label(Some(&rail_title(&rail_steps, entry.streaming)));
     if entry.streaming {
         parts.fold.set_expanded(true);
     } else if parts.streamed.get() {

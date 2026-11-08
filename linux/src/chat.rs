@@ -322,6 +322,18 @@ fn split_markdown(text: &str) -> Option<StepLine> {
     })
 }
 
+/// Tools a research run reports in its own card; their rail lines would only repeat it.
+const RUN_TOOLS: [&str; 3] = ["add_note", "search_web", "read_url"];
+
+/// Whether the run card already shows this step.
+pub fn in_run(step: &StepRecord) -> bool {
+    matches!(step.kind.as_str(), "searching" | "results")
+        || step
+            .tool_name
+            .as_deref()
+            .is_some_and(|tool| RUN_TOOLS.contains(&tool))
+}
+
 /// The mark a step gets on the rail. The node says it, so labels carry no state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepState {
@@ -332,7 +344,7 @@ pub enum StepState {
 
 pub fn step_state(step: &StepRecord) -> StepState {
     let content = step.content.as_deref().unwrap_or_default();
-    if step.kind == "error" || content.starts_with("Failed ") {
+    if step.kind == "error" || content.starts_with("Failed ") || content.starts_with("Timed out ") {
         StepState::Failed
     } else if step.is_complete == Some(true) {
         StepState::Done
@@ -476,6 +488,27 @@ mod tests {
             is_complete: Some(complete),
             ..StepRecord::default()
         }
+    }
+
+    #[test]
+    fn a_run_card_takes_its_searches_and_notes() {
+        let live = |tool: &str| StepRecord {
+            kind: "tool_call".to_owned(),
+            tool_name: Some(tool.to_owned()),
+            ..StepRecord::default()
+        };
+        assert!(in_run(&live("add_note")));
+        assert!(in_run(&step("results", "Search results for x", true)));
+        assert!(!in_run(&live("create_file")));
+        assert!(!in_run(&step("command", "Ran `ls`", true)));
+    }
+
+    #[test]
+    fn a_timed_out_command_is_failed() {
+        assert_eq!(
+            step_state(&step("command", "Timed out `sleep 9`", true)),
+            StepState::Failed
+        );
     }
 
     #[test]

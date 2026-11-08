@@ -214,10 +214,13 @@ pub fn card_header(run: &RunView) -> String {
         .count();
     let failed = run.sources.iter().filter(|source| is_bad(source)).count();
     let (verb, scope) = if run.ended_at.is_some() {
-        let n = run.questions.len().to_string();
         (
             t("researchRunDone"),
-            t("researchRunQuestions").replace("{n}", &n),
+            count(
+                run.questions.len(),
+                "researchRunQuestionsOne",
+                "researchRunQuestions",
+            ),
         )
     } else {
         let depth = match run.depth.as_str() {
@@ -229,7 +232,7 @@ pub fn card_header(run: &RunView) -> String {
     };
     let mut parts = vec![
         scope,
-        t("researchRunSources").replace("{n}", &read.to_string()),
+        count(read, "researchRunSourcesOne", "researchRunSources"),
     ];
     if failed > 0 {
         parts.push(t("researchRunFailed").replace("{n}", &failed.to_string()));
@@ -270,7 +273,7 @@ pub fn group_sources(run: &RunView) -> (Vec<Vec<&RunSource>>, Vec<&RunSource>) {
 /// One line for a sub-question: a filled dot once it has a note, then its note count.
 pub fn question_line(question: &RunQuestion) -> String {
     let mark = if question.notes > 0 { "●" } else { "○" };
-    let notes = t("researchRunNotes").replace("{n}", &question.notes.to_string());
+    let notes = count(question.notes, "researchRunNotesOne", "researchRunNotes");
     format!("{mark}  {}  {notes}", question.text)
 }
 
@@ -384,6 +387,146 @@ pub const DEPTHS: [&str; 3] = ["quick", "standard", "deep"];
 pub const KEEPS: [&str; 3] = ["forever", "90", "30"];
 
 const TEXTS: &[(&str, [&str; 4])] = &[
+    ("gitGraph", ["Graph", "Graphe", "Gráfico", "Граф"]),
+    (
+        "gitChangedFiles",
+        [
+            "{count} changed",
+            "{count} modifiés",
+            "{count} cambiados",
+            "Изменено: {count}",
+        ],
+    ),
+    (
+        "gitClean",
+        [
+            "No changes",
+            "Aucune modification",
+            "Sin cambios",
+            "Нет изменений",
+        ],
+    ),
+    (
+        "gitDetached",
+        [
+            "Detached HEAD",
+            "HEAD détachée",
+            "HEAD separado",
+            "Отсоединённый HEAD",
+        ],
+    ),
+    (
+        "gitNoBranches",
+        ["No branches", "Aucune branche", "Sin ramas", "Веток нет"],
+    ),
+    (
+        "gitNoCommits",
+        [
+            "No commits yet",
+            "Aucun commit",
+            "Aún no hay commits",
+            "Коммитов пока нет",
+        ],
+    ),
+    (
+        "gitNoDiff",
+        [
+            "No changes to show",
+            "Aucune modification à afficher",
+            "No hay cambios que mostrar",
+            "Нет изменений для показа",
+        ],
+    ),
+    (
+        "gitSwitchBranch",
+        [
+            "Switch branch",
+            "Changer de branche",
+            "Cambiar de rama",
+            "Сменить ветку",
+        ],
+    ),
+    (
+        "reviewSplit",
+        [
+            "View split diff",
+            "Afficher côte à côte",
+            "Ver lado a lado",
+            "Показать рядом",
+        ],
+    ),
+    (
+        "reviewHideWhitespace",
+        [
+            "Hide whitespace changes",
+            "Masquer les changements d’espaces",
+            "Ocultar cambios de espacios",
+            "Скрыть изменения пробелов",
+        ],
+    ),
+    (
+        "reviewExpandAll",
+        [
+            "Expand all",
+            "Tout déplier",
+            "Expandir todo",
+            "Развернуть все",
+        ],
+    ),
+    (
+        "reviewCollapseAll",
+        [
+            "Collapse all",
+            "Tout replier",
+            "Contraer todo",
+            "Свернуть все",
+        ],
+    ),
+    (
+        "reviewBack",
+        [
+            "Back to changes",
+            "Retour aux modifications",
+            "Volver a los cambios",
+            "Назад к изменениям",
+        ],
+    ),
+    (
+        "reviewFilter",
+        [
+            "Filter files",
+            "Filtrer les fichiers",
+            "Filtrar archivos",
+            "Фильтр файлов",
+        ],
+    ),
+    (
+        "reviewRefresh",
+        ["Refresh", "Actualiser", "Actualizar", "Обновить"],
+    ),
+    ("reviewMore", ["More", "Plus", "Más", "Ещё"]),
+    (
+        "researchRunSourcesOne",
+        [
+            "{n} source read",
+            "{n} source lue",
+            "{n} fuente leída",
+            "Прочитано источников: {n}",
+        ],
+    ),
+    (
+        "researchRunNotesOne",
+        ["{n} note", "{n} note", "{n} nota", "Заметок: {n}"],
+    ),
+    (
+        "researchRunQuestionsOne",
+        [
+            "{n} question",
+            "{n} question",
+            "{n} pregunta",
+            "Вопросов: {n}",
+        ],
+    ),
     (
         "researchRunTitle",
         ["Research", "Recherche", "Investigación", "Исследование"],
@@ -569,6 +712,11 @@ pub fn t(key: &str) -> String {
     text_in(&detect_system_locale(), key)
 }
 
+/// A count in its label, singular when it is one.
+fn count(n: usize, one: &str, other: &str) -> String {
+    t(if n == 1 { one } else { other }).replace("{n}", &n.to_string())
+}
+
 fn text_in(locale: &str, key: &str) -> String {
     let column = match locale {
         "fr" => 1,
@@ -589,7 +737,11 @@ pub fn past_run_line(depth: &str, sources: i64, started_ms: i64) -> String {
     format!(
         "{} · {} · {year:04}-{month:02}-{day:02}",
         t(depth_key(depth)),
-        t("researchRunSources").replace("{n}", &sources.to_string())
+        count(
+            sources.max(0) as usize,
+            "researchRunSourcesOne",
+            "researchRunSources"
+        )
     )
 }
 
@@ -665,6 +817,13 @@ mod tests {
             })
             .is_none()
         );
+    }
+
+    #[test]
+    fn counts_are_singular_when_one() {
+        let one = t("researchRunNotesOne").replace("{n}", "1");
+        assert_eq!(count(1, "researchRunNotesOne", "researchRunNotes"), one);
+        assert_ne!(count(2, "researchRunNotesOne", "researchRunNotes"), one);
     }
 
     #[test]
