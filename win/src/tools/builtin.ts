@@ -1168,6 +1168,7 @@ const createFile: ToolSpec = {
         content: `${ctx.t("createFileFailed")} **${filename}**`,
         isComplete: true,
         type: "error",
+        reason: result?.error,
       });
       ctx.syncSteps();
       return `TOOL RESULT (create_file): Failed to create file: ${result?.error}`;

@@ -112,6 +112,7 @@ function stepView(step: SearchStep): StepView {
   if (step.skill) rows.push(["Skill", step.skill]);
   if (step.checkpointId !== undefined) rows.push(["Checkpoint", String(step.checkpointId)]);
   if (step.change) rows.push(["Change", step.change]);
+  if (step.reason) rows.push(["Error", step.reason]);
   if (step.image) {
     const image = step.image;
     rows.push(["Prompt", image.prompt], ["Status", image.status]);

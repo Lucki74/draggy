@@ -165,8 +165,8 @@ describe("reading", () => {
 });
 
 describe("a chat folder", () => {
-  it("offers reading and editing but not writing or the git tools", () => {
-    expect(availableTools(IN_CHAT_FOLDER).map((tool) => tool.name).sort()).toEqual(["edit_file", "read_file"]);
+  it("offers the file tools but not the git tools", () => {
+    expect(availableTools(IN_CHAT_FOLDER).map((tool) => tool.name).sort()).toEqual(["edit_file", "read_file", "write_file"]);
   });
 
   it("names the folder after the chat, not the workspace", async () => {
