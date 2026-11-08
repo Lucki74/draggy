@@ -1910,25 +1910,25 @@
         }
       }
     },
-    "Thinking": {
+    "Searched for": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Réflexion"
+            "value": "Recherche effectuée :"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Razonamiento"
+            "value": "Búsqueda de"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Размышление"
+            "value": "Искали"
           }
         }
       }

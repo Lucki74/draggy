@@ -237,24 +237,91 @@ pub fn metrics_line(metrics: &MetricsRecord) -> String {
     )
 }
 
-/// A one-line description of a step the agent took, for the list under a reply. Steps that carry no visible content
-/// (the model's thinking, for one) give `None`.
-pub fn step_label(step: &StepRecord) -> Option<String> {
+/// One rail line: a verb, the thing it acted on and a short result, as in "Read a.ts 12 lines".
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct StepLine {
+    pub verb: String,
+    pub target: String,
+    pub meta: String,
+    /// The target is a command or a path, so it is set in monospace.
+    pub mono: bool,
+}
+
+/// The line for a step under a reply. Steps with nothing to show (the model's thinking, for one) give `None`.
+pub fn step_line(step: &StepRecord) -> Option<StepLine> {
     // The research run has its own card.
     if step.kind == "research_run" {
         return None;
     }
     if let Some(tool) = &step.tool_name {
-        return Some(live_call_label(tool, step));
+        let target = step
+            .live_args
+            .as_ref()
+            .and_then(|live| live.entries.first())
+            .map(|entry| entry.value.lines().next().unwrap_or_default().to_owned())
+            .unwrap_or_default();
+        return Some(StepLine {
+            verb: tool.clone(),
+            target,
+            meta: String::new(),
+            mono: true,
+        });
+    }
+    let first = step
+        .content
+        .as_deref()
+        .map(|text| text.lines().next().unwrap_or_default().trim())
+        .unwrap_or_default();
+    if let Some(mut line) = split_markdown(first) {
+        if line.verb == "Search results for" {
+            line.verb = "Searched for".to_owned();
+            line.target = format!("“{}”", line.target);
+        }
+        line.mono = line.mono || matches!(step.kind.as_str(), "command" | "run_code" | "reading");
+        return Some(line);
     }
     let detail = step
         .filepath
         .as_deref()
         .or(step.filename.as_deref())
-        .or(step.content.as_deref())
-        .map(|text| text.lines().next().unwrap_or_default().trim())
-        .filter(|text| !text.is_empty())?;
-    Some(format!("{}: {detail}", step.kind))
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .unwrap_or(first);
+    if detail.is_empty() {
+        return None;
+    }
+    Some(StepLine {
+        verb: step.kind.clone(),
+        target: detail.to_owned(),
+        meta: String::new(),
+        mono: true,
+    })
+}
+
+/// Splits "Ran `npm test` (exit 1)" into the verb, the quoted target and the rest.
+fn split_markdown(text: &str) -> Option<StepLine> {
+    let (start, mark) = text
+        .char_indices()
+        .find_map(|(index, c)| match c {
+            '`' => Some((index, "`")),
+            '*' if text[index..].starts_with("**") => Some((index, "**")),
+            _ => None,
+        })?;
+    let inner = &text[start + mark.len()..];
+    let end = inner.find(mark)?;
+    let meta = inner[end + mark.len()..]
+        .trim()
+        .trim_start_matches('·')
+        .trim()
+        .trim_start_matches('(')
+        .trim_end_matches(')')
+        .trim();
+    Some(StepLine {
+        verb: text[..start].trim().to_owned(),
+        target: inner[..end].to_owned(),
+        meta: meta.to_owned(),
+        mono: mark == "`",
+    })
 }
 
 /// The mark a step gets on the rail. The node says it, so labels carry no state.
@@ -281,7 +348,7 @@ pub fn rail_title(steps: &[StepRecord], streaming: bool) -> String {
     if streaming {
         return "Working".to_owned();
     }
-    let shown: Vec<&StepRecord> = steps.iter().filter(|s| step_label(s).is_some()).collect();
+    let shown: Vec<&StepRecord> = steps.iter().filter(|s| step_line(s).is_some()).collect();
     let noun = if shown.len() == 1 { "step" } else { "steps" };
     let mut title = format!("Worked · {} {noun}", shown.len());
     let failed = shown
@@ -294,17 +361,6 @@ pub fn rail_title(steps: &[StepRecord], streaming: bool) -> String {
     title
 }
 
-/// A call still being written: the tool name and one `key: value` line per argument seen so far.
-fn live_call_label(tool: &str, step: &StepRecord) -> String {
-    let mut text = format!("{tool} (writing)");
-    if let Some(live) = &step.live_args {
-        for entry in &live.entries {
-            let value = entry.value.lines().next().unwrap_or_default();
-            text.push_str(&format!("\n  {}: {value}", entry.key));
-        }
-    }
-    text
-}
 
 /// The core's messages in the form they are saved in.
 pub fn to_saved(records: &[MessageRecord]) -> Vec<SavedMessage> {
@@ -585,25 +641,22 @@ mod tests {
             }),
             ..StepRecord::default()
         };
-        assert_eq!(
-            step_label(&live).as_deref(),
-            Some("search_web (writing)\n  query: flex gap")
-        );
+        assert_eq!(shown(&live).as_deref(), Some("search_web|flex gap|"));
+    }
+
+    fn shown(step: &StepRecord) -> Option<String> {
+        step_line(step).map(|line| format!("{}|{}|{}", line.verb, line.target, line.meta))
     }
 
     #[test]
     fn running_and_finished_steps_are_labelled() {
         assert_eq!(
-            step_label(&step("read_file", "a.txt\nmore", false)).as_deref(),
-            Some("read_file: a.txt")
+            shown(&step("read_file", "a.txt\nmore", false)).as_deref(),
+            Some("read_file|a.txt|")
         );
         assert_eq!(
             step_state(&step("read_file", "a.txt", false)),
             StepState::Live
-        );
-        assert_eq!(
-            step_label(&step("list_directory", "src", true)).as_deref(),
-            Some("list_directory: src")
         );
         let path = StepRecord {
             kind: "write_file".to_owned(),
@@ -612,8 +665,26 @@ mod tests {
             is_complete: Some(true),
             ..StepRecord::default()
         };
-        assert_eq!(step_label(&path).as_deref(), Some("write_file: /p/x.rs"));
-        assert!(step_label(&step("think", "  ", true)).is_none());
+        assert_eq!(shown(&path).as_deref(), Some("write_file|/p/x.rs|"));
+        assert!(shown(&step("think", "  ", true)).is_none());
+    }
+
+    #[test]
+    fn a_step_splits_into_verb_target_and_result() {
+        let ran = step_line(&step("command", "Failed `node fail.js` (exit 3)", true)).unwrap();
+        assert_eq!(
+            (ran.verb.as_str(), ran.target.as_str(), ran.meta.as_str()),
+            ("Failed", "node fail.js", "exit 3")
+        );
+        assert!(ran.mono);
+        assert_eq!(
+            shown(&step("reading", "Read **a.ts** · 12 lines", true)).as_deref(),
+            Some("Read|a.ts|12 lines")
+        );
+        assert_eq!(
+            shown(&step("results", "Search results for **node lts**", true)).as_deref(),
+            Some("Searched for|“node lts”|")
+        );
     }
 
     #[test]

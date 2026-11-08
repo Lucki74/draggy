@@ -19,7 +19,7 @@ use draggy_core::{
 };
 use draggy_linux::chat::{
     ChatMessage, Entry, Role, StepState, Transcript, cost_label, metrics_line, rail_title,
-    start_turn, step_label, step_state, to_records, to_saved, with_document,
+    StepLine, start_turn, step_line, step_state, to_records, to_saved, with_document,
 };
 use draggy_linux::conversations::{self, Conversation, Store};
 use draggy_linux::markdown::{self, Block};
@@ -1062,7 +1062,7 @@ const LIVE_OUTPUT_LINES: usize = 8;
 
 /// One step on the rail: its node with the line down to the next, then the label. A running step
 /// also shows the tail of its output, wrapped, never scrolled sideways.
-fn rail_row(step: &StepRecord, label: &str, last: bool) -> gtk::Box {
+fn rail_row(step: &StepRecord, label: &StepLine, last: bool) -> gtk::Box {
     let state = step_state(step);
     let class = match state {
         StepState::Live => "is-live",
@@ -1092,23 +1092,45 @@ fn rail_row(step: &StepRecord, label: &str, last: bool) -> gtk::Box {
     }
     let text = gtk::Box::new(gtk::Orientation::Vertical, 4);
     text.set_hexpand(true);
-    let mut line = gtk::Label::builder()
-        .label(label)
-        .wrap(true)
-        .wrap_mode(gtk::pango::WrapMode::WordChar)
-        .xalign(0.0)
-        .selectable(true)
-        .css_classes(["caption", "code", "rail-label"])
-        .build();
-    if state != StepState::Live {
-        line.add_css_class("dim-label");
+    let head = gtk::Box::new(gtk::Orientation::Horizontal, 7);
+    head.add_css_class("rail-line-text");
+    head.append(
+        &gtk::Label::builder()
+            .label(&label.verb)
+            .xalign(0.0)
+            .css_classes(["rail-verb"])
+            .build(),
+    );
+    if !label.target.is_empty() {
+        let target = gtk::Label::builder()
+            .label(&label.target)
+            .xalign(0.0)
+            .hexpand(true)
+            .ellipsize(gtk::pango::EllipsizeMode::End)
+            .tooltip_text(&label.target)
+            .css_classes(["rail-target", "dim-label"])
+            .build();
+        if label.mono {
+            target.add_css_class("monospace");
+        }
+        head.append(&target);
     }
-    text.append(&line);
+    if !label.meta.is_empty() && state != StepState::Live {
+        let meta = gtk::Label::builder()
+            .label(&label.meta)
+            .css_classes(["rail-meta", "dim-label"])
+            .build();
+        if state == StepState::Failed {
+            meta.add_css_class("error");
+        }
+        head.append(&meta);
+    }
+    text.append(&head);
     let output = step.stdout.as_deref().unwrap_or_default().trim_end();
     if state == StepState::Live && !output.is_empty() {
         let lines: Vec<&str> = output.lines().collect();
         let tail = lines[lines.len().saturating_sub(LIVE_OUTPUT_LINES)..].join("\n");
-        line = gtk::Label::builder()
+        let line = gtk::Label::builder()
             .label(tail)
             .wrap(true)
             .wrap_mode(gtk::pango::WrapMode::WordChar)
@@ -1120,6 +1142,7 @@ fn rail_row(step: &StepRecord, label: &str, last: bool) -> gtk::Box {
     }
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     row.add_css_class("rail-row");
+    row.add_css_class(class);
     row.append(&column);
     row.append(&text);
     row
@@ -1150,7 +1173,7 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
     let steps: Vec<_> = entry
         .steps
         .iter()
-        .filter_map(|step| step_label(step).map(|label| (step, label)))
+        .filter_map(|step| step_line(step).map(|label| (step, label)))
         .collect();
     parts.steps.set_visible(!steps.is_empty());
     parts.steps_box.set_visible(!steps.is_empty());

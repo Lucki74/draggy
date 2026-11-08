@@ -64,14 +64,20 @@ final class MessageTextTests: XCTestCase {
         XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.monoSpace) ?? false)
     }
 
-    func testThinkingIsTitledAndItalic() {
+    func testThinkingSitsOnTheRailWithNoTitle() {
         let step = Transcript.Step(kind: "thinking", label: "thinking", isDone: true, detail: "hmm")
         let line = Transcript.Line(id: UUID(), role: .assistant, text: "", steps: [step])
-        let text = MessageText.attributed(line)
-        let title = "\u{2022} \(String(localized: "Thinking"))\n"
-        XCTAssertEqual(text.string, title + "hmm\n")
-        let font = text.attribute(.font, at: (title as NSString).length, effectiveRange: nil) as? NSFont
-        XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.italic) ?? false)
+        XCTAssertEqual(MessageText.attributed(line).string, "\u{2022} hmm\n")
+    }
+
+    func testAStepSplitsIntoVerbTargetAndResult() {
+        let step = Transcript.Step(kind: "command", label: "Failed `node x.js` (exit 3)", isDone: true)
+        let text = MessageText.stepLine(step)
+        XCTAssertEqual(text.string, "Failed node x.js  exit 3\n")
+        let font = text.attribute(.font, at: 7, effectiveRange: nil) as? NSFont
+        XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.monoSpace) ?? false)
+        let color = text.attribute(.foregroundColor, at: 18, effectiveRange: nil) as? NSColor
+        XCTAssertEqual(color, .systemRed)
     }
 
     func testItalicsAndQuotesAreDrawn() {

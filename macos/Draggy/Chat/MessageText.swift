@@ -44,13 +44,17 @@ enum MessageText {
             // The node marks the state: accent while live, a quiet dot once done, a red cross on failure.
             let (mark, color): (String, NSColor) = step.failed
                 ? ("\u{00D7}", .systemRed)
-                : step.isDone ? ("\u{2022}", .tertiaryLabelColor) : ("\u{25CF}", .controlAccentColor)
-            let title = step.kind == "thinking" ? String(localized: "Thinking") : step.label
+                : step.isDone || step.kind == "thinking"
+                    ? ("\u{2022}", .tertiaryLabelColor) : ("\u{25CF}", .controlAccentColor)
             out.append(NSAttributedString(string: "\(mark) ", attributes: [.font: small, .foregroundColor: color]))
-            out.append(NSAttributedString(
-                string: "\(title)\n",
-                attributes: [.font: small, .foregroundColor: step.isDone ? NSColor.secondaryLabelColor : NSColor.labelColor]
-            ))
+            // A thought sits on the rail as its own text, with no title over it.
+            if step.kind == "thinking" {
+                out.append(NSAttributedString(string: step.detail + "\n", attributes: [
+                    .font: thought, .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: hangingAfterNode,
+                ]))
+                continue
+            }
+            out.append(stepLine(step))
             guard !step.detail.isEmpty else { continue }
             out.append(NSAttributedString(string: step.detail + "\n", attributes: detailAttributes(for: step)))
         }
@@ -64,7 +68,38 @@ enum MessageText {
     }
 
     private static let detailMono = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
-    private static let italic = NSFontManager.shared.convert(small, toHaveTrait: .italicFontMask)
+    private static let thought = NSFont.systemFont(ofSize: 13)
+    private static let stepParts = try? NSRegularExpression(pattern: "^(.*?)(?:`([^`\\n]+)`|\\*\\*([^*\\n]+)\\*\\*)(.*)$")
+
+    /// A step as one line: the verb, then what it acted on in a quieter tone, then its result once done.
+    static func stepLine(_ step: Transcript.Step) -> NSAttributedString {
+        let tone = step.isDone ? NSColor.secondaryLabelColor : NSColor.labelColor
+        let row = step.label as NSString
+        let out = NSMutableAttributedString()
+        guard let match = stepParts?.firstMatch(in: step.label, range: NSRange(location: 0, length: row.length)) else {
+            out.append(NSAttributedString(string: step.label + "\n", attributes: [.font: small, .foregroundColor: tone]))
+            return out
+        }
+        let code = match.range(at: 2)
+        var verb = row.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces)
+        var target = row.substring(with: code.location != NSNotFound ? code : match.range(at: 3))
+        if verb == "Search results for" {
+            verb = String(localized: "Searched for")
+            target = "\u{201C}\(target)\u{201D}"
+        }
+        let meta = row.substring(with: match.range(at: 4)).trimmingCharacters(in: CharacterSet(charactersIn: "·() "))
+        out.append(NSAttributedString(string: verb + " ", attributes: [.font: small, .foregroundColor: tone]))
+        out.append(NSAttributedString(string: target, attributes: [
+            .font: code.location != NSNotFound ? detailMono : small, .foregroundColor: NSColor.tertiaryLabelColor,
+        ]))
+        if step.isDone, !meta.isEmpty {
+            out.append(NSAttributedString(string: "  " + meta, attributes: [
+                .font: small, .foregroundColor: step.failed ? NSColor.systemRed : NSColor.tertiaryLabelColor,
+            ]))
+        }
+        out.append(NSAttributedString(string: "\n", attributes: [.font: small]))
+        return out
+    }
 
     /// One summary line for folded steps, with the failures counted when there are any.
     static func foldTitle(_ steps: [Transcript.Step]) -> String {
@@ -86,11 +121,15 @@ enum MessageText {
         return style
     }()
 
+    /// A thought's wrapped lines line up with its first word, past the node.
+    private static let hangingAfterNode: NSParagraphStyle = {
+        let style = NSMutableParagraphStyle()
+        style.headIndent = 14
+        return style
+    }()
+
     private static func detailAttributes(for step: Transcript.Step) -> [NSAttributedString.Key: Any] {
-        if step.kind == "thinking" {
-            return [.font: italic, .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: hanging]
-        }
-        return [
+        [
             .font: detailMono,
             .foregroundColor: NSColor.labelColor,
             .backgroundColor: NSColor.quaternaryLabelColor,

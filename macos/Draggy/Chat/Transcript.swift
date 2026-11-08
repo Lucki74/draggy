@@ -16,7 +16,7 @@ struct Transcript: Equatable {
         var detail: String = ""
 
         /// A step that errored or a command that exited non-zero. Read from what the core wrote, never saved.
-        var failed: Bool { kind == "error" || detail.hasPrefix("Failed ") }
+        var failed: Bool { kind == "error" || label.hasPrefix("Failed ") || detail.hasPrefix("Failed ") }
     }
 
     struct Line: Identifiable, Equatable {

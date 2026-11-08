@@ -61,6 +61,25 @@ window {
   min-height: 24px;
 }
 
+.rail-line-text {
+  font-size: 13px;
+  min-height: 24px;
+}
+
+.rail-row.is-live .rail-verb {
+  font-size: 14px;
+  color: @accent_color;
+}
+
+.rail-row.is-done .rail-line-text {
+  opacity: 0.62;
+}
+
+.rail-target.monospace,
+.rail-output {
+  font-size: 12px;
+}
+
 .rail-node {
   font-size: 9px;
   min-width: 14px;
