@@ -40,7 +40,7 @@ enum MessageText {
         }
         let run = line.steps.lazy.compactMap { ResearchRunView(step: $0) }.first
         if let run { out.append(ResearchText.card(run)) }
-        for step in line.steps where step.kind != "research_run" && (!line.foldsSteps || line.stepsOpen) {
+        for step in line.steps where step.kind != "research_run" && !(run != nil && isRunPreview(step)) && (!line.foldsSteps || line.stepsOpen) {
             // The node marks the state: accent while live, a quiet dot once done, a red cross on failure.
             let (mark, color): (String, NSColor) = step.failed
                 ? ("\u{00D7}", .systemRed)
@@ -65,6 +65,11 @@ enum MessageText {
         out.append(ResearchText.linkCitations(message(line.text), run: run))
         out.append(ResearchText.sourceList(run))
         return out
+    }
+
+    /// A live call of a tool the research card already reports in its own rows would only repeat it.
+    private static func isRunPreview(_ step: Transcript.Step) -> Bool {
+        step.kind == "tool_call" && ["add_note", "search_web", "read_url"].contains(step.label)
     }
 
     private static let detailMono = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)

@@ -17,7 +17,7 @@ struct ContentView: View {
                 Label("Terminal", systemImage: "terminal").tag(Page.terminal)
                 Label("Files", systemImage: "folder").tag(Page.files)
                 Label("Search", systemImage: "magnifyingglass").tag(Page.search)
-                Label("Diff", systemImage: "arrow.left.and.right").tag(Page.diff)
+                Label("Review", systemImage: "arrow.left.and.right").tag(Page.diff)
                 Label("Canvas", systemImage: "pencil.and.outline").tag(Page.canvas)
                 Label("Images", systemImage: "wand.and.stars").tag(Page.images)
                 Label("Extensions", systemImage: "puzzlepiece").tag(Page.extensions)

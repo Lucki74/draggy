@@ -154,8 +154,8 @@ enum ResearchText {
         let read = run.sources.filter { $0.status == "read" }.count
         let failed = run.sources.filter(isBad).count
         let done = run.endedAt != nil
-        var parts = [done ? String(format: String(localized: "%lld questions"), run.questions.count) : depth(run.depth)]
-        parts.append(String(format: String(localized: "%lld sources read"), read))
+        var parts = [done ? String(format: run.questions.count == 1 ? String(localized: "%lld question") : String(localized: "%lld questions"), run.questions.count) : depth(run.depth)]
+        parts.append(String(format: read == 1 ? String(localized: "%lld source read") : String(localized: "%lld sources read"), read))
         if failed > 0 { parts.append(String(format: String(localized: "%lld failed"), failed)) }
         return (done ? String(localized: "Researched") : String(localized: "Researching")) + "  " + parts.joined(separator: " \u{00B7} ")
     }
@@ -166,7 +166,7 @@ enum ResearchText {
         out.append(line(header(run)))
         let (groups, other) = groupSources(run)
         for (index, question) in run.questions.enumerated() {
-            let notes = String(format: String(localized: "%lld notes"), question.notes)
+            let notes = String(format: question.notes == 1 ? String(localized: "%lld note") : String(localized: "%lld notes"), question.notes)
             out.append(line("\(question.notes > 0 ? "\u{25CF}" : "\u{25CB}")  \(question.text)  \(notes)"))
             groups[index].forEach { out.append(sourceLine($0)) }
         }
