@@ -31,176 +31,145 @@ const MOCK_DIFF = `diff --git a/src/first.ts b/src/first.ts
 +  return 2;
 +  return 3;
  }
+diff --git a/src/second.ts b/src/second.ts
+new file mode 100644
+--- /dev/null
++++ b/src/second.ts
+@@ -0,0 +1,1 @@
++export const second = 2;
 `;
+
+const COMMIT_DIFF = `diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1 +1 @@
+-old
++new
+`;
+
+const COMMITS = [
+  { hash: "b".repeat(40), short: "bbbbbbb", author: "Ada", date: "today", subject: "Second commit", parents: ["a".repeat(40)], refs: [{ name: "main", kind: "head" }] },
+  { hash: "a".repeat(40), short: "aaaaaaa", author: "Ada", date: "yesterday", subject: "First commit", parents: [], refs: [] },
+];
+
+let git: Record<string, ReturnType<typeof vi.fn>>;
+
+async function renderPane(width = 600) {
+  await act(async () => {
+    render(<DiffPane workspaceId="w1" rootPath="/app" gitStatus={MOCK_GIT_STATUS} t={t} width={width} onOpenFile={vi.fn()} />);
+  });
+}
+
+const fileRows = () => screen.getAllByTestId("review-file");
 
 describe("DiffPane", () => {
   beforeEach(() => {
-    const target = window as unknown as Record<string, unknown>;
-    target.electronAPI = {
-      git: {
-        status: vi.fn().mockResolvedValue(MOCK_GIT_STATUS),
-        diff: vi.fn().mockResolvedValue({ success: true, diff: MOCK_DIFF }),
-      },
+    git = {
+      status: vi.fn().mockResolvedValue(MOCK_GIT_STATUS),
+      diff: vi.fn().mockResolvedValue({ success: true, diff: MOCK_DIFF }),
+      log: vi.fn().mockResolvedValue({ success: true, commits: COMMITS }),
+      show: vi.fn().mockResolvedValue({ success: true, diff: COMMIT_DIFF }),
+      branches: vi.fn().mockResolvedValue({ success: true, branches: [{ name: "main", current: true }, { name: "feature", current: false }] }),
+      checkout: vi.fn().mockResolvedValue({ success: true }),
     };
+    (window as unknown as Record<string, unknown>).electronAPI = { git };
   });
 
   afterEach(() => {
     cleanup();
-    const target = window as unknown as Record<string, unknown>;
-    delete target.electronAPI;
+    delete (window as unknown as Record<string, unknown>).electronAPI;
   });
 
-  it("renders git header with branch, distance, and changed file count", async () => {
-    await act(async () => {
-      render(
-        <DiffPane
-          workspaceId="w1"
-          rootPath="/app"
-          gitStatus={MOCK_GIT_STATUS}
-          t={t}
-          width={600}
-        />,
-      );
-    });
-
-    expect(screen.getByTitle("main")).toBeTruthy();
-    expect(screen.getByTitle("Commits not yet pushed")).toBeTruthy();
-    expect(screen.getByTitle("Commits not yet pulled")).toBeTruthy();
-    expect(screen.getByText("2 changed")).toBeTruthy();
+  it("shows the branch, its distance and how many files changed", async () => {
+    await renderPane();
+    expect(screen.getByTitle("main").textContent).toContain("main");
+    expect(screen.getByTitle(t("gitAhead")).textContent).toContain("2");
+    expect(screen.getByTitle(t("gitBehind")).textContent).toContain("1");
+    expect(screen.getByText(t("gitChangedFiles").replace("{count}", "2"))).toBeTruthy();
+    expect(git.diff).toHaveBeenCalledWith("w1", ".", false, true, false);
   });
 
-  it("renders changed file list with per-file diff stats", async () => {
-    await act(async () => {
-      render(
-        <DiffPane
-          workspaceId="w1"
-          rootPath="/app"
-          gitStatus={MOCK_GIT_STATUS}
-          t={t}
-          width={600}
-        />,
-      );
-    });
+  it("lists each file with its counts and opens one at a time", async () => {
+    await renderPane();
+    const [first, second] = fileRows();
+    expect(first.textContent).toContain("first.ts");
+    expect(first.textContent).toContain("+2");
+    expect(first.textContent).toContain("-1");
+    expect(first.querySelector("[data-kind='added']")).toBeTruthy();
+    expect(second.querySelector("[data-kind]")).toBeNull();
 
-    expect(screen.getByText("src/first.ts")).toBeTruthy();
-    expect(screen.getByText("src/second.ts")).toBeTruthy();
-    expect(screen.getByText("+2")).toBeTruthy();
-    expect(screen.getByText("-1")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /second\.ts/ }));
+    expect(fileRows()[1].querySelector("[data-kind='added']")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /first\.ts/ }));
+    expect(fileRows()[0].querySelector("[data-kind]")).toBeNull();
   });
 
-  it("toggles between unified and split views when width is 900 or greater", async () => {
-    await act(async () => {
-      render(
-        <DiffPane
-          workspaceId="w1"
-          rootPath="/app"
-          gitStatus={MOCK_GIT_STATUS}
-          t={t}
-          width={960}
-        />,
-      );
-    });
-
-    const splitBtn = screen.getByRole("button", { name: "Split" });
-    expect(splitBtn).toBeTruthy();
-
-    await act(async () => {
-      fireEvent.click(splitBtn);
-    });
-
-    // In split view, "Unified" button is also present to switch back
-    const unifiedBtn = screen.getByRole("button", { name: "Unified" });
-    expect(unifiedBtn).toBeTruthy();
+  it("splits a modified file but keeps a new file in one column", async () => {
+    await renderPane(900);
+    fireEvent.click(screen.getByRole("button", { name: t("more") }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: t("reviewSplit") }));
+    fireEvent.click(screen.getByRole("button", { name: /second\.ts/ }));
+    const [first, second] = fileRows();
+    expect(first.querySelector("[data-kind]")).toBeNull();
+    expect(first.textContent).toContain("return 1;");
+    expect(second.querySelector("[data-kind='added']")).toBeTruthy();
   });
 
-  it("allows adding inline comments and sending review prompt", async () => {
-    const onSendReviewComment = vi.fn();
-
-    await act(async () => {
-      render(
-        <DiffPane
-          workspaceId="w1"
-          rootPath="/app"
-          gitStatus={MOCK_GIT_STATUS}
-          t={t}
-          width={600}
-          onSendReviewComment={onSendReviewComment}
-        />,
-      );
-    });
-
-    // Click the add comment button on a line
-    const commentButtons = screen.getAllByTestId("start-comment");
-    expect(commentButtons.length).toBeGreaterThan(0);
-
-    await act(async () => {
-      fireEvent.click(commentButtons[0]);
-    });
-
-    const textarea = screen.getByPlaceholderText("Leave a comment on this line...");
-    await act(async () => {
-      fireEvent.change(textarea, { target: { value: "Please refactor this" } });
-    });
-
-    // Save the comment using the testid save button in the form
-    const saveButton = screen.getByTestId("save-comment");
-    await act(async () => {
-      fireEvent.click(saveButton);
-    });
-
-    expect(screen.getByText("Please refactor this")).toBeTruthy();
-    expect(screen.getByText("1 Review comments")).toBeTruthy();
-
-    // Send review button
-    const sendButton = screen.getByRole("button", { name: /Send review/ });
-    await act(async () => {
-      fireEvent.click(sendButton);
-    });
-
-    expect(onSendReviewComment).toHaveBeenCalledTimes(1);
-    expect(onSendReviewComment.mock.calls[0][0]).toContain("Please refactor this");
+  it("offers split only when the pane is wide enough", async () => {
+    await renderPane(500);
+    fireEvent.click(screen.getByRole("button", { name: t("more") }));
+    expect(screen.getByRole("menuitemcheckbox", { name: t("reviewSplit") }).getAttribute("aria-disabled")).toBe("true");
   });
 
-  it("lists commits and switches branch from the history tabs", async () => {
-    const git = (window as unknown as { electronAPI: { git: Record<string, unknown> } }).electronAPI.git;
-    git.log = vi.fn().mockResolvedValue({
-      success: true,
-      commits: [{ hash: "a".repeat(40), short: "aaaaaaa", author: "Ann", date: "2026-01-01", subject: "Fix the thing" }],
+  it("asks git to ignore whitespace and expands every file", async () => {
+    await renderPane();
+    fireEvent.click(screen.getByRole("button", { name: t("more") }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitemcheckbox", { name: t("reviewHideWhitespace") }));
     });
-    git.branches = vi.fn().mockResolvedValue({
-      success: true,
-      branches: [{ name: "main", current: true }, { name: "dev", current: false }],
-    });
-    git.checkout = vi.fn().mockResolvedValue({ success: true, branch: "dev" });
+    expect(git.diff).toHaveBeenLastCalledWith("w1", ".", false, true, true);
 
-    await act(async () => {
-      render(<DiffPane workspaceId="w1" gitStatus={MOCK_GIT_STATUS} t={t} />);
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "History" }));
-    });
-    expect(screen.getByText("Fix the thing")).toBeTruthy();
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Branches" }));
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Switch" }));
-    });
-    expect(git.checkout).toHaveBeenCalledWith("w1", "dev");
+    fireEvent.click(screen.getByRole("button", { name: t("more") }));
+    fireEvent.click(screen.getByRole("menuitem", { name: t("reviewExpandAll") }));
+    for (const row of fileRows()) expect(row.querySelector("[data-kind]")).toBeTruthy();
   });
 
-  it("stacks the file list over the diff in a narrow pane", async () => {
-    const shown = async (width: number) => {
-      cleanup();
-      await act(async () => {
-        render(<DiffPane workspaceId="w1" rootPath="/app" gitStatus={MOCK_GIT_STATUS} t={t} width={width} />);
-      });
-      return screen.getByTestId("diff-file-list").className;
-    };
+  it("filters the files by path", async () => {
+    await renderPane();
+    fireEvent.click(screen.getByRole("button", { name: t("search") }));
+    fireEvent.change(screen.getByLabelText(t("reviewFilter")), { target: { value: "second" } });
+    expect(fileRows()).toHaveLength(1);
+    expect(fileRows()[0].textContent).toContain("second.ts");
+  });
 
-    expect(await shown(420)).toContain("border-b");
-    expect(await shown(960)).toContain("w-56");
+  it("draws every branch and shows a commit's files until going back", async () => {
+    await renderPane();
+    expect(git.log).toHaveBeenCalledWith("w1", 200, true);
+    const graph = screen.getByTestId("git-graph");
+    expect(graph.querySelectorAll("circle")).toHaveLength(2);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Second commit/ }));
+    });
+    expect(git.show).toHaveBeenCalledWith("w1", "b".repeat(40), false);
+    expect(fileRows()).toHaveLength(1);
+    expect(fileRows()[0].textContent).toContain("README.md");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: t("reviewBack") }));
+    });
+    expect(fileRows()).toHaveLength(2);
+  });
+
+  it("checks out a branch from the header menu", async () => {
+    await renderPane();
+    await act(async () => {
+      fireEvent.click(screen.getByTitle("main"));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitemradio", { name: "feature" }));
+    });
+    expect(git.checkout).toHaveBeenCalledWith("w1", "feature");
+    expect(git.status).toHaveBeenCalled();
   });
 });

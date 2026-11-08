@@ -822,6 +822,15 @@ export interface GitCommit {
   author: string;
   date: string;
   subject: string;
+  /** Parent hashes; a merge has two or more. */
+  parents?: string[];
+  refs?: GitRef[];
+}
+
+export interface GitRef {
+  name: string;
+  /** "head" is the checked-out branch. */
+  kind: "head" | "branch" | "remote" | "tag";
 }
 
 export interface GitLog {
@@ -1663,8 +1672,12 @@ declare global {
           path?: string,
           staged?: boolean,
           untracked?: boolean,
+          ignoreWhitespace?: boolean,
         ) => Promise<GitDiff>;
-        log: (workspaceId: string, limit?: number) => Promise<GitLog>;
+        /** Recent commits; `all` takes in every branch, for the graph. */
+        log: (workspaceId: string, limit?: number, all?: boolean) => Promise<GitLog>;
+        /** The diff one commit made against its first parent. */
+        show: (workspaceId: string, hash: string, ignoreWhitespace?: boolean) => Promise<GitDiff>;
         branches: (workspaceId: string) => Promise<GitBranches>;
         stage: (workspaceId: string, paths: string[]) => Promise<GitWrite>;
         unstage: (workspaceId: string, paths: string[]) => Promise<GitWrite>;

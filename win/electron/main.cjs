@@ -3259,7 +3259,7 @@ function gitPathspec(roots, target) {
 
 const NO_FOLDER = { success: false, error: "This conversation has no project folder." };
 
-ipc.handle("git:diff", wrap("git", async (event, workspaceId, target, staged, untracked) => {
+ipc.handle("git:diff", wrap("git", async (event, workspaceId, target, staged, untracked, ignoreWhitespace) => {
   const roots = rootsFor(String(workspaceId || ""));
   if (!roots[0]) return NO_FOLDER;
 
@@ -3270,13 +3270,19 @@ ipc.handle("git:diff", wrap("git", async (event, workspaceId, target, staged, un
     relative: spec.relative,
     staged: Boolean(staged),
     untracked: Boolean(untracked),
+    ignoreWhitespace: Boolean(ignoreWhitespace),
     allow: (absolute) => fsGuard.isReadable(absolute),
   });
 }));
 
-ipc.handle("git:log", wrap("git", async (event, workspaceId, limit) => {
+ipc.handle("git:log", wrap("git", async (event, workspaceId, limit, all) => {
   const root = rootsFor(String(workspaceId || ""))[0];
-  return root ? git.log(root, { limit }) : NO_FOLDER;
+  return root ? git.log(root, { limit, all: Boolean(all) }) : NO_FOLDER;
+}));
+
+ipc.handle("git:show", wrap("git", async (event, workspaceId, hash, ignoreWhitespace) => {
+  const root = rootsFor(String(workspaceId || ""))[0];
+  return root ? git.show(root, hash, { ignoreWhitespace: Boolean(ignoreWhitespace), allow: (absolute) => fsGuard.isReadable(absolute) }) : NO_FOLDER;
 }));
 
 ipc.handle("git:branches", wrap("git", async (event, workspaceId) => {

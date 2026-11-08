@@ -24,6 +24,19 @@ const MAX_COMMIT_MESSAGE_CHARS = 10_000;
 /** How many changed files a status lists. */
 const MAX_STATUS_FILES = 500;
 
+/** The names in a `%D` decoration: "HEAD -> main, origin/main, tag: v1" gives each ref with its kind. */
+function refList(text) {
+  const refs = [];
+  for (const part of String(text || "").split(", ").map((item) => item.trim()).filter(Boolean)) {
+    if (part.startsWith("HEAD -> ")) refs.push({ name: part.slice(8), kind: "head" });
+    else if (part === "HEAD") refs.push({ name: "HEAD", kind: "head" });
+    else if (part.startsWith("tag: ")) refs.push({ name: part.slice(5), kind: "tag" });
+    else if (part.includes("/")) refs.push({ name: part, kind: "remote" });
+    else refs.push({ name: part, kind: "branch" });
+  }
+  return refs;
+}
+
 /** Flags that go before every subcommand. */
 const SAFE_FLAGS = [
   "--no-pager",
@@ -276,7 +289,7 @@ function createGit({ run = defaultRun } = {}) {
 
   /** Working tree or staged diff, for the project or one path already checked by the caller.
    * `allow` drops guarded files by name so a tracked .env never prints. */
-  async function diff(root, { relative = ".", staged = false, untracked = false, allow = () => true } = {}) {
+  async function diff(root, { relative = ".", staged = false, untracked = false, ignoreWhitespace = false, allow = () => true } = {}) {
     if (!(await available())) return { success: false, error: "Git is not installed." };
 
     const prefix = await prefixOf(root);
@@ -294,6 +307,7 @@ function createGit({ run = defaultRun } = {}) {
       "--no-textconv",
       "--ignore-submodules=all",
       "--relative",
+      ...(ignoreWhitespace ? ["-w"] : []),
       ...(staged ? ["--cached"] : []),
     ];
 
@@ -364,11 +378,19 @@ function createGit({ run = defaultRun } = {}) {
     return { text, files, more: names.length > MAX_UNTRACKED_DIFFS };
   }
 
-  /** The latest commits on the current branch. */
-  async function history(root, { limit = 50 } = {}) {
+  /** The latest commits on the current branch, or on every branch with `all`, with parents and refs. */
+  async function history(root, { limit = 50, all = false } = {}) {
     if (!(await available())) return { success: false, error: "Git is not installed." };
     const count = Math.min(Math.max(Math.trunc(Number(limit)) || 50, 1), MAX_LOG_ENTRIES);
-    const result = await git(root, ["log", `-n${count}`, "--topo-order", "--no-show-signature", "--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s%x1e"]);
+    const result = await git(root, [
+      "log",
+      `-n${count}`,
+      "--topo-order",
+      "--no-show-signature",
+      "--decorate=short",
+      ...(all ? ["--all"] : []),
+      "--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s%x1f%P%x1f%D%x1e",
+    ]);
     if (result.code !== 0) {
       // A repository with no commits yet has no log, which is not an error.
       if (/does not have any commits/i.test(result.stderr)) return { success: true, commits: [] };
@@ -379,8 +401,8 @@ function createGit({ run = defaultRun } = {}) {
       .map((record) => record.replace(/^\r?\n/, ""))
       .filter(Boolean)
       .map((record) => {
-        const [hash, short, author, date, subject] = record.split("\x1f");
-        return { hash, short, author, date, subject };
+        const [hash, short, author, date, subject, parents = "", refs = ""] = record.split("\x1f");
+        return { hash, short, author, date, subject, parents: parents.split(" ").filter(Boolean), refs: refList(refs) };
       });
     return { success: true, commits };
   }
@@ -452,7 +474,43 @@ function createGit({ run = defaultRun } = {}) {
     return result.code === 0 ? { success: true, branch: name } : { success: false, error: firstLine(result.stderr) };
   }
 
-  return { available, status, diff, log: history, branches, stage, unstage, commit, checkout };
+  /** The changes one commit made, against its first parent. Guarded files drop out by name. */
+  async function show(root, hash, { ignoreWhitespace = false, allow = () => true } = {}) {
+    const rev = String(hash ?? "").trim();
+    if (!/^[0-9a-f]{4,64}$/i.test(rev)) return { success: false, error: "That is not a commit." };
+    if (!(await available())) return { success: false, error: "Git is not installed." };
+
+    const disarmed = await disarmFilters(root);
+    if (disarmed === null) return { success: false, error: REFUSED_CONFIG };
+
+    const common = [
+      ...disarmed,
+      "show",
+      "--format=",
+      "--no-color",
+      "--no-ext-diff",
+      "--no-textconv",
+      "--ignore-submodules=all",
+      "--diff-merges=first-parent",
+      "--relative",
+      ...(ignoreWhitespace ? ["-w"] : []),
+    ];
+    const listed = await git(root, [...common, "--name-only", "-z", rev, "--"]);
+    if (listed.code !== 0) return { success: false, error: firstLine(listed.stderr) };
+
+    const changed = listed.stdout.split("\0").map((name) => name.replace(/^\n+/, "")).filter(Boolean);
+    const allowed = changed.filter((name) => allow(path.join(root, name)));
+    const skipped = changed.length - allowed.length;
+    if (allowed.length === 0) return { success: true, diff: "", truncated: false, files: 0, skipped };
+
+    const named = allowed.slice(0, MAX_DIFF_FILES);
+    const result = await git(root, [...common, rev, "--", ...named]);
+    if (result.code !== 0) return { success: false, error: firstLine(result.stderr) };
+    const text = clipDiff(result.stdout);
+    return { success: true, diff: text, truncated: text.length < result.stdout.length || named.length < allowed.length, files: named.length, skipped };
+  }
+
+  return { available, status, diff, log: history, show, branches, stage, unstage, commit, checkout };
 }
 
 function firstLine(text) {
