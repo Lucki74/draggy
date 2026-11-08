@@ -2,6 +2,7 @@ import AppKit
 import DraggyCore
 import Foundation
 import Observation
+import SwiftUI
 
 /// Handles launch checks, background downloads, SHA-256 verification and in-place bundle swapping.
 @MainActor
