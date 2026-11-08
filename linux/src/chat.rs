@@ -254,12 +254,44 @@ pub fn step_label(step: &StepRecord) -> Option<String> {
         .or(step.content.as_deref())
         .map(|text| text.lines().next().unwrap_or_default().trim())
         .filter(|text| !text.is_empty())?;
-    let state = if step.is_complete == Some(true) {
-        ""
+    Some(format!("{}: {detail}", step.kind))
+}
+
+/// The mark a step gets on the rail. The node says it, so labels carry no state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepState {
+    Live,
+    Done,
+    Failed,
+}
+
+pub fn step_state(step: &StepRecord) -> StepState {
+    let content = step.content.as_deref().unwrap_or_default();
+    if step.kind == "error" || content.starts_with("Failed ") {
+        StepState::Failed
+    } else if step.is_complete == Some(true) {
+        StepState::Done
     } else {
-        " (running)"
-    };
-    Some(format!("{}: {detail}{state}", step.kind))
+        StepState::Live
+    }
+}
+
+/// The fold header: "Working" while the reply streams, then one summary line.
+pub fn rail_title(steps: &[StepRecord], streaming: bool) -> String {
+    if streaming {
+        return "Working".to_owned();
+    }
+    let shown: Vec<&StepRecord> = steps.iter().filter(|s| step_label(s).is_some()).collect();
+    let noun = if shown.len() == 1 { "step" } else { "steps" };
+    let mut title = format!("Worked · {} {noun}", shown.len());
+    let failed = shown
+        .iter()
+        .filter(|s| step_state(s) == StepState::Failed)
+        .count();
+    if failed > 0 {
+        title.push_str(&format!(" · {failed} failed"));
+    }
+    title
 }
 
 /// A call still being written: the tool name and one `key: value` line per argument seen so far.
@@ -563,7 +595,11 @@ mod tests {
     fn running_and_finished_steps_are_labelled() {
         assert_eq!(
             step_label(&step("read_file", "a.txt\nmore", false)).as_deref(),
-            Some("read_file: a.txt (running)")
+            Some("read_file: a.txt")
+        );
+        assert_eq!(
+            step_state(&step("read_file", "a.txt", false)),
+            StepState::Live
         );
         assert_eq!(
             step_label(&step("list_directory", "src", true)).as_deref(),
@@ -578,6 +614,18 @@ mod tests {
         };
         assert_eq!(step_label(&path).as_deref(), Some("write_file: /p/x.rs"));
         assert!(step_label(&step("think", "  ", true)).is_none());
+    }
+
+    #[test]
+    fn the_rail_title_works_then_sums_up() {
+        let steps = vec![
+            step("command", "Ran `npm test`", true),
+            step("command", "Failed `node fail.js` (exit 3)", true),
+        ];
+        assert_eq!(rail_title(&steps, true), "Working");
+        assert_eq!(rail_title(&steps, false), "Worked · 2 steps · 1 failed");
+        assert_eq!(step_state(&steps[1]), StepState::Failed);
+        assert_eq!(rail_title(&steps[..1], false), "Worked · 1 step");
     }
 
     #[test]
