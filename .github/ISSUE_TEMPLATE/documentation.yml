@@ -37,7 +37,7 @@ body:
     id: version
     attributes:
       label: Draggy build
-      description: Shown under Settings, Updates. Helps tell whether the page is behind the app.
+      description: The build number shown in the app. Helps tell whether the page is behind the app.
 
   - type: checkboxes
     id: checklist

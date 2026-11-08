@@ -30,8 +30,8 @@ It runs weights locally using an embedded `llama.cpp` engine with GGUF weights
 from Hugging Face. There is no account and no telemetry. The app only touches
 the network for things you ask for or switch on: model and engine downloads,
 update checks, ad-block lists, and the price refresh behind the cost counters.
-Automatic updates and the price refresh can be turned off in Settings. Available as an Electron application on Windows, a native
-SwiftUI app on macOS, and a native GTK 4 app on Linux.
+The price refresh can be turned off in Settings. Updates are always on in packaged builds.
+Available as an Electron application on Windows, a native SwiftUI app on macOS, and a native GTK 4 app on Linux.
 
 Compared with LM Studio, Jan or Ollama, the difference is the coding agent: it
 reads, edits and runs commands in a project folder, shows every change as a diff
@@ -52,6 +52,7 @@ architecture in English, French, Spanish, and Russian. Start with
 - A folder and bundled Python for every chat.
 - Separate chat and code workspaces.
 - Sandboxed browser and web search.
+- Deep research with fact-check, news-brief and trend-scan skills, a research library of sources, and citation chips.
 - Document generation.
 - Semantic search across local folders.
 - MCP servers, 572 built-in skills.

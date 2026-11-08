@@ -1,6 +1,6 @@
 # Releasing Draggy
 
-Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds the Windows installer with Electron, the macOS app and the Linux packages natively, then publishes a release with the packages and the `latest.yml` file that `electron-updater` reads inside the app. The macOS build is signed ad hoc until a Developer ID certificate exists.
+Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds the Windows installer with Electron, the macOS app and the Linux packages natively, then publishes a release with the packages, the `latest.yml` files and `SHA256SUMS.txt`, which the app reads or checks against. The macOS build is signed ad hoc until a Developer ID certificate exists.
 
 ## Cutting a build
 
@@ -24,14 +24,15 @@ all three, so a failure on any system means nothing is published.
 The release is created as a draft, the files are uploaded, and only then is it published and marked
 Latest. A failed upload therefore never leaves a half-empty release that installed apps would pick up.
 If the build has no `latest-linux.yml`, the publish job copies it forward from an earlier release,
-because Linux installs read that file from the newest `b-N` release and fail without it.
+because Linux installs read that file from the newest `b-N` release and fail without it. `SHA256SUMS.txt` is copied forward the same way.
 
 ### Notes
 
 Notes are Markdown with an `**Updates**` list and a `**Fixes**` list. Each bullet starts with what
 changed for the user and has no trailing period. Leave out refactors nobody would notice. The
-workflow appends the `**Full Changelog**` line. The notes become the release body and the "What's
-new" text in the update dialog.
+workflow appends the `**Full Changelog**` line. The notes become the release body.
+While a build is in preparation, the notes file is `RELEASE-NOTES-BUILD-X.md` at the repo root. Rename
+it to `RELEASE-NOTES-BUILD-<n>.md` once the build number is known, and keep only one such file.
 
 ### Dry run
 
@@ -51,15 +52,16 @@ fixed by releasing the next number.
 
 ## What the updater trusts
 
-Update signatures are off (`verifyUpdateCodeSignature: false`), and the checksum in `latest.yml`
-comes from the same release as the installer. Whoever can write to a release can therefore ship code
-to every installed copy. Release write access is the trust boundary, which is why the workflow
+Update signatures are off (`verifyUpdateCodeSignature: false`), and the checksums in `latest.yml` and
+`SHA256SUMS.txt` come from the same release as the installer. Whoever can write to a release can
+therefore ship code to every installed copy. Release write access is the trust boundary, which is why the workflow
 holds the only token that publishes, and why `SECURITY.md` says so. Signing the Windows build would
 move that boundary to the certificate.
 
-The app reads the highest `b-N` release itself (`electron/updater.cjs`). It ignores drafts and
-pre-releases, never downgrades, and falls back to GitHub's own latest release when the list cannot
-be read. `DRAGGY_UPDATE_FEED` points it at another folder of `latest.yml` files for testing.
+Windows uses `electron-updater` (`electron/updater.cjs`). macOS and Linux share the Rust code in
+`core/crates/draggy-core/src/update.rs`, which picks the highest `b-N` release, selects the asset by
+file name and checks its SHA-256 against `SHA256SUMS.txt`. `DRAGGY_UPDATE_FEED` points the Windows
+updater at another folder of `latest.yml` files for testing.
 
 ## Moving the image engine to a newer build
 

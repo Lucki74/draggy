@@ -37,7 +37,7 @@ body:
     id: version
     attributes:
       label: Draggy build
-      description: Shown under Settings, Updates.
+      description: The build number shown in the app.
       placeholder: "build 12"
     validations:
       required: true
