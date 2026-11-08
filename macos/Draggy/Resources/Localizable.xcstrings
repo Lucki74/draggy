@@ -1,25 +1,71 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "Process (%lld steps)": {
+    "Working": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Processus (%lld étapes)"
+            "value": "En cours"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Proceso (%lld pasos)"
+            "value": "Trabajando"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Процесс (%lld шагов)"
+            "value": "В работе"
+          }
+        }
+      }
+    },
+    "Worked · 1 step": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminé · 1 étape"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hecho · 1 paso"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готово · 1 шаг"
+          }
+        }
+      }
+    },
+    "Worked · %lld steps": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminé · %lld étapes"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hecho · %lld pasos"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готово · шагов: %lld"
           }
         }
       }

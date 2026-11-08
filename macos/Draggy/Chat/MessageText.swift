@@ -27,21 +27,29 @@ enum MessageText {
         let out = NSMutableAttributedString()
         if line.foldsSteps {
             let arrow = line.stepsOpen ? "\u{25BE}" : "\u{25B8}"
-            let title = String(format: String(localized: "Process (%lld steps)"), line.steps.count)
-            out.append(NSAttributedString(string: "\(arrow) \(title)\n", attributes: [
+            out.append(NSAttributedString(string: "\(arrow) \(foldTitle(line.steps))\n", attributes: [
                 .font: small,
                 .foregroundColor: NSColor.secondaryLabelColor,
                 .link: StepsToggle(line.id),
+            ]))
+        } else if line.role == .assistant, line.steps.contains(where: { !$0.isDone }) {
+            out.append(NSAttributedString(string: String(localized: "Working") + "\n", attributes: [
+                .font: small,
+                .foregroundColor: NSColor.secondaryLabelColor,
             ]))
         }
         let run = line.steps.lazy.compactMap { ResearchRunView(step: $0) }.first
         if let run { out.append(ResearchText.card(run)) }
         for step in line.steps where step.kind != "research_run" && (!line.foldsSteps || line.stepsOpen) {
-            let mark = step.isDone ? "\u{2713}" : "\u{2026}"
+            // The node marks the state: accent while live, a quiet dot once done, a red cross on failure.
+            let (mark, color): (String, NSColor) = step.failed
+                ? ("\u{00D7}", .systemRed)
+                : step.isDone ? ("\u{2022}", .tertiaryLabelColor) : ("\u{25CF}", .controlAccentColor)
             let title = step.kind == "thinking" ? String(localized: "Thinking") : step.label
+            out.append(NSAttributedString(string: "\(mark) ", attributes: [.font: small, .foregroundColor: color]))
             out.append(NSAttributedString(
-                string: "\(mark) \(title)\n",
-                attributes: [.font: small, .foregroundColor: NSColor.secondaryLabelColor]
+                string: "\(title)\n",
+                attributes: [.font: small, .foregroundColor: step.isDone ? NSColor.secondaryLabelColor : NSColor.labelColor]
             ))
             guard !step.detail.isEmpty else { continue }
             out.append(NSAttributedString(string: step.detail + "\n", attributes: detailAttributes(for: step)))
@@ -58,14 +66,35 @@ enum MessageText {
     private static let detailMono = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
     private static let italic = NSFontManager.shared.convert(small, toHaveTrait: .italicFontMask)
 
+    /// One summary line for folded steps, with the failures counted when there are any.
+    static func foldTitle(_ steps: [Transcript.Step]) -> String {
+        let shown = steps.filter { $0.kind != "research_run" }
+        var title = shown.count == 1
+            ? String(localized: "Worked · 1 step")
+            : String(format: String(localized: "Worked · %lld steps"), shown.count)
+        let failed = shown.filter(\.failed).count
+        if failed > 0 { title += " · " + String(format: String(localized: "%lld failed"), failed) }
+        return title
+    }
+
+    /// Detail hangs under its label, past the node, and wraps rather than running off the side.
+    private static let hanging: NSParagraphStyle = {
+        let style = NSMutableParagraphStyle()
+        style.firstLineHeadIndent = 14
+        style.headIndent = 14
+        style.lineBreakMode = .byCharWrapping
+        return style
+    }()
+
     private static func detailAttributes(for step: Transcript.Step) -> [NSAttributedString.Key: Any] {
         if step.kind == "thinking" {
-            return [.font: italic, .foregroundColor: NSColor.secondaryLabelColor]
+            return [.font: italic, .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: hanging]
         }
         return [
             .font: detailMono,
             .foregroundColor: NSColor.labelColor,
             .backgroundColor: NSColor.quaternaryLabelColor,
+            .paragraphStyle: hanging,
         ]
     }
 
