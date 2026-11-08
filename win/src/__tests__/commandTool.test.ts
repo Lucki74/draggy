@@ -139,6 +139,21 @@ describe("running one", () => {
     expect(steps[0].stdout).toBe("done");
   });
 
+  it("redraws the transcript while output streams, not once per chunk", async () => {
+    const { context } = harness();
+    let redraws = 0;
+    context.syncSteps = () => void redraws++;
+    stubCommands(async (_command, emit) => {
+      for (const chunk of ["a\n", "b\n", "c\n"]) emit(`${context.chatId}-step-0`, chunk);
+      const before = redraws;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(redraws).toBe(before + 1);
+      return { success: true, exitCode: 0, output: "a\nb\nc\n" };
+    });
+
+    await runTool("run_command", { command: "npm test" }, context, CODE);
+  });
+
   it("says a failed command failed, with its exit code", async () => {
     stubCommands(async () => ({ success: false, exitCode: 1, output: "1 failed" }));
     const { context, steps } = harness();

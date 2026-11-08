@@ -7,7 +7,7 @@ import ThinkingRow from "./ThinkingRow";
 import { showsTailMark } from "./indicator";
 import WorkingStatus from "./WorkingStatus";
 import WorkBlock from "./WorkBlock";
-import WorkGroup from "./WorkGroup";
+import Rail, { type RailEntry } from "./Rail";
 import { TaskChip } from "./TaskChip";
 import { isWorkStep, processFoldLength, touchedFiles } from "./workSummary";
 import ProcessFold from "./ProcessFold";
@@ -257,7 +257,7 @@ export function AssistantTurn({
 
   // Reasoning and tool calls from the start of the turn go in one chain: open while it runs, folded under a summary after.
   const runningNow = live && isGenerating && isLast;
-  const candidate = view === "normal" ? processFoldLength(segments) : 0;
+  const candidate = processFoldLength(segments);
   const foldedSegments = segments.slice(0, candidate);
   const foldLength = foldedSegments.some((segment) => isWork(segment[0])) ? candidate : 0;
   // Outside the chain, finished reasoning draws nothing in the normal view.
@@ -265,9 +265,29 @@ export function AssistantTurn({
     .slice(foldLength)
     .filter((segment) => !(segment[0].type === "thinking" && segment[0].isComplete && view === "normal"));
 
+  // A yes to an approval shows as the call it allowed, so only the verbose view keeps the card.
+  const drawsNothing = (step: SearchStep) =>
+    step.type === "approval" && Boolean(step.answer) && step.answer !== "no" && view !== "verbose";
+  const toEntries = (chain: SearchStep[], inChain: boolean): RailEntry[] =>
+    chain
+      .filter((step) => !drawsNothing(step))
+      .map((step) => ({
+        key: step.id,
+        state: step.type === "error" || step.failed ? "failed" : runningNow && !step.isComplete ? "live" : "done",
+        kind:
+          step.type === "thinking"
+            ? "think"
+            : step.type === "text" || step.type === "steer"
+              ? "prose"
+              : step.type === "edit_file" && step.before !== undefined && step.after !== undefined && !step.failed
+                ? "card"
+                : "step",
+        node: renderStep(step, inChain),
+      }));
+
   const renderSegment = (segment: SearchStep[]) =>
-    isWork(segment[0]) ? (
-      <WorkGroup key={segment[0].id}>{segment.map((step) => renderStep(step))}</WorkGroup>
+    isWork(segment[0]) || segment[0].type === "create_file" ? (
+      <Rail key={segment[0].id} entries={toEntries(segment, false)} running={runningNow} t={t} />
     ) : (
       renderStep(segment[0])
     );
@@ -322,9 +342,16 @@ export function AssistantTurn({
         {[
           ...(foldLength > 0
             ? [
-                <ProcessFold key="process" steps={foldedSegments.flat()} live={runningNow} durationMs={displayMsg.metrics?.totalMs} language={settings.language} t={t}>
-                  {foldedSegments.flat().map((step) => renderStep(step, true))}
-                </ProcessFold>,
+                <ProcessFold
+                  key="process"
+                  steps={foldedSegments.flat()}
+                  entries={toEntries(foldedSegments.flat(), true)}
+                  live={runningNow}
+                  durationMs={displayMsg.metrics?.totalMs}
+                  view={view}
+                  language={settings.language}
+                  t={t}
+                />,
               ]
             : []),
           ...rest.map(renderSegment),

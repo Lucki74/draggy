@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useContext, useEffect, useRef } from "react";
 import { Button, Icon } from "../ui";
 import type { ApprovalAnswer, SearchStep } from "../types";
+import { RailContext } from "./railContext";
 
 interface ApprovalCardProps {
   step: SearchStep;
@@ -28,6 +29,8 @@ export default function ApprovalCard({ step, t, onAnswer }: ApprovalCardProps) {
   const offered = CHOICES.filter((choice) => remembers || choice.answer === "once");
   const answers: ApprovalAnswer[] = [...offered.map((choice) => choice.answer), "no"];
   const pending = Boolean(approval && !step.answer && onAnswer);
+  // On a rail the node marks the answer, so the row drops its own icon.
+  const onRail = useContext(RailContext);
   const approvalId = approval?.id;
   const firstChoice = useRef<HTMLButtonElement>(null);
 
@@ -59,8 +62,8 @@ export default function ApprovalCard({ step, t, onAnswer }: ApprovalCardProps) {
     const allowed = step.answer !== "no";
 
     return (
-      <div className="flex items-center gap-2 min-h-7 mb-1 text-[13px] text-text-secondary">
-        <Icon name={allowed ? "check" : "x"} size={16} className="flex-shrink-0" />
+      <div className="rail-row flex items-center gap-2 min-h-7 mb-1 text-[13px] text-text-secondary">
+        {!onRail && <Icon name={allowed ? "check" : "x"} size={16} className="flex-shrink-0" />}
         <span className="min-w-0 truncate">
           {allowed ? t("approvalAllowed") : t("approvalDeclined")}
           <span className={`text-text-tertiary ${command ? "font-mono text-[12px]" : ""}`}>

@@ -1023,3 +1023,174 @@ kbd {
     animation: none;
   }
 }
+
+/* The turn rail: one hairline, a node per step, and only the live node in the accent. */
+.rail {
+  padding-block: 6px 2px;
+}
+.rail-item {
+  --rail-x: 7.5px;
+  --rail-y: 12px;
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  transition: grid-template-rows 0.45s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.35s;
+}
+.rail-item > .rail-body {
+  min-height: 0;
+  min-width: 0;
+}
+.rail-pad {
+  padding-inline-start: 24px;
+  padding-block-end: 8px;
+}
+.rail-pad > * {
+  margin-block: 0;
+}
+/* The rail draws each step's mark, so details line up with the step's own text. */
+.rail-pad .ms-5 {
+  margin-inline-start: 0;
+}
+.rail-item::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(var(--rail-x) - 0.5px);
+  inset-block: 0;
+  width: 1px;
+  background: var(--rule);
+}
+.rail-item.rail-first::before {
+  inset-block-start: var(--rail-y);
+}
+.rail-item.rail-last::before {
+  inset-block-end: auto;
+  block-size: var(--rail-y);
+}
+.rail-item.rail-first.rail-last::before {
+  display: none;
+}
+.rail-item.rail-last.is-live::before {
+  background: linear-gradient(var(--rule), color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.rail-item.rail-gone {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.rail-item.rail-gone > .rail-body {
+  overflow: hidden;
+}
+.rail-item.k-card {
+  --rail-y: 17px;
+}
+.rail-node {
+  position: absolute;
+  z-index: 1;
+  inset-inline-start: calc(var(--rail-x) - 3.5px);
+  inset-block-start: calc(var(--rail-y) - 3.5px);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  opacity: 0.5;
+  transition: background-color 0.4s, opacity 0.4s;
+}
+.rail-item.k-think .rail-node {
+  opacity: 0.3;
+}
+.rail-item.is-live .rail-node {
+  background: var(--accent);
+  opacity: 1;
+  animation: rail-breathe 1.8s ease-out infinite;
+}
+.rail-item.is-failed .rail-node {
+  display: grid;
+  place-items: center;
+  width: 11px;
+  height: 11px;
+  inset-inline-start: calc(var(--rail-x) - 5.5px);
+  inset-block-start: calc(var(--rail-y) - 5.5px);
+  background: none;
+  color: var(--danger);
+  opacity: 1;
+}
+.rail-item.k-counter .rail-node {
+  width: 9px;
+  height: 9px;
+  inset-inline-start: calc(var(--rail-x) - 4.5px);
+  inset-block-start: calc(var(--rail-y) - 4.5px);
+  background: none;
+  border: 1px solid var(--text-tertiary);
+  opacity: 0.6;
+}
+@keyframes rail-breathe {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+/* While a turn runs the live step reads larger and the finished ones step back. */
+.rail-running .rail-item.is-live .rail-row {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.rail-running .rail-item.is-done > .rail-body {
+  opacity: 0.62;
+  transition: opacity 0.5s;
+}
+/* The live verb: one calm sweep of light, no colour. */
+.live-sweep {
+  background: linear-gradient(90deg, var(--text-secondary) 0 38%, var(--text-primary) 50%, var(--text-secondary) 62% 100%);
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: live-sweep 2.4s linear infinite;
+}
+@keyframes live-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+/* A thought while it streams: the newest three lines, the older ones fading out at the top. */
+.thought-tail {
+  max-height: 66px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+.thought-tail.is-over {
+  -webkit-mask-image: linear-gradient(transparent, #000 26px);
+  mask-image: linear-gradient(transparent, #000 26px);
+}
+.thought-brief {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Code never scrolls sideways: a long line wraps under itself, indented past its own indent. */
+.code-wrap > *,
+.code-line {
+  --hang: calc((var(--ind, 0) + 2) * 1ch);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding-inline-start: var(--hang);
+  text-indent: calc(var(--hang) * -1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail-item,
+  .rail-node,
+  .rail-item.is-live .rail-node,
+  .live-sweep {
+    animation: none;
+    transition: none;
+  }
+}

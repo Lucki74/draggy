@@ -134,11 +134,17 @@ async function runInBox(
 
     // The pane shows output as it arrives; the step keeps the whole of it when the command ends.
     let live = "";
+    let redraw: ReturnType<typeof setTimeout> | undefined;
     const unsubscribe = api.onOutput?.((event) => {
       if (event.runId !== runId) return;
       live = (live + event.chunk).slice(-LIVE_OUTPUT_CHARS);
       appendAgentBlock(runId, event.chunk);
       ctx.patchStep(stepId, { stdout: live });
+      // The transcript redraws a few times a second, not on every chunk.
+      redraw ??= setTimeout(() => {
+        redraw = undefined;
+        ctx.syncSteps();
+      }, 150);
     });
 
     const result = await api
@@ -155,6 +161,7 @@ async function runInBox(
         ctx.signal.removeEventListener("abort", stop);
         unmarkForeground(runId);
         unsubscribe?.();
+        clearTimeout(redraw);
       });
 
     if (result.error && result.exitCode === undefined) {

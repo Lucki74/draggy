@@ -55,16 +55,16 @@ describe("a finished reply with several steps", () => {
     unfold();
     expect(screen.getByText("one.ts")).toBeTruthy();
     expect(screen.getByText("two.ts")).toBeTruthy();
-    expect(container.querySelectorAll(".border-s").length).toBeGreaterThan(0);
+    expect(container.querySelectorAll("[data-testid=work-rail]")).toHaveLength(1);
     expect(screen.getByText("Final reply.")).toBeTruthy();
   });
 
-  it("shows a quiet dot on a finished step and a cross on a failed one", () => {
+  it("puts a quiet node on a finished step and a cross on a failed one", () => {
     const { container } = turn("normal", [step("one.ts", "reading"), step("boom", "error")]);
     unfold();
-    expect(container.querySelectorAll(".step-dot")).toHaveLength(1);
+    expect(container.querySelectorAll(".rail-item.is-done")).toHaveLength(1);
+    expect(container.querySelectorAll(".rail-item.is-failed")).toHaveLength(1);
     expect(container.querySelectorAll(".step-check")).toHaveLength(0);
-    expect(container.querySelectorAll(".text-danger").length).toBeGreaterThan(0);
   });
 
   it("shows only the results row for a finished search", () => {
@@ -111,8 +111,8 @@ describe("a finished step", () => {
       step("two", "reading"),
     ]);
     unfold();
-    expect(container.querySelectorAll(".step-dot")).toHaveLength(1);
-    expect(container.querySelectorAll(".text-danger").length).toBeGreaterThan(0);
+    expect(container.querySelectorAll(".rail-item.is-done")).toHaveLength(1);
+    expect(container.querySelectorAll(".rail-item.is-failed")).toHaveLength(1);
   });
 
   it("hides an allowed approval outside the verbose view", () => {

@@ -1,12 +1,15 @@
 import { useContext, useMemo, useState } from "react";
 import { describeDiff, diffLines } from "./diff";
 import type { DiffLine } from "./diff";
+import { leadingSpaces } from "./railContext";
 import { OpenDiffContext } from "./openDiffContext";
 
 interface DiffBlockProps {
   before: string;
   after: string;
   filePath?: string;
+  /** Inside a card that already names the file: no frame and no header of its own. */
+  bare?: boolean;
   t: (key: string) => string;
 }
 
@@ -27,7 +30,7 @@ const MARKS: Record<DiffLine["kind"], string> = {
 
 /** What an edit did, in the usual diff shape. Never the whole file: the change should be checkable
  * at a glance, and larger ones can be opened. */
-export default function DiffBlock({ before, after, filePath, t }: DiffBlockProps) {
+export default function DiffBlock({ before, after, filePath, bare = false, t }: DiffBlockProps) {
   const onOpenDiff = useContext(OpenDiffContext);
   const diff = useMemo(() => diffLines(before, after), [before, after]);
   const [open, setOpen] = useState(false);
@@ -49,10 +52,11 @@ export default function DiffBlock({ before, after, filePath, t }: DiffBlockProps
   );
 
   const shown = open ? rows : rows.slice(0, PREVIEW_LINES);
+  const more = rows.length > PREVIEW_LINES;
 
   return (
-    <div dir="ltr" className="mt-1 overflow-hidden rounded-sm border border-rule bg-surface-base">
-      <div className="flex items-center justify-between h-8 px-3 border-b border-rule">
+    <div dir="ltr" className={bare ? "" : "mt-1 overflow-hidden rounded-sm border border-rule bg-surface-base"}>
+      {!bare && <div className="flex items-center justify-between h-8 px-3 border-b border-rule">
         <span className="text-[12px] text-text-secondary">
           {describeDiff(diff)}
         </span>
@@ -65,9 +69,9 @@ export default function DiffBlock({ before, after, filePath, t }: DiffBlockProps
             {t("openInDiff")}
           </button>
         )}
-      </div>
+      </div>}
 
-      <div className="overflow-x-auto">
+      <div className="max-h-[420px] overflow-y-auto overflow-x-hidden py-1">
         {shown.map((row, index) =>
           "gap" in row ? (
             <div
@@ -90,20 +94,35 @@ export default function DiffBlock({ before, after, filePath, t }: DiffBlockProps
               <span className="flex-shrink-0 select-none pe-2">
                 {MARKS[row.kind]}
               </span>
-              <span className="whitespace-pre pe-3">{row.text || " "}</span>
+              <span className="code-line min-w-0 flex-1 pe-3" style={{ "--ind": leadingSpaces(row.text) } as React.CSSProperties}>
+                {row.text || " "}
+              </span>
             </div>
           ),
         )}
       </div>
 
-      {rows.length > PREVIEW_LINES && (
-        <button
-          type="button"
-          onClick={() => setOpen((cur) => !cur)}
-          className="w-full h-8 px-3 text-start text-[12px] text-text-secondary border-t border-rule hover:text-text-primary hover:bg-surface-raised cursor-pointer"
-        >
-          {open ? t("showFewerLines") : t("showMoreLines")}
-        </button>
+      {(more || (bare && onOpenDiff)) && (
+        <div className="flex h-8 items-center border-t border-rule">
+          {more && (
+            <button
+              type="button"
+              onClick={() => setOpen((cur) => !cur)}
+              className="h-full flex-1 px-3 text-start text-[12px] text-text-secondary hover:text-text-primary hover:bg-surface-raised cursor-pointer"
+            >
+              {open ? t("showFewerLines") : t("showMoreLines")}
+            </button>
+          )}
+          {bare && onOpenDiff && (
+            <button
+              type="button"
+              onClick={() => onOpenDiff(filePath)}
+              className="ms-auto h-full px-3 text-[12px] text-text-secondary hover:text-text-primary hover:underline underline-offset-2"
+            >
+              {t("openInDiff")}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

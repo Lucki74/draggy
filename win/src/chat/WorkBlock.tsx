@@ -1,4 +1,4 @@
-import { Fragment, useContext, useEffect, useState } from "react";
+import { Fragment, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon, Spark } from "../ui";
 import SiteBadge from "./SiteBadge";
 import ResearchRunCard from "./ResearchRunCard";
@@ -17,6 +17,7 @@ import ResearchPlanCard from "./ResearchPlanCard";
 import { useTranscriptView } from "./transcriptView";
 import { OpenFileContext } from "./openFileContext";
 import DiffBlock from "./DiffBlock";
+import { RailContext, leadingSpaces } from "./railContext";
 import { FilePreview } from "./FilePreview";
 import ImageCard from "./ImageCard";
 import { loadLabel, type LoadStage } from "./loadLabel";
@@ -28,6 +29,8 @@ import type { ApprovalAnswer, SearchStep } from "../types";
 /** The state of a step: the ember spark while it runs, then a quiet filled dot, or a red cross.
  * One dot per step, never a check: a chain of green checks reads as noise. */
 function StepMark({ active, failed }: { active: boolean; failed: boolean }) {
+  // On a rail the rail draws the mark.
+  if (useContext(RailContext)) return null;
   return (
     <span className="flex w-3 flex-shrink-0 items-center justify-center">
       {failed ? (
@@ -87,24 +90,82 @@ function GitDiffOutput({ diff, t }: { diff: string; t: (key: string) => string }
   );
 }
 
+/** Command output one line per row: a long line wraps under itself, and the box scrolls only down. */
+function OutputLines({ text, tone, label, follow }: { text: string; tone: string; label?: string; follow: boolean }) {
+  const box = useRef<HTMLDivElement>(null);
+  // While the command runs the newest line stays in view.
+  useLayoutEffect(() => {
+    if (follow && box.current) box.current.scrollTop = box.current.scrollHeight;
+  });
+  const lines = text.replace(/\r?\n$/, "").split(/\r?\n/);
+  return (
+    <div
+      ref={box}
+      data-testid="command-output"
+      className={`max-h-[360px] overflow-y-auto overflow-x-hidden rounded-[8px] border border-rule bg-surface-base px-3 py-2.5 font-mono text-[12.5px] leading-[1.6] ${tone}`}
+    >
+      {label && <div className="mb-1 font-sans text-text-secondary">{label}</div>}
+      <div className="code-wrap">
+        {lines.map((line, index) => (
+          <div key={index} style={{ "--ind": leadingSpaces(line) } as React.CSSProperties}>
+            {line || " "}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CodeRunOutput({ step, t }: { step: SearchStep; t: (key: string) => string }) {
   const hasOutput = Boolean(step.stdout || step.stderr);
   if (!hasOutput) return null;
+  const follow = !step.isComplete;
 
   return (
     <div className="ms-5 mt-1.5 space-y-2">
-      {step.stdout && (
-        <pre className="rounded-[8px] border border-rule bg-surface-base px-3 py-2.5 font-mono text-[12.5px] leading-[1.6] text-text-secondary overflow-x-auto whitespace-pre-wrap break-words max-h-64">
-          {step.stdout}
-        </pre>
-      )}
-      {step.stderr && (
-        <pre className="rounded-[8px] border border-rule bg-surface-base px-3 py-2.5 font-mono text-[12.5px] leading-[1.6] text-danger overflow-x-auto whitespace-pre-wrap break-words max-h-64">
-          <span className="block mb-1 font-sans text-text-secondary">
-            {t("stderr")}
-          </span>
-          {step.stderr}
-        </pre>
+      {step.stdout && <OutputLines text={step.stdout} tone="text-text-secondary" follow={follow} />}
+      {step.stderr && <OutputLines text={step.stderr} tone="text-danger" label={t("stderr")} follow={follow} />}
+    </div>
+  );
+}
+
+/** A file edit as a folded card: the verb, file and counts on one line, the diff inside. */
+function EditCard({ step, verb, active, t }: { step: SearchStep; verb: string; active: boolean; t: (key: string) => string }) {
+  const verbose = useTranscriptView() === "verbose";
+  const [clicked, setClicked] = useState<boolean | null>(null);
+  const expanded = clicked ?? verbose;
+  const totals = stepTotals(step);
+  const path = step.filepath ?? "";
+  const name = step.filename || path.split(/[\\/]/).pop() || t("untitledFile");
+  const folder = path.endsWith(name) ? path.slice(0, path.length - name.length).replace(/[\\/]$/, "") : "";
+
+  return (
+    <div className="step-rise overflow-hidden rounded-sm border border-rule bg-surface-base" data-testid="edit-card">
+      <button
+        type="button"
+        data-testid="step-details-toggle"
+        aria-expanded={expanded}
+        aria-label={expanded ? t("hideStepDetails") : t("showStepDetails")}
+        onClick={() => setClicked(!expanded)}
+        className="rail-row flex h-[34px] w-full items-center gap-2 px-3 text-start text-[13px] text-text-secondary hover:bg-surface-raised"
+      >
+        <Icon name="file-code" size={14} className="flex-shrink-0 text-text-tertiary" />
+        <span className={`flex-shrink-0${active ? " live-sweep" : ""}`}>{verb}</span>
+        <span className="min-w-0 truncate font-mono text-[12.5px] text-text-primary" title={path || undefined}>{name}</span>
+        {folder && <span className="min-w-0 truncate text-[12px] text-text-tertiary">{folder}</span>}
+        <span className="ms-auto flex flex-none items-center gap-2 ps-2">
+          {totals && (
+            <span className="whitespace-nowrap font-mono text-[12px] tabular-nums">
+              <span className="text-ok">+{totals.added}</span> <span className="text-danger">−{totals.removed}</span>
+            </span>
+          )}
+          <Icon name="caret-right" size={12} mirrored className={`text-text-tertiary transition-transform ${expanded ? "rotate-90" : ""}`} />
+        </span>
+      </button>
+      {expanded && (
+        <div className="border-t border-rule">
+          <DiffBlock before={step.before!} after={step.after!} filePath={step.filepath} bare t={t} />
+        </div>
       )}
     </div>
   );
@@ -284,7 +345,7 @@ function CommandLine({ content, active }: { content: string; active: boolean }) 
 
   return (
     <span className={`flex min-w-0 flex-1 gap-1 ${open ? "items-start" : "items-center"} ${active ? "" : "text-text-primary"}`}>
-      <span className="flex-shrink-0 whitespace-pre">{parts.head}</span>
+      <span className={`flex-shrink-0 whitespace-pre${active ? " live-sweep" : ""}`}>{parts.head}</span>
       {open ? (
         <code className="min-w-0 flex-1 whitespace-pre-wrap break-all rounded-sm bg-surface-raised px-1.5 py-0.5 font-mono text-[12px]">
           {parts.command}
@@ -346,7 +407,7 @@ export function WorkBlock({
     const resultsView = stepView(step, t);
     return (
       <div key={step.id} className="step-rise mb-3.5">
-        <div className="flex min-h-6 items-center gap-2 text-[13px] text-text-secondary">
+        <div className="rail-row flex min-h-6 items-center gap-2 text-[13px] text-text-secondary">
           <StepMark active={false} failed={false} />
           {resultsView ? (
             <>
@@ -370,7 +431,7 @@ export function WorkBlock({
             <span>{resultsView?.result ?? ""}</span>
             <Icon name="caret-right" size={12} mirrored className="transition-transform group-open/results:rotate-90" />
           </summary>
-        <div className="flex flex-col ms-5 mt-1">
+        <div className="ms-5 mt-1 grid grid-cols-[minmax(0,1fr)]">
           {step.results.map((result, rIdx) => {
             const hostname = hostnameOf(result.url);
             return (
@@ -379,27 +440,16 @@ export function WorkBlock({
                 href={result.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-start gap-3 p-2 rounded-sm hover:bg-surface-raised group/link no-underline"
+                title={result.snippet || result.title}
+                className="-mx-2 flex h-8 items-center gap-2.5 rounded-xs px-2 no-underline hover:bg-surface-raised group/link [&>*:first-child]:mt-0"
                 onClick={(e) => {
                   e.preventDefault();
                   window.open(result.url, "_blank");
                 }}
               >
                 <SiteBadge hostname={hostname} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[14px] text-text-primary group-hover/link:underline truncate leading-5">
-                    {result.title}
-                  </p>
-                  <p className="text-[12px] text-text-tertiary truncate">
-                    {hostname}
-                  </p>
-                  {result.snippet && (
-                    <p className="text-[13px] text-text-secondary mt-0.5 leading-5 line-clamp-2">
-                      {result.snippet}
-                    </p>
-                  )}
-                </div>
-                <Icon name="arrow-square-out" size={14} className="text-text-tertiary flex-shrink-0 mt-0.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                <span className="min-w-0 flex-1 truncate text-[13px] text-text-primary group-hover/link:underline">{result.title}</span>
+                <span className="max-w-[40%] flex-shrink-0 truncate text-[12px] text-text-tertiary">{hostname.replace(/^www\./i, "")}</span>
               </a>
             );
           })}
@@ -486,30 +536,28 @@ export function WorkBlock({
       <CodeRunOutput step={step} t={t} />
     ) : step.type === "git" && step.fileContent ? (
       <GitDiffOutput diff={step.fileContent} t={t} />
-    ) : step.type === "edit_file" &&
-      step.before !== undefined &&
-      step.after !== undefined ? (
-      <div className="ms-5 mt-1">
-        <DiffBlock before={step.before} after={step.after} filePath={step.filepath} t={t} />
-      </div>
     ) : null;
+
+  if (step.type === "edit_file" && step.before !== undefined && step.after !== undefined && !failed) {
+    return <EditCard step={step} verb={view?.name ?? step.content.split(/\*\*|`/)[0].trim()} active={isActive} t={t} />;
+  }
 
   const hasDetails = Boolean(view?.args.length || (view?.result && !isActive) || payload);
   const expanded = clicked ?? (isActive || verbose);
 
   return (
     <div key={step.id} className="step-rise mb-3.5">
-      <div className="flex items-center gap-2 min-h-6 text-[13px] text-text-secondary">
+      <div className="rail-row flex items-center gap-2 min-h-6 text-[13px] text-text-secondary">
         <StepMark active={isActive} failed={failed} />
         {view ? (
           <>
-            <span className={expanded ? "min-w-0" : "flex-shrink-0"}>{view.name}</span>
+            <span className={`${expanded ? "min-w-0" : "flex-shrink-0"}${isActive ? " live-sweep" : ""}`}>{view.name}</span>
             {!expanded && <ArgTag view={view} />}
           </>
         ) : step.runId && step.fileContent && splitCommand(step.content) ? (
           <CommandLine content={step.content} active={isActive} />
         ) : (
-          <span className="markdown-inline min-w-0">
+          <span className={`markdown-inline min-w-0${isActive ? " live-sweep" : ""}`}>
             <ReactMarkdown
               remarkPlugins={REMARK_PLUGINS}
               rehypePlugins={REHYPE_PLUGINS}
