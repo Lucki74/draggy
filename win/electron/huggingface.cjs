@@ -291,10 +291,14 @@ function extractAvailableSizes(siblings) {
 /** Finds the file, or every shard, holding one quantization; null when the repo has none. */
 function matchFilesForTag(files, tag) {
   const wanted = String(tag).toUpperCase();
+  // Unsloth's UD- prefix sits outside the quant the name reads, so it is matched on the path.
+  const dynamic = wanted.startsWith("UD-");
+  const base = dynamic ? wanted.slice(3) : wanted;
   // A substring match is only trusted for names with no readable quant, or Q2_0 would pick PQ2_0.
   const hits = files.filter((file) => {
     const quant = extractQuant(file.path);
-    return quant ? quant === wanted : file.path.toUpperCase().includes(wanted);
+    if (!quant) return file.path.toUpperCase().includes(wanted);
+    return quant === base && (!dynamic || /(?:^|[-_./])UD-/i.test(file.path));
   });
   if (hits.length === 0) return null;
 

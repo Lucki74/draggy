@@ -49,11 +49,15 @@ private func transcriptStep(_ record: StepRecord) -> Transcript.Step {
         let lines = (record.liveArgs?.entries ?? []).map { "\($0.key): \($0.value.split(separator: "\n").first.map(String.init) ?? "")" }
         return Transcript.Step(kind: record.kind, label: tool, isDone: false, detail: lines.joined(separator: "\n"))
     }
-    let firstLine = record.content?.split(separator: "\n", maxSplits: 1).first.map(String.init)
+    let parts = record.content?.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false).map(String.init) ?? []
+    let firstLine = parts.first
     let isThinking = record.kind == "thinking"
+    // The core writes "Ran `npm test` (exit 1)", which the rail splits into verb, target and result.
+    let marked = !isThinking && (firstLine.map { $0.contains("`") || $0.contains("**") } ?? false)
     let target = isThinking ? nil : record.filename ?? record.filepath ?? firstLine
-    let label = target.map { "\(record.kind) \($0)" } ?? record.kind
-    let detail = [record.content, record.stdout, record.stderr]
+    let label = marked ? firstLine! : target.map { "\(record.kind) \($0)" } ?? record.kind
+    let rest = marked ? parts.dropFirst().first : record.content
+    let detail = [rest, record.stdout, record.stderr]
         .compactMap { $0 }
         .filter { !$0.isEmpty }
         .joined(separator: "\n")

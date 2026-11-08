@@ -806,13 +806,16 @@ async function runTurn(
   const pushStep = (step: SearchStep) => {
     if (CLEARS_ALL_LIVE.has(step.type)) dropLive();
     else dropOldestLive();
-    steps.push(step);
+    steps.push({ ...step, startedAt: step.startedAt ?? Date.now() });
     syncSteps();
   };
 
   const patchStep = (id: string, patch: Partial<SearchStep>) => {
     const index = steps.findIndex((entry) => entry.id === id);
-    if (index !== -1) steps[index] = { ...steps[index], ...patch };
+    const prev = steps[index];
+    // The verbose view shows how long each step took.
+    const took = patch.isComplete && prev && !prev.isComplete && prev.startedAt ? { tookMs: Date.now() - prev.startedAt } : {};
+    if (index !== -1) steps[index] = { ...prev, ...patch, ...took };
     else logRendererOnce("agent.patch-missing", "renderer.agent", "WARN", "step patch target missing", { stepId: id, fields: Object.keys(patch).join(",") });
   };
 

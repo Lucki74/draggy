@@ -7,7 +7,7 @@ import ThinkingRow from "./ThinkingRow";
 import { showsTailMark } from "./indicator";
 import WorkingStatus from "./WorkingStatus";
 import WorkBlock from "./WorkBlock";
-import WorkGroup from "./WorkGroup";
+import Rail, { type RailEntry } from "./Rail";
 import { TaskChip } from "./TaskChip";
 import { isWorkStep, processFoldLength, touchedFiles } from "./workSummary";
 import ProcessFold from "./ProcessFold";
@@ -37,6 +37,9 @@ import type {
 } from "../types";
 
 // Friendly line per failure kind; unknown failures show only the raw error.
+/** Tools a research run reports in its own row; their live calls would only repeat it. */
+const RUN_TOOLS = new Set(["add_note", "search_web", "read_url"]);
+
 const ERROR_KIND_KEYS: Record<Exclude<TurnErrorKind, "unknown">, string> = {
   engine: "errorKindEngine",
   memory: "errorKindMemory",
@@ -245,11 +248,20 @@ export function AssistantTurn({
   // In a research reply the run block lists what was searched and read, so those rows stay out of the chain.
   const run = runOf(steps);
   const inRunBlock = (step: SearchStep) =>
-    Boolean(run) && (step.type === "searching" || step.type === "results" || (step.type === "reading" && Boolean(step.retryUrl)));
-  for (const step of steps) {
-    if (invisible(step) || inRunBlock(step)) continue;
+    Boolean(run) &&
+    (step.type === "searching" ||
+      step.type === "results" ||
+      ((step.type === "reading" || step.type === "error") && Boolean(step.retryUrl)) ||
+      (step.type === "tool_call" && RUN_TOOLS.has(step.tool ?? "")));
+  for (const [index, entry] of steps.entries()) {
+    if (invisible(entry) || inRunBlock(entry)) continue;
     // A finished search shows only its results row; "Searched for" is shown while it runs.
-    if (step.type === "searching" && step.isComplete) continue;
+    if (entry.type === "searching" && entry.isComplete) continue;
+    const before = steps[index - 1];
+    // The results row stands for the whole search, so it takes the search's time.
+    const step = entry.type === "results" && before?.type === "searching" && before.tookMs !== undefined && entry.tookMs === undefined
+      ? { ...entry, tookMs: before.tookMs }
+      : entry;
     const last = segments[segments.length - 1];
     if (isWork(step) && last && isWork(last[0])) last.push(step);
     else segments.push([step]);
@@ -257,7 +269,7 @@ export function AssistantTurn({
 
   // Reasoning and tool calls from the start of the turn go in one chain: open while it runs, folded under a summary after.
   const runningNow = live && isGenerating && isLast;
-  const candidate = view === "normal" ? processFoldLength(segments) : 0;
+  const candidate = processFoldLength(segments);
   const foldedSegments = segments.slice(0, candidate);
   const foldLength = foldedSegments.some((segment) => isWork(segment[0])) ? candidate : 0;
   // Outside the chain, finished reasoning draws nothing in the normal view.
@@ -265,9 +277,29 @@ export function AssistantTurn({
     .slice(foldLength)
     .filter((segment) => !(segment[0].type === "thinking" && segment[0].isComplete && view === "normal"));
 
+  // A yes to an approval shows as the call it allowed, so only the verbose view keeps the card.
+  const drawsNothing = (step: SearchStep) =>
+    step.type === "approval" && Boolean(step.answer) && step.answer !== "no" && view !== "verbose";
+  const toEntries = (chain: SearchStep[], inChain: boolean): RailEntry[] =>
+    chain
+      .filter((step) => !drawsNothing(step))
+      .map((step) => ({
+        key: step.id,
+        state: step.type === "error" || step.failed ? "failed" : runningNow && !step.isComplete ? "live" : "done",
+        kind:
+          step.type === "thinking"
+            ? "think"
+            : step.type === "text" || step.type === "steer"
+              ? "prose"
+              : step.type === "edit_file" && step.before !== undefined && step.after !== undefined && !step.failed
+                ? "card"
+                : "step",
+        node: renderStep(step, inChain),
+      }));
+
   const renderSegment = (segment: SearchStep[]) =>
-    isWork(segment[0]) ? (
-      <WorkGroup key={segment[0].id}>{segment.map((step) => renderStep(step))}</WorkGroup>
+    isWork(segment[0]) || segment[0].type === "create_file" || segment[0].type === "research_run" ? (
+      <Rail key={segment[0].id} entries={toEntries(segment, false)} running={runningNow} t={t} />
     ) : (
       renderStep(segment[0])
     );
@@ -322,9 +354,16 @@ export function AssistantTurn({
         {[
           ...(foldLength > 0
             ? [
-                <ProcessFold key="process" steps={foldedSegments.flat()} live={runningNow} language={settings.language} t={t}>
-                  {foldedSegments.flat().map((step) => renderStep(step, true))}
-                </ProcessFold>,
+                <ProcessFold
+                  key="process"
+                  steps={foldedSegments.flat()}
+                  entries={toEntries(foldedSegments.flat(), true)}
+                  live={runningNow}
+                  durationMs={displayMsg.metrics?.totalMs}
+                  view={view}
+                  language={settings.language}
+                  t={t}
+                />,
               ]
             : []),
           ...rest.map(renderSegment),

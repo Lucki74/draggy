@@ -153,7 +153,9 @@ export function TurnActions({
   return (
     <div
       className={`mt-1.5 -ms-1.5 flex flex-wrap items-center gap-x-1 gap-y-1 transition-opacity ${
-        isLast ? "" : "opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100"
+        isLast
+          ? "opacity-50 hover:opacity-100 focus-within:opacity-100 group-hover/msg:opacity-100"
+          : "opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100"
       }`}
     >
       {totalVersions > 1 && (

@@ -185,9 +185,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   git: {
     status: (workspaceId) => ipcRenderer.invoke("git:status", workspaceId),
-    diff: (workspaceId, path, staged, untracked) =>
-      ipcRenderer.invoke("git:diff", workspaceId, path, staged, untracked),
-    log: (workspaceId, limit) => ipcRenderer.invoke("git:log", workspaceId, limit),
+    diff: (workspaceId, path, staged, untracked, ignoreWhitespace) =>
+      ipcRenderer.invoke("git:diff", workspaceId, path, staged, untracked, ignoreWhitespace),
+    log: (workspaceId, limit, all) => ipcRenderer.invoke("git:log", workspaceId, limit, all),
+    show: (workspaceId, hash, ignoreWhitespace) => ipcRenderer.invoke("git:show", workspaceId, hash, ignoreWhitespace),
     branches: (workspaceId) => ipcRenderer.invoke("git:branches", workspaceId),
     stage: (workspaceId, paths) => ipcRenderer.invoke("git:stage", workspaceId, paths),
     unstage: (workspaceId, paths) => ipcRenderer.invoke("git:unstage", workspaceId, paths),

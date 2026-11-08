@@ -54,7 +54,7 @@ export function Transcript({
   }, [chat.isGenerating, chat.messages.length, t]);
 
   const prompts = useMemo(
-    () => chat.messages.filter((msg) => msg.role === "user").map((msg) => ({ id: msg.id, text: msg.content })),
+    () => chat.messages.filter((msg) => msg.role === "user" && !msg.notice).map((msg) => ({ id: msg.id, text: msg.content })),
     [chat.messages],
   );
   const showJumpList = prompts.length >= JUMP_LIST_MIN_PROMPTS;
@@ -216,7 +216,7 @@ export function Transcript({
           >
             <ErrorBoundary>
               {chat.compaction?.throughIndex === idx && (
-                <div className="max-w-[760px] mx-auto py-4 flex items-center gap-3">
+                <div className="max-w-[var(--chat-column)] mx-auto py-4 flex items-center gap-3">
                   <div className="h-px flex-1 bg-rule" />
                   <span className="text-[12px] text-text-secondary whitespace-nowrap">
                     {t("earlierCondensed")}
@@ -244,7 +244,7 @@ export function Transcript({
           </InView>
         ))}
         {pendingNotes.map((note, index) => (
-          <div key={`${index}:${note}`} className="max-w-[760px] mx-auto flex items-start gap-2 text-[14px] text-text-secondary">
+          <div key={`${index}:${note}`} className="max-w-[var(--chat-column)] mx-auto flex items-start gap-2 text-[14px] text-text-secondary">
             <Icon name="user" size={14} className="mt-1 flex-shrink-0" />
             <span className="min-w-0 whitespace-pre-wrap wrap-anywhere">
               <span className="text-text-tertiary me-1.5">{t("steerNote")}</span>

@@ -205,7 +205,7 @@ const writeFile: ToolSpec = {
     openWorld: false,
     openWorldHint: false,
   },
-  available: (environment) => Boolean(environment.hasFolder),
+  available: (environment) => Boolean(environment.hasFolder || environment.chatFolder),
   run: async (args, ctx) => {
     const target = String(args.path);
     const contents = String(args.content ?? "");

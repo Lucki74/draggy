@@ -25,6 +25,7 @@ pub mod extension_store;
 pub mod file_operations;
 pub mod file_watcher;
 pub mod first_download_tracker;
+pub mod git_graph;
 pub mod git_operations;
 pub mod git_status_monitor;
 pub mod hardware_metrics;

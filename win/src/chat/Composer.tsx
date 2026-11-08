@@ -476,7 +476,7 @@ export function Composer({
 
     return (
         <div data-region="composer" tabIndex={-1} className={variant === "dock" ? "px-4 pb-4 pt-2 bg-surface-canvas z-10" : "w-full"}>
-            <div className={`${variant === "dock" ? "max-w-[760px]" : "max-w-[720px]"} mx-auto relative`}>
+            <div className={`${variant === "dock" ? "max-w-[var(--chat-column)]" : "max-w-[720px]"} mx-auto relative`}>
                 {mentioning && (
                     <div
                         role="listbox"
@@ -794,7 +794,7 @@ export function Composer({
                             />
                         )}
 
-                        <div className={`flex items-center justify-end gap-1 min-w-0 ${compactToolbar ? "basis-full" : "ms-auto"}`}>
+                        <div className={`flex flex-wrap items-center justify-end gap-1 min-w-0 ${compactToolbar ? "basis-full" : "ms-auto"}`}>
                             {thinkingUnavailable ? (
                                 <Chip
                                     disabled

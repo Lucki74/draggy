@@ -19,9 +19,7 @@ pub mod diff {
     #[allow(non_snake_case)]
     pub mod DiffPaneView;
     #[allow(non_snake_case)]
-    pub mod GitCommitDetail;
-    #[allow(non_snake_case)]
-    pub mod GitHistoryView;
+    pub mod GitGraphView;
     #[allow(non_snake_case)]
     pub mod SplitDiffView;
     #[allow(non_snake_case)]

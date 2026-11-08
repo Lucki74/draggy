@@ -1,86 +1,49 @@
-use crate::services::diff_parser::{DiffLineType, FileDiff};
+use super::UnifiedDiffView::{code_label, line_class, number_label};
+use crate::services::diff_parser::{DiffLine, DiffLineType, FileDiff, pair_lines};
 use adw::prelude::*;
 
-pub fn build(diff: &FileDiff) -> gtk::Widget {
-    let paned = gtk::Paned::builder()
+fn cell(line: Option<&DiffLine>, old_side: bool) -> gtk::Box {
+    let cell = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
-        .vexpand(true)
+        .spacing(6)
         .hexpand(true)
         .build();
-
-    let left_box = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(1)
-        .build();
-
-    let right_box = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(1)
-        .build();
-
-    for line in &diff.lines {
-        if line.line_type != DiffLineType::Add {
-            let row = gtk::Box::builder()
-                .orientation(gtk::Orientation::Horizontal)
-                .spacing(6)
-                .margin_start(4)
-                .margin_end(4)
-                .build();
-            let num = line.old_line_num.map(|n| n.to_string()).unwrap_or_default();
-            let num_lbl = gtk::Label::builder()
-                .label(&num)
-                .css_classes(["dim-label", "monospace"])
-                .width_chars(4)
-                .xalign(1.0)
-                .build();
-            let txt_lbl = gtk::Label::builder()
-                .label(&line.text)
-                .css_classes(["monospace"])
-                .xalign(0.0)
-                .hexpand(true)
-                .build();
-            if line.line_type == DiffLineType::Delete {
-                row.add_css_class("diff-delete");
-            }
-            row.append(&num_lbl);
-            row.append(&txt_lbl);
-            left_box.append(&row);
+    if let Some(line) = line {
+        if let Some(class) = line_class(line) {
+            cell.add_css_class(class);
         }
-
-        if line.line_type != DiffLineType::Delete {
-            let row = gtk::Box::builder()
-                .orientation(gtk::Orientation::Horizontal)
-                .spacing(6)
-                .margin_start(4)
-                .margin_end(4)
-                .build();
-            let num = line.new_line_num.map(|n| n.to_string()).unwrap_or_default();
-            let num_lbl = gtk::Label::builder()
-                .label(&num)
-                .css_classes(["dim-label", "monospace"])
-                .width_chars(4)
-                .xalign(1.0)
-                .build();
-            let txt_lbl = gtk::Label::builder()
-                .label(&line.text)
-                .css_classes(["monospace"])
-                .xalign(0.0)
-                .hexpand(true)
-                .build();
-            if line.line_type == DiffLineType::Add {
-                row.add_css_class("diff-add");
-            }
-            row.append(&num_lbl);
-            row.append(&txt_lbl);
-            right_box.append(&row);
-        }
+        let number = if old_side {
+            line.old_line_num
+        } else {
+            line.new_line_num
+        };
+        cell.append(&number_label(number));
+        cell.append(&code_label(&line.text));
     }
+    cell
+}
 
-    let left_scroll = gtk::ScrolledWindow::builder().child(&left_box).build();
-    let right_scroll = gtk::ScrolledWindow::builder().child(&right_box).build();
-
-    paned.set_start_child(Some(&left_scroll));
-    paned.set_end_child(Some(&right_scroll));
-
-    paned.upcast()
+pub fn build(diff: &FileDiff) -> gtk::Widget {
+    let vbox = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .css_classes(["diff-body"])
+        .build();
+    for (old, new) in pair_lines(&diff.lines) {
+        if let Some(header) = old.filter(|l| l.line_type == DiffLineType::Header) {
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+            row.add_css_class("diff-header");
+            row.append(&code_label(&header.text));
+            vbox.append(&row);
+            continue;
+        }
+        let row = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .homogeneous(true)
+            .spacing(2)
+            .build();
+        row.append(&cell(old, true));
+        row.append(&cell(new, false));
+        vbox.append(&row);
+    }
+    vbox.upcast()
 }

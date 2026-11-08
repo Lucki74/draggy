@@ -14,12 +14,12 @@ use crate::state::{AppState, BRAVE_KEY, SERVER_KEY};
 use crate::tasks_view::TasksList;
 use draggy_core::research::tools::ResearchLibrary;
 use draggy_core::{
-    ApprovalChoice, ApprovalRecord, CancelToken, CoreError, ImageRecord, Session, TurnOutcome,
-    read_document,
+    ApprovalChoice, ApprovalRecord, CancelToken, CoreError, ImageRecord, Session, StepRecord,
+    TurnOutcome, read_document,
 };
 use draggy_linux::chat::{
-    ChatMessage, Entry, Role, Transcript, cost_label, metrics_line, start_turn, step_label,
-    to_records, to_saved, with_document,
+    ChatMessage, Entry, Role, StepLine, StepState, Transcript, cost_label, in_run, metrics_line,
+    rail_title, start_turn, step_line, step_state, to_records, to_saved, with_document,
 };
 use draggy_linux::conversations::{self, Conversation, Store};
 use draggy_linux::markdown::{self, Block};
@@ -44,7 +44,8 @@ pub struct ReplyParts {
     body: gtk::Box,
     /// The research run card, hidden unless the reply holds a run.
     card: gtk::Box,
-    steps: gtk::Label,
+    /// One row per step: a node on the rail, its line and, while it runs, its output.
+    steps: gtk::Box,
     /// Holds the steps in a box of fixed height that follows the newest line.
     steps_box: gtk::ScrolledWindow,
     /// Folds the steps once the reply ends; open while it streams.
@@ -1005,11 +1006,9 @@ fn last_assistant_row(transcript: &gtk::Box) -> Option<gtk::Box> {
 fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
     let row = gtk::Box::new(gtk::Orientation::Vertical, 4);
     let body = gtk::Box::new(gtk::Orientation::Vertical, 8);
-    let steps = gtk::Label::builder()
-        .wrap(true)
-        .xalign(0.0)
-        .selectable(true)
-        .css_classes(["caption", "dim-label", "code"])
+    let steps = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .css_classes(["rail"])
         .build();
     let meta = gtk::Label::builder()
         .wrap(true)
@@ -1027,7 +1026,6 @@ fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
         .child(&steps)
         .hscrollbar_policy(gtk::PolicyType::Never)
         .propagate_natural_height(true)
-        .max_content_height(160)
         .visible(false)
         .build();
     let fold = gtk::Expander::builder()
@@ -1059,6 +1057,97 @@ fn entry_row(entry: &Entry) -> (gtk::Box, ReplyParts) {
     (row, parts)
 }
 
+/// How much of a running command's output its row shows.
+const LIVE_OUTPUT_LINES: usize = 8;
+
+/// One step on the rail: its node with the line down to the next, then the label. A running step
+/// also shows the tail of its output, wrapped, never scrolled sideways.
+fn rail_row(step: &StepRecord, label: &StepLine, last: bool) -> gtk::Box {
+    let state = step_state(step);
+    let class = match state {
+        StepState::Live => "is-live",
+        StepState::Done => "is-done",
+        StepState::Failed => "is-failed",
+    };
+    let mark = if state == StepState::Failed {
+        "×"
+    } else {
+        "●"
+    };
+    let node = gtk::Label::builder()
+        .label(mark)
+        .valign(gtk::Align::Start)
+        .css_classes(["rail-node", class])
+        .build();
+    let column = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    column.append(&node);
+    if !last {
+        column.append(
+            &gtk::Box::builder()
+                .vexpand(true)
+                .halign(gtk::Align::Center)
+                .css_classes(["rail-line"])
+                .build(),
+        );
+    }
+    let text = gtk::Box::new(gtk::Orientation::Vertical, 4);
+    text.set_hexpand(true);
+    let head = gtk::Box::new(gtk::Orientation::Horizontal, 7);
+    head.add_css_class("rail-line-text");
+    head.append(
+        &gtk::Label::builder()
+            .label(&label.verb)
+            .xalign(0.0)
+            .css_classes(["rail-verb"])
+            .build(),
+    );
+    if !label.target.is_empty() {
+        let target = gtk::Label::builder()
+            .label(&label.target)
+            .xalign(0.0)
+            .hexpand(true)
+            .ellipsize(gtk::pango::EllipsizeMode::End)
+            .tooltip_text(&label.target)
+            .css_classes(["rail-target", "dim-label"])
+            .build();
+        if label.mono {
+            target.add_css_class("monospace");
+        }
+        head.append(&target);
+    }
+    if !label.meta.is_empty() && state != StepState::Live {
+        let meta = gtk::Label::builder()
+            .label(&label.meta)
+            .css_classes(["rail-meta", "dim-label"])
+            .build();
+        if state == StepState::Failed {
+            meta.add_css_class("error");
+        }
+        head.append(&meta);
+    }
+    text.append(&head);
+    let output = step.stdout.as_deref().unwrap_or_default().trim_end();
+    if state == StepState::Live && !output.is_empty() {
+        let lines: Vec<&str> = output.lines().collect();
+        let tail = lines[lines.len().saturating_sub(LIVE_OUTPUT_LINES)..].join("\n");
+        let line = gtk::Label::builder()
+            .label(tail)
+            .wrap(true)
+            .wrap_mode(gtk::pango::WrapMode::WordChar)
+            .xalign(0.0)
+            .selectable(true)
+            .css_classes(["caption", "code", "rail-output"])
+            .build();
+        text.append(&line);
+    }
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    row.add_css_class("rail-row");
+    row.add_css_class(class);
+    row.append(&column);
+    row.append(&text);
+    row
+}
+
 fn fill(parts: &ReplyParts, entry: &Entry) {
     let shown = if entry.streaming && entry.text.is_empty() {
         "…".to_owned()
@@ -1081,20 +1170,36 @@ fn fill(parts: &ReplyParts, entry: &Entry) {
         draw_card(&parts.card, run.as_ref());
         *parts.run_key.borrow_mut() = run_json;
     }
-    let steps: Vec<String> = entry.steps.iter().filter_map(step_label).collect();
+    // A research run shows its own searches and notes, so the rail leaves them out.
+    let rail_steps: Vec<StepRecord> = entry
+        .steps
+        .iter()
+        .filter(|step| run.is_none() || !in_run(step))
+        .cloned()
+        .collect();
+    let steps: Vec<_> = rail_steps
+        .iter()
+        .filter_map(|step| step_line(step).map(|label| (step, label)))
+        .collect();
     parts.steps.set_visible(!steps.is_empty());
     parts.steps_box.set_visible(!steps.is_empty());
     parts.fold.set_visible(!steps.is_empty());
     parts
         .fold
-        .set_label(Some(&format!("Process ({} steps)", steps.len())));
+        .set_label(Some(&rail_title(&rail_steps, entry.streaming)));
     if entry.streaming {
         parts.fold.set_expanded(true);
     } else if parts.streamed.get() {
         parts.fold.set_expanded(false);
     }
     parts.streamed.set(entry.streaming);
-    parts.steps.set_text(&steps.join("\n"));
+    while let Some(child) = parts.steps.first_child() {
+        parts.steps.remove(&child);
+    }
+    let last = steps.len().saturating_sub(1);
+    for (index, (step, label)) in steps.iter().enumerate() {
+        parts.steps.append(&rail_row(step, label, index == last));
+    }
     // Follow the newest line, as the Windows tail box does.
     let bar = parts.steps_box.vadjustment();
     bar.set_value(bar.upper() - bar.page_size());
@@ -1173,14 +1278,35 @@ fn draw_card(card: &gtk::Box, run: Option<&RunView>) {
     if !run.question.is_empty() {
         card.append(&line(&run.question, "message-text"));
     }
-    for question in &run.questions {
+    let source = |source: &research::RunSource| {
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        row.set_margin_start(18);
+        let badge = markup_label(&research::site_badge(&source.url), "caption");
+        badge.set_valign(gtk::Align::Start);
+        badge.set_hexpand(false);
+        badge.set_selectable(false);
+        row.append(&badge);
+        let text = line(&research::source_line(source), "caption");
+        text.add_css_class("dim-label");
+        text.set_hexpand(true);
+        row.append(&text);
+        row
+    };
+    let (groups, other) = research::group_sources(run);
+    for (question, sources) in run.questions.iter().zip(&groups) {
         card.append(&line(&research::question_line(question), "caption"));
+        for entry in sources {
+            card.append(&source(entry));
+        }
+    }
+    if !other.is_empty() {
+        card.append(&line(&research::t("researchRunOtherSources"), "dim-label"));
+        for entry in other {
+            card.append(&source(entry));
+        }
     }
     if let Some(warning) = research::no_notes_line(run) {
-        card.append(&line(&warning, "error"));
-    }
-    for source in &run.sources {
-        card.append(&line(&research::source_line(source), "caption"));
+        card.append(&line(&warning, "dim-label"));
     }
     if let Some(services) = research::services_line(run) {
         card.append(&line(&services, "dim-label"));

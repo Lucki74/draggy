@@ -86,3 +86,39 @@ describe("wrap", () => {
     expect(spec.readOnly).toContain(python);
   });
 });
+
+describe("ready", () => {
+  const launch = (key) => ({ grant: { key, spec: {}, specs: workdir } });
+
+  it("grants each folder set once, however many commands wait on it", async () => {
+    let calls = 0;
+    let release;
+    const slow = () => {
+      calls += 1;
+      return new Promise((resolve) => (release = resolve));
+    };
+    const first = sandbox.ready(launch("once"), slow);
+    const second = sandbox.ready(launch("once"), slow);
+    expect(sandbox.needsGrant(launch("once"))).toBe(true);
+    release({});
+    await Promise.all([first, second]);
+    expect(calls).toBe(1);
+    expect(sandbox.needsGrant(launch("once"))).toBe(false);
+  });
+
+  it("tries a failed grant again on the next command", async () => {
+    let calls = 0;
+    const failing = () => {
+      calls += 1;
+      return Promise.resolve({ error: "denied" });
+    };
+    expect(await sandbox.ready(launch("retry"), failing)).toEqual({ error: "denied" });
+    await sandbox.ready(launch("retry"), failing);
+    expect(calls).toBe(2);
+  });
+
+  it("lets an unsandboxed launch through at once", async () => {
+    expect(sandbox.needsGrant({ file: "cmd.exe" })).toBe(false);
+    expect(await sandbox.ready({ file: "cmd.exe" })).toEqual({});
+  });
+});

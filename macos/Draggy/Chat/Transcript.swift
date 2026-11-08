@@ -14,6 +14,9 @@ struct Transcript: Equatable {
         let isDone: Bool
         /// The reasoning text, or the content and output of a tool call. Empty when the step has none.
         var detail: String = ""
+
+        /// A step that errored or a command that exited non-zero. Read from what the core wrote, never saved.
+        var failed: Bool { kind == "error" || label.hasPrefix("Failed ") || detail.hasPrefix("Failed ") }
     }
 
     struct Line: Identifiable, Equatable {

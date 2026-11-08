@@ -459,6 +459,8 @@ export interface SearchStep {
   lines?: number;
   /** Why a failed step failed, shown under it. */
   reason?: string;
+  /** A command that ran but exited non-zero or timed out: it keeps its output and shows as failed. */
+  failed?: boolean;
   filepath?: string;
   filename?: string;
   fileContent?: string;
@@ -506,6 +508,8 @@ export interface SearchStep {
   /** On a "loading" step: the model being loaded, and when it started, to count the seconds. */
   model?: string;
   startedAt?: number;
+  /** How long the step ran, for the verbose view. */
+  tookMs?: number;
   /** On a "loading" step: a provider's retry, counted down to when the next attempt goes out. */
   retry?: { attempt: number; of: number; until: number };
   /** On an "image" step: what was asked and where the result is. Never the image's bytes. */
@@ -818,6 +822,15 @@ export interface GitCommit {
   author: string;
   date: string;
   subject: string;
+  /** Parent hashes; a merge has two or more. */
+  parents?: string[];
+  refs?: GitRef[];
+}
+
+export interface GitRef {
+  name: string;
+  /** "head" is the checked-out branch. */
+  kind: "head" | "branch" | "remote" | "tag";
 }
 
 export interface GitLog {
@@ -907,6 +920,8 @@ export interface Message {
   stopped?: boolean;
   /** The app closed while this reply was being written. */
   interrupted?: boolean;
+  /** A note the app sent for the user, such as background tasks ending: shown as a quiet line, not a bubble. */
+  notice?: "tasks_ended";
   /** The conversation after the newest version, kept while an older version is shown. */
   tail?: Message[];
 }
@@ -1657,8 +1672,12 @@ declare global {
           path?: string,
           staged?: boolean,
           untracked?: boolean,
+          ignoreWhitespace?: boolean,
         ) => Promise<GitDiff>;
-        log: (workspaceId: string, limit?: number) => Promise<GitLog>;
+        /** Recent commits; `all` takes in every branch, for the graph. */
+        log: (workspaceId: string, limit?: number, all?: boolean) => Promise<GitLog>;
+        /** The diff one commit made against its first parent. */
+        show: (workspaceId: string, hash: string, ignoreWhitespace?: boolean) => Promise<GitDiff>;
         branches: (workspaceId: string) => Promise<GitBranches>;
         stage: (workspaceId: string, paths: string[]) => Promise<GitWrite>;
         unstage: (workspaceId: string, paths: string[]) => Promise<GitWrite>;

@@ -83,6 +83,17 @@ describe("where the command tool is offered", () => {
   });
 });
 
+describe("a chat with a folder", () => {
+  const names = (environment: ToolEnvironment) => availableTools(environment).map((tool) => tool.name);
+  const CHAT: ToolEnvironment = { ...CODE, hasFolder: false, canRunCommands: false, chatFolder: true };
+
+  it("can ask to leave the sandbox, since its commands have no network", () => {
+    expect(names(CHAT)).toContain("run_command");
+    expect(names(CHAT)).toContain("request_outside_sandbox");
+    expect(names(CHAT)).not.toContain("run_as_admin");
+  });
+});
+
 describe("running as administrator", () => {
   const names = (environment: ToolEnvironment) => availableTools(environment).map((tool) => tool.name);
 
@@ -137,6 +148,21 @@ describe("running one", () => {
     expect(calls).toHaveLength(1);
     expect(during).toBe("building...");
     expect(steps[0].stdout).toBe("done");
+  });
+
+  it("redraws the transcript while output streams, not once per chunk", async () => {
+    const { context } = harness();
+    let redraws = 0;
+    context.syncSteps = () => void redraws++;
+    stubCommands(async (_command, emit) => {
+      for (const chunk of ["a\n", "b\n", "c\n"]) emit(`${context.chatId}-step-0`, chunk);
+      const before = redraws;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(redraws).toBe(before + 1);
+      return { success: true, exitCode: 0, output: "a\nb\nc\n" };
+    });
+
+    await runTool("run_command", { command: "npm test" }, context, CODE);
   });
 
   it("says a failed command failed, with its exit code", async () => {

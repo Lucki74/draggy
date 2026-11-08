@@ -2,7 +2,7 @@ import React from "react";
 import ChatScreen from "../ChatScreen";
 import TalkScreen from "../TalkScreen";
 import Explorer from "../files/Explorer";
-import { OpenFileContext } from "../chat/openFileContext";
+import { OpenFileContext, ProjectRootContext } from "../chat/openFileContext";
 import { OpenDiffContext } from "../chat/openDiffContext";
 import { relativePaths } from "../chat/mentions";
 import { ComposerQueueContext, type ComposerQueue } from "../chat/Composer";
@@ -180,6 +180,7 @@ export function MainColumn({
                     <div className="flex-1 min-w-[340px] flex">
                         <OpenDiffContext.Provider value={onOpenDiff ?? null}>
                         <OpenFileContext.Provider value={active.rootPath ? onSelectFile : null}>
+                        <ProjectRootContext.Provider value={active.rootPath ?? null}>
                         <ChatScreen
                             key={mode}
                             model={turnModel}
@@ -240,6 +241,7 @@ export function MainColumn({
                                     : undefined
                             }
                         />
+                        </ProjectRootContext.Provider>
                         </OpenFileContext.Provider>
                         </OpenDiffContext.Provider>
                     </div>
