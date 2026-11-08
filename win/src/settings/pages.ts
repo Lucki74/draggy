@@ -13,7 +13,6 @@ export type SettingsTab =
   | "data"
   | "diagnostics"
   | "api"
-  | "updates"
   | "chat"
   | "talk"
   | "library"
@@ -41,7 +40,7 @@ export const SETTINGS_GROUPS: SettingsGroupEntry[] = [
     id: "app",
     label: "settingsApp",
     pages: [
-      { id: "general", label: "settingsGeneral", icon: "palette", keywords: ["appearance", "theme", "language", "textSize", "showMetrics", "onbRunAgain"] },
+      { id: "general", label: "settingsGeneral", icon: "palette", keywords: ["appearance", "theme", "language", "textSize", "showMetrics", "currentVersion", "onbRunAgain"] },
       { id: "models", label: "models", icon: "cpu", keywords: ["installed", "downloadModel", "embeddingModel", "contextGroup", "fixedContextSize", "library"] },
       { id: "providers", label: "providers", icon: "cloud", keywords: ["onThisComputer", "apiKeysGroup", "accountsGroup"] },
       { id: "web", label: "webSearchPage", icon: "globe-simple", keywords: ["searchProvider", "searxngUrl", "braveApiKey", "openAlexKey", "githubToken", "researchModelStart", "researchMaxDepth", "researchKeep"] },
@@ -51,7 +50,6 @@ export const SETTINGS_GROUPS: SettingsGroupEntry[] = [
       { id: "diagnostics", label: "diagnostics", icon: "terminal-window", keywords: ["openLogFolder", "diagVerbose", "diagViewer", "diagExport"] },
       { id: "extensions", label: "extensions", icon: "puzzle-piece" },
       { id: "api", label: "apiServer", icon: "plug" },
-      { id: "updates", label: "updates", icon: "cloud-arrow-down", keywords: ["currentVersion", "updateStatus", "automaticUpdates"] },
     ],
   },
   {

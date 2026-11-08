@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import { Button, ConfirmDialog, Group, Page, Row, Segmented, Select, Stat, Toggle } from "./Controls";
 import { AccentPicker } from "./AccentPicker";
-import { ProgressLine } from "../ui/ProgressLine";
-import { ReleaseNotes } from "../updates/ReleaseNotes";
 import { buildLabel } from "../app/buildLabel";
 import ExtensionsPanel from "../extensions/ExtensionsPanel";
 import { languages } from "../translations";
 import { researchDepthOptions, researchKeepOptions, searchProviderOptions } from "./pages";
-import type { AppSettings, Language, SearchProvider, StorageStats, UpdaterState } from "../types";
+import type { AppSettings, Language, SearchProvider, StorageStats } from "../types";
 import { swallowed } from "../logger";
 
 type Translate = (key: string) => string;
@@ -18,10 +16,18 @@ interface SettingsProps {
   t: Translate;
 }
 
-/** The pages about the app as a whole: how it looks, where searches go, what it keeps, updates. */
+/** The pages about the app as a whole: how it looks, where searches go, what it keeps. */
 
 export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
   const [confirmSetup, setConfirmSetup] = useState(false);
+  const [info, setInfo] = useState<{ version: string; packaged: boolean } | null>(null);
+
+  useEffect(() => {
+    window.electronAPI
+      ?.appInfo()
+      .then((result) => setInfo({ version: result.version, packaged: result.packaged }))
+      .catch(swallowed("settings", "the main process already logged this call"));
+  }, []);
 
   return (
     <Page title={t("settingsGeneral")}>
@@ -70,6 +76,16 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
             checked={settings.showMetrics}
             onChange={(showMetrics) => onUpdate({ showMetrics, metricsChosen: true })}
           />
+        </Row>
+        <Row label={t("currentVersion")}>
+          <p className="text-[13px] font-medium tabular-nums text-text-primary">
+            {info ? buildLabel(info.version, t) : "…"}
+            {info && !info.packaged && (
+              <span className="ms-2 rounded-pill bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-text-secondary">
+                {t("development")}
+              </span>
+            )}
+          </p>
         </Row>
       </Group>
 
@@ -239,113 +255,6 @@ export function DataPage({ t, onClearChats, onClearSessions }: DataPageProps) {
             setConfirming(null);
           }}
         />
-      )}
-    </Page>
-  );
-}
-
-export function UpdatesPage({ settings, onUpdate, t }: SettingsProps) {
-  const [state, setState] = useState<UpdaterState | null>(null);
-  const [info, setInfo] = useState<{ version: string; packaged: boolean } | null>(null);
-
-  useEffect(() => {
-    const api = window.electronAPI?.updater;
-    if (!api) return;
-
-    api.state().then(setState).catch(swallowed("settings", "the main process already logged this call"));
-    return api.onState(setState);
-  }, []);
-
-  useEffect(() => {
-    window.electronAPI
-      ?.appInfo()
-      .then((result) => setInfo({ version: result.version, packaged: result.packaged }))
-      .catch(swallowed("settings", "the main process already logged this call"));
-  }, []);
-
-  // Looking at this page is a good moment to check, when the user lets Draggy check at all.
-  useEffect(() => {
-    if (!settings.autoUpdate) return;
-    window.electronAPI?.updater.check({ silent: true }).catch(swallowed("settings", "the main process already logged this call"));
-  }, [settings.autoUpdate]);
-
-  const status = state?.status ?? "idle";
-  const percent = Math.min(100, Math.max(0, state?.percent ?? 0));
-
-  const message =
-    status === "disabled"
-      ? t("updatesUnavailable")
-      : status === "checking"
-        ? t("checkingForUpdates")
-        : status === "available"
-          ? `${t("updateAvailable")} ${buildLabel(state?.version, t)}`
-          : status === "downloading"
-            ? `${t("downloading")} ${percent}%`
-            : status === "ready"
-              ? `${t("updateReady")} ${buildLabel(state?.version, t)}`
-              : status === "error"
-                ? state?.error || t("updateFailed")
-                : status === "current"
-                  ? t("upToDate")
-                  : t("notChecked");
-
-  return (
-    <Page title={t("updates")}>
-      <Group>
-        <Row label={t("currentVersion")}>
-          <p className="text-[13px] font-medium tabular-nums text-text-primary">
-            {info ? buildLabel(info.version, t) : "…"}
-            {info && !info.packaged && (
-              <span className="ms-2 rounded-pill bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-text-secondary">
-                {t("development")}
-              </span>
-            )}
-          </p>
-        </Row>
-        <Row label={t("automaticUpdates")}>
-          <Toggle
-            label={t("automaticUpdates")}
-            checked={settings.autoUpdate}
-            onChange={(autoUpdate) => onUpdate({ autoUpdate })}
-          />
-        </Row>
-        <Row
-          label={t("updateStatus")}
-          description={
-            <>
-              <span role="status">{message}</span>
-              {status === "downloading" && (
-                <div className="mt-2">
-                  <ProgressLine progress={percent / 100} label={message} />
-                </div>
-              )}
-            </>
-          }
-        >
-          <div className="flex gap-2">
-            <Button
-              onClick={() => void window.electronAPI?.updater.check()}
-              disabled={status === "checking" || status === "disabled"}
-            >
-              {t("checkNow")}
-            </Button>
-            {status === "available" && (
-              <Button tone="primary" onClick={() => void window.electronAPI?.updater.download()}>
-                {t("download")}
-              </Button>
-            )}
-            {status === "ready" && (
-              <Button tone="primary" onClick={() => void window.electronAPI?.updater.install()}>
-                {t("restartAndInstall")}
-              </Button>
-            )}
-          </div>
-        </Row>
-      </Group>
-      {(status === "available" || status === "downloading" || status === "ready") && (
-        <div className="mt-4">
-          <ReleaseNotes notes={state?.notes ?? null} t={t} showEmpty />
-        </div>
       )}
     </Page>
   );

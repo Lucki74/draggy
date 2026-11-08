@@ -57,7 +57,6 @@ export const defaultSettings: AppSettings = {
   libraryEnabled: true,
   embedModel: "",
   showMetrics: false,
-  autoUpdate: true,
   compactLimit: null,
   fixedContextSize: null,
   imageModel: "",
@@ -98,6 +97,11 @@ export function loadSettings(): AppSettings {
   }
 
   let migrated = false;
+  // Updating is always on now, with no setting.
+  if ("autoUpdate" in parsed) {
+    delete (parsed as { autoUpdate?: unknown }).autoUpdate;
+    migrated = true;
+  }
   // Every build is a full release now, so there is no channel to choose.
   if ("updateChannel" in parsed) {
     delete (parsed as { updateChannel?: unknown }).updateChannel;
@@ -190,15 +194,6 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
       .then((status) => (status.hasKey ? undefined : api.setBraveKey(key)))
       .catch(swallowed("app", "the main process already logged this call"));
   }, []);
-
-  // The main process owns the update schedule, so it has to be told what the
-  // setting says, at startup as much as when it is changed.
-  useEffect(() => {
-    if (isSplashMode || holdUpdates) return;
-    window.electronAPI?.updater
-      .configure({ automatic: settings.autoUpdate })
-      .catch(swallowed("app", "the main process already logged this call"));
-  }, [settings.autoUpdate, isSplashMode, holdUpdates]);
 
   // Like the updater, the price refresh is the main process's to schedule. It is the only thing that
   // reaches the network for costs, so it waits for the first-run choice too.

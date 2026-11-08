@@ -123,7 +123,6 @@ export default function AppShell({
     tab: "general",
     id: 0,
   });
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
   const [removingProjectId, setRemovingProjectId] = useState<string | null>(null);
   const [libraryReady, setLibraryReady] = useState(false);
   const [skills, setSkills] = useState<InstalledSkill[]>([]);
@@ -681,7 +680,6 @@ export default function AppShell({
     [chatId, editMessage],
   );
 
-  const onUpdatesPage = viewMode === "settings" && settingsTab === "updates";
   const currentSession = visibleSessions.find((s) => s.id === currentChatId);
   if (openChatId !== currentChatId) setOpenChatId(currentChatId);
 
@@ -1225,7 +1223,7 @@ export default function AppShell({
       />
 
       <div className="flex-1 w-full flex min-h-0 overflow-hidden relative">
-        {update.ready !== null && !update.dismissed && !onUpdatesPage && (
+        {update.ready !== null && !update.dismissed && (
           <div
             className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50"
             role="dialog"
@@ -1498,7 +1496,6 @@ export default function AppShell({
             onClearChats={() => clearSide("chat")}
             onClearSessions={() => clearSide("code")}
             onLibraryChange={refreshLibraryReadiness}
-            onTabChange={setSettingsTab}
             startDownloads={startDownloads}
             onClose={closeSettings}
           />

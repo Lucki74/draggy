@@ -90,9 +90,6 @@ export function installFakeElectronApi(): FakeApi {
     },
     updater: {
       state: async () => fake.updaterState,
-      configure: async () => ({}),
-      check: fake.check,
-      download: async () => ({}),
       install: fake.install,
       onState: updater.subscribe,
     },

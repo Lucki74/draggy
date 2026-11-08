@@ -78,7 +78,6 @@ const SETTINGS = {
   embedModel: "nomic-embed-text",
   showMetrics: true,
   fitContext: 8192,
-  autoUpdate: true,
   compactLimit: null,
   fixedContextSize: null,
   imageModel: "",

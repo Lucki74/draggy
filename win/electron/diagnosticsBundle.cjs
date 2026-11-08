@@ -36,7 +36,6 @@ const SETTINGS_ALLOWLIST = new Set([
   "libraryEnabled",
   "embedModel",
   "showMetrics",
-  "autoUpdate",
   "compactLimit",
   "fixedContextSize",
   "imageModel",

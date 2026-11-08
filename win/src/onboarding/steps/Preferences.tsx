@@ -102,9 +102,6 @@ export default function Preferences({
             onChange={(searchProvider) => onUpdateSettings({ searchProvider: searchProvider as SearchProvider })}
           />
         </Row>
-        <Row label={t("onbUpdates")}>
-          <Toggle label={t("onbUpdates")} checked={settings.autoUpdate} onChange={(autoUpdate) => onUpdateSettings({ autoUpdate })} />
-        </Row>
         <Row label={t("onbPrices")} description={t("onbPricesHint")}>
           <Toggle
             label={t("onbPrices")}

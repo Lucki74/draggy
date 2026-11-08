@@ -60,8 +60,8 @@ function open({ background, foreground, accent, title = DEFAULT_TITLE } = {}) {
   /** Values go through JSON so state text can never run as script. */
   function update(next) {
     if (!isOpen() || !next) return;
-    let percent = null;
-    let text = null;
+    let percent;
+    let text;
     if (next.status === "downloading") {
       percent = Math.min(100, Math.max(0, Math.round(Number(next.percent) || 0)));
       text = `${percent}%`;

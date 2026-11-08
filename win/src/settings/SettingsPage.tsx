@@ -6,7 +6,7 @@ import { useModelManager } from "./useModelManager";
 import ModelsPage from "./ModelsPage";
 import ProvidersPage from "./ProvidersPage";
 import { DiagnosticsPage } from "./DiagnosticsPage";
-import { DataPage, ExtensionsPage, GeneralPage, UpdatesPage, WebSearchPage } from "./GeneralPages";
+import { DataPage, ExtensionsPage, GeneralPage, WebSearchPage } from "./GeneralPages";
 import { ChatPreferencesPage, LibraryPage, TalkPage } from "./ChatPages";
 import { CodePreferencesPage, PermissionsPage, ProjectsPage } from "./CodePages";
 import { ResearchPage } from "./ResearchPage";
@@ -48,7 +48,7 @@ interface SettingsPageProps {
   onResearchFollowUp?: (target: FollowUp) => void;
   onClearSessions: () => void;
   onLibraryChange?: () => void;
-  /** Which page is open, for the shell: an update notice is noise on the Updates page. */
+  /** Which page is open, for the shell. */
   onTabChange?: (tab: SettingsTab) => void;
   /** Downloads the first-run setup left unfinished, so they show among the rest. */
   startDownloads?: string[];
@@ -227,8 +227,6 @@ export default function SettingsPage(props: SettingsPageProps) {
                 </Group>
               </Page>
             )}
-
-            {tab === "updates" && <UpdatesPage settings={settings} onUpdate={onUpdate} t={t} />}
 
             {tab === "chat" && (
               <ChatPreferencesPage
