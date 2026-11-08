@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 const TREE_WIDTH = 224;
 const MIN_SIDE_WIDTH = 280;
 const CHAT_WIDTH_BESIDE_TREE = 460;
+const CHAT_MIN_WIDTH = 420;
 
 export interface ShellLayoutOptions {
     canvasPath: string | null;
@@ -32,9 +33,11 @@ export function useShellLayout({
         e.preventDefault();
         const startX = e.clientX;
         const startW = treeWidth;
+        // The chat beside the tree keeps its 340px minimum, so the tree never pushes it off the window.
+        const maxW = Math.max(startW, Math.min(480, workAreaWidth - 340));
         const onMouseMove = (moveEvent: MouseEvent) => {
             const delta = moveEvent.clientX - startX;
-            setTreeWidth(Math.max(160, Math.min(480, startW + delta)));
+            setTreeWidth(Math.max(160, Math.min(maxW, startW + delta)));
         };
         const onMouseUp = () => {
             window.removeEventListener("mousemove", onMouseMove);
@@ -42,7 +45,7 @@ export function useShellLayout({
         };
         window.addEventListener("mousemove", onMouseMove);
         window.addEventListener("mouseup", onMouseUp);
-    }, [treeWidth]);
+    }, [treeWidth, workAreaWidth]);
 
     const startResizeRightPane = useCallback((e: React.PointerEvent) => {
         e.preventDefault();
@@ -53,9 +56,11 @@ export function useShellLayout({
         const startX = e.clientX;
         const startW = rightPaneWidth;
         let lastWidth = startW;
+        // The pane grows only into room the chat can give up; past that it would push off the window's edge.
+        const room = Math.min(window.innerWidth, startW + workAreaWidth) - CHAT_MIN_WIDTH;
+        const maxW = Math.max(startW, 300, room);
         const onMouseMove = (moveEvent: PointerEvent) => {
             const delta = startX - moveEvent.clientX;
-            const maxW = Math.max(300, window.innerWidth - 420);
             lastWidth = Math.max(260, Math.min(maxW, startW + delta));
             setRightPaneWidth(lastWidth);
         };
@@ -70,7 +75,7 @@ export function useShellLayout({
         window.addEventListener("pointermove", onMouseMove);
         window.addEventListener("pointerup", onMouseUp);
         window.addEventListener("pointercancel", onMouseUp);
-    }, [rightPaneWidth, onRightPaneWidthChange]);
+    }, [rightPaneWidth, workAreaWidth, onRightPaneWidthChange]);
 
     // Window width only: the dock itself shrinks the work area, so using that would flip the dock to an overlay mid-drag.
     const isNarrow = typeof window !== "undefined" && window.innerWidth < 1100;
