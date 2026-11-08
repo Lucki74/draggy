@@ -4,11 +4,11 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 use super::{GitGraphView, SplitDiffView, UnifiedDiffView};
-use crate::research::t;
 use crate::services::diff_parser::{DiffLineType, FileDiff, parse_git_diff};
 use crate::services::git_operations::{
     GitCommitInfo, current_branch, git_branches, git_diff, git_log, git_show, switch_branch,
 };
+use draggy_linux::research::t;
 
 /// Split needs room for two columns of code.
 const SPLIT_MIN_WIDTH: i32 = 700;
