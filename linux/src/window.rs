@@ -366,9 +366,10 @@ impl DraggyWindow {
             .timeout(0)
             .build();
         toast.connect_button_clicked(move |_| {
-            if let Err(e) =
-                crate::services::app_updater::AppUpdater::install_and_restart(&update, &package_path)
-            {
+            if let Err(e) = crate::services::app_updater::AppUpdater::install_and_restart(
+                &update,
+                &package_path,
+            ) {
                 eprintln!("Failed to install update: {e}");
             }
         });
@@ -380,7 +381,9 @@ impl DraggyWindow {
         let weak = self.downgrade();
         glib::spawn_future_local(async move {
             let check_and_download = || async {
-                let update = crate::services::app_updater::AppUpdater::check_for_updates(0).await.ok()??;
+                let update = crate::services::app_updater::AppUpdater::check_for_updates(0)
+                    .await
+                    .ok()??;
                 let temp_dir = std::env::temp_dir().join(format!("draggy-update-{}", update.build));
                 let path = crate::services::app_updater::AppUpdater::download_update(
                     &update,

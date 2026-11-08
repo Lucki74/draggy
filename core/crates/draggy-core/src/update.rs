@@ -99,7 +99,11 @@ pub fn newest_update_for_platform(
     include_prereleases: bool,
     platform: Option<&str>,
 ) -> Result<Option<UpdateRecord>, CoreError> {
-    let effective_prefix = if tag_prefix.is_empty() { "b-" } else { tag_prefix };
+    let effective_prefix = if tag_prefix.is_empty() {
+        "b-"
+    } else {
+        tag_prefix
+    };
     let target_platform: &str = match platform {
         Some(p) => p,
         None => current_platform(),
@@ -175,7 +179,13 @@ pub fn newest_update(
     current_build: u32,
     include_prereleases: bool,
 ) -> Result<Option<UpdateRecord>, CoreError> {
-    newest_update_for_platform(releases_json, tag_prefix, current_build, include_prereleases, None)
+    newest_update_for_platform(
+        releases_json,
+        tag_prefix,
+        current_build,
+        include_prereleases,
+        None,
+    )
 }
 
 /// Looks for a newer build on GitHub and downloads verified updates.
@@ -215,7 +225,8 @@ impl UpdateChecker {
         current_build: u32,
         include_prereleases: bool,
     ) -> Result<Option<UpdateRecord>, CoreError> {
-        self.check_for_platform(current_build, include_prereleases, None).await
+        self.check_for_platform(current_build, include_prereleases, None)
+            .await
     }
 
     /// Checks for a release matching an explicit platform identifier.
@@ -265,9 +276,14 @@ impl UpdateChecker {
         observer: Option<std::sync::Arc<dyn UpdateObserver>>,
     ) -> Result<String, CoreError> {
         let expected_hash = if let Some(cs_url) = checksums_url {
-            let resp = self.client.get(cs_url).send().await.map_err(|e| CoreError::Internal {
-                message: format!("failed to fetch checksums: {e}"),
-            })?;
+            let resp = self
+                .client
+                .get(cs_url)
+                .send()
+                .await
+                .map_err(|e| CoreError::Internal {
+                    message: format!("failed to fetch checksums: {e}"),
+                })?;
             if !resp.status().is_success() {
                 return Err(CoreError::Internal {
                     message: format!("checksums download returned status {}", resp.status()),
@@ -288,9 +304,14 @@ impl UpdateChecker {
             None
         };
 
-        let mut response = self.client.get(&asset_url).send().await.map_err(|e| CoreError::Internal {
-            message: format!("failed to start download: {e}"),
-        })?;
+        let mut response =
+            self.client
+                .get(&asset_url)
+                .send()
+                .await
+                .map_err(|e| CoreError::Internal {
+                    message: format!("failed to start download: {e}"),
+                })?;
         let status = response.status();
         if !status.is_success() {
             return Err(CoreError::Internal {
@@ -375,7 +396,9 @@ impl UpdateChecker {
         let asset_url = update.asset_url.ok_or_else(|| CoreError::Internal {
             message: "no downloadable asset url in update record".to_string(),
         })?;
-        let asset_name = update.asset_name.unwrap_or_else(|| "update.bin".to_string());
+        let asset_name = update
+            .asset_name
+            .unwrap_or_else(|| "update.bin".to_string());
         let dest_path = std::path::Path::new(&dest_dir).join(&asset_name);
         self.download_and_verify(
             asset_url,
@@ -467,10 +490,16 @@ mod tests {
         let update = newest_update_for_platform(LIST, "b-", 200, false, Some("macos"))
             .unwrap()
             .unwrap();
-        assert_eq!(update.asset_name.as_deref(), Some("Draggy-3.0.210-macos-arm64.zip"));
+        assert_eq!(
+            update.asset_name.as_deref(),
+            Some("Draggy-3.0.210-macos-arm64.zip")
+        );
         assert_eq!(update.asset_url.as_deref(), Some("https://x/dl/Draggy.zip"));
         assert_eq!(update.asset_size, Some(5000));
-        assert_eq!(update.checksums_url.as_deref(), Some("https://x/dl/SHA256SUMS.txt"));
+        assert_eq!(
+            update.checksums_url.as_deref(),
+            Some("https://x/dl/SHA256SUMS.txt")
+        );
     }
 
     #[test]
