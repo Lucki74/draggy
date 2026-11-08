@@ -858,18 +858,30 @@ pub fn extract_available_sizes(siblings: &Value) -> Vec<String> {
     sizes
 }
 
+/// An Unsloth Dynamic file: UD- starts its name or one of its folders.
+fn is_dynamic_file(file_path: &str) -> bool {
+    file_path
+        .to_uppercase()
+        .split(['/', '-', '_', '.'])
+        .any(|part| part == "UD")
+}
+
 /// The file, or every shard, that holds one quantization; None when the repository has none.
 pub fn match_files_for_tag(files: &[RepoFile], tag: &str) -> Option<TagMatch> {
     let wanted = tag.to_uppercase();
+    // Unsloth's UD- prefix sits outside the quant the name reads, so it is matched on the path.
+    let base = wanted.strip_prefix("UD-");
     // A substring match is only trusted for names with no readable quant, or Q2_0 would pick PQ2_0.
     let hits: Vec<&RepoFile> = files
         .iter()
         .filter(|file| {
             let quant = extract_quant(&file.path);
             if quant.is_empty() {
-                file.path.to_uppercase().contains(&wanted)
-            } else {
-                quant == wanted
+                return file.path.to_uppercase().contains(&wanted);
+            }
+            match base {
+                Some(base) => quant == base && is_dynamic_file(&file.path),
+                None => quant == wanted,
             }
         })
         .collect();
@@ -1555,6 +1567,20 @@ mod tests {
             picked.map(|found| found.path),
             Some("mmproj-F16.gguf".to_owned())
         );
+    }
+
+    #[test]
+    fn an_unsloth_dynamic_tag_finds_its_ud_file() {
+        let files = [
+            file("Qwen3.8-27B-Q3_K_M.gguf", 13),
+            file("Qwen3.8-27B-UD-Q3_K_XL.gguf", 14),
+            file("UD-Q4_K_XL/Big-UD-Q4_K_XL-00001-of-00002.gguf", 30),
+            file("UD-Q4_K_XL/Big-UD-Q4_K_XL-00002-of-00002.gguf", 12),
+        ];
+        let whole = match_files_for_tag(&files, "UD-Q3_K_XL").map(|found| found.primary.path);
+        assert_eq!(whole.as_deref(), Some("Qwen3.8-27B-UD-Q3_K_XL.gguf"));
+        assert_eq!(match_files_for_tag(&files, "UD-Q4_K_XL").map(|found| found.bytes), Some(42));
+        assert_eq!(match_files_for_tag(&files, "UD-Q3_K_M"), None);
     }
 
     #[test]
