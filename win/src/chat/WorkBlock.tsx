@@ -18,7 +18,7 @@ import { useTranscriptView } from "./transcriptView";
 import { OpenFileContext, ProjectRootContext } from "./openFileContext";
 import { relativePath } from "../files/tree";
 import DiffBlock from "./DiffBlock";
-import { leadingSpaces } from "./railContext";
+import { RailContext, leadingSpaces } from "./railContext";
 import { FilePreview } from "./FilePreview";
 import ImageCard from "./ImageCard";
 import { loadLabel, type LoadStage } from "./loadLabel";
@@ -28,8 +28,9 @@ import { TailBox } from "./LiveArgs";
 import { StepLine, linkClass } from "./StepLine";
 import type { ApprovalAnswer, SearchStep } from "../types";
 
-/** A written file sits off the rail, so it draws its own mark: the spark while it is written. */
+/** A written file off the rail draws its own mark: the spark while it is written. */
 function StepMark({ active }: { active: boolean }) {
+  if (useContext(RailContext)) return null;
   return (
     <span className="flex w-3 flex-shrink-0 items-center justify-center">
       {active ? <Spark /> : <span aria-hidden="true" className="size-[5px] rounded-full bg-text-secondary/60" />}
