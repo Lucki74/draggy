@@ -246,10 +246,15 @@ export function AssistantTurn({
   const run = runOf(steps);
   const inRunBlock = (step: SearchStep) =>
     Boolean(run) && (step.type === "searching" || step.type === "results" || (step.type === "reading" && Boolean(step.retryUrl)));
-  for (const step of steps) {
-    if (invisible(step) || inRunBlock(step)) continue;
+  for (const [index, entry] of steps.entries()) {
+    if (invisible(entry) || inRunBlock(entry)) continue;
     // A finished search shows only its results row; "Searched for" is shown while it runs.
-    if (step.type === "searching" && step.isComplete) continue;
+    if (entry.type === "searching" && entry.isComplete) continue;
+    const before = steps[index - 1];
+    // The results row stands for the whole search, so it takes the search's time.
+    const step = entry.type === "results" && before?.type === "searching" && before.tookMs !== undefined && entry.tookMs === undefined
+      ? { ...entry, tookMs: before.tookMs }
+      : entry;
     const last = segments[segments.length - 1];
     if (isWork(step) && last && isWork(last[0])) last.push(step);
     else segments.push([step]);

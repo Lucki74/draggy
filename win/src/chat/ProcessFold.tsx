@@ -43,7 +43,7 @@ export function ProcessFold({ steps, entries, live, durationMs, view, language, 
   const [clicked, setClicked] = useState<boolean | null>(null);
   const open = clicked ?? (live || view !== "normal");
   const totals = useMemo(() => editTotals(steps), [steps]);
-  // One edited file shows its counts on its own card, so the header adds them only for several.
+  // A folded turn keeps its line counts in the header, since the cards are out of sight.
   const edits = useMemo(() => steps.filter((step) => stepTotals(step)).length, [steps]);
   const work = useMemo(() => steps.filter(isWorkStep), [steps]);
   const failedSteps = work.filter((step) => step.type === "error" || step.failed);
@@ -77,7 +77,7 @@ export function ProcessFold({ steps, entries, live, durationMs, view, language, 
             <span className="whitespace-nowrap text-danger">{failedText}</span>
           </>
         )}
-        {!live && !open && edits > 1 && (totals.added > 0 || totals.removed > 0) && (
+        {!live && !open && edits > 0 && (totals.added > 0 || totals.removed > 0) && (
           <span className="step-fade ms-1 whitespace-nowrap font-mono text-[12px] tabular-nums">
             <span className="text-ok">+{totals.added}</span> <span className="text-danger">−{totals.removed}</span>
           </span>

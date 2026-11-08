@@ -45,6 +45,34 @@ export default function DiffBlock({ before, after, filePath, bare = false, t }: 
 
   if (diff.hunks.length === 0) return null;
 
+  // In a card: a sign column and the text, each hunk under its own @@ line.
+  if (bare) {
+    const start = (lines: DiffLine[], side: "before" | "after") => (lines.find((line) => line[side] !== null)?.[side] ?? 0) + 1;
+    return (
+      <div dir="ltr" className="max-h-[420px] overflow-y-auto overflow-x-hidden py-1.5 font-mono text-[12px] leading-[19px]">
+        {diff.hunks.map((hunk, index) => (
+          <div key={index}>
+            <div className="grid grid-cols-[2ch_1fr] px-3 text-text-tertiary">
+              <span />
+              <span>{`@@ -${start(hunk.lines, "before")} +${start(hunk.lines, "after")} @@`}</span>
+            </div>
+            {hunk.lines.map((row, rowIndex) => (
+              <div
+                key={rowIndex}
+                className={`grid grid-cols-[2ch_1fr] px-3 ${row.kind === "added" ? "bg-[color-mix(in_srgb,var(--ok)_12%,transparent)] text-text-primary" : row.kind === "removed" ? "bg-[color-mix(in_srgb,var(--danger)_11%,transparent)] text-text-secondary" : "text-text-secondary"}`}
+              >
+                <span className="select-none">{MARKS[row.kind]}</span>
+                <span className="code-line min-w-0" style={{ "--ind": leadingSpaces(row.text) } as React.CSSProperties}>
+                  {row.text || " "}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   const rows = diff.hunks.flatMap((hunk, index) =>
     hunk.skipped > 0 || index > 0
       ? [{ gap: hunk.skipped }, ...hunk.lines]

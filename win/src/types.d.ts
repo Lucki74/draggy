@@ -508,6 +508,8 @@ export interface SearchStep {
   /** On a "loading" step: the model being loaded, and when it started, to count the seconds. */
   model?: string;
   startedAt?: number;
+  /** How long the step ran, for the verbose view. */
+  tookMs?: number;
   /** On a "loading" step: a provider's retry, counted down to when the next attempt goes out. */
   retry?: { attempt: number; of: number; until: number };
   /** On an "image" step: what was asked and where the result is. Never the image's bytes. */

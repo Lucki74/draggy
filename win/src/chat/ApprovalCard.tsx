@@ -62,14 +62,11 @@ export default function ApprovalCard({ step, t, onAnswer }: ApprovalCardProps) {
     const allowed = step.answer !== "no";
 
     return (
-      <div className="rail-row flex items-center gap-2 min-h-7 mb-1 text-[13px] text-text-secondary">
+      <div className="rail-row flex min-h-6 items-center gap-[7px] text-[13px] text-text-secondary">
         {!onRail && <Icon name={allowed ? "check" : "x"} size={16} className="flex-shrink-0" />}
-        <span className="min-w-0 truncate">
-          {allowed ? t("approvalAllowed") : t("approvalDeclined")}
-          <span className={`text-text-tertiary ${command ? "font-mono text-[12px]" : ""}`}>
-            {" "}
-            · {command && approval.target ? approval.target : approval.tool}
-          </span>
+        <span className="flex-none">{allowed ? t("approvalAllowed") : t("approvalDeclined")}</span>
+        <span className="min-w-0 truncate font-mono text-[12px] text-text-tertiary">
+          {command && approval.target ? approval.target : approval.tool}
         </span>
       </div>
     );

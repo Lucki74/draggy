@@ -69,12 +69,13 @@ describe("a finished reply with several steps", () => {
 
   it("shows only the results row for a finished search", () => {
     turn("normal", [
-      step("Searched for x", "searching"),
-      step("Search results for x", "results", { results: [{ title: "T", url: "https://a.test", snippet: "s" }] }),
+      step("s", "searching", { content: "Searching for **x**" }),
+      step("r", "results", { content: "Search results for **x**", results: [{ title: "T", url: "https://a.test", snippet: "s" }] }),
     ]);
     unfold();
-    expect(screen.queryByText("Searched for x")).toBeNull();
-    expect(screen.getByText("Search results for x")).toBeTruthy();
+    expect(screen.getAllByText("Searched for")).toHaveLength(1);
+    expect(screen.getByText("“x”")).toBeTruthy();
+    expect(screen.getByText("1 result")).toBeTruthy();
   });
 
   it("keeps a running search visible until its results arrive", () => {
@@ -86,24 +87,31 @@ describe("a finished reply with several steps", () => {
 
 describe("a finished step", () => {
   it("folds to one line naming its target, and shows its details on a click", () => {
-    const { container } = turn("normal", [
-      step("one", "reading", { content: "Read **a.ts**", lines: 12 }),
+    turn("normal", [
+      step("one", "reading", { content: "Read **a.ts**", lines: 12, filename: "a.ts", filepath: "src/a.ts" }),
       step("two", "reading", { content: "Read **b.ts**", lines: 3 }),
     ]);
     unfold();
     expect(screen.getByText("a.ts")).toBeTruthy();
-    expect(container.querySelector("dl")).toBeNull();
-    fireEvent.click(screen.getAllByTestId("step-details-toggle")[0]);
-    expect(container.querySelectorAll("dl")).toHaveLength(1);
+    expect(screen.getByText("12 lines")).toBeTruthy();
+    const toggle = screen.getByTestId("step-details-toggle");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("src/a.ts")).toBeTruthy();
   });
 
-  it("keeps its search results folded", () => {
-    const { container } = turn("normal", [
-      step("Search results for x", "results", { results: [{ title: "T", url: "https://a.test", snippet: "s" }] }),
+  it("keeps its search results folded, and opens them in the verbose view", () => {
+    const steps = [
+      step("r", "results", { content: "Search results for **x**", results: [{ title: "T", url: "https://a.test", snippet: "s" }] }),
       step("two", "reading"),
-    ]);
+    ];
+    turn("normal", steps);
     unfold();
-    expect(container.querySelector("details")?.open).toBe(false);
+    expect(screen.getByTestId("step-details-toggle").getAttribute("aria-expanded")).toBe("false");
+    cleanup();
+    turn("verbose", steps);
+    expect(screen.getByTestId("step-details-toggle").getAttribute("aria-expanded")).toBe("true");
   });
   it("marks a command that exited non-zero as failed", () => {
     const { container } = turn("normal", [

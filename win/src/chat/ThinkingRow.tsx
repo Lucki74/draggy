@@ -36,7 +36,7 @@ function ThoughtTail({ children }: { children: React.ReactNode }) {
     if (el) setOver(el.scrollHeight > el.clientHeight + 1);
   }, [children]);
   return (
-    <div ref={box} className={`thought-tail soft-words text-[14px] leading-[22px] text-text-secondary markdown-body [&_p]:mb-0${over ? " is-over" : ""}`}>
+    <div ref={box} className={`thought thought-tail soft-words text-[14px] leading-[22px] text-text-secondary markdown-body [&_p]:mb-0${over ? " is-over" : ""}`}>
       <div>{children}</div>
     </div>
   );
@@ -60,7 +60,7 @@ export function ThinkingRow({ step, live, isGenerating, inline = false, t }: Thi
   if (inline) {
     // The normal view keeps a thought short: its tail while it streams, one line once done.
     if (view === "normal" && !thinking) {
-      return <div className="thought-brief text-[13px] leading-6 text-text-tertiary">{excerpt(step.content)}</div>;
+      return <div className="thought thought-brief text-[13px] leading-6 text-text-tertiary">{excerpt(step.content)}</div>;
     }
     const prose = live && thinking ? (
       <StreamingMarkdown source={normalizeMath(step.content)} streaming={isGenerating} animateOnMount={isGenerating} />
@@ -71,7 +71,7 @@ export function ThinkingRow({ step, live, isGenerating, inline = false, t }: Thi
     );
     if (view === "normal") return <ThoughtTail>{prose}</ThoughtTail>;
     return (
-      <div key={step.id} className="step-rise soft-words text-[14px] leading-6 text-text-secondary markdown-body [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
+      <div key={step.id} className="thought step-rise soft-words text-[14px] leading-[22px] text-text-secondary markdown-body [&_p]:mb-2 [&_p:last-child]:mb-0 [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
         {prose}
       </div>
     );

@@ -1026,7 +1026,7 @@ kbd {
 
 /* The turn rail: one hairline, a node per step, and only the live node in the accent. */
 .rail {
-  padding-block: 6px 2px;
+  padding-block: 8px 6px;
 }
 .rail-item {
   --rail-x: 7.5px;
@@ -1047,6 +1047,10 @@ kbd {
 }
 .rail-pad > * {
   margin-block: 0;
+}
+.rail-item.k-think .rail-pad,
+.rail-item.k-card .rail-pad {
+  padding-block-end: 10px;
 }
 /* The rail draws each step's mark, so details line up with the step's own text. */
 .rail-pad .ms-5 {
@@ -1137,9 +1141,19 @@ kbd {
   font-size: 14px;
   color: var(--text-primary);
 }
-.rail-running .rail-item.is-done > .rail-body {
+.rail-running .rail-item.is-done .rail-row,
+.rail-running .rail-item.is-done .thought {
   opacity: 0.62;
   transition: opacity 0.5s;
+}
+/* A step's caret shows on hover and while its details are open. */
+.step-caret {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.step-line:hover .step-caret,
+.step-line[aria-expanded="true"] .step-caret {
+  opacity: 1;
 }
 /* The live verb: one calm sweep of light, no colour. */
 .live-sweep {

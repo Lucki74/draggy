@@ -142,12 +142,13 @@ export function touchedFiles(steps: SearchStep[]): { name: string; path: string;
   return [...seen.values()];
 }
 
-/** How many leading segments of a finished turn fold under the summary row. The last prose block,
+/** How many leading segments of a turn fold under the summary row. Prose still being written,
  * approvals, questions, files and pictures stay out, and the first of them ends the fold. */
 export function processFoldLength(segments: SearchStep[][]): number {
   let lastText = -1;
+  // Only prose still being written may be the reply, so finished prose stays on the rail.
   segments.forEach((segment, index) => {
-    if (segment[0].type === "text") lastText = index;
+    if (segment[0].type === "text" && !segment[0].isComplete) lastText = index;
   });
   const folds = (step: SearchStep) =>
     step.type === "thinking" ||
