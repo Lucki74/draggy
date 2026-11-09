@@ -46,22 +46,22 @@ architecture in English, French, Spanish, and Russian. Start with
 
 ## Features
 
-- Local GGUF models via llama.cpp.
-- GPU acceleration: CUDA, Metal, Vulkan, ROCm.
-- Coding agent with undoable diffs. On Windows its commands run in a sandbox.
-- A folder and bundled Python for every chat.
-- Separate chat and code workspaces.
-- Sandboxed browser and web search.
-- Deep research with fact-check, news-brief and trend-scan skills, a research library of sources, and citation chips.
-- Document generation.
-- Semantic search across local folders.
-- MCP servers, 572 built-in skills.
-- Large MoE models from disk.
-- Voice chat.
-- Local image generation.
-- OpenAI-compatible local server.
-- External runtimes and cloud APIs.
-- Cost counters for cloud usage.
+- Local GGUF models via llama.cpp
+- GPU acceleration: CUDA, Metal, Vulkan, ROCm
+- Coding agent with undoable diffs
+- Sandboxed agent environment
+- A folder and bundled Python for every chat
+- Separate chat and code workspaces
+- Sandboxed browser and web search
+- Deep research mode
+- Document generation
+- MCP servers, 572 built-in skills
+- Large MoE models from disk
+- Voice chat
+- Local image generation
+- OpenAI-compatible local server
+- External runtimes and cloud APIs
+- Cost counters for cloud usage
 
 ## Installing and requirements
 
