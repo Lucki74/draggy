@@ -28,7 +28,6 @@ const HARMLESS = new Set([
   "searchProvider",
   "libraryEnabled",
   "showMetrics",
-  "autoUpdate",
   "compactLimit",
   "fixedContextSize",
 ]);

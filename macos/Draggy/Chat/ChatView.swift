@@ -40,8 +40,16 @@ struct ChatView: View {
 
     private func updateBanner(_ update: UpdateRecord) -> some View {
         HStack {
-            Text("\(update.name) is available.")
-            Button("Download") { NSWorkspace.shared.open(URL(string: update.url)!) }
+            if model.updates.isReadyToRestart {
+                Text("\(update.name) is ready to install.")
+                Button("Restart to Update") { model.updates.applyRestart() }
+            } else if model.updates.isNotWritable {
+                Text("\(update.name) is available. Download manually.")
+                Button("Download") { NSWorkspace.shared.open(URL(string: update.url)!) }
+            } else {
+                Text("\(update.name) is available.")
+                Button("Download") { NSWorkspace.shared.open(URL(string: update.url)!) }
+            }
             Spacer()
             Button("Dismiss") { model.updates.isDismissed = true }
         }

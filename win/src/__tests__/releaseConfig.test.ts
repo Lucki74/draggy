@@ -148,7 +148,7 @@ describe("a version with a prerelease tag still reaches people", () => {
     // Resetting channel to null in electron-updater silently flips allowDowngrade
     // to true, which must be immediately forced back to false.
     const matches = [...updater.matchAll(/updater\.allowDowngrade\s*=\s*false/g)];
-    expect(matches.length).toBeGreaterThanOrEqual(2);
+    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 });
 

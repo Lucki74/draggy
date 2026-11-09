@@ -98,6 +98,7 @@ impl DraggyWindow {
         window.stop_servers_on_close();
         window.install_history();
         window.refresh_history();
+        window.start_update_checks();
         window
     }
 
@@ -351,5 +352,64 @@ impl DraggyWindow {
     /// Shows a short message at the bottom of the window.
     pub fn toast(&self, text: &str) {
         self.imp().toasts.add_toast(adw::Toast::new(text));
+    }
+
+    /// Shows a dismissible update toast with a restart button.
+    pub fn show_update_toast(
+        &self,
+        update: draggy_core::update::UpdateRecord,
+        package_path: String,
+    ) {
+        let toast = adw::Toast::builder()
+            .title(format!("{} is ready to install", update.name))
+            .button_label("Restart to Update")
+            .timeout(0)
+            .build();
+        toast.connect_button_clicked(move |_| {
+            if let Err(e) = crate::services::app_updater::AppUpdater::install_and_restart(
+                &update,
+                &package_path,
+            ) {
+                eprintln!("Failed to install update: {e}");
+            }
+        });
+        self.imp().toasts.add_toast(toast);
+    }
+
+    /// Checks for updates at startup and every 6 hours in the background.
+    fn start_update_checks(&self) {
+        let weak = self.downgrade();
+        glib::spawn_future_local(async move {
+            let check_and_download = || async {
+                let update = crate::services::app_updater::AppUpdater::check_for_updates(0)
+                    .await
+                    .ok()??;
+                let temp_dir = std::env::temp_dir().join(format!("draggy-update-{}", update.build));
+                let path = crate::services::app_updater::AppUpdater::download_update(
+                    &update,
+                    &temp_dir.to_string_lossy(),
+                )
+                .await
+                .ok()?;
+                Some((update, path))
+            };
+
+            if let Some((update, path)) = check_and_download().await {
+                if let Some(window) = weak.upgrade() {
+                    window.show_update_toast(update, path);
+                }
+                return;
+            }
+
+            loop {
+                glib::timeout_future(std::time::Duration::from_secs(6 * 3600)).await;
+                if let Some((update, path)) = check_and_download().await {
+                    if let Some(window) = weak.upgrade() {
+                        window.show_update_toast(update, path);
+                    }
+                    break;
+                }
+            }
+        });
     }
 }
