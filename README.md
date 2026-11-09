@@ -52,7 +52,6 @@ architecture in English, French, Spanish, and Russian. Start with
 - Sandboxed agent environment
 - A folder and bundled Python for every chat
 - Separate chat and code workspaces
-- Sandboxed browser and web search
 - Deep research mode
 - Document generation
 - MCP servers, 572 built-in skills
