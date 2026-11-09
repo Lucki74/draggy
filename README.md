@@ -30,8 +30,8 @@ It runs weights locally using an embedded `llama.cpp` engine with GGUF weights
 from Hugging Face. There is no account and no telemetry. The app only touches
 the network for things you ask for or switch on: model and engine downloads,
 update checks, ad-block lists, and the price refresh behind the cost counters.
-Automatic updates and the price refresh can be turned off in Settings. Available as an Electron application on Windows, a native
-SwiftUI app on macOS, and a native GTK 4 app on Linux.
+The price refresh can be turned off in Settings. Updates are always on in packaged builds.
+Available as an Electron application on Windows, a native SwiftUI app on macOS, and a native GTK 4 app on Linux.
 
 Compared with LM Studio, Jan or Ollama, the difference is the coding agent: it
 reads, edits and runs commands in a project folder, shows every change as a diff
@@ -46,21 +46,21 @@ architecture in English, French, Spanish, and Russian. Start with
 
 ## Features
 
-- Local GGUF models via llama.cpp.
-- GPU acceleration: CUDA, Metal, Vulkan, ROCm.
-- Coding agent with undoable diffs. On Windows its commands run in a sandbox.
-- A folder and bundled Python for every chat.
-- Separate chat and code workspaces.
-- Sandboxed browser and web search.
-- Document generation.
-- Semantic search across local folders.
-- MCP servers, 572 built-in skills.
-- Large MoE models from disk.
-- Voice chat.
-- Local image generation.
-- OpenAI-compatible local server.
-- External runtimes and cloud APIs.
-- Cost counters for cloud usage.
+- Local GGUF models via llama.cpp
+- GPU acceleration: CUDA, Metal, Vulkan, ROCm
+- Coding agent with undoable diffs
+- Sandboxed agent environment
+- A folder and bundled Python for every chat
+- Separate chat and code workspaces
+- Deep research mode
+- Document generation
+- MCP servers, 572 built-in skills
+- Large MoE models from disk
+- Voice chat
+- Local image generation
+- OpenAI-compatible local server
+- External runtimes and cloud APIs
+- Cost counters for cloud usage
 
 ## Installing and requirements
 

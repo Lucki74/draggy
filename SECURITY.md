@@ -3,14 +3,14 @@
 Draggy runs on your machine and, unless you add a provider, talks to a model on
 your machine. There is no server, no account and no telemetry, so most of the usual web attack surface
 does not exist here. The only background request is the price refresh for the cost counters: a GET
-to three fixed public URLs that carries nothing from your chats, and Settings can switch it off. What is left is still worth taking seriously: Draggy reads
+to three fixed public URLs that carries nothing from your chats, and Settings can switch it off. Packaged builds also check GitHub Releases for updates, which Settings cannot switch off. What is left is still worth taking seriously: Draggy reads
 web pages, opens files you hand it, runs short programs, and can start extension
 servers written by other people. Any of those can carry something hostile.
 
 ## Which versions get fixes
 
-The latest build. Draggy updates install themselves on Windows and Linux, so a
-fix ships as a new build rather than as a backport.
+The latest build. Packaged builds install updates themselves on Windows, macOS
+and Linux, so a fix ships as a new build rather than as a backport.
 
 ## Reporting something
 
@@ -18,7 +18,7 @@ Use GitHub's private reporting form:
 [Report a vulnerability](https://github.com/Lucki74/draggy/security/advisories/new),
 not a public issue. Say what you did, what happened, and what you expected: a
 rough proof of concept beats a careful description. Include the Draggy
-build (Settings, Updates) and OS if they matter.
+build number shown in the app and OS if they matter.
 
 This is a one person project, so give me a few days. I will say what I think,
 whether I am fixing it, and roughly when; credit in the release notes if you
@@ -47,8 +47,9 @@ extension's output) into actions nobody asked for. Specifically:
   the embedded browser leaking a session between the app and a page.
 
 One known gap here, stated rather than hidden: builds are not code signed, so
-the updater does not verify a signature, and the checksum in `latest.yml` comes
-from the same release as the installer. Write access to this repository's
+the updater does not verify a signature, and the checksums in `latest.yml` and
+`SHA256SUMS.txt` come from the same release as the installer. They catch
+corruption, not tampering. Write access to this repository's
 releases is the trust boundary for every installed copy. Signing the Windows
 build would move it to a certificate.
 

@@ -22,7 +22,7 @@ Windows code must not carry macOS or Linux branches (`win/electron/platformScope
 
 ## What Draggy is
 
-A local-first Electron desktop assistant running an embedded native GGUF engine (`llama-server`) with open models from Hugging Face. Mixture-of-Experts models too big for memory run on a second engine, colibri. Pictures come from stable-diffusion.cpp's `sd-server`. No account, no telemetry, and nothing leaves the machine without explicit user action, with one standing exception: the price refresh described under Network below. Any change weakening those guarantees is unacceptable.
+A local-first Electron desktop assistant running an embedded native GGUF engine (`llama-server`) with open models from Hugging Face. Mixture-of-Experts models too big for memory run on a second engine, colibri. Pictures come from stable-diffusion.cpp's `sd-server`. No account, no telemetry, and nothing leaves the machine without explicit user action, with two standing exceptions: the price refresh and the update check, both described under Network below. Any change weakening those guarantees is unacceptable.
 
 Electron main process in `electron/` (CommonJS, `.cjs`), React renderer in `src/` (TypeScript). `electron/main.cjs` is the application entry point.
 
@@ -76,6 +76,8 @@ Outbound HTTP requests on behalf of models must pass through `electron/urlPolicy
 
 ### Network
 
+Packaged builds check for updates at every launch, with a 4 second budget, and every 6 hours after that. The check is always on and has no setting. Windows uses `electron-updater`. macOS and Linux share `core/crates/draggy-core/src/update.rs`, which verifies SHA-256 against `SHA256SUMS.txt`. Failures are logged and never block launch.
+
 The cost display keeps its rate card current with `electron/pricing/refresh.cjs`. It is on by default, the user can switch it off in Settings and on the first-run Preferences step, and it stays unscheduled until the user has chosen. It sends GET requests only, to three fixed URLs (the LiteLLM price list on raw.githubusercontent.com, the OpenRouter model list, and api.frankfurter.dev for exchange rates), with no body, no cookies and nothing taken from a chat. A failed or implausible download never replaces the bundled snapshot at `shared/pricing/prices.json`. Do not add hosts, methods or payloads to this path, and do not reuse it for anything else.
 
 Diagnostics protect privacy through dual-file logging and hashing. Operational logs write to `app.log`, while verbose traces write to `debug.log`. Sensitive text payloads are SHA-256 hashed and truncated before disk write. Stream chunks are recorded by token length only to prevent dictionary reconstruction (`src/__tests__/logger.test.ts`).
@@ -86,7 +88,7 @@ Single instance enforcement: `main.cjs` claims `app.requestSingleInstanceLock()`
 
 One local engine runs at a time. `electron/engineHost.cjs` hands the slot between llama.cpp and colibri (`electron/colibriProcess.cjs`), and both listen on `127.0.0.1` only (`electron/engineHost.test.js`, `electron/colibriProcess.test.js`). In the Rust core, `engine_host.rs` routes a model format to its engine (`engine_for_format`), `supervisor.rs` runs a colibri or MLX process, and `mlx_runtime.rs` is Apple silicon only; an MLX model never falls back to llama.cpp. The runner table is pinned by `shared/fixtures/runner-table.json`; an AMD card takes the ROCm build whenever one is published, and no setting turns that off.
 
-Everything the app downloads and later runs is checked against a SHA-256 first: the colibri release against its `SHA256SUMS.txt`, the embeddable Python against a pinned hash (`electron/colibriBinary.cjs`), large-model files against the Hugging Face manifest (`electron/largeModelStore.cjs`), and the image engine against hashes built into the app.
+Everything the app downloads and later runs is checked against a SHA-256 first: the colibri release against its `SHA256SUMS.txt`, the embeddable Python against a pinned hash (`electron/colibriBinary.cjs`), macOS and Linux app updates against `SHA256SUMS.txt`, large-model files against the Hugging Face manifest (`electron/largeModelStore.cjs`), and the image engine against hashes built into the app.
 
 Large-model planning, speed history and diagnostics stay free of prompts and replies. `electron/tierPlanner.cjs`, `tierStats.cjs` and `tierDiagnostics.cjs` hold hardware, plans, speeds and counts only. Hardware and disk probes are tested from fixtures in `electron/fixtures/hardware/`, so keep new probes parseable from saved output.
 
@@ -158,7 +160,7 @@ Documentation screenshots and clips are captured from live runs via `win/scripts
 - Set `TEMP` and `TMP` to a neutral folder such as `C:demo` first, or the settings shots show your user name.
 - The Talk scene needs `--disable-gpu` on machines where the WebGPU voice load hangs. Check that `node_modules/onnxruntime-web/dist/*.wasm` is complete; a truncated `jsep.wasm` fails with a CompileError.
 - Look at every generation-dependent shot before publishing it.
-- Each build's release notes replace the previous ones: keep only `RELEASE-NOTES-BUILD-<n>.md` for the current build.
+- Each build's release notes replace the previous ones: keep only the notes file for the current build, `RELEASE-NOTES-BUILD-X.md` during preparation and `RELEASE-NOTES-BUILD-<n>.md` once the build number is set.
 
 ## Environment notes
 
