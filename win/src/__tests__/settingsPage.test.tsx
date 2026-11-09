@@ -101,7 +101,7 @@ describe("the settings menu", () => {
       <SettingsPage
         settings={defaultSettings}
         chatModel="qwen3:8b"
-        request={{ tab: "updates", id: 1 }}
+        request={{ tab: "diagnostics", id: 1 }}
         onUpdate={() => {}}
         onSelectChatModel={() => {}}
         projects={[]}
@@ -117,7 +117,18 @@ describe("the settings menu", () => {
       />,
     );
 
-    expect(await screen.findByRole("heading", { name: "Updates" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Diagnostics" })).toBeTruthy();
+  });
+
+  it("shows the build number on the General page and has no updates tab", async () => {
+    renderSettings("general");
+
+    const menu = screen.getByRole("navigation", { name: "Settings" });
+    const allButtons = [...menu.querySelectorAll("button")].map((b) => b.textContent);
+    expect(allButtons).not.toContain("Updates");
+
+    expect(screen.getByText("Current version")).toBeTruthy();
+    expect(await screen.findByText("v1.2.4")).toBeTruthy();
   });
 });
 

@@ -100,9 +100,8 @@ struct SettingsView: View {
                 ResearchLibraryView(store: model.researchStore)
             }
 
-            Section("Voice & Updates") {
+            Section("Voice") {
                 CloudTTSView()
-                UpdateSettingsView()
             }
         }
         .padding()

@@ -16,7 +16,7 @@ describe("the app shell", () => {
   beforeEach(() => {
     localStorage.setItem(
       SETTINGS_KEY,
-      JSON.stringify({ modelName: "qwen3:8b", language: "en", autoUpdate: true }),
+      JSON.stringify({ modelName: "qwen3:8b", language: "en" }),
     );
     api = installFakeElectronApi();
   });
@@ -178,7 +178,7 @@ describe("the chat and code switch", () => {
   beforeEach(() => {
     localStorage.setItem(
       SETTINGS_KEY,
-      JSON.stringify({ modelName: "qwen3:8b", language: "en", autoUpdate: true }),
+      JSON.stringify({ modelName: "qwen3:8b", language: "en" }),
     );
     installFakeElectronApi();
   });

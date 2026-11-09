@@ -71,6 +71,7 @@ function tasks() {
 }
 const { flushWindow, closeLogs } = require("./quitFlush.cjs");
 const updater = require("./updater.cjs");
+const updateWindow = require("./updateWindow.cjs");
 const { runSearch, PROVIDER_IDS, DESKTOP_USER_AGENT } = require("./search.cjs");
 const appData = require("./appData.cjs");
 const onboarding = require("./onboarding.cjs");
@@ -1127,7 +1128,88 @@ function broadcast(channel, payload) {
   }
 }
 
-app.whenReady().then(() => {
+/** The update window, and whether the launch check has run (it is skipped while first-run setup shows). */
+let updateWin = null;
+let launchCheckDone = false;
+/** Set while boot waits on an update; the updater state stream reaches it through handleUpdaterState. */
+let onUpdaterSettled = null;
+const LAUNCH_CHECK_BUDGET_MS = 4000;
+const UPDATE_CLOSE_AFTER_MS = 10_000;
+const UPDATE_WAIT_CAP_MS = 10 * 60 * 1000;
+
+function handleUpdaterState(state) {
+  broadcast("updater-state", state);
+  updateWin?.update(state);
+  onUpdaterSettled?.(state);
+}
+
+function openUpdateWindow() {
+  updateWin?.close();
+  const dark = nativeTheme.shouldUseDarkColors;
+  updateWin = updateWindow.open({
+    background: windowBackground(),
+    foreground: themes.FOREGROUNDS[themes.resolvedTheme(themeSetting, dark)],
+    accent: overlayColor,
+  });
+}
+
+function closeUpdateWindow() {
+  updateWin?.close();
+  updateWin = null;
+}
+
+/** Resolves when boot may continue. A ready update installs and the app exits; the window closes
+ * after UPDATE_CLOSE_AFTER_MS if it did not, so boot then goes on normally. */
+function waitForUpdate() {
+  return new Promise((resolve) => {
+    let capTimer = null;
+    let closeTimer = null;
+    const finish = () => {
+      clearTimeout(capTimer);
+      clearTimeout(closeTimer);
+      onUpdaterSettled = null;
+      resolve();
+    };
+    const settle = (state) => {
+      if (state.status === "error") {
+        closeUpdateWindow();
+        finish();
+        return;
+      }
+      if (state.status !== "ready") return;
+      clearTimeout(capTimer);
+      onUpdaterSettled = null;
+      updater.install();
+      closeTimer = setTimeout(() => {
+        closeUpdateWindow();
+        finish();
+      }, UPDATE_CLOSE_AFTER_MS);
+    };
+    capTimer = setTimeout(() => {
+      closeUpdateWindow();
+      finish();
+    }, UPDATE_WAIT_CAP_MS);
+    onUpdaterSettled = settle;
+    openUpdateWindow();
+    settle(updater.current());
+  });
+}
+
+/** Runs the launch check before any window opens, so an update found now installs before the old build
+ * shows. Never throws: a failed check must not block launch. */
+async function runLaunchUpdate() {
+  if (!app.isPackaged || onboardingPlan === "show") return;
+  launchCheckDone = true;
+  try {
+    const outcome = await updater.checkAtLaunch({ budgetMs: LAUNCH_CHECK_BUDGET_MS });
+    if (outcome === "downloading" || outcome === "ready") await waitForUpdate();
+  } catch (error) {
+    log.warn("updater", "launch update skipped", { reason: error?.message ?? null });
+    closeUpdateWindow();
+  }
+}
+
+app.whenReady().then(async () => {
   if (!ownsInstance) return;
   llamaProcess.onEngineStage((stage) => broadcast("gguf:stage", stage));
   startup.mark("ready");
@@ -1290,6 +1372,13 @@ app.whenReady().then(() => {
     },
   );
 
+  // Before any window, so a launch update is decided before the old build shows.
+  updater.init(app, handleUpdaterState);
+  if (app.isPackaged) {
+    engineUpdater.configure({ userDataDir: app.getPath("userData"), getVramGB: async () => (await getSystemSpecs())?.vram || 0, log });
+  }
+  await runLaunchUpdate();
+
   if (onboardingPlan === "show") {
     // No splash to close later: without this, a second launch would look for one that never existed.
     bootCompleted = true;
@@ -1298,8 +1387,6 @@ app.whenReady().then(() => {
     createSplashWindow();
     createWindow();
   }
-
-  updater.init(app, (state) => broadcast("updater-state", state));
 
   // Only if the user turned it on, and never before they did.
   applyApiServerConfig(readApiServerConfig()).catch((error) =>
@@ -1449,6 +1536,10 @@ ipc.handle("onboarding:complete", (event, setupPath) => {
   writeOnboardingRecord(record);
   onboardingPlan = "done";
   startAdblocker();
+  if (app.isPackaged && !launchCheckDone) {
+    launchCheckDone = true;
+    void updater.checkAtLaunch({ budgetMs: LAUNCH_CHECK_BUDGET_MS });
+  }
   return { success: true, record };
 });
 
@@ -3778,18 +3869,6 @@ ipc.handle("run-code", wrap("runner", async (event, language, source, timeoutMs)
 ));
 
 ipc.handle("updater:state", () => updater.current());
-ipc.handle("updater:configure", (event, options) => {
-  // The engine follows the same setting as the app: automatic, or not at all.
-  engineUpdater.configure({
-    automatic: Boolean(options?.automatic),
-    userDataDir: app.getPath("userData"),
-    getVramGB: async () => (await getSystemSpecs())?.vram || 0,
-    log,
-  });
-  return updater.configure(options || {});
-});
-ipc.handle("updater:check", (event, options) => updater.check(options || {}));
-ipc.handle("updater:download", () => updater.download());
 ipc.handle("updater:install", () => updater.install());
 
 ipc.handle("app:version", () => ({

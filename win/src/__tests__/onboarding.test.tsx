@@ -261,8 +261,6 @@ describe("from the setup into the app", () => {
     const parts = machine.api as unknown as Record<string, unknown>;
     for (const key of Object.keys(parts)) fake[key] = parts[key];
     (window as unknown as { electronAPI: unknown }).electronAPI = fake;
-    const configure = vi.fn(async () => ({}));
-    (fake.updater as { configure: unknown }).configure = configure;
     window.history.pushState(null, "", "/?onboarding=true");
 
     render(<App />);
@@ -273,8 +271,6 @@ describe("from the setup into the app", () => {
     await screen.findByRole("heading", { name: en("onbPrefsTitle") });
     fireEvent.click(continueButton());
     await screen.findByRole("heading", { name: en("onbReadyTitle") });
-    // No update check, app or engine, may be scheduled before the user has chosen.
-    expect(configure).not.toHaveBeenCalled();
     await waitFor(() => expect(machine.api.gguf.downloadModel).toHaveBeenCalled());
     machine.finish("Qwen3.5-122B-A10B-GGUF.gguf");
     const start = screen.getByRole("button", { name: en("onbStart") }) as HTMLButtonElement;
@@ -285,7 +281,6 @@ describe("from the setup into the app", () => {
     expect(screen.queryByRole("heading", { name: en("onbReadyTitle") })).toBeNull();
     expect(window.location.search).toBe("");
     expect(machine.api.onboarding.complete).toHaveBeenCalledWith("local");
-    await waitFor(() => expect(configure).toHaveBeenCalledWith(expect.objectContaining({ automatic: true })));
   });
 });
 
@@ -322,9 +317,6 @@ describe("the preferences step", () => {
     const permissions = screen.getByRole("radiogroup", { name: en("onbPermissionTitle") });
     fireEvent.click(within(permissions).getAllByRole("radio")[0]);
     expect(latest.codePermissionMode).not.toBe("acceptEdits");
-
-    fireEvent.click(screen.getByRole("switch", { name: en("onbUpdates") }));
-    expect(latest.autoUpdate).toBe(false);
 
     fireEvent.click(screen.getByRole("button", { name: en("onbMore") }));
     fireEvent.click(screen.getByRole("switch", { name: en("showMetrics") }));

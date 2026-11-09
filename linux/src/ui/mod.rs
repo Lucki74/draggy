@@ -131,8 +131,6 @@ pub mod ui_components {
 pub mod updater {
     #[allow(non_snake_case)]
     pub mod UpdateProgressView;
-    #[allow(non_snake_case)]
-    pub mod UpdateSettingsView;
 }
 
 pub mod voice {

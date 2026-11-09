@@ -82,12 +82,9 @@ describe("updater downgrade protection", () => {
     delete require.cache[updaterPath];
   });
 
-  it("disallows downgrades after init and configure", () => {
+  it("disallows downgrades after init", () => {
     const app = { isPackaged: true, getVersion: () => "2.1.0-rc2" };
     updaterModule.init(app, () => {});
-    expect(fakeUpdater.allowDowngrade).toBe(false);
-
-    updaterModule.configure({ automatic: false });
     expect(fakeUpdater.allowDowngrade).toBe(false);
   });
 
@@ -126,12 +123,8 @@ describe("updater downgrade protection", () => {
     expect(last.status).not.toBe("ready");
   });
 
-  it("refuses to download or install when version is older than current", async () => {
-    let downloadCalled = false;
+  it("refuses to install when version is older than current", async () => {
     let installCalled = false;
-    fakeUpdater.downloadUpdate = async () => {
-      downloadCalled = true;
-    };
     fakeUpdater.quitAndInstall = () => {
       installCalled = true;
     };
@@ -140,9 +133,6 @@ describe("updater downgrade protection", () => {
     updaterModule.init(app, () => {});
 
     fakeUpdater.emit("update-available", { version: "2.0.4" });
-    await updaterModule.download();
-    expect(downloadCalled).toBe(false);
-
     updaterModule.install();
     expect(installCalled).toBe(false);
   });
@@ -216,7 +206,6 @@ describe("checking for updates", () => {
   it("reads latest.yml from the newest build's release", async () => {
     githubReturns([release("b-4"), release("b-12"), release("b-11")]);
     updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, () => {});
-    updaterModule.configure({ automatic: false });
 
     await updaterModule.check();
 
@@ -230,22 +219,20 @@ describe("checking for updates", () => {
     const published = [];
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, (state) => published.push(state));
-    updaterModule.configure({ automatic: false });
 
     await updaterModule.check();
 
     expect(fakeUpdater.feeds).toEqual([]);
     expect(fakeUpdater.feeds.some((feed) => feed.provider === "github")).toBe(false);
-    expect(published.at(-1).status).toBe("error");
+    expect(published.some((state) => state.status === "error")).toBe(false);
   });
 
-  it("stays quiet when a silent check cannot read the list", async () => {
+  it("stays quiet when a check cannot read the list", async () => {
     const published = [];
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, (state) => published.push(state));
-    updaterModule.configure({ automatic: false });
 
-    await updaterModule.check({ silent: true });
+    await updaterModule.check();
 
     expect(fakeUpdater.feeds).toEqual([]);
     expect(published.some((state) => state.status === "error")).toBe(false);
@@ -255,7 +242,6 @@ describe("checking for updates", () => {
     const macos = Array.from({ length: 40 }, (_, index) => release(`macos-b-${index + 1}`));
     const fetchMock = githubReturns([...macos, release("b-12")]);
     updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, () => {});
-    updaterModule.configure({ automatic: false });
 
     await updaterModule.check();
 
@@ -266,7 +252,6 @@ describe("checking for updates", () => {
   it("reads the next page when the first is full of non-build releases", async () => {
     const fetchMock = githubReturns(fullPage("other"), [release("b-12")]);
     updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, () => {});
-    updaterModule.configure({ automatic: false });
 
     await updaterModule.check();
 
@@ -274,7 +259,7 @@ describe("checking for updates", () => {
     expect(fakeUpdater.feeds.at(-1)).toEqual(buildFeed);
   });
 
-  it("gives up after five full pages without a build and reports the error when the user started the check", async () => {
+  it("gives up after five full pages without a build and publishes no error", async () => {
     const published = [];
     const fetchMock = githubReturns(
       fullPage("one"),
@@ -285,13 +270,12 @@ describe("checking for updates", () => {
       [release("b-12")],
     );
     updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, (state) => published.push(state));
-    updaterModule.configure({ automatic: false });
 
     await updaterModule.check();
 
     expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(fakeUpdater.feeds).toEqual([]);
-    expect(published.at(-1).status).toBe("error");
+    expect(published.some((state) => state.status === "error")).toBe(false);
   });
 
   it("uses DRAGGY_UPDATE_FEED without asking GitHub", async () => {
@@ -323,7 +307,7 @@ describe("checking for updates", () => {
     expect(published.at(-1).notes).toBeNull();
   });
 
-  it("surfaces a failed check only when the user started it", async () => {
+  it("publishes an error only while an update is pending, so the update window can close", async () => {
     const published = [];
     fakeUpdater.checkForUpdates = async () => {
       fakeUpdater.emit("error", new Error("boom"));
@@ -331,11 +315,12 @@ describe("checking for updates", () => {
     githubReturns([release("b-5")]);
     updaterModule.init({ isPackaged: true, getVersion: () => "3.0.4" }, (state) => published.push(state));
 
-    await updaterModule.check({ silent: true });
+    await updaterModule.check();
     expect(published.some((state) => state.status === "error")).toBe(false);
 
-    await updaterModule.check();
-    expect(published.at(-1).status).toBe("error");
+    fakeUpdater.emit("update-available", { version: "3.0.5" });
+    fakeUpdater.emit("error", new Error("boom"));
+    expect(published.at(-1)).toMatchObject({ status: "error", error: "boom" });
   });
 });
 
@@ -394,5 +379,109 @@ describe("updater signature check logging", () => {
     fakeUpdater.emit("update-downloaded", { version: "2.0.4" });
 
     expect(signatureLines()).toHaveLength(0);
+  });
+});
+
+describe("launch check", () => {
+  let fakeUpdater;
+  let originalCache;
+  let updaterModule;
+  const updaterPath = require.resolve("./updater.cjs");
+  const electronUpdaterPath = require.resolve("electron-updater");
+  const app = { isPackaged: true, getVersion: () => "3.0.4" };
+
+  beforeEach(() => {
+    fakeUpdater = new FakeAutoUpdater();
+    originalCache = require.cache[electronUpdaterPath];
+    require.cache[electronUpdaterPath] = {
+      id: electronUpdaterPath,
+      filename: electronUpdaterPath,
+      loaded: true,
+      exports: { autoUpdater: fakeUpdater },
+    };
+    delete require.cache[updaterPath];
+    updaterModule = require("./updater.cjs");
+  });
+
+  afterEach(() => {
+    updaterModule.dispose();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    delete process.env.DRAGGY_UPDATE_FEED;
+    if (originalCache) require.cache[electronUpdaterPath] = originalCache;
+    else delete require.cache[electronUpdaterPath];
+    delete require.cache[updaterPath];
+  });
+
+  const releasesFetch = () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => [release("b-12")] }));
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  };
+
+  it("returns none straight away when there is no updater", async () => {
+    updaterModule.init({ isPackaged: false, getVersion: () => "3.0.4" }, () => {});
+    await expect(updaterModule.checkAtLaunch()).resolves.toBe("none");
+  });
+
+  it("returns timeout when the check outlasts the budget", async () => {
+    vi.useFakeTimers();
+    releasesFetch();
+    fakeUpdater.checkForUpdates = () => new Promise(() => {});
+    updaterModule.init(app, () => {});
+
+    const pending = updaterModule.checkAtLaunch({ budgetMs: 4000 });
+    await vi.advanceTimersByTimeAsync(4000);
+    await expect(pending).resolves.toBe("timeout");
+  });
+
+  it("returns downloading when an update is found in time", async () => {
+    releasesFetch();
+    fakeUpdater.checkForUpdates = async () => fakeUpdater.emit("update-available", { version: "3.0.5" });
+    updaterModule.init(app, () => {});
+
+    await expect(updaterModule.checkAtLaunch()).resolves.toBe("downloading");
+  });
+
+  it("returns ready when the update is already downloaded in time", async () => {
+    releasesFetch();
+    fakeUpdater.checkForUpdates = async () => {
+      fakeUpdater.emit("update-available", { version: "3.0.5" });
+      fakeUpdater.emit("update-downloaded", { version: "3.0.5" });
+    };
+    updaterModule.init(app, () => {});
+
+    await expect(updaterModule.checkAtLaunch()).resolves.toBe("ready");
+  });
+
+  it("returns none when no newer build exists", async () => {
+    releasesFetch();
+    fakeUpdater.checkForUpdates = async () => fakeUpdater.emit("update-not-available");
+    updaterModule.init(app, () => {});
+
+    await expect(updaterModule.checkAtLaunch()).resolves.toBe("none");
+  });
+
+  it("returns none on error and publishes no error", async () => {
+    const published = [];
+    releasesFetch();
+    fakeUpdater.checkForUpdates = async () => fakeUpdater.emit("error", new Error("offline"));
+    updaterModule.init(app, (state) => published.push(state));
+
+    await expect(updaterModule.checkAtLaunch()).resolves.toBe("none");
+    expect(published.some((state) => state.status === "error")).toBe(false);
+  });
+
+  it("schedules the six-hour check once across repeated launch checks", async () => {
+    vi.useFakeTimers();
+    const fetchMock = releasesFetch();
+    updaterModule.init(app, () => {});
+
+    await updaterModule.checkAtLaunch();
+    await updaterModule.checkAtLaunch();
+    const callsBefore = fetchMock.mock.calls.length;
+
+    vi.advanceTimersByTime(6 * 60 * 60 * 1000);
+    expect(fetchMock.mock.calls.length - callsBefore).toBe(1);
   });
 });

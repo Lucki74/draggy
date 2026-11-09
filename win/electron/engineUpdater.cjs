@@ -248,12 +248,12 @@ function rollbackEngine(userDataDir, { log = defaultLog } = {}) {
   return { rolledBack: true, tag: badTag };
 }
 
-/** Background checks follow the app's own automatic-update setting. */
+/** Engine checks run for every packaged build; dev builds have no userDataDir to update into. */
 let timers = [];
 let running = null;
-function configure({ automatic, userDataDir, getVramGB, log = defaultLog } = {}) {
+function configure({ userDataDir, getVramGB, log = defaultLog } = {}) {
   dispose();
-  if (!automatic || !userDataDir) return;
+  if (!userDataDir) return;
   const run = () => {
     if (running) return running;
     running = Promise.resolve(getVramGB ? getVramGB() : 0)
