@@ -8,6 +8,7 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 
 ## Development and test workflow
 
+- The parent workspace directory `../temp` (at the root of `draggy`) is reserved for running tests with cargo and scratch test outputs. Keep it clean after tests.
 - Run `npm run check` (typecheck, lint and tests) before finishing a task.
 - During iteration run one file: `npx vitest run src/__tests__/<file>.test.ts` or `-t "test name"`. Vitest takes `--reporter=dot` for short output, not `-q`.
 - The development server is `npm run electron:dev` on port 5173. Kill a stale Vite process if the port is taken.

@@ -54,6 +54,8 @@ Builds the NSIS installer into `dist-electron/`. When running behind TLS interce
 
 ## Two kinds of tests
 
+The parent workspace directory `../temp` (at the root of `draggy`) is reserved for running tests with cargo and scratch test outputs. Keep it clean after tests.
+
 Most tests are pure logic running in Node. Component tests use a `// @vitest-environment jsdom` docblock, render via `@testing-library/react`, and mock IPC through `src/__tests__/helpers/electronApi.ts`. Use component tests whenever verifying wiring or lifecycle interactions.
 
 Mocked event subscriptions must return a cleanup function. Returning a promise or boolean causes React to throw `destroy is not a function`.
