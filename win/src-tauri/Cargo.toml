@@ -31,8 +31,10 @@ draggy-diagnostics = { path = "../../core/crates/diagnostics" }
 draggy-documents = { path = "../../core/crates/documents" }
 draggy-web = { path = "../../core/crates/web" }
 draggy-storage = { path = "../../core/crates/storage" }
-draggy-tools = { path = "../../core/crates/tools" }
+draggy-models = { path = "../../core/crates/models" }
 getrandom = "0.3"
+sha2 = "0.10"
+draggy-tools = { path = "../../core/crates/tools" }
 rusqlite = { version = "0.40", features = ["bundled"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 tauri = { version = "2", features = [] }
@@ -40,7 +42,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
-tokio = { version = "1", features = ["macros", "sync", "time"] }
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
 windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }
 zeroize = "1"

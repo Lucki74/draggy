@@ -3,6 +3,7 @@
 
 pub mod engines;
 pub mod ipc;
+pub mod models;
 pub mod paths;
 pub mod quit;
 pub mod secrets;
