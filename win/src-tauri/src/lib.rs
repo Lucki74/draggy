@@ -5,6 +5,7 @@ pub mod ipc;
 pub mod paths;
 pub mod quit;
 pub mod secrets;
+pub mod storage;
 pub mod theme;
 
 use std::collections::hash_map::RandomState;
@@ -20,6 +21,7 @@ pub struct AppState {
     pub diag: Arc<Diagnostics>,
     pub registry: Arc<ipc::Registry>,
     pub quit: Arc<quit::Quit>,
+    pub storage: Arc<storage::Db>,
 }
 
 /// `logs/app.log`, `debug.log` and `events.jsonl` under the data folder, like the Electron build.
@@ -90,7 +92,9 @@ pub fn run() {
             for note in &adopted {
                 diag.info("appData", note, None);
             }
+            let storage = Arc::new(storage::Db::open(&data_dir, &diag));
             app.manage(AppState {
+                storage,
                 diag,
                 registry: Arc::new(ipc::Registry::build()),
                 quit: Arc::new(quit::Quit::default()),
@@ -111,8 +115,11 @@ pub fn run() {
                 api.prevent_close();
                 if state.quit.begin() {
                     let quit = Arc::clone(&state.quit);
+                    let db = Arc::clone(&state.storage);
                     tauri::async_runtime::spawn(async move {
                         quit.flush(&app).await;
+                        // The window's last saves have landed by now, so nothing writes after this.
+                        db.close();
                         app.exit(0);
                     });
                 }
