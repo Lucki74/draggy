@@ -74,6 +74,7 @@ pub const GPU_MEMORY_GB: f64 = 0.0;
 /// Installed RAM in bytes, read from the kernel. Zero when it cannot be read.
 pub fn total_ram_bytes() -> u64 {
     std::fs::read_to_string("/proc/meminfo")
+        .inspect_err(|error| tracing::warn!(target: "linux.models", kind = ?error.kind(), "RAM size could not be read"))
         .ok()
         .and_then(|text| {
             let line = text.lines().find(|line| line.starts_with("MemTotal:"))?;

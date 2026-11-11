@@ -117,7 +117,13 @@ impl StatsStore {
 
     /// The cost figures of every kept turn, or none when the database is not open.
     pub fn cost_summary(&self) -> Option<CostSummary> {
-        let rows = self.storage.as_ref()?.list_metrics(0.0).ok()?;
+        let rows = match self.storage.as_ref()?.list_metrics(0.0) {
+            Ok(rows) => rows,
+            Err(error) => {
+                tracing::warn!(target: "linux.chat", error = ?error, "cost figures could not be read");
+                return None;
+            }
+        };
         Some(summarize(&rows, now_ms()))
     }
 }
@@ -290,7 +296,10 @@ pub fn summarize(rows: &[Metric], now_ms: f64) -> CostSummary {
                 micros: by_day.get(&day.ymd()).copied().unwrap_or(0),
             })
             .collect(),
-        Err(_) => Vec::new(),
+        Err(error) => {
+            tracing::warn!(target: "linux.chat", error = ?error, "daily cost figures could not be read");
+            Vec::new()
+        }
     };
     summary.providers = sorted(providers);
     summary.models = sorted(models);

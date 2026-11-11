@@ -147,8 +147,14 @@ impl DraggySettings {
                         row.set_text("");
                         notify("The search key was updated in your keyring.");
                     }
-                    Ok(Err(error)) => notify(&error.to_string()),
-                    Err(_) => notify("The keyring request was interrupted."),
+                    Ok(Err(error)) => {
+                        tracing::error!(target: "linux.settings", error = %error, "keyring request failed");
+                        notify(&error.to_string())
+                    }
+                    Err(error) => {
+                        tracing::error!(target: "linux.settings", error = %error, "keyring request task interrupted");
+                        notify("The keyring request was interrupted.")
+                    }
                 }
             });
         });
@@ -202,8 +208,14 @@ impl DraggySettings {
                         }
                         notify("The key is stored in your keyring.");
                     }
-                    Ok(Err(error)) => notify(&error.to_string()),
-                    Err(_) => notify("The keyring request was interrupted."),
+                    Ok(Err(error)) => {
+                        tracing::error!(target: "linux.settings", error = %error, "keyring request failed");
+                        notify(&error.to_string())
+                    }
+                    Err(error) => {
+                        tracing::error!(target: "linux.settings", error = %error, "keyring request task interrupted");
+                        notify("The keyring request was interrupted.")
+                    }
                 }
             });
         });
@@ -219,8 +231,14 @@ impl DraggySettings {
                     .await;
                 match outcome {
                     Ok(Ok(())) => notify("The stored key was removed."),
-                    Ok(Err(error)) => notify(&error.to_string()),
-                    Err(_) => notify("The keyring request was interrupted."),
+                    Ok(Err(error)) => {
+                        tracing::error!(target: "linux.settings", error = %error, "keyring request failed");
+                        notify(&error.to_string())
+                    }
+                    Err(error) => {
+                        tracing::error!(target: "linux.settings", error = %error, "keyring request task interrupted");
+                        notify("The keyring request was interrupted.")
+                    }
                 }
             });
         });
@@ -286,15 +304,24 @@ impl DraggySettings {
                 .unwrap_or("forever");
             kept.research.borrow_mut().keep = id.to_owned();
             if let Some(storage) = kept.storage() {
-                let _ =
-                    storage.apply_research_retention(draggy_storage::retention_days(id), now_ms());
+                if let Err(error) =
+                    storage.apply_research_retention(draggy_storage::retention_days(id), now_ms())
+                {
+                    tracing::error!(target: "linux.settings", error = ?error, "research retention could not be applied");
+                }
             }
         });
         imp.research_group.add(&retention);
 
         let runs = state
             .storage()
-            .and_then(|storage| storage.list_research_runs(None, 50).ok())
+            .and_then(|storage| match storage.list_research_runs(None, 50) {
+                Ok(runs) => Some(runs),
+                Err(error) => {
+                    tracing::warn!(target: "linux.settings", error = ?error, "research runs could not be listed");
+                    None
+                }
+            })
             .unwrap_or_default();
         if runs.is_empty() {
             imp.research_runs

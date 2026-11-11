@@ -62,18 +62,31 @@ describe("finding Git for Windows", () => {
 describe("the shell inside the Windows sandbox", () => {
   const find = () => "/tools/bash";
 
-  it("runs the default in cmd even when bash is installed", () => {
+  it("runs the default in cmd, and says so, until bash passed the check", () => {
     const result = shells.shellInvocation("dir", undefined, { platform: "win32", find, sandboxed: true });
 
     expect(result.shell).toBe("cmd");
-    expect(result.notice).toBeUndefined();
+    expect(result.notice).toMatch(/bash/);
   });
 
   it("moves a shell that cannot start there to cmd and says so", () => {
-    const result = shells.shellInvocation("ls", "bash", { platform: "win32", find, sandboxed: true });
+    const result = shells.shellInvocation("ls", "bash", { platform: "win32", find, sandboxed: true, sandboxShells: ["pwsh"] });
 
     expect(result.shell).toBe("cmd");
     expect(result.notice).toMatch(/bash/);
+  });
+
+  it("keeps a shell that passed the check", () => {
+    const result = shells.shellInvocation("ls", "bash", { platform: "win32", find, sandboxed: true, sandboxShells: ["bash"] });
+
+    expect(result.shell).toBe("bash");
+    expect(result.notice).toBeUndefined();
+  });
+
+  it("switches cmd to UTF-8 before the command", () => {
+    const result = shells.shellInvocation("dir", "cmd", { platform: "win32", find, sandboxed: true });
+
+    expect(result.args.at(-1)).toBe('"chcp 65001>nul & dir"');
   });
 
   it("leaves the choice alone outside the sandbox", () => {

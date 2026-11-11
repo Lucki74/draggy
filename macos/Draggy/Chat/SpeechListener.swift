@@ -1,4 +1,5 @@
 import AVFoundation
+import OSLog
 import Speech
 
 /// Listens through the microphone and turns one spoken message into text. It ends the message after a pause.
@@ -44,6 +45,7 @@ final class SpeechListener {
             engine.prepare()
             try engine.start()
         } catch {
+            Logger.chat.error("Speech listener failed to start: \(error.localizedDescription, privacy: .public)")
             finish()
             return
         }

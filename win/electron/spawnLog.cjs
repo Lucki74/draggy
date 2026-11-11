@@ -110,7 +110,9 @@ function trackChild(child, file, args, options = {}) {
     child.stderr?.on("data", onStderr);
 
     if (child.pid) live.set(child.pid, bin);
-    log.info(scope, "spawned", { bin, args: describeArgs(args), cwd: options.cwd, pid: child.pid });
+    // `quiet` children (the git status poll) log a clean run at DEBUG; failures stay WARN.
+    const routine = options.quiet ? log.debug : log.info;
+    routine(scope, "spawned", { bin, args: describeArgs(args), cwd: options.cwd, pid: child.pid });
 
     child.once("error", (error) => {
       log.fail(scope, `${bin} failed to start`, error, spawnFailure(file, error, options));
@@ -121,7 +123,7 @@ function trackChild(child, file, args, options = {}) {
       const durMs = Math.round(performance.now() - started);
       const data = { bin, pid: child.pid, code, signal, durMs };
       if (code === 0) {
-        log.info(scope, `${bin} exited`, data);
+        routine(scope, `${bin} exited`, data);
       } else {
         log.warn(scope, `${bin} exited`, { ...data, stderr: tailLines(ring.join("\n")), resolved: resolveBinary(file, options.env) });
       }

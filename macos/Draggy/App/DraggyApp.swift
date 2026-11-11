@@ -1,8 +1,18 @@
+import DraggyCore
 import SwiftUI
 
 @main
 struct DraggyApp: App {
     @State private var model = AppModel()
+
+    init() {
+        // The core writes its own log files here; Swift code logs through OSLog (see Log.swift).
+        guard let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first else { return }
+        let folder = library.appendingPathComponent("Logs/Draggy", isDirectory: true)
+        if initLogging(dir: folder.path) {
+            Log.app.info("core logs in \(folder.path, privacy: .public)")
+        }
+    }
 
     var body: some Scene {
         WindowGroup {

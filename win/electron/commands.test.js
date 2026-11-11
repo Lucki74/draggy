@@ -79,7 +79,7 @@ describe("choosing the shell", () => {
     const mac = commands.shellInvocation("dir", "cmd", { platform: "darwin", find: found([]) });
 
     expect(windows).toMatchObject({ shell: "cmd", verbatim: true });
-    expect(windows.args.at(-1)).toBe('"echo "hi""');
+    expect(windows.args.at(-1)).toBe('"chcp 65001>nul & echo "hi""');
     expect(mac.error).toMatch(/only available on Windows/);
   });
 

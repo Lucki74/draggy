@@ -341,9 +341,12 @@ pub async fn run<S: AsRef<OsStr>>(
                 .envs(vars.iter().map(|(key, value)| (key, value)));
         }
     })
-    .map_err(|source| SpawnError::Start {
-        program: name.clone(),
-        source,
+    .map_err(|source| {
+        tracing::warn!(target: "tools.spawn", program = %name, error_kind = ?source.kind(), "process spawn failed");
+        SpawnError::Start {
+            program: name.clone(),
+            source,
+        }
     })?;
     let pid = child.id();
     tracing::debug!(target: "tools.spawn", program = %name, "process started");

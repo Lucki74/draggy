@@ -2,9 +2,13 @@
 
 /**
  * What a page logged to its console and which requests it made, kept in memory only so the agent
- * can debug a web app. Nothing here reaches disk or the logs. Query strings are dropped from URLs
- * because they often carry tokens.
+ * can debug a web app. Nothing here reaches disk or the logs (only counts go to the DEBUG log).
+ * Query strings are dropped from URLs because they often carry tokens.
  */
+
+const { log } = require("./logger.cjs");
+
+const SCOPE = "browser.trace";
 
 const LEVELS = { log: "log", info: "info", debug: "debug", warning: "warn", error: "error", assert: "error" };
 
@@ -64,6 +68,7 @@ function createTrace({ max = 200 } = {}) {
     },
 
     clear() {
+      log.debug(SCOPE, "cleared", { console: consoleLines.length, requests: requests.size });
       consoleLines = [];
       requests = new Map();
     },

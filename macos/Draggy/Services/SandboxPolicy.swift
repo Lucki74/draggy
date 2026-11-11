@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 /// What a sandboxed shell may see and do. Mirrors `SandboxSpec` in core/crates/tools/src/sandbox.rs: the same
 /// scrub rules and the same Seatbelt profile, pinned by shared/fixtures/sandbox/policy.json.
@@ -33,7 +34,11 @@ public enum SandboxPolicy {
     ]
 
     public static func isAvailable() -> Bool {
-        FileManager.default.isExecutableFile(atPath: sandboxExecPath)
+        let available = FileManager.default.isExecutableFile(atPath: sandboxExecPath)
+        if !available {
+            Logger.sandbox.error("sandbox-exec is not executable, sandbox unavailable")
+        }
+        return available
     }
 
     /// True when the name looks like a key, token or credential, matched per `_` segment, case-insensitively.
@@ -85,7 +90,8 @@ public enum SandboxPolicy {
 
     /// The executable and arguments that run `command` inside the sandbox.
     public static func wrap(_ spec: SandboxSpec, command: [String]) -> (executable: String, arguments: [String]) {
-        (sandboxExecPath, ["-p", seatbeltProfile(spec), "--"] + command)
+        Logger.sandbox.debug("Wrapping command in sandbox, network \(spec.network, privacy: .public), readOnly \(spec.readOnly.count, privacy: .public), readWrite \(spec.readWrite.count, privacy: .public)")
+        return (sandboxExecPath, ["-p", seatbeltProfile(spec), "--"] + command)
     }
 
     private static func quote(_ path: String) -> String {

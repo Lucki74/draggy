@@ -194,8 +194,16 @@ fn toggle(
                 }
             })
             .await;
-        if let Ok(Some(reason)) = outcome {
-            notify(&format!("{id} did not start: {reason}"));
+        match outcome {
+            Ok(Some(reason)) => {
+                // The reason can echo settings, so only the server id reaches the log.
+                tracing::warn!(target: "linux.servers", server = %id, "MCP server did not start");
+                notify(&format!("{id} did not start: {reason}"));
+            }
+            Ok(None) => tracing::info!(target: "linux.servers", server = %id, "MCP server started"),
+            Err(error) => {
+                tracing::error!(target: "linux.servers", server = %id, error = %error, "MCP server start task failed")
+            }
         }
         fill(&state, &list, &search, notify);
     });
@@ -221,8 +229,10 @@ async fn saved_values(
         .spawn(async move {
             let mut found = Vec::new();
             for (key, name) in secrets {
-                if let Ok(Some(value)) = store.get(&name).await {
-                    found.push((key, value));
+                match store.get(&name).await {
+                    Ok(Some(value)) => found.push((key, value)),
+                    Ok(None) => {}
+                    Err(error) => tracing::warn!(target: "linux.servers", error = ?error, "saved secret could not be read"),
                 }
             }
             found

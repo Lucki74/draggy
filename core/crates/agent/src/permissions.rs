@@ -70,6 +70,15 @@ pub struct PermissionQuery<'a> {
 
 /// Whether a tool call may run.
 pub fn decide(query: &PermissionQuery<'_>) -> Verdict {
+    let verdict = decide_verdict(query);
+    tracing::debug!(target: "agent.permissions", tool = query.tool, mode = ?query.mode, verdict = ?verdict.decision, "permission verdict");
+    if verdict.decision == Decision::Deny {
+        tracing::info!(target: "agent.permissions", tool = query.tool, mode = ?query.mode, "tool call denied");
+    }
+    verdict
+}
+
+fn decide_verdict(query: &PermissionQuery<'_>) -> Verdict {
     let annotations = query.annotations;
 
     // Reading is allowed everywhere, plan mode included: looking at the project is exactly what plan mode is for.

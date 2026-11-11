@@ -157,6 +157,7 @@ mod imp {
                 } else if let Some(chat) = weak.upgrade()
                     && !speech::available()
                 {
+                    tracing::warn!(target: "linux.chat", "read aloud unavailable, speech-dispatcher missing");
                     button.set_active(false);
                     chat.toast("Install speech-dispatcher to hear replies.");
                 }
@@ -168,6 +169,7 @@ mod imp {
                 if !button.is_active() {
                     speech::stop();
                 } else if let Some(problem) = talk::missing() {
+                    tracing::warn!(target: "linux.chat", "talk mode unavailable");
                     button.set_active(false);
                     chat.toast(&problem);
                 } else if !chat.imp().log.borrow().is_busy() {
@@ -289,8 +291,14 @@ impl DraggyChat {
             return;
         };
         match store.load(id) {
-            Ok(conversation) => self.show(conversation),
-            Err(_) => self.toast("The saved conversation could not be opened."),
+            Ok(conversation) => {
+                tracing::info!(target: "linux.chat", messages = conversation.messages.len(), "conversation opened");
+                self.show(conversation)
+            }
+            Err(error) => {
+                tracing::error!(target: "linux.chat", error = ?error, "saved conversation could not be opened");
+                self.toast("The saved conversation could not be opened.")
+            }
         }
         self.notify_changed();
     }
@@ -304,10 +312,12 @@ impl DraggyChat {
         let Some(store) = Store::in_data_dir() else {
             return;
         };
-        if store.delete(id).is_err() {
+        if let Err(error) = store.delete(id) {
+            tracing::error!(target: "linux.chat", error = ?error, "conversation could not be deleted");
             self.toast("The conversation could not be deleted.");
             return;
         }
+        tracing::info!(target: "linux.chat", on_screen, "conversation deleted");
         if on_screen {
             self.clear_transcript();
             self.clear_current();
@@ -347,7 +357,8 @@ impl DraggyChat {
         };
         let latest = match store.list() {
             Ok(list) => list.into_iter().next(),
-            Err(_) => {
+            Err(error) => {
+                tracing::error!(target: "linux.chat", error = ?error, "saved conversations could not be listed");
                 self.toast("The saved conversations could not be read.");
                 return;
             }
@@ -356,8 +367,14 @@ impl DraggyChat {
             return;
         };
         match store.load(&summary.id) {
-            Ok(conversation) => self.show(conversation),
-            Err(_) => self.toast("The saved conversation could not be opened."),
+            Ok(conversation) => {
+                tracing::info!(target: "linux.chat", messages = conversation.messages.len(), "latest conversation opened");
+                self.show(conversation)
+            }
+            Err(error) => {
+                tracing::error!(target: "linux.chat", error = ?error, "latest conversation could not be opened");
+                self.toast("The saved conversation could not be opened.")
+            }
         }
     }
 
@@ -394,8 +411,22 @@ impl DraggyChat {
             id,
             messages,
         };
-        let saved = Store::in_data_dir().is_some_and(|store| store.save(&conversation).is_ok());
-        if !saved {
+        let saved = match Store::in_data_dir() {
+            Some(store) => match store.save(&conversation) {
+                Ok(()) => true,
+                Err(error) => {
+                    tracing::error!(target: "linux.chat", error = ?error, "conversation could not be saved");
+                    false
+                }
+            },
+            None => {
+                tracing::error!(target: "linux.chat", "conversation could not be saved, data directory missing");
+                false
+            }
+        };
+        if saved {
+            tracing::debug!(target: "linux.chat", messages = conversation.messages.len(), "conversation saved");
+        } else {
             self.toast("The conversation could not be saved.");
         }
         self.notify_changed();
@@ -432,7 +463,11 @@ impl DraggyChat {
         let window = self.root().and_downcast::<gtk::Window>();
         let chat = self.clone();
         dialog.open(window.as_ref(), gio::Cancellable::NONE, move |result| {
-            let Some(path) = result.ok().and_then(|file| file.path()) else {
+            let Some(path) = result
+                .inspect_err(|error| tracing::debug!(target: "linux.chat", error = %error, "file dialog closed without a file"))
+                .ok()
+                .and_then(|file| file.path())
+            else {
                 return;
             };
             match picture_type(&path) {
@@ -449,7 +484,10 @@ impl DraggyChat {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default();
         match std::fs::read(path) {
-            Ok(data) if data.len() > MAX_PICTURE => self.toast("The picture is larger than 10 MB."),
+            Ok(data) if data.len() > MAX_PICTURE => {
+                tracing::warn!(target: "linux.chat", bytes = data.len(), "picture rejected, too large");
+                self.toast("The picture is larger than 10 MB.")
+            }
             Ok(data) => {
                 let mut images = self.imp().images.borrow_mut();
                 images.push(ImageRecord {
@@ -461,7 +499,10 @@ impl DraggyChat {
                 drop(images);
                 self.toast(&format!("Added {name} ({count} waiting)"));
             }
-            Err(_) => self.toast("The file could not be read."),
+            Err(error) => {
+                tracing::error!(target: "linux.chat", kind = ?error.kind(), "picture could not be read");
+                self.toast("The file could not be read.")
+            }
         }
     }
 
@@ -482,8 +523,14 @@ impl DraggyChat {
                     let typed = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false);
                     buffer.set_text(&with_document(&typed, &name, &text));
                 }
-                Ok(Err(error)) => chat.toast(&error.to_string()),
-                Err(_) => chat.toast("The document could not be read."),
+                Ok(Err(error)) => {
+                    tracing::error!(target: "linux.chat", error = %error, "document could not be read");
+                    chat.toast(&error.to_string())
+                }
+                Err(error) => {
+                    tracing::error!(target: "linux.chat", error = %error, "document read task failed");
+                    chat.toast("The document could not be read.")
+                }
             }
         });
     }
@@ -536,20 +583,36 @@ impl DraggyChat {
         }
         let secrets = Arc::clone(&state.secrets);
         // Without a keyring the server is tried with no key; a server that needs one answers with an error.
-        let key = runtime()
+        let key = match runtime()
             .spawn(async move { secrets.get(SERVER_KEY).await })
             .await
-            .ok()
-            .and_then(Result::ok)
-            .flatten();
+        {
+            Ok(Ok(key)) => key,
+            Ok(Err(error)) => {
+                tracing::warn!(target: "linux.chat", error = %error, "server key could not be read, trying without one");
+                None
+            }
+            Err(error) => {
+                tracing::error!(target: "linux.chat", error = %error, "server key task failed");
+                None
+            }
+        };
         let brave = if settings.web {
             let secrets = Arc::clone(&state.secrets);
-            runtime()
+            match runtime()
                 .spawn(async move { secrets.get(BRAVE_KEY).await })
                 .await
-                .ok()
-                .and_then(Result::ok)
-                .flatten()
+            {
+                Ok(Ok(key)) => key,
+                Ok(Err(error)) => {
+                    tracing::warn!(target: "linux.chat", error = %error, "search key could not be read, web search runs without one");
+                    None
+                }
+                Err(error) => {
+                    tracing::error!(target: "linux.chat", error = %error, "search key task failed");
+                    None
+                }
+            }
         } else {
             None
         };
@@ -559,6 +622,7 @@ impl DraggyChat {
                 config
             }
             Err(error) => {
+                tracing::error!(target: "linux.chat", error = %error, "session settings are invalid");
                 self.toast(&error.to_string());
                 return None;
             }
@@ -570,6 +634,7 @@ impl DraggyChat {
         let session = match created {
             Ok(session) => session,
             Err(error) => {
+                tracing::error!(target: "linux.chat", error = %error, "session could not be created");
                 self.toast(&error.to_string());
                 return None;
             }
@@ -580,6 +645,7 @@ impl DraggyChat {
                 if !conversation.messages.is_empty()
                     && let Err(error) = session.restore(to_records(&conversation.messages))
                 {
+                    tracing::error!(target: "linux.chat", error = %error, "saved conversation could not be restored");
                     self.toast(&error.to_string());
                     return None;
                 }
@@ -766,7 +832,9 @@ impl DraggyChat {
         };
         let chat = self.clone();
         glib::spawn_future_local(async move {
-            let _ = gio::spawn_blocking(move || session.stop_task(id)).await;
+            if let Err(error) = gio::spawn_blocking(move || session.stop_task(id)).await {
+                tracing::error!(target: "linux.chat", ?error, "background task stop panicked");
+            }
             chat.refresh_tasks();
         });
     }
@@ -797,7 +865,8 @@ impl DraggyChat {
                     chat.imp().input.buffer().set_text(&text);
                     chat.submit();
                 }
-                _ => {
+                other => {
+                    tracing::error!(target: "linux.chat", failed = ?other.as_ref().err(), "microphone input failed");
                     chat.imp().talk.set_active(false);
                     chat.toast("The microphone could not be used.");
                 }
@@ -816,7 +885,9 @@ impl DraggyChat {
         let chat = self.clone();
         glib::spawn_future_local(async move {
             if let Some(text) = text {
-                let _ = gio::spawn_blocking(move || speech::speak_wait(&text)).await;
+                if let Err(error) = gio::spawn_blocking(move || speech::speak_wait(&text)).await {
+                    tracing::error!(target: "linux.chat", ?error, "speech task failed");
+                }
             }
             if chat.imp().talk.is_active() {
                 chat.listen_next();
@@ -851,6 +922,7 @@ impl DraggyChat {
         let shown = images
             .iter()
             .fold(text, |shown, image| format!("{shown}\n[{}]", image.name));
+        tracing::info!(target: "linux.chat", chars = sent.len(), images = images.len(), "turn started");
         imp.log.borrow_mut().begin_turn(&shown);
         {
             let log = imp.log.borrow();
@@ -881,6 +953,12 @@ impl DraggyChat {
                         chat.ask_approval(request, reply);
                     }
                     ChatMessage::Finished(result) => {
+                        match &result {
+                            Ok(_) => tracing::info!(target: "linux.chat", "turn finished"),
+                            Err(error) => {
+                                tracing::error!(target: "linux.chat", error = %error, "turn failed")
+                            }
+                        }
                         let cost = chat.price_turn(&result);
                         chat.imp().log.borrow_mut().finish(result);
                         if let Some(cost) = cost {
@@ -931,7 +1009,8 @@ impl DraggyChat {
                 &chat_id,
                 stats_store::now_ms(),
             );
-            if storage.record_metric(&row).is_err() {
+            if let Err(error) = storage.record_metric(&row) {
+                tracing::error!(target: "linux.chat", error = ?error, "turn cost could not be saved");
                 self.toast("The turn's cost could not be saved.");
             }
         }
@@ -985,7 +1064,9 @@ impl DraggyChat {
                 _ => ApprovalChoice::No,
             };
             // The turn's thread has stopped waiting if the turn was stopped; nothing more to do then.
-            let _ = reply.send(choice);
+            if reply.send(choice).is_err() {
+                tracing::debug!(target: "linux.chat", "approval reply dropped, turn already stopped");
+            }
         });
     }
 }

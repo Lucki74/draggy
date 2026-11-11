@@ -42,9 +42,15 @@ function setProtectedPaths(paths) {
     .map((one) => path.resolve(String(one)));
 }
 
-/** Every denial is a WARN with the rule that matched, so "the model could not open it" has a line. */
-function refuse(reason, rule, data) {
-  log.warn("files.guard", "denied", { rule, ...data });
+/** Every denial is a WARN with the op and the rule that matched, so "the model could not open it" has a line.
+ * The path is cut to its file name: the folder layout stays out of the log. */
+function refuse(reason, rule, data = {}) {
+  const { path: where, ...rest } = data;
+  log.warn("files.guard", "denied", {
+    rule: rule || "other",
+    ...rest,
+    ...(where ? { file: path.basename(String(where)) } : {}),
+  });
   return { ok: false, error: reason };
 }
 
@@ -121,16 +127,18 @@ function nearestExisting(target) {
 /** Turns a requested path into one Draggy may touch, or a reason why not. Relative paths resolve
  * against the first root, the project. */
 function resolveWithin(roots, requested, options = {}) {
-  const { mustExist = false, createParents = false } = options;
+  const { mustExist = false, createParents = false, op = "resolve" } = options;
+  const deny = (reason, rule, data) => refuse(reason, rule, { op, ...data });
 
   if (typeof requested !== "string" || !requested.trim()) {
-    return refuse("No file was named.", "empty");
+    return deny("No file was named.", "empty");
   }
 
   const folders = (roots || []).filter(Boolean).map((one) => String(one));
   if (folders.length === 0) {
-    return refuse(
+    return deny(
       "This conversation has no folder to work in. Open a project first.",
+      "no-folder",
     );
   }
 
@@ -138,18 +146,18 @@ function resolveWithin(roots, requested, options = {}) {
 
   // A path with a null byte is a path that means one thing to this check and
   // another to the system call underneath it.
-  if (asked.includes("\0")) return refuse("That file name is not usable.");
+  if (asked.includes("\0")) return deny("That file name is not usable.", "null-byte");
 
   const absolute = path.resolve(
     path.isAbsolute(asked) ? asked : path.join(folders[0], asked),
   );
 
   const exists = fs.existsSync(absolute);
-  if (mustExist && !exists) return refuse(`There is no ${path.basename(absolute)}.`);
+  if (mustExist && !exists) return deny(`There is no ${path.basename(absolute)}.`, "not-found");
 
   // A write would follow the link to its missing target, which may be outside the folder.
   if (!exists && isDanglingLink(absolute)) {
-    return refuse(
+    return deny(
       "That is a link to a file that is not there, so Draggy will not create it.",
       "dangling_link",
       { path: absolute },
@@ -169,7 +177,7 @@ function resolveWithin(roots, requested, options = {}) {
 
   const realAnchor = anchor ? realpathOrNull(anchor) : null;
 
-  if (!realAnchor) return refuse("That folder does not exist.");
+  if (!realAnchor) return deny("That folder does not exist.", "missing-folder");
 
   // Whatever of the path was still missing, rebuilt onto the real ancestor, so
   // a symlink anywhere along the way has already been followed.
@@ -183,39 +191,42 @@ function resolveWithin(roots, requested, options = {}) {
   });
 
   if (!inside) {
-    return refuse(
+    return deny(
       "That path is outside the folder this conversation can reach.",
-      "outside",
+      "outside-project",
       { path: resolved, roots: folders.length },
     );
   }
 
   if (protectedPaths.some((one) => isInside(one, resolved))) {
-    return refuse("That is Draggy's own storage, which is not yours to edit.", "protected", { path: resolved });
+    return deny("That is Draggy's own storage, which is not yours to edit.", "protected-storage", { path: resolved });
   }
 
   if (hasDeniedPart(resolved)) {
-    return refuse(
+    return deny(
       "That file holds credentials, so Draggy does not open it. Tell the user what you need and let them do it.",
-      "credentials",
+      "blocked-name",
       { path: resolved },
     );
   }
 
-  log.debug("files.guard", "allowed", { path: resolved });
+  log.debug("files.guard", "allowed", { op, file: path.basename(resolved) });
   return { ok: true, path: resolved };
 }
 
-/** Text a model can work with, or a reason it cannot. */
-function readText(file, limit = MAX_READ_BYTES) {
+/** Text a model can work with, or a reason it cannot. `options.op` names the caller's operation in the log. */
+function readText(file, limit = MAX_READ_BYTES, options = {}) {
+  const op = options.op || "read";
+  const deny = (reason, rule) => refuse(reason, rule, { op });
   const stats = fs.statSync(file);
 
-  if (stats.isDirectory()) return refuse("That is a folder, not a file.");
+  if (stats.isDirectory()) return deny("That is a folder, not a file.", "is-folder");
   if (stats.size > limit) {
-    return refuse(
+    return deny(
       `That file is ${Math.round(stats.size / 1024)} KB, over the ${Math.round(
         limit / 1024,
       )} KB a single read allows. Ask for part of it instead.`,
+      "too-large",
     );
   }
 
@@ -223,7 +234,7 @@ function readText(file, limit = MAX_READ_BYTES) {
 
   // A null byte in the first block is how every editor guesses the same thing.
   if (buffer.subarray(0, 8000).includes(0)) {
-    return refuse("That file is not text.");
+    return deny("That file is not text.", "binary");
   }
 
   return { ok: true, text: buffer.toString("utf8"), bytes: stats.size };

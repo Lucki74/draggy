@@ -81,7 +81,23 @@ function resetState(stateKey) {
  * `tasks` (the task manager) lets a command be handed over to run in the background; `autoDetach`
  * does that at the time limit instead of stopping the command. `stateKey` names the chat whose folder
  * and environment carry over from one command to the next. */
-function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatId, stateKey, tasks, autoDetach, sandbox: boxed }) {
+function run(options) {
+  const { cwd, command, shell, defaultShell, onOutput, chatId, sandbox: boxed } = options;
+  if (!boxed || process.platform !== "win32" || !String(command || "").trim() || !cwd || !fs.existsSync(cwd)) return runIn(options, []);
+  // A sandboxed command runs in the shell it asked for only once that shell started in the container. The check
+  // runs once per sandbox identity and shell, after the folder grant.
+  const wanted = shellInvocation(`echo ${sandbox.SHELL_MARK}`, shell, { defaultShell });
+  if (wanted.error || wanted.shell === "cmd") return runIn(options, []);
+  const launch = sandbox.wrap({ file: wanted.file, args: wanted.args, cwd, env: buildEnv(wanted.env), verbatim: wanted.verbatim }, { ...boxed, chatKey: chatId });
+  if (launch.error) return runIn(options, []);
+  if (sandbox.needsGrant(launch)) {
+    log.info("proc.command", "granting the sandbox access first", { cid: chatId || null });
+    onOutput?.(sandbox.SETUP_NOTE);
+  }
+  return sandbox.shellWorks(launch, wanted.shell).then((works) => runIn(options, works ? [wanted.shell] : []));
+}
+
+function runIn({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatId, stateKey, tasks, autoDetach, sandbox: boxed }, sandboxShells) {
   const text = String(command || "");
   if (!text.trim()) return Promise.resolve({ success: false, error: "No command was given." });
   if (text.length > MAX_COMMAND_CHARS) {
@@ -91,14 +107,14 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatI
     return Promise.resolve({ success: false, error: "The project folder is not available." });
   }
 
-  const plain = shellInvocation(text, shell, { defaultShell, sandboxed: Boolean(boxed) });
+  const plain = shellInvocation(text, shell, { defaultShell, sandboxed: Boolean(boxed), sandboxShells });
   if (plain.error) return Promise.resolve({ success: false, error: plain.error });
 
   // The shell reports its final folder and environment after the command, under a marker that only
   // this run knows, so the command's own output cannot pass for the report.
   const marker = stateKey && taskText.supportsState(plain.shell) ? `DG${crypto.randomBytes(6).toString("hex")}` : null;
   const invocation = marker
-    ? shellInvocation(text + taskText.stateEpilogue(plain.shell, marker), shell, { defaultShell, sandboxed: Boolean(boxed) })
+    ? shellInvocation(text + taskText.stateEpilogue(plain.shell, marker), shell, { defaultShell, sandboxed: Boolean(boxed), sandboxShells })
     : plain;
   if (invocation.error) return Promise.resolve({ success: false, error: invocation.error });
 
@@ -110,7 +126,7 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatI
 
   const limit = timeoutFor(timeoutMs);
   const started = Date.now();
-  const entry = { handle: null, cancelled: false, detach: null };
+  const entry = { handle: null, cancelled: false, detach: null, cid: chatId || null };
   if (key) live.set(key, entry);
 
   const saved = marker ? shellState.get(stateKey) : null;
@@ -146,7 +162,7 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatI
       clearTimeout(timer);
       if (key && live.get(key) === entry) live.delete(key);
       const durationMs = Date.now() - started;
-      log.info("proc.command", "command finished", { durationMs, exitCode: result.exitCode ?? null, timedOut, cancelled: entry.cancelled });
+      log.info("proc.command", "command finished", { cid: chatId || null, durationMs, exitCode: result.exitCode ?? null, timedOut, cancelled: entry.cancelled });
       resolve({ ...result, shell: invocation.shell, durationMs, ...(invocation.notice ? { notice: invocation.notice } : {}) });
     };
 
@@ -167,7 +183,7 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatI
       });
       if (adopted.error) return { success: false, error: adopted.error };
       sink = { push: adopted.push, exit: adopted.exit };
-      log.info("proc.command", "command moved to the background", { taskId: adopted.task.id });
+      log.info("proc.command", "command moved to the background", { cid: chatId || null, taskId: adopted.task.id });
       finish({
         success: true,
         detached: true,
@@ -195,13 +211,13 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatI
       timer = setTimeout(() => {
         if (autoDetach && tasks && entry.detach().success) return;
         timedOut = true;
-        log.warn("proc.command", "command timed out", { limitMs: limit });
+        log.warn("proc.command", "command timed out", { cid: chatId || null, limitMs: limit });
         entry.handle?.kill();
       }, limit);
 
       // Nothing may stop to ask: there is no terminal, so a prompt would hang until the timeout.
-      log.info("proc.command", "command spawning", { shell: invocation.shell, chars: text.length, timeoutMs: limit });
-      log.debug("proc.command", "invocation", { file: path.basename(invocation.file), args: invocation.args.length });
+      log.info("proc.command", "command spawning", { cid: chatId || null, requested: shell || "default", shell: invocation.shell, sandbox: boxed ? (boxed.writable === false ? "ro" : "rw") : "off", network: boxed ? Boolean(boxed.network) : null, chars: text.length, timeoutMs: limit });
+      log.debug("proc.command", "invocation", { cid: chatId || null, file: path.basename(invocation.file), args: invocation.args.length });
       entry.handle = spawnStream(
         launch,
         {
@@ -215,7 +231,7 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatI
               return;
             }
             if (error) {
-              log.warn("proc.command", "process error", { code: error.code ?? null, name: error.name ?? null });
+              log.warn("proc.command", "process error", { cid: chatId || null, code: error.code ?? null, name: error.name ?? null });
               finish({ success: false, error: error.message });
               return;
             }
@@ -255,8 +271,8 @@ function run({ id, cwd, command, shell, defaultShell, timeoutMs, onOutput, chatI
       return;
     }
     // The command's timeout starts once the folder is granted, so a slow first grant is never cut short.
-    log.info("proc.command", "granting the sandbox access first");
-    onOutput?.("Setting up the sandbox for this folder. The first time can take a few minutes on a big project.\n");
+    log.info("proc.command", "granting the sandbox access first", { cid: chatId || null });
+    onOutput?.(sandbox.SETUP_NOTE);
     sandbox.ready(launch).then((result) => {
       if (result.error) finish({ success: false, error: `The sandbox could not get access to the folder: ${result.error}` });
       else begin();
@@ -276,7 +292,7 @@ function cancel(id) {
   const entry = live.get(String(id));
   if (!entry) return false;
 
-  log.info("proc.command", "command cancelled", { id: String(id) });
+  log.info("proc.command", "command cancelled", { cid: entry.cid ?? null, id: String(id) });
   entry.cancelled = true;
   live.delete(String(id));
   entry.handle?.kill();

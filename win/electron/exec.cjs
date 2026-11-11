@@ -25,7 +25,7 @@ function buildEnv(extra = {}, base = process.env) {
 
 /** Starts a child with streamed output. `onExit` runs once: with the code and signal, or with an
  * `error` when the program could not start, in which case `code` is null. */
-function spawnStream({ file, args = [], cwd, env, verbatim = false }, { onStdout, onStderr, onExit }) {
+function spawnStream({ file, args = [], cwd, env, verbatim = false, quiet = false }, { onStdout, onStderr, onExit }) {
   let child = null;
   try {
     child = spawnHidden(file, args, {
@@ -33,6 +33,7 @@ function spawnStream({ file, args = [], cwd, env, verbatim = false }, { onStdout
       env: env ?? buildEnv(),
       stdio: ["ignore", "pipe", "pipe"],
       windowsVerbatimArguments: Boolean(verbatim),
+      quiet,
     });
   } catch (error) {
     // Deferred so the caller has its handle before any exit callback runs.
@@ -76,6 +77,7 @@ function runOnce({
   maxBuffer = DEFAULT_MAX_BUFFER,
   signal,
   verbatim = false,
+  quiet = false,
 } = {}) {
   const empty = { code: null, stdout: "", stderr: "", missing: false, timedOut: false, truncated: false, aborted: false };
   if (signal?.aborted) return Promise.resolve({ ...empty, aborted: true });
@@ -116,7 +118,7 @@ function runOnce({
     }
 
     handle = spawnStream(
-      { file, args, cwd, env, verbatim },
+      { file, args, cwd, env, verbatim, quiet },
       {
         onStdout: (piece) => keep("stdout", piece),
         onStderr: (piece) => keep("stderr", piece),

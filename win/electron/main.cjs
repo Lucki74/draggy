@@ -1228,6 +1228,7 @@ app.whenReady().then(async () => {
     sampleChild: (pid) => lifecycle.childRssMB(platform.runCommand, pid),
   });
   for (const note of adopted) log.info("appData", note);
+  require("./sandbox.cjs").sweepSpecs(app.getPath("userData"));
 
   // Before anything can start llama-server: a build staged last session takes over now.
   try {

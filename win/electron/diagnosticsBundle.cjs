@@ -5,6 +5,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const zlib = require("node:zlib");
 const { scrubPaths, scrubSecrets } = require("./logScrub.cjs");
+const { log } = require("./logger.cjs");
+
+const SCOPE = "diagnostics.bundle";
 
 const EVENTS_LIMIT_BYTES = 20 * 1024 * 1024;
 const ROTATIONS = 3;
@@ -114,7 +117,10 @@ function zipEntries(entries, now = new Date()) {
 function readIfExists(file) {
   try {
     return fs.readFileSync(file);
-  } catch {
+  } catch (error) {
+    // A file that is not there is normal (no crash dump, no rotation yet); anything else is worth a line.
+    if (error?.code === "ENOENT") log.swallow(SCOPE, error, "file not present");
+    else log.warn(SCOPE, "could not read a bundle input", { code: error?.code, name: path.basename(String(file)) });
     return null;
   }
 }
@@ -146,7 +152,8 @@ function withoutDebug(text, jsonl) {
       if (jsonl) {
         try {
           return JSON.parse(line).level !== "DEBUG";
-        } catch {
+        } catch (error) {
+          log.swallow(SCOPE, error, "event line is not JSON, kept as is");
           return true;
         }
       }
@@ -249,6 +256,7 @@ function buildBundle(options = {}) {
     name: "README.txt",
     data: Buffer.from(readme({ createdAt, appVersion, files: names, removed, includeDebug, includeDumps }), "utf8"),
   });
+  log.debug(SCOPE, "bundle collected", { files: entries.length, removedSettings: removed.length, includeDebug, includeDumps });
   return { entries, removedSettings: removed };
 }
 
@@ -259,10 +267,17 @@ function previewBundle(options) {
 
 /** Writes the zip where the person picked. Returns the size in bytes. */
 function saveBundle(options, target, now = new Date()) {
-  const { entries } = buildBundle(options);
-  const zip = zipEntries(entries, now);
-  fs.writeFileSync(target, zip);
-  return { file: target, bytes: zip.length, files: entries.length };
+  const timer = log.time(SCOPE, "bundle saved", undefined, { level: "INFO" });
+  try {
+    const { entries } = buildBundle(options);
+    const zip = zipEntries(entries, now);
+    fs.writeFileSync(target, zip);
+    timer.end({ bytes: zip.length, files: entries.length, includeDebug: Boolean(options?.includeDebug), includeDumps: Boolean(options?.includeDumps) });
+    return { file: target, bytes: zip.length, files: entries.length };
+  } catch (error) {
+    timer.fail(error, { target: path.basename(String(target)) });
+    throw error;
+  }
 }
 
 function defaultName(date = new Date()) {

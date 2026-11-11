@@ -20,8 +20,14 @@ fn block_ads(view: &WebView) {
     gtk::glib::spawn_future_local(async move {
         let rules =
             gtk::glib::Bytes::from_owned(draggy_core::adblock::adblock_rules().into_bytes());
-        if let Ok(filter) = store.save_future("draggy-adblock", &rules).await {
-            manager.add_filter(&filter);
+        match store.save_future("draggy-adblock", &rules).await {
+            Ok(filter) => {
+                tracing::info!(target: "linux.browser", "ad block rules installed");
+                manager.add_filter(&filter);
+            }
+            Err(error) => {
+                tracing::warn!(target: "linux.browser", error = %error, "ad block rules could not be installed")
+            }
         }
     });
 }
