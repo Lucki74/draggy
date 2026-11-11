@@ -2,7 +2,7 @@
 //! opening a created file. Each mirrors its electron/main.cjs handler.
 
 use std::os::windows::ffi::OsStrExt;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::ptr::null_mut;
 use std::sync::{Arc, OnceLock};
 
@@ -111,13 +111,11 @@ async fn check_internet(_app: AppHandle, _args: Vec<Value>) -> Result<Value, Ipc
 /// Opens only files under the created-files folder. A refusal is returned as text, as Electron did.
 async fn open_file(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let raw = text_arg(args.first());
-    let Some(dir) = data_folder().map(|data| data.join("created_files")) else {
+    let Some(resolved) =
+        data_folder().and_then(|data| super::files::created_file_path(&data, &raw))
+    else {
         return Ok(Value::String(refusal()));
     };
-    let resolved = lexical(&absolute(Path::new(&raw)));
-    if raw.is_empty() || !is_inside(&lexical(&dir), &resolved) {
-        return Ok(Value::String(refusal()));
-    }
     match app
         .opener()
         .open_path(resolved.to_string_lossy(), None::<&str>)
@@ -148,38 +146,6 @@ fn truncate(text: &str, limit: usize) -> String {
     text.chars().take(limit).collect()
 }
 
-/// `path.resolve` for an absolute or cwd-relative path. Never fails: an odd path just resolves to
-/// something outside the folder and is refused.
-fn absolute(path: &Path) -> PathBuf {
-    std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf())
-}
-
-/// Drops `.` and folds `..` lexically, as `path.resolve` does, so `folder\..\x` cannot escape.
-fn lexical(path: &Path) -> PathBuf {
-    let mut out = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::ParentDir => {
-                out.pop();
-            }
-            Component::CurDir => {}
-            other => out.push(other.as_os_str()),
-        }
-    }
-    out
-}
-
-/// True only for a path strictly below `dir`. Windows names are compared case-insensitively.
-fn is_inside(dir: &Path, candidate: &Path) -> bool {
-    let dir: Vec<Component> = dir.components().collect();
-    let candidate: Vec<Component> = candidate.components().collect();
-    candidate.len() > dir.len()
-        && dir
-            .iter()
-            .zip(&candidate)
-            .all(|(a, b)| a.as_os_str().eq_ignore_ascii_case(b.as_os_str()))
-}
-
 /// Bytes the caller may use on the volume holding `path`. Zero when the call fails.
 fn free_bytes(path: &Path) -> u64 {
     let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
@@ -208,33 +174,6 @@ mod tests {
         assert_eq!(truncate(&long, TITLE_LIMIT).chars().count(), 120);
         assert_eq!(truncate(&long, BODY_LIMIT).chars().count(), 240);
         assert_eq!(truncate("short", BODY_LIMIT), "short");
-    }
-
-    #[test]
-    fn only_paths_below_the_created_files_folder_open() {
-        let dir = PathBuf::from(r"C:\Users\x\AppData\Roaming\Draggy\created_files");
-        let inside = dir.join("report.pdf");
-        assert!(is_inside(&dir, &lexical(&inside)));
-        assert!(!is_inside(&dir, &dir));
-        assert!(!is_inside(
-            &dir,
-            &lexical(&dir.join("..").join("draggy.db"))
-        ));
-        assert!(!is_inside(&dir, Path::new(r"C:\Windows\system32\calc.exe")));
-    }
-
-    #[test]
-    fn folder_match_ignores_case_on_windows() {
-        let dir = PathBuf::from(r"C:\Data\Created_Files");
-        assert!(is_inside(&dir, Path::new(r"c:\data\created_files\a.txt")));
-    }
-
-    #[test]
-    fn lexical_folds_parent_and_current_steps() {
-        assert_eq!(
-            lexical(Path::new(r"C:\a\.\b\..\c.txt")),
-            PathBuf::from(r"C:\a\c.txt")
-        );
     }
 
     #[test]
