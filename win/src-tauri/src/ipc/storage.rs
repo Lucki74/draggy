@@ -414,6 +414,17 @@ async fn checkpoint_revert(app: AppHandle, args: Vec<Value>) -> Result<Value, Ip
     }
 }
 
+/// The first folder of a workspace, for terminals and commands. None when the store is closed or there is none.
+pub(crate) async fn workspace_root(app: &AppHandle, workspace: &str) -> Option<PathBuf> {
+    let db = Arc::clone(&app.state::<AppState>().storage);
+    let storage = db.handle()?;
+    let workspace = workspace.to_owned();
+    blocking(move || roots_for(&storage, &db, &workspace).into_iter().next())
+        .await
+        .ok()
+        .flatten()
+}
+
 /// The folders a workspace may reach: `chat:<id>` is that chat's folder, made on first need.
 fn roots_for(storage: &Storage, db: &crate::storage::Db, workspace: &str) -> Vec<PathBuf> {
     if let Some(chat) = workspace.strip_prefix("chat:") {

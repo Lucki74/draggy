@@ -8,6 +8,7 @@ pub mod paths;
 pub mod quit;
 pub mod secrets;
 pub mod storage;
+pub mod terminals;
 pub mod theme;
 
 use std::collections::hash_map::RandomState;
@@ -139,6 +140,7 @@ pub fn run() {
             {
                 // No engine child may outlive the window.
                 tauri::async_runtime::block_on(state.engines.shutdown());
+                terminals::stop_all();
                 state.diag.end_session(true);
             }
         });
