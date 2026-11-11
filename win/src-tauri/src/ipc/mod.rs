@@ -24,12 +24,18 @@ macro_rules! register {
 
 mod app;
 mod call_log;
+mod colibri;
 mod files;
+mod gguf;
 mod git;
+mod hardware;
 mod logs;
+mod models;
 pub mod pending;
+mod sd;
 mod shell;
 mod storage;
+mod tier;
 mod web;
 
 pub use call_log::{arg_bytes, correlation_id, is_silent, scope_for};
@@ -74,6 +80,12 @@ impl Registry {
         logs::register_all(&mut registry);
         shell::register_all(&mut registry);
         storage::register_all(&mut registry);
+        colibri::register_all(&mut registry);
+        gguf::register_all(&mut registry);
+        hardware::register_all(&mut registry);
+        models::register_all(&mut registry);
+        sd::register_all(&mut registry);
+        tier::register_all(&mut registry);
         registry
     }
 

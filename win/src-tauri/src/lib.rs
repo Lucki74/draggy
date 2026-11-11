@@ -1,6 +1,7 @@
 //! Draggy for Windows: a Tauri shell around the React renderer. The renderer keeps the Electron API
 //! shape; `ipc` serves its channels.
 
+pub mod engines;
 pub mod ipc;
 pub mod paths;
 pub mod quit;
