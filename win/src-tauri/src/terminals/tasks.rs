@@ -18,7 +18,11 @@ use tokio::sync::watch;
 
 use super::pipe::{self, Pipe, PipeExit, PipeLaunch};
 use super::pty::{Host, Launch, OpenError};
+use super::sandbox::{self, Spawn};
 use super::shells::{self, Env};
+
+/// Written into a sandboxed task's output while its folder is granted for the first time.
+pub const GRANT_NOTICE: &str = "Setting up the sandbox for this folder. The first time can take a few minutes on a big project.\n";
 
 pub const MAX_RUNNING_PER_CHAT: usize = 5;
 /// Output kept in memory per task, in characters. Older output stays in the log file.
@@ -104,6 +108,8 @@ pub struct StartOptions<'a> {
     pub default_shell: Option<&'a str>,
     pub cols: u16,
     pub rows: u16,
+    /// Runs the task inside the sandbox launcher, on pipes.
+    pub sandbox: Option<&'a sandbox::Options>,
 }
 
 /// A task that was started, and the notice about its shell when one was swapped.
@@ -517,8 +523,22 @@ impl Manager {
             line,
             options.shell,
             options.default_shell,
-            false,
+            options.sandbox.is_some(),
         )?;
+        if let Some(boxed) = options.sandbox {
+            let env = shells::build_env(&invocation.env);
+            let spawn = Spawn {
+                file: &invocation.file,
+                args: &invocation.args,
+                verbatim: invocation.verbatim,
+                cwd: options.cwd,
+                env: &env,
+            };
+            let launch = sandbox::wrap(&spawn, boxed)?;
+            let uid = self.register(options.chat_id, line, &invocation.shell, Mode::Pipe)?;
+            self.start_sandboxed(&uid, launch);
+            return Ok(self.started(options.chat_id, &uid, invocation.notice));
+        }
         let uid = self.register(options.chat_id, line, &invocation.shell, Mode::Pty)?;
 
         let mut pty_extra = invocation.env.clone();
@@ -595,12 +615,65 @@ impl Manager {
 
     fn start_piped(&self, uid: &str, invocation: &shells::Invocation, cwd: &Path) {
         let env = shells::build_env(&invocation.env);
-        let launch = PipeLaunch {
+        let plain = sandbox::Launch::direct(&Spawn {
             file: &invocation.file,
             args: &invocation.args,
             verbatim: invocation.verbatim,
             cwd,
             env: &env,
+        });
+        self.begin_piped(uid, &plain);
+    }
+
+    /// Starts a launch on pipes. A sandboxed one waits for its folder grant first.
+    fn start_sandboxed(&self, uid: &str, launch: sandbox::Launch) {
+        if !sandbox::needs_grant(&launch) {
+            self.begin_piped(uid, &launch);
+            return;
+        }
+        self.append(uid, GRANT_NOTICE);
+        let manager = self.clone();
+        let uid = uid.to_owned();
+        tauri::async_runtime::spawn(async move {
+            match sandbox::ready(&launch).await {
+                Ok(()) => {
+                    let stopped = manager
+                        .lock()
+                        .tasks
+                        .get(&uid)
+                        .is_some_and(|task| task.stop_requested);
+                    if stopped {
+                        manager.finish(&uid, Exit::default());
+                    } else {
+                        manager.begin_piped(&uid, &launch);
+                    }
+                }
+                Err(error) => manager.finish(
+                    &uid,
+                    Exit {
+                        error: Some(format!(
+                            "The sandbox could not get access to the folder: {error}"
+                        )),
+                        ..Exit::default()
+                    },
+                ),
+            }
+        });
+    }
+
+    fn started(&self, chat_id: &str, uid: &str, notice: Option<String>) -> Started {
+        let task = self.summary_of(uid);
+        self.emit(json!({ "type": "started", "chatId": chat_id, "task": task }));
+        Started { task, notice }
+    }
+
+    fn begin_piped(&self, uid: &str, plain: &sandbox::Launch) {
+        let launch = PipeLaunch {
+            file: &plain.file,
+            args: &plain.args,
+            verbatim: plain.verbatim,
+            cwd: &plain.cwd,
+            env: &plain.env,
         };
         let chunk_weak = Arc::downgrade(&self.inner);
         let chunk_uid = uid.to_owned();
@@ -979,6 +1052,7 @@ mod tests {
             shell: Some("cmd"),
             default_shell: None,
             cols: 120,
+            sandbox: None,
             rows: 30,
         })
     }
@@ -1023,6 +1097,7 @@ mod tests {
                 shell: None,
                 default_shell: None,
                 cols: 120,
+                sandbox: None,
                 rows: 30,
             })
             .err();
@@ -1197,5 +1272,25 @@ mod tests {
         manager.stop_all();
         assert!(!dir.exists());
         adopted.exit(Exit::default());
+    }
+
+    #[test]
+    fn pty_runs_a_quoted_cmd_line() {
+        let (manager, _rx) = manager("pty-quotes");
+        let started = start(&manager, "c", "echo \"a b\" & exit 0").expect("start");
+        let id = started.task["id"].as_str().expect("id").to_owned();
+        let task = wait_status(&manager, "c", &id);
+        assert_eq!(task["exitCode"], 0);
+        let read = manager
+            .output(
+                "c",
+                &id,
+                &OutputOptions {
+                    since: Some(0.0),
+                    ..OutputOptions::default()
+                },
+            )
+            .expect("output");
+        assert!(read["output"].as_str().unwrap_or_default().contains("a b"));
     }
 }

@@ -40,7 +40,7 @@ static WAITS: LazyLock<Mutex<HashMap<String, CancelToken>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// The task manager, made on first use. Its logs live in the app data folder and go on quit.
-fn tasks_manager(app: &AppHandle) -> &'static TaskManager {
+pub(super) fn tasks_manager(app: &AppHandle) -> &'static TaskManager {
     TASKS.get_or_init(|| {
         let logs: PathBuf = app.state::<AppState>().storage.data_dir().join("task-logs");
         let app = app.clone();
@@ -180,11 +180,11 @@ async fn tasks_has_running(app: AppHandle, args: Vec<Value>) -> Result<Value, Ip
 
 async fn tasks_forget(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     tasks_manager(&app).forget(&text(args.first()));
-    // TODO(commands): also reset the chat's command state here once commands are ported.
+    crate::terminals::commands::reset_state(&text(args.first()));
     Ok(json!({ "success": true }))
 }
 
-fn text(value: Option<&Value>) -> String {
+pub(super) fn text(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(text)) => text.clone(),
         Some(Value::Number(number)) => number.to_string(),
@@ -192,11 +192,11 @@ fn text(value: Option<&Value>) -> String {
     }
 }
 
-fn option<'a>(options: Option<&'a Value>, name: &str) -> Option<&'a Value> {
+pub(super) fn option<'a>(options: Option<&'a Value>, name: &str) -> Option<&'a Value> {
     options.and_then(|options| options.get(name))
 }
 
-fn refused(error: &str) -> Value {
+pub(super) fn refused(error: &str) -> Value {
     json!({ "success": false, "error": error })
 }
 

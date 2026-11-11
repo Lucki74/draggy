@@ -1,0 +1,142 @@
+//! One command as administrator, behind the Windows UAC prompt. The command goes into a batch file and its output
+//! comes back through a file, since an elevated process cannot share pipes. Port of `win/electron/elevate.cjs`.
+
+use std::fs;
+use std::path::Path;
+use std::time::Instant;
+
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+use draggy_tools::shell::{clip, timeout_for};
+use draggy_tools::spawn::hidden_command;
+use serde_json::{Value, json};
+
+/// The exit code Windows gives when the UAC prompt is declined.
+pub const DECLINED: i64 = 1223;
+
+pub fn batch_text(command: &str, cwd: &Path) -> String {
+    format!("@echo off\r\ncd /d \"{}\"\r\n{command}\r\n", cwd.display())
+}
+
+/// The PowerShell line that starts the elevated shell and waits for it.
+pub fn elevation_script(batch: &Path, out: &Path) -> String {
+    let args = format!(
+        "/d /c \"\"{}\" > \"{}\" 2>&1\"",
+        batch.display(),
+        out.display()
+    );
+    let quoted = args.replace('\'', "''");
+    format!(
+        "$ErrorActionPreference='Stop'; try {{ $p = Start-Process -FilePath 'cmd.exe' -ArgumentList '{quoted}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode }} catch {{ exit {DECLINED} }}"
+    )
+}
+
+fn encode(script: &str) -> String {
+    let bytes: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
+    STANDARD.encode(bytes)
+}
+
+fn refused(error: &str) -> Value {
+    json!({ "success": false, "error": error })
+}
+
+/// Runs `command` in `cwd` as administrator. Resolves with the same shape the renderer reads for a foreground run.
+pub async fn run_elevated(command: &str, cwd: &Path, timeout_ms: Option<f64>) -> Value {
+    let text = command.trim();
+    if !cfg!(windows) {
+        return refused("Administrator rights are only available on Windows.");
+    }
+    if text.is_empty() {
+        return refused("No command was given.");
+    }
+    if !cwd.exists() {
+        return refused("The project folder is not available.");
+    }
+    let mut token = [0u8; 4];
+    if getrandom::fill(&mut token).is_err() {
+        return refused("The administrator run could not start.");
+    }
+    let dir = std::env::temp_dir().join(format!(
+        "dg-admin-{}-{}",
+        token
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>(),
+        Instant::now().elapsed().as_nanos()
+    ));
+    if fs::create_dir_all(&dir).is_err() {
+        return refused("The administrator run could not start.");
+    }
+    let batch = dir.join("run.cmd");
+    let out = dir.join("out.txt");
+    if fs::write(&batch, batch_text(text, cwd)).is_err() {
+        let _ = fs::remove_dir_all(&dir);
+        return refused("The administrator run could not start.");
+    }
+    let encoded = encode(&elevation_script(&batch, &out));
+
+    let started = Instant::now();
+    let mut child = hidden_command(
+        "powershell.exe",
+        &[
+            "-NoProfile",
+            "-NonInteractive",
+            "-EncodedCommand",
+            encoded.as_str(),
+        ],
+        |_| {},
+    );
+    let waited = tokio::time::timeout(timeout_for(timeout_ms), child.output()).await;
+    let timed_out = waited.is_err();
+    let code = match waited {
+        Ok(Ok(finished)) => finished.status.code().map(i64::from),
+        Ok(Err(error)) => {
+            let _ = fs::remove_dir_all(&dir);
+            return refused(&error.to_string());
+        }
+        Err(_) => None,
+    };
+    let output = fs::read_to_string(&out).unwrap_or_default();
+    let _ = fs::remove_dir_all(&dir);
+
+    let declined = code == Some(DECLINED) && output.is_empty();
+    let clipped = clip(&output);
+    let mut result = json!({
+        "success": !timed_out && !declined && code == Some(0),
+        "exitCode": code,
+        "timedOut": timed_out,
+        "declined": declined,
+        "elevated": true,
+        "output": if declined { String::new() } else { clipped.text },
+        "truncated": clipped.truncated,
+        "shell": "cmd",
+        "durationMs": u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+    });
+    if declined {
+        result["error"] = json!("The user declined the administrator prompt.");
+    }
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encodes_the_script_as_utf16_base64() {
+        assert_eq!(encode("a"), "YQA=");
+    }
+
+    #[test]
+    fn batch_runs_in_the_folder_then_the_command() {
+        let text = batch_text("dir", Path::new("C:\\work"));
+        assert_eq!(text, "@echo off\r\ncd /d \"C:\\work\"\r\ndir\r\n");
+    }
+
+    #[test]
+    fn script_waits_for_the_elevated_shell() {
+        let script = elevation_script(Path::new("C:\\w\\run.cmd"), Path::new("C:\\w\\out.txt"));
+        assert!(script.contains("-Verb RunAs -Wait"));
+        assert!(script.contains(&format!("catch {{ exit {DECLINED} }}")));
+    }
+}
