@@ -36,9 +36,19 @@ struct Session {
 
 type Sessions = Arc<Mutex<HashMap<String, Session>>>;
 
-#[derive(Default)]
 pub struct Host {
     sessions: Sessions,
+    cap: usize,
+}
+
+impl Default for Host {
+    /// The user's terminals, at most eight at once.
+    fn default() -> Self {
+        Self {
+            sessions: Sessions::default(),
+            cap: MAX_SESSIONS,
+        }
+    }
 }
 
 fn lock(sessions: &Sessions) -> MutexGuard<'_, HashMap<String, Session>> {
@@ -79,6 +89,8 @@ pub struct Launch<'a> {
     pub env: &'a BTreeMap<String, String>,
     pub cols: u16,
     pub rows: u16,
+    /// Leaves out variables that hold a credential, for a shell the user types into.
+    pub scrub_secrets: bool,
 }
 
 /// ConPTY asks where the cursor is when it starts and waits for the answer. Nothing may be listening yet (a
@@ -126,7 +138,7 @@ impl Host {
         on_data: impl Fn(&str, &str) + Send + 'static,
         on_exit: impl Fn(&str, i64) + Send + 'static,
     ) -> Result<Opened, OpenError> {
-        if lock(&self.sessions).len() >= MAX_SESSIONS {
+        if lock(&self.sessions).len() >= self.cap {
             return Err(OpenError::Failed(format!(
                 "At most {MAX_SESSIONS} terminals can be open at once."
             )));
@@ -138,11 +150,13 @@ impl Host {
         command.args(launch.args);
         command.cwd(launch.cwd);
         command.env_clear();
-        for (name, value) in launch.env.iter().filter(|(name, _)| !is_secret(name)) {
+        for (name, value) in launch
+            .env
+            .iter()
+            .filter(|(name, _)| !(launch.scrub_secrets && is_secret(name)))
+        {
             command.env(name, value);
         }
-        command.env("TERM", "xterm-256color");
-        command.env("COLORTERM", "truecolor");
         let mut child = pair.slave.spawn_command(command).map_err(failed)?;
         drop(pair.slave);
         let pid = child.process_id();
@@ -233,6 +247,21 @@ impl Host {
             .is_some_and(|session| session.master.resize(size(cols, rows)).is_ok())
     }
 
+    /// A host without the cap, for background tasks, which have their own limit per chat.
+    pub fn uncapped() -> Self {
+        Self {
+            sessions: Sessions::default(),
+            cap: usize::MAX,
+        }
+    }
+
+    /// Kills a session's process; its exit is still reported, as for any other exit.
+    pub fn kill(&self, id: &str) -> bool {
+        lock(&self.sessions)
+            .get_mut(id)
+            .is_some_and(|session| session.killer.kill().is_ok())
+    }
+
     /// Ends one session. Its exit is not reported to the caller.
     pub fn close(&self, id: &str) -> bool {
         let Some(session) = lock(&self.sessions).remove(id) else {
@@ -320,6 +349,7 @@ mod tests {
             env: &env,
             cols: 80,
             rows: 24,
+            scrub_secrets: true,
         };
         let (data_tx, data_rx) = mpsc::channel();
         let (exit_tx, exit_rx) = mpsc::channel();
