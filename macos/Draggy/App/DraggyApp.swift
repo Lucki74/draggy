@@ -1,4 +1,5 @@
 import DraggyCore
+import OSLog
 import SwiftUI
 
 @main
@@ -10,7 +11,7 @@ struct DraggyApp: App {
         guard let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first else { return }
         let folder = library.appendingPathComponent("Logs/Draggy", isDirectory: true)
         if initLogging(dir: folder.path) {
-            Log.app.info("core logs in \(folder.path, privacy: .public)")
+            Logger.app.info("core logs in \(folder.path, privacy: .public)")
         }
     }
 
