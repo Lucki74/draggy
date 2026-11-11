@@ -100,11 +100,7 @@ fn logical_dump(path: &Path) -> BTreeMap<String, Vec<String>> {
         let mut statement = conn
             .prepare(&format!("SELECT * FROM {table}"))
             .expect("table exists");
-        let columns: Vec<String> = statement
-            .column_names()
-            .iter()
-            .map(|name| (*name).to_string())
-            .collect();
+        let columns: Vec<String> = statement.column_names().map(str::to_string).collect();
         let mut rows: Vec<String> = statement
             .query_map([], |row| {
                 let mut cells = Vec::new();

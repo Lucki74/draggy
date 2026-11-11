@@ -76,7 +76,7 @@ pub fn init_logging(dir: String) -> bool {
     let mut fresh = false;
     LOGGING.get_or_init(|| {
         fresh = true;
-        let pid = std::process::id();
+        let pid = draggy_tools::spawn::current_pid();
         let stamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|time| time.as_millis() as u32)
