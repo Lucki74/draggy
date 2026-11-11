@@ -24,10 +24,13 @@ macro_rules! register {
 
 mod app;
 mod call_log;
+mod files;
+mod git;
 mod logs;
 pub mod pending;
 mod shell;
 mod storage;
+mod web;
 
 pub use call_log::{arg_bytes, correlation_id, is_silent, scope_for};
 
@@ -65,6 +68,9 @@ impl Registry {
             warned: Mutex::new(HashSet::new()),
         };
         app::register_all(&mut registry);
+        files::register_all(&mut registry);
+        git::register_all(&mut registry);
+        web::register_all(&mut registry);
         logs::register_all(&mut registry);
         shell::register_all(&mut registry);
         storage::register_all(&mut registry);
