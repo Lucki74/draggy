@@ -4,6 +4,7 @@
 pub mod ipc;
 pub mod paths;
 pub mod quit;
+pub mod secrets;
 pub mod theme;
 
 use std::collections::hash_map::RandomState;
