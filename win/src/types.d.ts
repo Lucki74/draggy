@@ -228,6 +228,8 @@ export interface CommandResult {
   truncated?: boolean;
   durationMs?: number;
   shell?: string;
+  /** Why the command ran in another shell than the one asked for. */
+  notice?: string;
   /** Set when the command was moved to the background and is still running as this task. */
   detached?: boolean;
   background?: boolean;

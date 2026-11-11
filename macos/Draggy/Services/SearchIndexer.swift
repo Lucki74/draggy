@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 public final class SearchIndexer: Sendable {
     public static let shared = SearchIndexer()
@@ -12,6 +13,7 @@ public final class SearchIndexer: Sendable {
             var indexedFiles: [String] = []
 
             guard let enumerator = fm.enumerator(at: rootUrl, includingPropertiesForKeys: [.isRegularFileKey]) else {
+                Logger.tools.error("Search indexer could not enumerate the folder")
                 return []
             }
 

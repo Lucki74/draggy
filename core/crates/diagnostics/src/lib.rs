@@ -1,6 +1,7 @@
 //! Diagnostics writer, a port of electron/logger.cjs: `app.log`, `debug.log` and `events.jsonl`.
 //! Timers are lazy: a timed level or limited window fires on the next call or `tick`, stamped at its due time.
 
+mod bridge;
 mod clock;
 mod config;
 mod format;
@@ -22,6 +23,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use serde_json::{Map, Value, json};
 
+pub use bridge::TracingBridge;
 pub use clock::{Clock, SystemClock};
 pub use config::{
     Config, DEFAULT_MAX_BYTES, Level, LevelState, Scopes, debug_from_env_file, debug_setting,

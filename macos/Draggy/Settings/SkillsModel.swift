@@ -1,4 +1,5 @@
 import DraggyCore
+import OSLog
 import Foundation
 import Observation
 
@@ -33,6 +34,7 @@ final class SkillsModel {
             _ = try installSkill(dir: directory, source: url.path)
             lastError = nil
         } catch {
+            Logger.tools.error("Skill operation failed: \(error.localizedDescription, privacy: .public)")
             lastError = error.localizedDescription
         }
         refresh()
@@ -43,6 +45,7 @@ final class SkillsModel {
             try removeSkill(dir: directory, id: id)
             lastError = nil
         } catch {
+            Logger.tools.error("Skill operation failed: \(error.localizedDescription, privacy: .public)")
             lastError = error.localizedDescription
         }
         refresh()

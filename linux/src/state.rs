@@ -58,7 +58,13 @@ impl AppState {
     pub fn mcp(&self) -> Option<Arc<McpManager>> {
         let mut slot = self.mcp.borrow_mut();
         if slot.is_none() {
-            *slot = McpManager::new(None, None).ok();
+            *slot = match McpManager::new(None, None) {
+                Ok(manager) => Some(manager),
+                Err(error) => {
+                    tracing::error!(target: "linux.chat", error = ?error, "MCP manager could not start");
+                    None
+                }
+            };
         }
         slot.clone()
     }
@@ -85,7 +91,13 @@ impl AppState {
         let mut slot = self.storage.borrow_mut();
         if slot.is_none() {
             let dir = models::data_dir()?;
-            *slot = Storage::open(&dir).ok().map(Arc::new);
+            *slot = match Storage::open(&dir) {
+                Ok(storage) => Some(Arc::new(storage)),
+                Err(error) => {
+                    tracing::error!(target: "linux.app", error = ?error, "local database could not be opened");
+                    None
+                }
+            };
         }
         slot.clone()
     }
@@ -95,9 +107,13 @@ impl AppState {
         let mut slot = self.library.borrow_mut();
         if slot.is_none() {
             let dir = models::models_dir()?;
-            *slot = ModelLibrary::new(dir.to_string_lossy().into_owned())
-                .ok()
-                .map(Arc::new);
+            *slot = match ModelLibrary::new(dir.to_string_lossy().into_owned()) {
+                Ok(library) => Some(Arc::new(library)),
+                Err(error) => {
+                    tracing::error!(target: "linux.models", error = ?error, "model library could not start");
+                    None
+                }
+            };
         }
         slot.clone()
     }

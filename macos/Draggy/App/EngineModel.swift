@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import DraggyCore
 import Foundation
 import Metal
@@ -107,8 +108,10 @@ final class EngineModel {
             let installed = try await installer.install(gpuMemoryGb: Self.gpuMemoryGB(), observer: sink)
             binaryPath = installed.binaryPath
         } catch let error as CoreError {
+            Logger.engine.error("Engine install failed (core error)")
             installError = AppModel.message(for: error)
         } catch {
+            Logger.engine.error("Engine install failed: \(error.localizedDescription, privacy: .public)")
             installError = error.localizedDescription
         }
     }
@@ -131,8 +134,10 @@ final class EngineModel {
             phase = .running(info.model)
             onReady(info)
         } catch let error as CoreError {
+            Logger.engine.error("Engine start failed (core error)")
             phase = .failed(AppModel.message(for: error))
         } catch {
+            Logger.engine.error("Engine start failed: \(error.localizedDescription, privacy: .public)")
             phase = .failed(error.localizedDescription)
         }
     }

@@ -88,28 +88,30 @@ function shellInvocation(command, requested, options = {}) {
   let shell = SHELL_IDS.includes(requested) ? requested : "default";
   let notice;
 
-  // Inside the Windows sandbox only cmd starts: Git's bash dies loading its DLLs and PowerShell cannot
-  // enter the project folder, because the folders above it are not readable to the container.
-  if (windows && options.sandboxed && shell !== "cmd") {
-    if (shell !== "default") notice = `${shell} does not run inside the sandbox, so the command ran in cmd.`;
+  if (shell === "default" && windows) {
+    // The Default shell setting first, then bash when Git for Windows has it, then PowerShell.
+    const preferred = SHELL_IDS.includes(options.defaultShell) ? options.defaultShell : null;
+    if (preferred && (preferred === "cmd" || find(preferred))) {
+      shell = preferred;
+    } else {
+      if (preferred) notice = `${preferred} is not installed, so commands run in ${find("bash") ? "bash" : "PowerShell"} instead. Change the default shell in Settings.`;
+      shell = find("bash") ? "bash" : find("pwsh") ? "pwsh" : "powershell";
+    }
+  }
+
+  // Inside the Windows sandbox a shell runs only once a check showed it starts there (`sandboxShells`).
+  // Git's bash can die loading its DLLs in an AppContainer, where cmd always works.
+  if (windows && options.sandboxed && shell !== "cmd" && !(options.sandboxShells || []).includes(shell)) {
+    // Git's ls, grep and the rest are on PATH too and fail the same way, so the model is steered to cmd's own commands.
+    const posix = shell === "bash" || shell === "sh" ? " Git's Unix tools such as ls and grep do not start there either, so use cmd commands such as dir and findstr." : "";
+    notice = `${shell} does not start inside the sandbox, so the command ran in cmd.${posix}`;
     shell = "cmd";
   }
 
   if (shell === "default") {
-    if (windows) {
-      // The Default shell setting first, then bash when Git for Windows has it, then PowerShell.
-      const preferred = SHELL_IDS.includes(options.defaultShell) ? options.defaultShell : null;
-      if (preferred && (preferred === "cmd" || find(preferred))) {
-        shell = preferred;
-      } else {
-        if (preferred) notice = `${preferred} is not installed, so commands run in ${find("bash") ? "bash" : "PowerShell"} instead. Change the default shell in Settings.`;
-        shell = find("bash") ? "bash" : find("pwsh") ? "pwsh" : "powershell";
-      }
-    } else {
-      // The user's own shell, as a login shell, so PATH matches their terminal.
-      const own = env.SHELL && (options.exists || fs.existsSync)(env.SHELL) ? env.SHELL : find("bash") || "/bin/sh";
-      return { shell: path.basename(own), file: own, args: ["-lc", command] };
-    }
+    // The user's own shell, as a login shell, so PATH matches their terminal.
+    const own = env.SHELL && (options.exists || fs.existsSync)(env.SHELL) ? env.SHELL : find("bash") || "/bin/sh";
+    return { shell: path.basename(own), file: own, args: ["-lc", command] };
   }
 
   if (shell === "pwsh" || shell === "powershell") {
@@ -128,7 +130,10 @@ function shellInvocation(command, requested, options = {}) {
 
   if (shell === "cmd") {
     if (!windows) return { error: "cmd is only available on Windows." };
-    return { shell, file: env.ComSpec || env.COMSPEC || "cmd.exe", args: ["/d", "/s", "/c", `"${command}"`], verbatim: true, ...(notice ? { notice } : {}) };
+    // cmd writes in the OEM code page (850 on a French system), which reads as mangled UTF-8.
+    // Switching the console to UTF-8 first makes its own messages and dir listings decode cleanly.
+    const line = `chcp 65001>nul & ${command}`;
+    return { shell, file: env.ComSpec || env.COMSPEC || "cmd.exe", args: ["/d", "/s", "/c", `"${line}"`], verbatim: true, ...(notice ? { notice } : {}) };
   }
 
   const file = find(shell);

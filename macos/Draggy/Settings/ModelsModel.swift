@@ -1,4 +1,5 @@
 import DraggyCore
+import OSLog
 import Foundation
 import Observation
 
@@ -38,6 +39,7 @@ final class ModelsModel {
         do {
             library = try ModelLibrary(modelsDir: modelsDirectory.path)
         } catch {
+            Logger.models.error("Model library failed to start: \(error.localizedDescription, privacy: .public)")
             library = nil
             errorMessage = String(localized: "The model library could not start.")
         }
@@ -54,8 +56,10 @@ final class ModelsModel {
         do {
             installed = try library.installed()
         } catch let error as CoreError {
+            Logger.models.error("Model install failed (core error)")
             errorMessage = AppModel.message(for: error)
         } catch {
+            Logger.models.error("Model install failed: \(error.localizedDescription, privacy: .public)")
             errorMessage = error.localizedDescription
         }
     }
@@ -79,8 +83,10 @@ final class ModelsModel {
             refreshInstalled()
             if let model = installed.first(where: { $0.filename == filename }) { useModel(model.path) }
         } catch let error as CoreError {
+            Logger.models.error("Model download failed (core error)")
             errorMessage = AppModel.message(for: error)
         } catch {
+            Logger.models.error("Model download failed: \(error.localizedDescription, privacy: .public)")
             errorMessage = error.localizedDescription
         }
         downloading = nil
@@ -101,8 +107,10 @@ final class ModelsModel {
         do {
             _ = try library.delete(filename: model.filename)
         } catch let error as CoreError {
+            Logger.models.error("Model delete failed (core error)")
             errorMessage = AppModel.message(for: error)
         } catch {
+            Logger.models.error("Model delete failed: \(error.localizedDescription, privacy: .public)")
             errorMessage = error.localizedDescription
         }
         refreshInstalled()

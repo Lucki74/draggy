@@ -2,6 +2,7 @@ import { registerTools } from "./registry";
 import type { ToolContext, ToolSpec } from "./registry";
 import { loadProjectMemory } from "../project/load";
 import { renderFolderRules } from "../project/memory";
+import { logRendererEvent } from "../logger";
 
 /** The file tools. Each hands a path to the main process, the only side that knows which folders
  * this conversation was given. */
@@ -14,6 +15,15 @@ const NO_BRIDGE = "The file tools are not available in this build.";
 function nameOf(filePath: string): string {
   const parts = String(filePath).split(/[\\/]+/).filter(Boolean);
   return parts[parts.length - 1] || filePath;
+}
+
+/** Why a file tool came back without success: the bridge is missing, or the main process refused. */
+function reasonOf(result: { success?: boolean } | undefined): string {
+  return result ? "refused" : "no_bridge";
+}
+
+function bytesOf(text: string): number {
+  return new TextEncoder().encode(text).length;
 }
 
 /** A chat with no project reaches its own folder, which the main process names `chat:<id>`. */
@@ -86,6 +96,7 @@ const readFile: ToolSpec = {
     if (!result?.success) {
       ctx.patchStep(stepId, { isComplete: true, type: "error", reason: result?.error });
       ctx.syncSteps();
+      logRendererEvent("tools.files", "WARN", "file tool failed", { tool: "read_file", reason: reasonOf(result) });
       return `TOOL RESULT (read_file): ${result?.error || NO_BRIDGE}`;
     }
 
@@ -96,6 +107,11 @@ const readFile: ToolSpec = {
       ...(typeof result.text === "string" ? { lines: result.text.split("\n").length } : {}),
     });
     ctx.syncSteps();
+    logRendererEvent("tools.files", "DEBUG", "file tool ok", {
+      tool: "read_file",
+      bytes: typeof result.text === "string" ? bytesOf(result.text) : 0,
+      lines: typeof result.text === "string" ? result.text.split("\n").length : 0,
+    });
 
     const rules = await folderRules(ctx, result.path || target);
 
@@ -165,6 +181,7 @@ const editFile: ToolSpec = {
         content: `${ctx.t("savingFile")} **${nameOf(target)}**`,
       });
       ctx.syncSteps();
+      logRendererEvent("tools.files", "WARN", "file tool failed", { tool: "edit_file", reason: reasonOf(result) });
       return `TOOL RESULT (edit_file): ${result?.error || NO_BRIDGE}`;
     }
 
@@ -177,6 +194,7 @@ const editFile: ToolSpec = {
       after: result.after,
     });
     ctx.syncSteps();
+    logRendererEvent("tools.files", "DEBUG", "file tool ok", { tool: "edit_file", replaced: result.replaced ?? 0 });
 
     const rules = await folderRules(ctx, result.path || target);
 
@@ -229,6 +247,7 @@ const writeFile: ToolSpec = {
     if (!result?.success) {
       ctx.patchStep(stepId, { isComplete: true, type: "error", reason: result?.error });
       ctx.syncSteps();
+      logRendererEvent("tools.files", "WARN", "file tool failed", { tool: "write_file", reason: reasonOf(result) });
       return `TOOL RESULT (write_file): ${result?.error || NO_BRIDGE}`;
     }
 
@@ -242,6 +261,12 @@ const writeFile: ToolSpec = {
       after: result.after,
     });
     ctx.syncSteps();
+    logRendererEvent("tools.files", "DEBUG", "file tool ok", {
+      tool: "write_file",
+      bytes: bytesOf(contents),
+      lines: contents.split("\n").length,
+      created: Boolean(result.created),
+    });
 
     const rules = await folderRules(ctx, result.path || target);
 

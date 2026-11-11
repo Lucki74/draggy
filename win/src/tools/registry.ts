@@ -294,7 +294,7 @@ export async function runTool(
   let failed: boolean;
   try {
     result = await spec.run(args, context);
-    failed = result.startsWith("TOOL ERROR");
+    failed = result.startsWith("TOOL ERROR") || FAILED_RESULT.test(result);
   } catch (error) {
     failed = true;
     const message = error instanceof Error ? error.message : String(error);
@@ -305,7 +305,7 @@ export async function runTool(
       message,
     }, context.correlationId);
   }
-  logRendererEvent("renderer.tools", "DEBUG", "tool run", {
+  logRendererEvent("renderer.tools", failed ? "WARN" : "DEBUG", "tool run", {
     tool: name,
     durMs: Math.round(performance.now() - startedAt),
     ok: !failed,
@@ -314,6 +314,9 @@ export async function runTool(
   }, context.correlationId);
   return result;
 }
+
+/** A result that reports a failure without throwing: a non-zero exit code or a command that never started. */
+const FAILED_RESULT = /^TOOL RESULT \([^)]+\): (Exit code -?[1-9]|Could not run|Failed)/;
 
 export function resetRegistry(): void {
   registry.clear();

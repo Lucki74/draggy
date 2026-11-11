@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 public final class SearchEngine: Sendable {
     public static let shared = SearchEngine()
@@ -46,6 +47,7 @@ public final class SearchEngine: Sendable {
             }
 
             guard let content = try? String(contentsOf: fileUrl, encoding: .utf8) else {
+                Logger.tools.debug("Skipped unreadable file during search")
                 continue
             }
 

@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import Foundation
 import WebKit
 
@@ -10,6 +11,11 @@ public final class BrowserSnapshot {
 
     public func takeSnapshot(of view: WKWebView) async -> NSImage? {
         let config = WKSnapshotConfiguration()
-        return try? await view.takeSnapshot(configuration: config)
+        do {
+            return try await view.takeSnapshot(configuration: config)
+        } catch {
+            Logger.browser.error("Snapshot failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 }

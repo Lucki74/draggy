@@ -45,7 +45,30 @@ fn install_styles() {
     manager.connect_dark_notify(apply);
 }
 
+/// Starts the core's log files in `$XDG_STATE_HOME/draggy/logs` and logs panics there before the default hook runs.
+fn start_logging() {
+    let state = std::env::var_os("XDG_STATE_HOME")
+        .filter(|dir| !dir.is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| glib::home_dir().join(".local").join("state"));
+    let dir = state.join("draggy").join("logs");
+    if !draggy_core::init_logging(dir.to_string_lossy().into_owned()) {
+        return;
+    }
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let place = info
+            .location()
+            .map(|at| format!("{}:{}", at.file(), at.line()))
+            .unwrap_or_default();
+        tracing::error!(target: "app.panic", place = %place, "panic");
+        previous(info);
+    }));
+    tracing::info!(target: "app.lifecycle", version = env!("CARGO_PKG_VERSION"), "started");
+}
+
 fn main() -> glib::ExitCode {
+    start_logging();
     gio::resources_register_include!("draggy.gresource").expect("the bundled resources register");
     let app = adw::Application::builder().application_id(APP_ID).build();
     app.connect_startup(|_| install_styles());

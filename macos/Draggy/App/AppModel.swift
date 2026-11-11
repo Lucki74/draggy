@@ -1,4 +1,5 @@
 import DraggyCore
+import OSLog
 import Foundation
 import Observation
 
@@ -288,6 +289,7 @@ final class AppModel {
             try secrets.setSecret(key, for: Key.apiKey)
             session = nil
         } catch {
+            Logger.app.error("Keychain write failed: \(error.localizedDescription, privacy: .public)")
             errorMessage = String(localized: "The key could not be saved to the Keychain.")
         }
     }
@@ -302,6 +304,7 @@ final class AppModel {
             try secrets.setSecret(key.isEmpty ? nil : key, for: Key.braveKey)
             session = nil
         } catch {
+            Logger.app.error("Keychain write failed: \(error.localizedDescription, privacy: .public)")
             errorMessage = String(localized: "The key could not be saved to the Keychain.")
         }
     }
@@ -386,8 +389,10 @@ final class AppModel {
             let text = try await readDocument(path: url.path)
             draft = Attachment.append(text, named: url.lastPathComponent, to: draft)
         } catch let error as CoreError {
+            Logger.app.error("Operation failed (core error)")
             errorMessage = Self.message(for: error)
         } catch {
+            Logger.app.error("Operation failed: \(error.localizedDescription, privacy: .public)")
             errorMessage = error.localizedDescription
         }
     }
@@ -474,8 +479,10 @@ final class AppModel {
             transcript.setSteps(outcome.steps.map(transcriptStep))
             plan = session.plan()
         } catch let error as CoreError {
+            Logger.app.error("Operation failed (core error)")
             errorMessage = Self.message(for: error)
         } catch {
+            Logger.app.error("Operation failed: \(error.localizedDescription, privacy: .public)")
             errorMessage = error.localizedDescription
         }
         cancel = nil

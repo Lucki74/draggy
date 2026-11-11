@@ -1,6 +1,10 @@
 /** What a settings save changed, for one log line. Harmless keys carry old and new value; every
  * other key (instructions, URLs, anything free text) is named and nothing more. */
 
+const { log } = require("./logger.cjs");
+
+const SCOPE = "settings.log";
+
 const HARMLESS = new Set([
   "theme",
   "accent",
@@ -36,7 +40,8 @@ function parse(raw) {
   try {
     const value = typeof raw === "string" ? JSON.parse(raw) : raw;
     return value && typeof value === "object" && !Array.isArray(value) ? value : {};
-  } catch {
+  } catch (error) {
+    log.swallow(SCOPE, error, "settings value is not an object, treated as empty");
     return {};
   }
 }
@@ -56,11 +61,20 @@ function describeChange(before, after) {
     changed[key] = HARMLESS.has(key) ? { from: scalar(old[key] ?? null), to: scalar(next[key] ?? null) } : null;
   }
 
+  const keys = Object.keys(changed);
+  if (keys.length > 0) {
+    log.debug(SCOPE, "settings changed", {
+      changed: keys.length,
+      harmless: keys.filter((key) => HARMLESS.has(key)).length,
+      named: keys.filter((key) => !HARMLESS.has(key)).length,
+    });
+  }
   return changed;
 }
 
 /** A key written outside the settings blob: its name, never its value. */
 function describeKeySave(key) {
+  log.debug(SCOPE, "setting key saved", { key: String(key) });
   return { key: String(key) };
 }
 

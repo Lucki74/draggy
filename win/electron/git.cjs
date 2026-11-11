@@ -1,4 +1,5 @@
 const path = require("node:path");
+const { createHash } = require("node:crypto");
 const { buildEnv, runOnce } = require("./exec.cjs");
 const { findGitExe, findOnPath } = require("./shells.cjs");
 const { log } = require("./logger.cjs");
@@ -71,6 +72,7 @@ function defaultRun(args, cwd) {
     env: buildEnv({ GIT_OPTIONAL_LOCKS: "0" }),
     timeoutMs: GIT_TIMEOUT_MS,
     maxBuffer: 16 * 1024 * 1024,
+    quiet: true,
   }).then((result) => {
     if (result.missing) return { code: -1, stdout: "", stderr: "", missing: true };
 
@@ -181,6 +183,9 @@ function countChanges(files) {
 function createGit({ run = defaultRun } = {}) {
   let availability = null;
 
+  /** The last status digest per project folder. The 30 s poll logs at INFO only when this changes. */
+  const lastStatus = new Map();
+
   /** Whether there is a git to ask. Asked once; the answer does not change while Draggy runs. */
   function available() {
     if (!availability) {
@@ -222,6 +227,7 @@ function createGit({ run = defaultRun } = {}) {
         log.warn("files.git", "filter name refused", { filters: names.size });
         return null;
       }
+      log.debug("files.git", "filter disarmed", { filters: names.size });
       flags.push(
         "-c",
         `filter.${name}.clean=`,
@@ -257,7 +263,8 @@ function createGit({ run = defaultRun } = {}) {
       return { success: false, available: true, isRepo: true, error: REFUSED_CONFIG };
     }
 
-    const timer = log.time("files.git", "status");
+    // DEBUG: the poll runs every 30 s, so its timing stays out of the INFO log.
+    const timer = log.time("files.git", "status", undefined, { level: "DEBUG" });
     const result = await git(root, [
       ...disarmed,
       "status",
@@ -277,6 +284,20 @@ function createGit({ run = defaultRun } = {}) {
 
     const parsed = parseStatus(result.stdout, prefix);
     timer.end({ files: parsed.files.length, truncated: parsed.truncated });
+
+    // Only a change in the output is news. The digest keeps file names out of the log.
+    const digest = createHash("sha256").update(result.stdout).digest("hex").slice(0, 16);
+    if (lastStatus.get(root) !== digest) {
+      lastStatus.set(root, digest);
+      log.info("files.git", "status changed", {
+        branch: parsed.branch,
+        detached: parsed.detached,
+        ahead: parsed.ahead,
+        behind: parsed.behind,
+        files: parsed.files.length,
+        truncated: parsed.truncated,
+      });
+    }
 
     return {
       success: true,
@@ -430,7 +451,12 @@ function createGit({ run = defaultRun } = {}) {
     if (!(await available())) return { success: false, error: "Git is not installed." };
     if (named.length === 0) return { success: false, error: "No files were named." };
     const result = await git(root, ["add", "--", ...named]);
-    return result.code === 0 ? { success: true, files: named.length } : { success: false, error: firstLine(result.stderr) };
+    if (result.code === 0) {
+      log.info("files.git", "staged", { files: named.length });
+      return { success: true, files: named.length };
+    }
+    log.warn("files.git", "stage failed", { files: named.length, code: result.code, stderrTail: tailLines(result.stderr, 3) });
+    return { success: false, error: firstLine(result.stderr) };
   }
 
   /** Takes files back out of the next commit, leaving the working tree as it is. */
@@ -441,7 +467,12 @@ function createGit({ run = defaultRun } = {}) {
     // A repository with no commits has no HEAD to restore from; rm --cached does the same job.
     const hasHead = (await git(root, ["rev-parse", "--verify", "-q", "HEAD"])).code === 0;
     const result = await git(root, hasHead ? ["restore", "--staged", "--", ...named] : ["rm", "--cached", "-r", "-q", "--", ...named]);
-    return result.code === 0 ? { success: true, files: named.length } : { success: false, error: firstLine(result.stderr) };
+    if (result.code === 0) {
+      log.info("files.git", "unstaged", { files: named.length, firstCommit: !hasHead });
+      return { success: true, files: named.length };
+    }
+    log.warn("files.git", "unstage failed", { files: named.length, code: result.code, stderrTail: tailLines(result.stderr, 3) });
+    return { success: false, error: firstLine(result.stderr) };
   }
 
   /** Commits what is staged. Hooks stay off: they are programs the repository chose, and the person
@@ -458,6 +489,7 @@ function createGit({ run = defaultRun } = {}) {
       return { success: false, error: firstLine(result.stderr || result.stdout) };
     }
     const head = await git(root, ["rev-parse", "--short", "HEAD"]);
+    log.info("files.git", "committed", { hash: head.code === 0 ? head.stdout.trim() : null, messageLen: text.length });
     return { success: true, hash: head.code === 0 ? head.stdout.trim() : null };
   }
 
@@ -471,7 +503,12 @@ function createGit({ run = defaultRun } = {}) {
     if (valid.code !== 0) return { success: false, error: "That is not a branch name." };
 
     const result = await git(root, ["switch", "--no-guess", name]);
-    return result.code === 0 ? { success: true, branch: name } : { success: false, error: firstLine(result.stderr) };
+    if (result.code === 0) {
+      log.info("files.git", "branch switched", { hasName: true });
+      return { success: true, branch: name };
+    }
+    log.warn("files.git", "branch switch failed", { code: result.code, stderrTail: tailLines(result.stderr, 3) });
+    return { success: false, error: firstLine(result.stderr) };
   }
 
   /** The changes one commit made, against its first parent. Guarded files drop out by name. */

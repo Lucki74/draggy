@@ -125,7 +125,10 @@ impl TaskSet {
                     info.id
                 )
             }
-            Err(error) => format!("TOOL RESULT (run_command): {error}"),
+            Err(error) => {
+                tracing::warn!(target: "agent.task", reason = %error, "background command failed to start");
+                format!("TOOL RESULT (run_command): {error}")
+            }
         }
     }
 
@@ -141,7 +144,10 @@ impl TaskSet {
         };
         match reply {
             Ok(text) => format!("TOOL RESULT ({name}): {text}"),
-            Err(error) => format!("TOOL RESULT ({name}): {error}"),
+            Err(error) => {
+                tracing::warn!(target: "agent.task", tool = name, reason = %error, "task tool failed");
+                format!("TOOL RESULT ({name}): {error}")
+            }
         }
     }
 

@@ -194,7 +194,8 @@ function createTaskManager({
     if (!cwd || !fs.existsSync(cwd)) return { error: "The project folder is not available." };
     if (running(chatId).length >= MAX_RUNNING_PER_CHAT) return { error: capError(chatId) };
 
-    const invocation = shellInvocation(line, shell, { defaultShell, sandboxed: Boolean(boxed) });
+    // A task cannot wait on a shell check, so it uses the shells that commands already proved this run.
+    const invocation = shellInvocation(line, shell, { defaultShell, sandboxed: Boolean(boxed), sandboxShells: sandbox.provenShells() });
     if (invocation.error) return { error: invocation.error };
 
     // A pseudo-terminal cannot go through the launcher, so a sandboxed task runs on pipes.
@@ -240,7 +241,7 @@ function createTaskManager({
         task.handle = { write: null, resize: null, kill: stop, killSync: stop };
         if (!sandbox.needsGrant(launch)) begin();
         else {
-          append(task, "Setting up the sandbox for this folder. The first time can take a few minutes on a big project.\n");
+          append(task, sandbox.SETUP_NOTE);
           sandbox.ready(launch).then((result) => {
             if (result.error) finish(task, { error: `The sandbox could not get access to the folder: ${result.error}` });
             else begin();

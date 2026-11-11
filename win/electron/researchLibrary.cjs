@@ -1,6 +1,9 @@
 // The research library: finished runs with their sources, page snapshots and notes.
 // It shares the library database so snapshots can later join the chunk and embedding index.
 const crypto = require("crypto");
+const { log } = require("./logger.cjs");
+
+const SCOPE = "research.library";
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS research_runs (
@@ -63,8 +66,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 let db = null;
 
 function init(database) {
+  const timer = log.time(SCOPE, "schema ready", undefined, { level: "DEBUG" });
   db = database;
-  db.exec(SCHEMA);
+  try {
+    db.exec(SCHEMA);
+  } catch (error) {
+    log.fail(SCOPE, "schema setup failed", error);
+    throw error;
+  }
+  timer.end();
 }
 
 function hashText(text) {
@@ -76,11 +86,13 @@ function saveSnapshot(markdown, metadata = {}) {
   const hash = hashText(markdown);
   db.prepare("INSERT OR IGNORE INTO research_snapshots (hash, markdown, metadata_json) VALUES (?, ?, ?)")
     .run(hash, markdown, JSON.stringify(metadata));
+  log.debug(SCOPE, "snapshot saved", { chars: markdown.length });
   return hash;
 }
 
 function snapshot(hash) {
   const row = db.prepare("SELECT markdown, metadata_json FROM research_snapshots WHERE hash = ?").get(hash);
+  if (!row) log.debug(SCOPE, "snapshot not found");
   return row ? { markdown: row.markdown, metadata: JSON.parse(row.metadata_json) } : null;
 }
 
@@ -88,6 +100,7 @@ const str = (value) => (value === undefined || value === null ? null : String(va
 
 /** Writes a whole run in one transaction, replacing an earlier save of the same run. */
 function saveRun(run) {
+  const timer = log.time(SCOPE, "run saved", { runId: String(run.id), status: String(run.status) }, { level: "INFO" });
   db.exec("BEGIN");
   try {
     removeRunRows(run.id);
@@ -122,8 +135,10 @@ function saveRun(run) {
       addSearch.run(`${note.claim}\n${note.quote}`, run.id, "note", String(note.id));
     }
     db.exec("COMMIT");
+    timer.end({ sources: (run.sources ?? []).length, notes: (run.notes ?? []).length });
   } catch (error) {
     db.exec("ROLLBACK");
+    timer.fail(error);
     throw error;
   }
 }
@@ -146,8 +161,10 @@ function removeRun(id) {
     removeRunRows(String(id));
     pruneSnapshots();
     db.exec("COMMIT");
+    log.info(SCOPE, "run removed", { runId: String(id) });
   } catch (error) {
     db.exec("ROLLBACK");
+    log.fail(SCOPE, "run removal failed", error, { runId: String(id) });
     throw error;
   }
 }
@@ -181,7 +198,10 @@ function listRuns(workspaceId, limit = 100) {
 
 function getRun(id) {
   const row = db.prepare(`${SUMMARY_SQL} WHERE r.id = ?`).get(String(id));
-  if (!row) return null;
+  if (!row) {
+    log.debug(SCOPE, "run not found", { runId: String(id) });
+    return null;
+  }
   const sources = db.prepare("SELECT * FROM research_sources WHERE run_id = ? ORDER BY rowid").all(row.id).map((source) => ({
     id: source.id,
     url: source.url,
@@ -230,15 +250,20 @@ function searchRuns(query, options = {}) {
         FROM research_search WHERE research_search MATCH ? AND run_id = ? ORDER BY rank LIMIT ?`).all(match, String(options.runId), limit)
     : db.prepare(`SELECT run_id, kind, ref, snippet(research_search, 0, '', '', '…', 24) AS snippet
         FROM research_search WHERE research_search MATCH ? ORDER BY rank LIMIT ?`).all(match, limit);
+  log.debug(SCOPE, "search", { hits: rows.length, queryLen: String(query).length, scoped: Boolean(options.runId) });
   return rows.map((row) => ({ runId: row.run_id, kind: row.kind, ref: row.ref, snippet: row.snippet }));
 }
 
 /** Drops runs older than the retention setting. Returns how many went. */
 function applyRetention(setting, now = Date.now()) {
   const days = RETENTION_DAYS[String(setting)] ?? null;
-  if (!days) return 0;
+  if (!days) {
+    log.debug(SCOPE, "retention skipped", { setting: String(setting) });
+    return 0;
+  }
   const old = db.prepare("SELECT id FROM research_runs WHERE started_at < ?").all(now - days * DAY_MS);
   for (const row of old) removeRun(row.id);
+  log.info(SCOPE, "retention applied", { setting: String(setting), removed: old.length });
   return old.length;
 }
 

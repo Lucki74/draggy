@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import DraggyCore
 import Foundation
 import Observation
@@ -141,6 +142,7 @@ final class UpdateModel {
                 applyRestart()
             }
         } catch {
+            Logger.updater.error("Update flow failed: \(error.localizedDescription, privacy: .public)")
             closeUpdateWindow()
         }
     }

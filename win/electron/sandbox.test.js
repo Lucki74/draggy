@@ -2,10 +2,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const sandbox = require("./sandbox.cjs");
+const { log } = require("./logger.cjs");
 
 let workdir;
 
@@ -120,5 +121,69 @@ describe("ready", () => {
   it("lets an unsandboxed launch through at once", async () => {
     expect(sandbox.needsGrant({ file: "cmd.exe" })).toBe(false);
     expect(await sandbox.ready({ file: "cmd.exe" })).toEqual({});
+  });
+});
+
+describe("listFolders", () => {
+  const launch = { file: "draggy-sandbox.exe", grant: { cid: "chat" } };
+
+  it("asks for admin once per app run, even after a decline", async () => {
+    sandbox.resetAdminStep();
+    const asked = [];
+    const declining = (_launch, folders) => {
+      asked.push(folders);
+      return Promise.resolve({ success: false, declined: true });
+    };
+    await sandbox.listFolders(launch, ["C:\\Users", "C:\\", "C:\\Users"], declining);
+    await sandbox.listFolders(launch, ["C:\\Users"], declining);
+    expect(asked).toEqual([["C:\\Users", "C:\\"]]);
+    sandbox.resetAdminStep();
+  });
+
+  it("checks each shell once per identity and remembers the ones that start", async () => {
+    sandbox.resetAdminStep();
+    const shellLaunch = (identity) => ({ file: "draggy-sandbox.exe", grant: { key: `shell-${identity}`, cid: "chat", spec: { identity } } });
+    const checked = [];
+    const check = (target) => {
+      checked.push(target.grant.spec.identity);
+      return Promise.resolve(target.grant.spec.identity === "ok");
+    };
+    const grant = () => Promise.resolve({});
+    await sandbox.ready(shellLaunch("ok"), grant);
+    await sandbox.ready(shellLaunch("bad"), grant);
+    expect(await sandbox.shellWorks(shellLaunch("ok"), "pwsh", check)).toBe(true);
+    expect(await sandbox.shellWorks(shellLaunch("ok"), "pwsh", check)).toBe(true);
+    expect(await sandbox.shellWorks(shellLaunch("bad"), "bash", check)).toBe(false);
+    expect(checked).toEqual(["ok", "bad"]);
+    expect(sandbox.provenShells()).toEqual(["pwsh"]);
+    sandbox.resetAdminStep();
+  });
+
+  it("reads the folders the launcher could not open", () => {
+    expect(sandbox.NEEDS_ADMIN.exec("sandbox: needs-admin: C:\\Users")[1]).toBe("C:\\Users");
+    expect(sandbox.NEEDS_ADMIN.test("sandbox: warning: no access granted to C:\\x (error 5)")).toBe(false);
+  });
+});
+
+describe("sandbox logging", () => {
+  it("logs a refusal at WARN with the chat id", () => {
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
+    try {
+      const missing = path.join(workdir, "gone");
+      const result = sandbox.wrap({ file: "cmd.exe", args: [], cwd: missing, env: {} }, { project: missing, dataDir: workdir, chatKey: "chat-7" });
+      expect(result.error).toBeTruthy();
+      expect(warn).toHaveBeenCalledWith("proc.sandbox", expect.any(String), expect.objectContaining({ cid: "chat-7", reason: expect.any(String) }));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("removes spec files an earlier run left behind", () => {
+    const specs = path.join(workdir, "sandbox", "specs");
+    fs.mkdirSync(specs, { recursive: true });
+    fs.writeFileSync(path.join(specs, "old.json"), "{}");
+    fs.writeFileSync(path.join(specs, "keep.txt"), "");
+    expect(sandbox.sweepSpecs(workdir)).toBe(1);
+    expect(fs.readdirSync(specs)).toEqual(["keep.txt"]);
   });
 });

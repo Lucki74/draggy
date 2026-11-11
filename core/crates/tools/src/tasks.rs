@@ -268,7 +268,11 @@ impl TaskManager {
             (id, log)
         };
         let _ = std::fs::create_dir_all(&self.shared.logs);
-        let file = File::create(&log).ok();
+        let file = File::create(&log)
+            .inspect_err(|error| {
+                tracing::warn!(target: "tools.tasks", error_kind = ?error.kind(), "task log unavailable, output not kept");
+            })
+            .ok();
 
         let base = env.unwrap_or_else(|| std::env::vars_os().collect());
         let mut child = spawn_task_blocking(
@@ -330,7 +334,12 @@ impl TaskManager {
         mut child: Child,
         readers: Vec<std::thread::JoinHandle<()>>,
     ) {
-        let status = child.wait().ok();
+        let status = child
+            .wait()
+            .inspect_err(|error| {
+                tracing::warn!(target: "tools.tasks", error_kind = ?error.kind(), "task wait failed");
+            })
+            .ok();
         for reader in readers {
             // A grandchild holding the pipe open would block this forever after a stop; give up on it.
             if task.lock().stop_requested {
@@ -616,8 +625,10 @@ fn append(task: &Task, sink: &Mutex<Option<File>>, text: &str) {
     if text.is_empty() {
         return;
     }
-    if let Some(file) = sink.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
-        let _ = file.write_all(text.as_bytes());
+    if let Some(file) = sink.lock().unwrap_or_else(|e| e.into_inner()).as_mut()
+        && let Err(error) = file.write_all(text.as_bytes())
+    {
+        tracing::debug!(target: "tools.tasks", error_kind = ?error.kind(), "task output write failed");
     }
     {
         let mut run = task.lock();

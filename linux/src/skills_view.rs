@@ -44,10 +44,15 @@ pub fn build(notify: impl Fn(&str) + 'static) -> gtk::Widget {
             let window = button.root().and_downcast::<gtk::Window>();
             let (list, notify) = (list.clone(), notify.clone());
             dialog.select_folder(window.as_ref(), gio::Cancellable::NONE, move |result| {
-                let Some(path) = result.ok().and_then(|file| file.path()) else {
+                let Some(path) = result
+                    .inspect_err(|error| tracing::debug!(target: "linux.skills", error = %error, "folder dialog closed without a folder"))
+                    .ok()
+                    .and_then(|file| file.path())
+                else {
                     return;
                 };
                 let Some(dir) = skills_dir() else {
+                    tracing::error!(target: "linux.skills", "skills folder could not be found");
                     notify("The skills folder could not be found.");
                     return;
                 };
