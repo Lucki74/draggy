@@ -76,11 +76,20 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![ipc::ipc_invoke, ipc::ipc_send])
         .setup(|app| {
             let data_dir = paths::data_dir(std::env::var_os("APPDATA"))?;
+            // Before anything writes, so a legacy folder moves into an empty one.
+            let adopted = data_dir
+                .parent()
+                .map(|parent| paths::adopt_legacy_data_folder(parent, &data_dir))
+                .unwrap_or_default();
             std::fs::create_dir_all(data_dir.join("logs"))?;
             let diag = Arc::new(open_log(&data_dir));
+            for note in &adopted {
+                diag.info("appData", note, None);
+            }
             app.manage(AppState {
                 diag,
                 registry: Arc::new(ipc::Registry::build()),
