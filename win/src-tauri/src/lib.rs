@@ -118,6 +118,14 @@ pub fn run() {
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Draggy");
+        .build(tauri::generate_context!())
+        .expect("error while building Draggy")
+        .run(|app, event| {
+            // Every exit path ends here; without the marker the next launch reports a crash.
+            if let tauri::RunEvent::Exit = event
+                && let Some(state) = app.try_state::<AppState>()
+            {
+                state.diag.end_session(true);
+            }
+        });
 }
