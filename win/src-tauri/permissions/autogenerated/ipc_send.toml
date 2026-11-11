@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ipc-send"
+description = "Enables the ipc_send command without any pre-configured scope."
+commands.allow = ["ipc_send"]
+
+[[permission]]
+identifier = "deny-ipc-send"
+description = "Denies the ipc_send command without any pre-configured scope."
+commands.deny = ["ipc_send"]

@@ -1,0 +1,39 @@
+[package]
+name = "draggy-win"
+version = "3.0.5"
+description = "Draggy for Windows: Tauri shell around the React renderer"
+license = "Apache-2.0"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+# Standalone on purpose: core/ keeps its own workspace and lockfile.
+[workspace]
+
+[lib]
+name = "draggy_win"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "draggy-win"
+path = "src/main.rs"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+draggy-diagnostics = { path = "../../core/crates/diagnostics" }
+rusqlite = { version = "0.40", features = ["bundled"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+tokio = { version = "1", features = ["sync", "time"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }

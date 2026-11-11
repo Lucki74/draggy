@@ -1,3 +1,4 @@
+import "./platform/bridge";
 import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource-variable/geologica/full.css";

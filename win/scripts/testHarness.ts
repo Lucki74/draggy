@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -321,10 +321,6 @@ export function testHarness(): PluginOption {
           } catch (error) {
             return send(res, 200, { error: error instanceof Error ? error.message : String(error) });
           }
-        }
-        if (url.pathname === "/__test/preload.cjs") {
-          res.setHeader("Content-Type", "text/plain");
-          return res.end(readFileSync(path.join(ROOT, "electron", "preload.cjs"), "utf8"));
         }
         if (url.pathname === "/__test/unhandled") return send(res, 200, { channels: [...unhandled], counts: Object.fromEntries(counts) });
         if (url.pathname === "/__test/run" && req.method === "POST") return send(res, 200, await runCommand(await readJson(req)));

@@ -1,5 +1,7 @@
-/** Entry for /test (see scripts/testHarness.ts): the real app in a plain browser. The real preload runs
- * against a fake electron module whose calls go to the dev server, which stands in for the main process. */
+/** Entry for /test (see scripts/testHarness.ts): the real app in a plain browser. The real API object is
+ * built on a fake ipc whose calls go to the dev server, which stands in for the main process. */
+
+import { createElectronApi } from "./platform/electronApi";
 
 const realFetch = window.fetch.bind(window);
 
@@ -35,21 +37,7 @@ const ipcRenderer = {
 window.fetch = (input, init) =>
   typeof input === "string" && input.startsWith("draggy-ai://chat") ? realFetch("/__test/llm", init) : realFetch(input, init);
 
-const source = await realFetch("/__test/preload.cjs").then((r) => r.text());
-const electron = {
-  ipcRenderer,
-  contextBridge: {
-    exposeInMainWorld: (name: string, api: unknown) => {
-      (window as unknown as Record<string, unknown>)[name] = api;
-    },
-  },
-  webFrame: { setZoomFactor: () => {} },
-};
-new Function("require", "module", "process", source)(
-  (id: string) => (id === "electron" ? electron : {}),
-  { exports: {} },
-  { platform: "win32", env: {}, versions: {} },
-);
+(window as unknown as Record<string, unknown>).electronAPI = createElectronApi(ipcRenderer);
 
 const bootModel = new URLSearchParams(window.location.search).get("model") ?? "gguf:Qwen3.8-27B-Uncensored-Q4_K_M.gguf";
 (window as unknown as { __emit: (c: string, v: unknown) => void }).__emit("boot-model", bootModel);
