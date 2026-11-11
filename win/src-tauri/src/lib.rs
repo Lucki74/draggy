@@ -23,6 +23,7 @@ pub struct AppState {
     pub registry: Arc<ipc::Registry>,
     pub quit: Arc<quit::Quit>,
     pub storage: Arc<storage::Db>,
+    pub engines: Arc<engines::Engines>,
 }
 
 /// `logs/app.log`, `debug.log` and `events.jsonl` under the data folder, like the Electron build.
@@ -94,7 +95,9 @@ pub fn run() {
                 diag.info("appData", note, None);
             }
             let storage = Arc::new(storage::Db::open(&data_dir, &diag));
+            let engines = Arc::new(engines::Engines::new(&data_dir));
             app.manage(AppState {
+                engines,
                 storage,
                 diag,
                 registry: Arc::new(ipc::Registry::build()),
@@ -133,6 +136,8 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event
                 && let Some(state) = app.try_state::<AppState>()
             {
+                // No engine child may outlive the window.
+                tauri::async_runtime::block_on(state.engines.shutdown());
                 state.diag.end_session(true);
             }
         });
