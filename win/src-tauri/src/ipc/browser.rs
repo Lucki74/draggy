@@ -1,7 +1,7 @@
 //! The in-app browser pane's channels: where the pane sits, which tabs it holds and the pages in them.
 //! Each tab is a child webview of the main window that stays hidden until the renderer shows the pane.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -29,13 +29,15 @@ use crate::browser::cdp::CdpError;
 use crate::browser::cdp_webview2::WebView2Cdp;
 use crate::browser::dialogs::{self, DialogState};
 use crate::browser::elements;
+#[cfg(windows)]
+use crate::browser::input_watch::{self, AgentInput, Input};
 use crate::browser::observe::{self, Fail, Observer};
 use crate::browser::pages;
 use crate::browser::pane::{self, Bounds, MAX_TABS, Tabs};
 use crate::browser::policy;
 use crate::browser::safety::{Grants, RateLimit, Standing};
 use crate::browser::trace::Trace;
-use crate::browser::{act, safety};
+use crate::browser::{act, overlay, safety};
 
 const PANE_LABEL: &str = "browser-pane-";
 const MAIN_WINDOW: &str = "main";
@@ -79,6 +81,10 @@ pub struct Panes {
     /// The agent step in flight; a takeover sends `true` to it.
     run: Mutex<Option<watch::Sender<bool>>>,
     traces: Mutex<HashMap<String, Arc<Mutex<Trace>>>>,
+    /// Set by Esc in the pane; the agent's steps fail with `halted` until it passes.
+    halted_until: Mutex<Option<Instant>>,
+    /// The tabs whose user-input listener is installed.
+    watched: Mutex<HashSet<String>>,
 }
 
 impl Panes {
@@ -236,6 +242,8 @@ fn close_tab(app: &AppHandle, options: &Value) -> Value {
         return pages::failure("invalid_tab", None);
     };
     locked(&panes.dialogs).remove(gone.label());
+    locked(&panes.traces).remove(gone.label());
+    locked(&panes.watched).remove(gone.label());
     let _ = gone.close();
     apply_layout(&panes);
     json!({ "ok": true })
@@ -328,6 +336,8 @@ fn create_tab(app: &AppHandle, panes: &Panes) -> Result<Webview, String> {
         )
         .map_err(|error| error.to_string())?;
     webview.hide().map_err(|error| error.to_string())?;
+    // The trace starts with the tab, as Electron's does, so early console lines are kept.
+    trace_of(app, &webview);
     app.state::<AppState>()
         .diag
         .info("window.browser.pane", "pane tab created", None);
@@ -429,7 +439,7 @@ async fn page_title(_webview: &Webview) -> String {
 
 /// The page driver on this platform. Only Windows has a WebView2 pane to drive.
 #[cfg(windows)]
-type PageCdp = WebView2Cdp;
+type PageCdp = AgentInput<WebView2Cdp>;
 
 #[cfg(not(windows))]
 enum PageCdp {}
@@ -451,12 +461,86 @@ impl Cdp for PageCdp {
 
 #[cfg(windows)]
 fn page_cdp(app: &AppHandle) -> Option<PageCdp> {
-    front_webview(app).map(WebView2Cdp::new)
+    front_webview(app).map(|webview| AgentInput::new(WebView2Cdp::new(webview)))
 }
 
 #[cfg(not(windows))]
 fn page_cdp(_app: &AppHandle) -> Option<PageCdp> {
     None
+}
+
+/// Installs the user-input listener once per tab and re-arms the page's part of it.
+#[cfg(windows)]
+async fn arm_input(app: &AppHandle, cdp: &PageCdp) {
+    let Some(webview) = front_webview(app) else {
+        return;
+    };
+    let label = webview.label().to_owned();
+    if locked(&app.state::<Panes>().watched).insert(label) {
+        start_input_watch(app, webview);
+    }
+    let _ = pages::evaluate(cdp, input_watch::WATCH).await;
+}
+
+#[cfg(not(windows))]
+async fn arm_input(_app: &AppHandle, _cdp: &PageCdp) {}
+
+/// Listens for the page's binding calls for as long as the tab lives, as the trace pump does.
+#[cfg(windows)]
+fn start_input_watch(app: &AppHandle, webview: Webview) {
+    let cdp = Arc::new(WebView2Cdp::new(webview));
+    let mut rx = cdp.subscribe("Runtime.bindingCalled");
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = cdp.call("Runtime.enable", json!({})).await;
+        let _ = cdp
+            .call(
+                "Runtime.addBinding",
+                json!({ "name": input_watch::BINDING }),
+            )
+            .await;
+        loop {
+            match rx.recv().await {
+                Ok(params) => {
+                    if let Some(input) = input_watch::classify(&params) {
+                        on_input(&app, input);
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
+}
+
+/// Esc halts the agent for a while; any press ends the step that is running, if one is.
+#[cfg(windows)]
+fn on_input(app: &AppHandle, input: Input) {
+    let panes = app.state::<Panes>();
+    if input == Input::Escape {
+        *locked(&panes.halted_until) = Some(Instant::now() + input_watch::HALT);
+    }
+    if let Some(tx) = locked(&panes.run).as_ref() {
+        tx.send_replace(true);
+    }
+}
+
+fn halted(app: &AppHandle) -> bool {
+    locked(&app.state::<Panes>().halted_until).is_some_and(|until| Instant::now() < until)
+}
+
+/// Paints the agent's frame, moving the cursor to a point when one is given. A failed paint is not a failed step.
+async fn paint(cdp: &impl Cdp, point: Option<(f64, f64)>, click: bool) {
+    let script = overlay::paint_script(point, click, overlay::DEFAULT_COLOR);
+    let _ = overlay::run(cdp, &script).await;
+}
+
+/// Takes the agent's frame off the page once the run is over or the user has taken it.
+async fn hide_overlay(app: &AppHandle) {
+    let Some(cdp) = page_cdp(app) else {
+        return;
+    };
+    let _ = overlay::run(&cdp, &overlay::hide_script()).await;
 }
 
 async fn with_page<F, Fut>(app: &AppHandle, f: F) -> Value
@@ -467,6 +551,7 @@ where
     let Some(cdp) = page_cdp(app) else {
         return pages::failure("pane_unavailable", None);
     };
+    arm_input(app, &cdp).await;
     // A dialog freezes the page, so every step hears about it first.
     if let Some(open) = dialogs_of(app).and_then(|state| state.pending()) {
         let message = format!(
@@ -493,6 +578,9 @@ where
     F: FnOnce(Arc<PageCdp>) -> Fut,
     Fut: Future<Output = Result<Value, Fail>>,
 {
+    if halted(app) {
+        return pages::failure("halted", None);
+    }
     let (_, actions) = panes_parts(app);
     if !actions.take() {
         return pages::failure("rate_limited", None);
@@ -516,6 +604,7 @@ where
         let Some(dialogs) = dialogs_of(&gate) else {
             return pages::failure("pane_unavailable", None);
         };
+        paint(&*cdp, None, false).await;
         // A click that raises an alert never returns until the alert is answered.
         let mut out = tokio::select! {
             result = f(cdp.clone()) => match result {
@@ -597,11 +686,13 @@ async fn agent_stop(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError
     if let Some(tx) = locked(&app.state::<Panes>().run).as_ref() {
         tx.send_replace(true);
     }
+    hide_overlay(&app).await;
     Ok(json!({ "success": true }))
 }
 
-/// The run that drove the pane is over. The Electron overlay has no Tauri counterpart yet, so nothing else.
-async fn agent_release(_app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+/// The run that drove the pane is over, so the agent's frame comes off.
+async fn agent_release(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+    hide_overlay(&app).await;
     Ok(json!({ "success": true }))
 }
 
@@ -756,6 +847,9 @@ async fn click(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
             .and_then(Value::as_array)
             .map(|a| a.iter().filter_map(Value::as_str).collect())
             .unwrap_or_default();
+        paint(&*cdp, Some(point), false).await;
+        sleep(Duration::from_millis(400)).await;
+        paint(&*cdp, Some(point), true).await;
         act::click_at(
             &*cdp,
             point.0,
@@ -831,6 +925,7 @@ async fn hover(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     Ok(acting(&app, move |cdp| async move {
         let (x, y) = locate(&observer, &cdp, &target).await?;
         act::hover(&*cdp, x, y).await?;
+        paint(&*cdp, Some((x, y)), false).await;
         Ok(json!({}))
     })
     .await)
@@ -1300,10 +1395,11 @@ async fn broadcast_bar_state(app: &AppHandle) {
     let Some(cdp) = page_cdp(app) else {
         return;
     };
-    let script = "({ url: location.href, title: document.title || '', loading: document.readyState !== 'complete', canGoBack: history.length > 1, canGoForward: false })";
+    let script = "({ url: location.href, title: document.title || '', loading: document.readyState !== 'complete', canGoBack: history.length > 1 })";
     let Ok(mut state) = pages::evaluate(&cdp, script).await else {
         return;
     };
+    state["canGoForward"] = json!(pages::can_go_forward(&cdp).await);
     state["adblock"] = json!(adblock_on(app));
     emit(app, "browser-bar-state", state);
 }

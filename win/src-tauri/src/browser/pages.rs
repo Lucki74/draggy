@@ -165,6 +165,16 @@ const FAILURES: &[(&str, &str, &str)] = &[
         "Call browser_snapshot to see the page.",
     ),
     (
+        "halted",
+        "The user pressed Esc to stop the browser.",
+        "Stop and ask the user whether to continue.",
+    ),
+    (
+        "user_took_over",
+        "The user took over the browser, so this step was stopped.",
+        "Stop and ask the user what they want next. Do not retry the step unless they say so.",
+    ),
+    (
         "unknown",
         "The browser step failed.",
         "Call browser_get_elements to see the page, then retry.",
@@ -298,6 +308,26 @@ pub async fn history(cdp: &impl Cdp, action: &str, pace: Duration) -> Value {
         }
     }
     success(cdp).await
+}
+
+/// Whether the pane's history has an entry after the current one.
+pub async fn can_go_forward(cdp: &impl Cdp) -> bool {
+    match cdp.call("Page.getNavigationHistory", json!({})).await {
+        Ok(list) => forward_available(&list),
+        Err(_) => false,
+    }
+}
+
+fn forward_available(list: &Value) -> bool {
+    let current = list
+        .get("currentIndex")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let count = list
+        .get("entries")
+        .and_then(Value::as_array)
+        .map_or(0, Vec::len) as u64;
+    current + 1 < count
 }
 
 /// `Ok(None)` once the step is sent; `Ok(Some)` for a step the page cannot take.
@@ -481,5 +511,14 @@ mod tests {
         );
         let error: CdpError = evaluate(&cdp, "1+").await.unwrap_err();
         assert_eq!(error.0, "Uncaught");
+    }
+
+    #[test]
+    fn forward_follows_the_history_cursor() {
+        let at_end = json!({ "currentIndex": 1, "entries": [{ "id": 1 }, { "id": 2 }] });
+        let mid = json!({ "currentIndex": 0, "entries": [{ "id": 1 }, { "id": 2 }] });
+        assert!(!forward_available(&at_end));
+        assert!(forward_available(&mid));
+        assert!(!forward_available(&json!({})));
     }
 }

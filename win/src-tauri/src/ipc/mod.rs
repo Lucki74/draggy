@@ -182,9 +182,14 @@ async fn run(app: AppHandle, channel: String, args: Vec<Value>) -> Result<Value,
 #[tauri::command]
 pub async fn ipc_invoke(
     app: AppHandle,
+    webview: tauri::Webview,
     channel: String,
     args: Vec<Value>,
 ) -> Result<Value, String> {
+    // Browser channels drive the pane's pages, so only the main window may call them.
+    if channel.starts_with("browser-") && !is_main_window(webview.label()) {
+        return Err("browser channels are only accepted from the main window".to_owned());
+    }
     run(app, channel, args).await
 }
 
