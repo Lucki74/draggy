@@ -1,19 +1,26 @@
-//! Handlers for the image engine channels. Download, cancel and delete are here; the other sd:* channels are not ported yet.
+//! Handlers for the image engine channels: model downloads, the engine install, the server and image jobs.
 
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, PoisonError};
+use std::time::Duration;
 
+use base64::Engine as _;
+use draggy_engine::binary_manager::TarExtractor;
+use draggy_engine::sd_runner;
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
 
 use super::{IpcError, Registry, emit};
 use crate::AppState;
-use crate::engines::Engines;
 use crate::engines::image_models::families::{self, Family, ModelFile};
 use crate::engines::image_models::{self, CatalogueEntry, InstallError, InstallProgress};
+use crate::engines::sd::{self as sdlogic, Init, Placement};
+use crate::engines::sd_install::{self, Setup};
+use crate::engines::sysinfo;
+use crate::engines::{Engines, RUNNER, host_platform, locked, now_ms, to_fixed1};
 use crate::models::hub;
 use draggy_models::download::{
     DownloadError, DownloadRequest, Downloaded, Downloader, ReqwestClient, SystemEnv,
@@ -24,11 +31,26 @@ pub fn register_all(registry: &mut Registry) {
     register!(registry, "sd:download-repo" => download_repo);
     register!(registry, "sd:cancel-download" => cancel_download);
     register!(registry, "sd:delete-model" => delete_model);
+    register!(registry, "sd:status" => sd_status);
+    register!(registry, "sd:configure" => sd_configure);
+    register!(registry, "sd:setup-engine" => sd_setup_engine);
+    register!(registry, "sd:generate" => sd_generate);
+    register!(registry, "sd:cancel" => sd_cancel);
+    register!(registry, "sd:stop" => sd_stop);
 }
 
 /// Staged file names of each repository download in flight, keyed by the reference the renderer sent.
 static RUNNING: LazyLock<Mutex<HashMap<String, Vec<String>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// The model and picture size the Settings picked. Lives until the app quits.
+#[derive(Clone, Default)]
+struct Config {
+    model: String,
+    resolution: Option<(i64, i64)>,
+}
+
+static CONFIG: LazyLock<Mutex<Config>> = LazyLock::new(|| Mutex::new(Config::default()));
 
 fn text(args: &[Value], index: usize) -> String {
     match args.get(index) {
@@ -339,6 +361,9 @@ async fn delete_model(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcErro
     let id = text(&args, 0);
     let engines = app.state::<AppState>().engines.clone();
     let dir = image_dir(&engines);
+    if engines.sd.loaded_model().as_deref() == Some(id.as_str()) {
+        engines.sd.stop().await;
+    }
     let names: Vec<String> = if let Some(entry) = image_models::catalogue_entry(&id) {
         entry.files.iter().map(|f| f.filename.to_owned()).collect()
     } else if let Some(name) = id
@@ -355,5 +380,301 @@ async fn delete_model(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcErro
     for name in names {
         let _ = fs::remove_file(dir.join(name));
     }
+    Ok(json!({ "success": true }))
+}
+
+/// A failed result in the renderer's shape.
+fn failure(code: &str, message: impl Into<String>) -> Value {
+    json!({ "success": false, "code": code, "error": message.into() })
+}
+
+/// The picture folder's file name for a chat-stored starting image, as a data URL the engine reads.
+fn created_init(data: &Path, name: &str) -> Result<String, String> {
+    const UNREADABLE: &str = "The starting image could not be read";
+    let file = Path::new(name)
+        .file_name()
+        .ok_or_else(|| UNREADABLE.to_string())?;
+    let mime = sdlogic::created_mime(&file.to_string_lossy())
+        .ok_or_else(|| "The starting image is not a PNG, JPEG or WebP picture".to_string())?;
+    let bytes =
+        fs::read(super::files::created_dir(data).join(file)).map_err(|_| UNREADABLE.to_string())?;
+    let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+    Ok(format!("data:{mime};base64,{encoded}"))
+}
+
+/// The engine state the Settings page shows: the install, the runners, the chosen model and the server.
+async fn sd_status(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+    let engines = app.state::<AppState>().engines.clone();
+    let dir = image_dir(&engines);
+    let host = host_platform();
+    let nvidia = sd_install::has_nvidia_driver();
+    let (_, vram) = engines.specs().await;
+    let installed = sd_install::find_sd_binary(&engines.user_data, None);
+    let models = image_models::list_image_models(&dir);
+    let wanted = locked(&CONFIG).model.clone();
+    let model = sdlogic::chosen_model(&models, &wanted);
+    Ok(json!({
+        "success": true,
+        "release": sd_runner::release_for(host.os),
+        "installed": installed.is_some(),
+        "runner": installed.as_ref().map(|(_, runner)| runner.clone()),
+        "source": "managed",
+        "runners": sd_runner::runners_for(host.os, host.arch, nvidia, false),
+        "defaultRunner": sd_runner::default_runner(host.os, host.arch, vram, nvidia, false),
+        "model": model,
+        "models": models,
+        "ready": installed.is_some() && !model.is_empty(),
+        "server": engines.sd.status(),
+    }))
+}
+
+/// Saves the chosen model and picture size. A model name over 300 characters is refused.
+async fn sd_configure(_app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let body = args.first().cloned().unwrap_or(Value::Null);
+    let model = body.get("model").and_then(Value::as_str).unwrap_or("");
+    if model.chars().count() > 300 {
+        return Ok(failure("E_REQUEST", "The model name is too long"));
+    }
+    let resolution = sdlogic::parse_resolution(body.get("resolution").unwrap_or(&Value::Null));
+    *locked(&CONFIG) = Config {
+        model: model.to_owned(),
+        resolution,
+    };
+    Ok(json!({ "success": true }))
+}
+
+/// Stops the server and installs the best engine for this machine, reporting progress as engine-download.
+async fn sd_setup_engine(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+    let state = app.state::<AppState>();
+    let engines = state.engines.clone();
+    engines.sd.stop().await;
+    let Some(net) = engines.net.as_ref() else {
+        return Ok(json!({
+            "success": false,
+            "runner": null,
+            "kind": null,
+            "error": "The network is not available",
+        }));
+    };
+    let (_, vram) = engines.specs().await;
+    let extractor = TarExtractor::for_platform(&RUNNER, &host_platform());
+    let progress = |mut value: Value| {
+        value["status"] = json!("engine-download");
+        emit(&app, "sd:progress", value);
+    };
+    let result =
+        sd_install::ensure_engine(&engines.user_data, net, &extractor, vram, &progress).await;
+    match &result {
+        Setup::Ready { runner, .. } => {
+            state
+                .diag
+                .info("sd", &format!("image engine ready: {runner}"), None);
+        }
+        Setup::Failed { kind, .. } => {
+            state
+                .diag
+                .warn("sd", &format!("image engine setup failed: {kind}"), None);
+        }
+    }
+    Ok(result.to_value())
+}
+
+/// Runs one image job end to end: checks the request, starts or reuses the server, draws, and saves the picture.
+async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let state = app.state::<AppState>();
+    let engines = state.engines.clone();
+    let raw = args.first().cloned().unwrap_or(Value::Null);
+    let mut parsed = match sdlogic::parse_request(&raw) {
+        Ok(parsed) => parsed,
+        Err(error) => return Ok(failure(error.code, error.message)),
+    };
+    let request_id = parsed.request_id.clone();
+    let progress = |value: Value| {
+        let mut event = value;
+        event["requestId"] = json!(request_id);
+        emit(&app, "sd:progress", event);
+    };
+
+    let dir = image_dir(&engines);
+    let (_, vram) = engines.specs().await;
+    let config = locked(&CONFIG).clone();
+    let wanted = if parsed.model.is_empty() {
+        config.model.clone()
+    } else {
+        parsed.model.clone()
+    };
+    let chosen = sdlogic::chosen_model(&image_models::list_image_models(&dir), &wanted);
+    let missing = || failure("E_MODEL_MISSING", "The image model is not downloaded");
+    if chosen.is_empty() {
+        return Ok(missing());
+    }
+    let Some(resolved) = image_models::resolve_image_model(&dir, &chosen) else {
+        return Ok(missing());
+    };
+
+    let host = host_platform();
+    let nvidia = sd_install::has_nvidia_driver();
+    let preferred = sd_runner::default_runner(host.os, host.arch, vram, nvidia, false);
+    let Some((binary, runner)) = sd_install::find_sd_binary(&engines.user_data, preferred) else {
+        return Ok(failure(
+            "E_ENGINE_MISSING",
+            "The image engine is not installed",
+        ));
+    };
+
+    let loras_dir = image_models::loras_dir(&dir);
+    let available = image_models::list_loras(&dir);
+    let mut lora_inputs = Vec::new();
+    for (name, multiplier) in &parsed.loras {
+        let file = available
+            .iter()
+            .find(|lora| lora["name"].as_str() == Some(name.as_str()))
+            .and_then(|lora| lora["file"].as_str());
+        let Some(file) = file else {
+            return Ok(failure("E_LORA", format!("There is no LoRA called {name}")));
+        };
+        lora_inputs.push(json!({
+            "path": loras_dir.join(file).to_string_lossy(),
+            "multiplier": multiplier,
+        }));
+    }
+    parsed.input["lora"] = Value::Array(lora_inputs);
+
+    let has_init = match &parsed.init {
+        Init::None => false,
+        Init::Data(url) => {
+            parsed.input["initImage"] = json!(url);
+            true
+        }
+        Init::Created(name) => match created_init(&engines.user_data, name) {
+            Ok(url) => {
+                parsed.input["initImage"] = json!(url);
+                true
+            }
+            Err(message) => return Ok(failure("E_INIT_IMAGE", message)),
+        },
+    };
+    let no_size = parsed.input["width"].is_null() && parsed.input["height"].is_null();
+    if let Some((width, height)) = config.resolution.filter(|_| no_size) {
+        parsed.input["width"] = json!(width);
+        parsed.input["height"] = json!(height);
+    }
+
+    let family = resolved.family;
+    let hints = [chosen.as_str()];
+    let mode = families::reference_mode_of(family, &hints);
+    let defaults = families::defaults_for(family, &hints);
+    let need = image_models::memory_need_gb(&resolved, vram);
+    let gb = 1024_f64.powi(3);
+    let memory = sysinfo::memory();
+    let plan_memory = sdlogic::Memory {
+        free_vram_gb: None,
+        total_vram_gb: vram,
+        loaded_llm_gb: 0.0,
+        unified: false,
+        free_ram_gb: memory.free_bytes as f64 / gb,
+        total_ram_gb: memory.total_bytes as f64 / gb,
+        runner: runner.clone(),
+    };
+    let placement = sdlogic::plan_memory(need, &plan_memory);
+    if placement == Placement::Fail {
+        return Ok(json!({
+            "success": false,
+            "code": "E_VRAM",
+            "error": "Not enough memory for this image model",
+            "params": { "needGB": to_fixed1(need) },
+        }));
+    }
+
+    if engines.sd.loaded_model().as_deref() != Some(chosen.as_str()) {
+        progress(json!({ "status": "loading-model" }));
+        let mut args = match image_models::model_args(&resolved) {
+            Ok(args) => args,
+            Err(message) => return Ok(failure("E_MODEL_MISSING", message)),
+        };
+        args.push("--lora-model-dir".into());
+        args.push(loras_dir.to_string_lossy().into_owned());
+        if placement == Placement::Offload {
+            args.push("--offload-to-cpu".into());
+        }
+        let size_gb = resolved
+            .paths
+            .iter()
+            .map(|(_, path)| fs::metadata(path).map_or(0, |m| m.len()))
+            .sum::<u64>() as f64
+            / gb;
+        let deadline = Duration::from_millis(sdlogic::load_deadline_ms(size_gb));
+        if let Err(error) = engines.sd.start(&binary, &args, &chosen, deadline).await {
+            state
+                .diag
+                .warn("sd", &format!("server start failed: {}", error.code), None);
+            return Ok(failure(error.code, error.message));
+        }
+    }
+
+    let limits = sdlogic::limits_from(&engines.sd.capabilities().await);
+    let reference = has_init.then_some(mode);
+    let clamped = match sdlogic::clamp_request(&parsed.input, limits, defaults, reference) {
+        Ok(clamped) => clamped,
+        Err(error) => return Ok(failure(error.code, error.message)),
+    };
+    let body = sdlogic::build_job_body(&clamped);
+
+    let bytes = match engines.sd.generate(&request_id, body, &progress).await {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            let status = if error.code == "E_CANCELLED" {
+                "cancelled"
+            } else {
+                "error"
+            };
+            progress(json!({ "status": status, "error": error.message }));
+            if status == "error" {
+                state
+                    .diag
+                    .warn("sd", &format!("generate failed: {}", error.code), None);
+            }
+            return Ok(failure(error.code, error.message));
+        }
+    };
+
+    let out_dir = super::files::created_dir(&engines.user_data);
+    if let Err(error) = fs::create_dir_all(&out_dir) {
+        return Ok(failure("E_FAILED", error.to_string()));
+    }
+    let stamp = sdlogic::stamp_of(now_ms() / 1000);
+    let name = image_models::requests::output_name(&clamped.prompt, &stamp, |candidate| {
+        out_dir.join(candidate).exists()
+    });
+    let path = out_dir.join(&name);
+    if let Err(error) = fs::write(&path, &bytes) {
+        return Ok(failure("E_FAILED", error.to_string()));
+    }
+    progress(json!({ "status": "done" }));
+    Ok(json!({
+        "success": true,
+        "path": path.to_string_lossy(),
+        "filename": name,
+        "created": true,
+        "width": clamped.width,
+        "height": clamped.height,
+        "seed": clamped.seed,
+        "model": chosen,
+        "referenceUsed": reference.is_some(),
+        "referenceDropped": clamped.reference_dropped,
+    }))
+}
+
+/// Cancels one request by id. Returns whether the request was known and the cancel was taken.
+async fn sd_cancel(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let id = text(&args, 0);
+    let engines = app.state::<AppState>().engines.clone();
+    Ok(json!({ "success": engines.sd.cancel(&id).await }))
+}
+
+/// Stops the image server and frees its memory.
+async fn sd_stop(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+    let engines = app.state::<AppState>().engines.clone();
+    engines.sd.stop().await;
     Ok(json!({ "success": true }))
 }

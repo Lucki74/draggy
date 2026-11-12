@@ -8,6 +8,8 @@ pub mod image_models;
 pub mod load_stage;
 pub mod net;
 pub mod sd;
+pub mod sd_install;
+pub mod sd_server;
 pub mod sysinfo;
 
 use std::path::{Path, PathBuf};
@@ -53,6 +55,7 @@ pub struct Engines {
     pub projectors: Mutex<Projectors>,
     pub capabilities: Mutex<CapabilityCache>,
     pub colibri: colibri::ColibriServer,
+    pub sd: sd_server::SdServer,
 }
 
 pub fn host_platform() -> Platform {
@@ -105,6 +108,7 @@ impl Engines {
             projectors: Mutex::new(Projectors::new()),
             capabilities: Mutex::new(CapabilityCache::default()),
             colibri: colibri::ColibriServer::new(),
+            sd: sd_server::SdServer::new(),
         }
     }
 
@@ -207,6 +211,7 @@ impl Engines {
             llama.stop().await;
         }
         self.colibri.stop().await;
+        self.sd.stop().await;
     }
 }
 

@@ -1,6 +1,7 @@
 //! The image engine's pure rules: smoke-test verdicts, archive entry safety, memory placement, request sizing.
 //! Port of the pure parts of electron/sdServer.cjs and sdBinaryManager.cjs; the process and download half follows.
 
+use crate::engines::image_models::requests;
 use draggy_engine::platform::{Arch, Os};
 use draggy_engine::sd_runner::default_runner;
 use serde_json::{Value, json};
@@ -343,6 +344,295 @@ pub fn build_job_body(clamped: &Clamped) -> Value {
     body
 }
 
+/// The route that answers 200 once the weights are loaded.
+pub const READY_PATH: &str = "/sdcpp/v1/capabilities";
+
+/// Where a request's starting picture comes from.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Init {
+    None,
+    /// A picture sent inline as a data URL.
+    Data(String),
+    /// A picture in the created-files folder, by the path the chat stored.
+    Created(String),
+}
+
+/// A checked `sd:generate` request: the engine input before LoRA and picture lookups.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Parsed {
+    pub request_id: String,
+    pub model: String,
+    pub loras: Vec<(String, f64)>,
+    pub init: Init,
+    pub input: Value,
+}
+
+fn refuse(message: impl Into<String>) -> SdError {
+    SdError {
+        code: "E_REQUEST",
+        message: message.into(),
+    }
+}
+
+fn is_image_data_url(url: &str) -> bool {
+    let lower = url.to_ascii_lowercase();
+    url.len() <= requests::MAX_INIT_IMAGE_CHARS
+        && ["png", "jpg", "jpeg", "webp", "bmp", "gif"]
+            .iter()
+            .any(|kind| lower.starts_with(&format!("data:image/{kind};base64,")))
+}
+
+/// A number clamped to [min, max], or null when it is not a finite number.
+fn bounded(raw: Option<&Value>, min: f64, max: f64) -> Value {
+    raw.and_then(number)
+        .map_or(Value::Null, |n| json!(n.clamp(min, max)))
+}
+
+/// Checks a request the way the Electron side does. Refusals carry the app's own text and the E_REQUEST code.
+pub fn parse_request(raw: &Value) -> Result<Parsed, SdError> {
+    let text = |key: &str| {
+        raw.get(key)
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim()
+            .to_owned()
+    };
+    let request_id = text("requestId");
+    let id_ok = !request_id.is_empty()
+        && request_id.len() <= 64
+        && request_id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+    if !id_ok {
+        return Err(refuse("A request needs an id"));
+    }
+    let prompt = text("prompt");
+    if prompt.is_empty() {
+        return Err(refuse("An image needs a description"));
+    }
+    if prompt.chars().count() > MAX_PROMPT {
+        return Err(refuse(format!(
+            "The description is longer than {MAX_PROMPT} characters"
+        )));
+    }
+
+    let mut loras = Vec::new();
+    for item in raw
+        .get("lora")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .take(4)
+    {
+        let entry = item
+            .as_str()
+            .map_or_else(|| item.to_string(), str::to_owned);
+        let lora = requests::parse_lora(&entry).ok_or_else(|| {
+            refuse(format!(
+                "Not a LoRA name: {}",
+                entry.chars().take(80).collect::<String>()
+            ))
+        })?;
+        loras.push((lora.name, lora.multiplier));
+    }
+
+    let init = match raw.get("init").filter(|v| v.is_object()) {
+        None => Init::None,
+        Some(init) => match init.get("kind").and_then(Value::as_str) {
+            Some("attachment") => {
+                let url = init.get("dataUrl").and_then(Value::as_str).unwrap_or("");
+                if !is_image_data_url(url) {
+                    return Err(refuse("The starting image is not a usable picture"));
+                }
+                Init::Data(url.to_owned())
+            }
+            Some("created") => {
+                let path = init
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .trim();
+                if path.is_empty() {
+                    return Err(refuse("The starting image needs a path"));
+                }
+                Init::Created(path.to_owned())
+            }
+            Some("project") => {
+                return Err(refuse(
+                    "A starting image from a project is not available yet",
+                ));
+            }
+            _ => return Err(refuse("Unknown starting image")),
+        },
+    };
+    let saves_to_project = raw
+        .get("destination")
+        .and_then(|d| d.get("kind"))
+        .and_then(Value::as_str)
+        == Some("project");
+    if saves_to_project {
+        return Err(refuse("Saving into a project is not available yet"));
+    }
+
+    let flag = |key: &str| raw.get(key).and_then(Value::as_bool) == Some(true);
+    let seed = match raw.get("seed").and_then(number) {
+        Some(n) if n.fract() == 0.0 && n >= 0.0 => json!(n),
+        _ => json!(-1),
+    };
+    let negative: String = raw
+        .get("negativePrompt")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .chars()
+        .take(MAX_PROMPT)
+        .collect();
+    let input = json!({
+        "prompt": prompt,
+        "negativePrompt": negative,
+        "width": bounded(raw.get("width"), 64.0, 2048.0),
+        "height": bounded(raw.get("height"), 64.0, 2048.0),
+        "steps": bounded(raw.get("steps"), 1.0, 150.0),
+        "cfgScale": bounded(raw.get("cfgScale"), 0.0, 30.0),
+        "seed": seed,
+        "strength": bounded(raw.get("strength"), 0.0, 1.0),
+        "hires": flag("hires"),
+        "fitModel": flag("fitModel"),
+        "outputFormat": "png",
+    });
+    Ok(Parsed {
+        request_id,
+        model: raw
+            .get("model")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .chars()
+            .take(300)
+            .collect(),
+        loras,
+        init,
+        input,
+    })
+}
+
+/// A `WIDTHxHEIGHT` setting with 2 to 4 digits a side, or None.
+pub fn parse_resolution(raw: &Value) -> Option<(i64, i64)> {
+    let text = match raw {
+        Value::String(s) => s.clone(),
+        _ => return None,
+    };
+    let (w, h) = text.split_once('x')?;
+    let side = |s: &str| (2..=4).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_digit());
+    if !(side(w) && side(h)) {
+        return None;
+    }
+    Some((w.parse().ok()?, h.parse().ok()?))
+}
+
+/// `YYYY-MM-DD-HHMMSS` in UTC for a Unix time in seconds, the stamp picture file names start with.
+pub fn stamp_of(unix_secs: i64) -> String {
+    let days = unix_secs.div_euclid(86_400);
+    let secs = unix_secs.rem_euclid(86_400);
+    // Civil date from a day count since 1970-01-01 (proleptic Gregorian).
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!(
+        "{year:04}-{month:02}-{day:02}-{:02}{:02}{:02}",
+        secs / 3600,
+        secs % 3600 / 60,
+        secs % 60
+    )
+}
+
+/// The MIME type of a starting picture by its file name, for the picture formats the engine reads.
+pub fn created_mime(name: &str) -> Option<&'static str> {
+    let lower = name.to_ascii_lowercase();
+    [
+        (".png", "image/png"),
+        (".jpg", "image/jpeg"),
+        (".jpeg", "image/jpeg"),
+        (".webp", "image/webp"),
+    ]
+    .iter()
+    .find(|(ext, _)| lower.ends_with(ext))
+    .map(|(_, mime)| *mime)
+}
+
+/// The model to draw with: the chosen one when installed, otherwise the first installed, otherwise "".
+pub fn chosen_model(listed: &[Value], wanted: &str) -> String {
+    let installed = |entry: &&Value| entry["installed"] == Value::Bool(true);
+    if listed
+        .iter()
+        .filter(installed)
+        .any(|entry| entry["id"].as_str() == Some(wanted))
+    {
+        return wanted.to_owned();
+    }
+    listed
+        .iter()
+        .find(installed)
+        .and_then(|entry| entry["id"].as_str())
+        .unwrap_or("")
+        .to_owned()
+}
+
+/// The `sd:status` server block: whether a process runs, its model, and the queue.
+pub fn server_status(running: bool, model: Option<&str>, pending: usize) -> Value {
+    json!({
+        "running": running,
+        "model": if running { model.map_or(Value::Null, |m| json!(m)) } else { Value::Null },
+        "busy": pending > 0,
+        "queued": pending.saturating_sub(1),
+    })
+}
+
+/// How long a model may take to load, from its size in GB: 30 s a GB, between one and ten minutes.
+pub fn load_deadline_ms(size_gb: f64) -> u64 {
+    (size_gb.ceil() * 30_000.0).clamp(60_000.0, 600_000.0) as u64
+}
+
+/// The engine's advertised size limits, with the app's fallbacks for anything it does not state.
+pub fn limits_from(capabilities: &Value) -> Limits {
+    let limits = capabilities.get("limits");
+    let read = |key: &str, fallback: f64| {
+        limits
+            .and_then(|l| l.get(key))
+            .and_then(number)
+            .unwrap_or(fallback)
+    };
+    Limits {
+        min_width: read("min_width", FALLBACK_LIMITS.min_width),
+        max_width: read("max_width", FALLBACK_LIMITS.max_width),
+        min_height: read("min_height", FALLBACK_LIMITS.min_height),
+        max_height: read("max_height", FALLBACK_LIMITS.max_height),
+    }
+}
+
+/// The installed runner names, sorted, with the preferred one first.
+pub fn order_runners(mut names: Vec<String>, preferred: Option<&str>) -> Vec<String> {
+    names.sort();
+    if let Some(first) = preferred.and_then(|p| names.iter().position(|n| n == p)) {
+        let chosen = names.remove(first);
+        names.insert(0, chosen);
+    }
+    names
+}
+
+/// The binary's file name on this OS.
+pub fn server_name(windows: bool) -> &'static str {
+    if windows {
+        "sd-server.exe"
+    } else {
+        "sd-server"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -559,5 +849,135 @@ mod tests {
         assert_eq!(body["init_image"], json!("IMG"));
         assert_eq!(body["sample_params"]["sample_steps"], json!(20));
         assert_eq!(body["hires"]["upscaler"], json!("Latent"));
+    }
+}
+
+#[cfg(test)]
+mod port_tests {
+    use super::*;
+
+    #[test]
+    fn stamp_is_utc_and_zero_padded() {
+        assert_eq!(stamp_of(0), "1970-01-01-000000");
+        assert_eq!(stamp_of(1_767_225_600 + 3723), "2026-01-01-010203");
+    }
+
+    #[test]
+    fn resolution_needs_two_to_four_digits_a_side() {
+        assert_eq!(parse_resolution(&json!("512x768")), Some((512, 768)));
+        assert_eq!(parse_resolution(&json!("5x768")), None);
+        assert_eq!(parse_resolution(&json!("512X768")), None);
+        assert_eq!(parse_resolution(&json!("12345x768")), None);
+        assert_eq!(parse_resolution(&json!(512)), None);
+    }
+
+    #[test]
+    fn created_pictures_by_extension() {
+        assert_eq!(created_mime("a.PNG"), Some("image/png"));
+        assert_eq!(created_mime("a.jpeg"), Some("image/jpeg"));
+        assert_eq!(created_mime("a.gif"), None);
+    }
+
+    #[test]
+    fn chosen_model_prefers_wanted_then_first_installed() {
+        let listed = vec![
+            json!({"id": "a", "installed": true}),
+            json!({"id": "b", "installed": true}),
+            json!({"id": "c", "installed": false}),
+        ];
+        assert_eq!(chosen_model(&listed, "b"), "b");
+        assert_eq!(chosen_model(&listed, "c"), "a");
+        assert_eq!(chosen_model(&listed, "z"), "a");
+        assert_eq!(chosen_model(&[], "a"), "");
+    }
+
+    #[test]
+    fn status_hides_model_when_not_running() {
+        let idle = server_status(false, Some("m"), 0);
+        assert_eq!(idle["running"], json!(false));
+        assert_eq!(idle["model"], Value::Null);
+        let busy = server_status(true, Some("m"), 3);
+        assert_eq!(busy["model"], json!("m"));
+        assert_eq!(busy["busy"], json!(true));
+        assert_eq!(busy["queued"], json!(2));
+    }
+
+    #[test]
+    fn load_deadline_is_thirty_seconds_a_gb_within_bounds() {
+        assert_eq!(load_deadline_ms(0.1), 60_000);
+        assert_eq!(load_deadline_ms(5.0), 150_000);
+        assert_eq!(load_deadline_ms(50.0), 600_000);
+    }
+
+    #[test]
+    fn limits_read_the_engine_and_fall_back() {
+        let limits = limits_from(&json!({"limits": {"max_width": 1024}}));
+        assert_eq!(limits.max_width, 1024.0);
+        assert_eq!(limits.max_height, FALLBACK_LIMITS.max_height);
+        assert_eq!(limits_from(&Value::Null), FALLBACK_LIMITS);
+    }
+
+    #[test]
+    fn runners_sorted_with_preferred_first() {
+        let names = vec!["vulkan".to_owned(), "cpu".to_owned(), "cuda".to_owned()];
+        assert_eq!(
+            order_runners(names.clone(), Some("cuda")),
+            ["cuda", "cpu", "vulkan"]
+        );
+        assert_eq!(order_runners(names, None), ["cpu", "cuda", "vulkan"]);
+    }
+
+    #[test]
+    fn server_file_name_by_os() {
+        assert_eq!(server_name(true), "sd-server.exe");
+        assert_eq!(server_name(false), "sd-server");
+    }
+
+    #[test]
+    fn request_needs_id_and_description() {
+        let no_id = parse_request(&json!({"prompt": "x"})).unwrap_err();
+        assert_eq!(no_id.code, "E_REQUEST");
+        assert_eq!(no_id.message, "A request needs an id");
+        let no_prompt = parse_request(&json!({"requestId": "r1", "prompt": "  "})).unwrap_err();
+        assert_eq!(no_prompt.message, "An image needs a description");
+        let long = "x".repeat(MAX_PROMPT + 1);
+        let too_long = parse_request(&json!({"requestId": "r1", "prompt": long})).unwrap_err();
+        assert_eq!(
+            too_long.message,
+            format!("The description is longer than {MAX_PROMPT} characters")
+        );
+    }
+
+    #[test]
+    fn request_refuses_unusable_starting_pictures_and_projects() {
+        let svg = json!({"requestId": "r1", "prompt": "x",
+            "init": {"kind": "attachment", "dataUrl": "data:image/svg+xml;base64,AA"}});
+        assert_eq!(
+            parse_request(&svg).unwrap_err().message,
+            "The starting image is not a usable picture"
+        );
+        let unknown = json!({"requestId": "r1", "prompt": "x", "init": {"kind": "web"}});
+        assert_eq!(
+            parse_request(&unknown).unwrap_err().message,
+            "Unknown starting image"
+        );
+        let project = json!({"requestId": "r1", "prompt": "x", "destination": {"kind": "project"}});
+        assert!(parse_request(&project).is_err());
+    }
+
+    #[test]
+    fn request_keeps_valid_fields_and_resets_bad_seed() {
+        let parsed = parse_request(&json!({
+            "requestId": "r1",
+            "prompt": "  a fox  ",
+            "seed": -5,
+            "width": 9000,
+        }))
+        .unwrap();
+        assert_eq!(parsed.request_id, "r1");
+        assert_eq!(parsed.input["prompt"], json!("a fox"));
+        assert_eq!(parsed.input["seed"], json!(-1));
+        assert_eq!(parsed.input["width"], json!(2048.0));
+        assert_eq!(parsed.init, Init::None);
     }
 }

@@ -812,7 +812,7 @@ async fn fs_search(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
     .await
 }
 
-fn created_dir(data: &Path) -> PathBuf {
+pub(crate) fn created_dir(data: &Path) -> PathBuf {
     data.join("created_files")
 }
 

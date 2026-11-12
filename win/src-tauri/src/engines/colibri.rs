@@ -163,7 +163,7 @@ fn text(error: impl std::fmt::Display) -> String {
 }
 
 /// Downloads `url` to `dest` and refuses it unless its SHA-256 equals `expected`.
-async fn download_verified<D: Downloader>(
+pub(crate) async fn download_verified<D: Downloader>(
     net: &D,
     url: &str,
     dest: &Path,
@@ -190,7 +190,7 @@ async fn download_verified<D: Downloader>(
 }
 
 /// Throttled progress: at most one event per 100 ms, and always the last one.
-fn reporter(total: u64, progress: &(dyn Fn(Value) + Sync)) -> impl Fn(u64) + Sync + '_ {
+pub(crate) fn reporter(total: u64, progress: &(dyn Fn(Value) + Sync)) -> impl Fn(u64) + Sync + '_ {
     let state = Mutex::new((0_u64, None::<Instant>));
     move |bytes| {
         let mut guard = state.lock().unwrap_or_else(PoisonError::into_inner);
