@@ -130,7 +130,7 @@ describe("which skills a side offers", () => {
 
   it("fits a whole side of the shipped library, switched on, inside the list's cap", () => {
     const library = JSON.parse(
-      fs.readFileSync(path.join(__dirname, "..", "..", "electron", "skills-library", "library.json"), "utf8"),
+      fs.readFileSync(path.join(__dirname, "..", "..", "skills-library", "library.json"), "utf8"),
     ) as { skills: { id: string; surface: "chat" | "code" | "both"; on: boolean }[] };
 
     for (const surface of ["chat", "code"] as const) {
@@ -141,7 +141,7 @@ describe("which skills a side offers", () => {
 
   it("keeps the document skills on and out of the user's reach", () => {
     const library = JSON.parse(
-      fs.readFileSync(path.join(__dirname, "..", "..", "electron", "skills-library", "library.json"), "utf8"),
+      fs.readFileSync(path.join(__dirname, "..", "..", "skills-library", "library.json"), "utf8"),
     ) as { skills: { id: string; on: boolean; locked?: boolean }[] };
 
     for (const id of ["docx", "xlsx", "pptx", "pdf", "draggy-help"]) {
@@ -162,7 +162,7 @@ describe("which skills a side offers", () => {
         ),
     );
 
-    const libraryDir = path.join(__dirname, "..", "..", "electron", "skills-library");
+    const libraryDir = path.join(__dirname, "..", "..", "skills-library");
     const prefixes = /\b(?:search|read|create|run|list|edit|write|move|delete|git|update|use|browser)_[a-z_]+\b/g;
 
     for (const id of fs.readdirSync(libraryDir).filter((name) => !name.includes("."))) {

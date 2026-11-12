@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'dist-electron', 'src-tauri/target', 'src-tauri/gen', '.claude', 'scratch']),
+  globalIgnores(['dist', 'src-tauri/target', 'src-tauri/gen', '.claude', 'scratch']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -23,10 +23,10 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
-  // The main process and the build scripts. Without a block of their own these are parsed and then
+  // The build scripts. Without a block of their own these are parsed and then
   // left alone: no rules run, and `require`, `process` and `__dirname` read as undefined globals.
   {
-    files: ['electron/**/*.cjs', 'scripts/**/*.mjs', '*.config.js'],
+    files: ['scripts/**/*.mjs', '*.config.js'],
     extends: [js.configs.recommended],
     languageOptions: {
       globals: { ...globals.node },

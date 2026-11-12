@@ -13,4 +13,4 @@ if ($PSScriptRoot) {
   Set-Location -LiteralPath $PSScriptRoot
 }
 
-npm run electron:dev
+npm run tauri:dev
