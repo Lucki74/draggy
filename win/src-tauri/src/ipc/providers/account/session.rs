@@ -31,6 +31,7 @@ impl Session {
             command.current_dir(cwd).env_clear().envs(env);
         })
         .stdin(Stdio::piped())
+        .kill_on_drop(true)
         .spawn()
         .map_err(|_| UNAVAILABLE.to_owned())?;
         let stdin = child.stdin.take().ok_or_else(|| UNAVAILABLE.to_owned())?;
@@ -100,7 +101,24 @@ impl Session {
         self.write(&frame).await
     }
 
-    async fn write(&mut self, message: &Value) -> Result<(), String> {
+    /// The next JSON line the runtime prints, or None once its output ends. Cancel-safe, so a caller may race it.
+    pub async fn next_message(&mut self) -> Result<Option<Value>, String> {
+        loop {
+            let Some(line) = self
+                .lines
+                .next_line()
+                .await
+                .map_err(|_| STOPPED.to_owned())?
+            else {
+                return Ok(None);
+            };
+            if let Ok(message) = serde_json::from_str::<Value>(&line) {
+                return Ok(Some(message));
+            }
+        }
+    }
+
+    pub async fn write(&mut self, message: &Value) -> Result<(), String> {
         let mut bytes = serde_json::to_vec(message).map_err(|_| STOPPED.to_owned())?;
         bytes.push(b'\n');
         self.stdin

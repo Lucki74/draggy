@@ -28,6 +28,8 @@ use tauri::{AppHandle, Manager};
 use tokio::sync::mpsc;
 
 use crate::AppState;
+use crate::ipc::providers::account::claude_chat::{self, ClaudeChat};
+use crate::ipc::providers::account::codex_chat::{self as codex_chat_runtime, CodexChat};
 use crate::ipc::providers::adapters::{AppHttp, AppKeys, AppKv};
 
 const GATEWAY_URL: &str = "draggy-ai://chat";
@@ -103,6 +105,8 @@ impl ChatGateway {
 
     pub fn stop(&self) {
         self.task.abort();
+        claude_chat::stop_all();
+        codex_chat_runtime::stop_all();
     }
 }
 
@@ -326,11 +330,15 @@ pub fn production_serve(app: AppHandle) -> Serve {
         };
         let sleeper = Waits { gone };
         let engine = move || port;
+        let claude = ClaudeChat::new(app.clone());
+        let codex = CodexChat::new(app.clone());
+        let accounts: [(&str, &dyn draggy_providers::gateway::AccountRuntime); 2] =
+            [("claude", &claude), ("codex", &codex)];
         let gateway = Gateway {
             registry: &registry,
             http: &AppHttp,
             sleeper: &sleeper,
-            accounts: &[],
+            accounts: &accounts,
             allowed_origin: &allowed,
             engine_port: &engine,
             clock: &clock,

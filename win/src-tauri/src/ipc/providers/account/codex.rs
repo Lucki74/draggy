@@ -147,7 +147,7 @@ pub(super) fn download(root: &str) -> Value {
         .unwrap_or(Value::Null)
 }
 
-async fn install(app: &AppHandle, id: &str, root: &str) -> Result<String, String> {
+pub(super) async fn install(app: &AppHandle, id: &str, root: &str) -> Result<String, String> {
     let root = root.to_owned();
     let owner = id.to_owned();
     let progress_app = app.clone();
@@ -350,7 +350,7 @@ fn text_field(value: &Value, key: &str) -> Option<String> {
 }
 
 /// Makes the account's home with the catalog and config Codex reads at start, and returns its folder and environment.
-fn setup(root: &str, id: &str) -> Result<(String, BTreeMap<String, String>), String> {
+pub(super) fn setup(root: &str, id: &str) -> Result<(String, BTreeMap<String, String>), String> {
     let parent: Vec<(String, String)> = std::env::vars().collect();
     let account = account_env(CODEX, root, id, &parent, &[])
         .map_err(|_| "The account folder is not valid.".to_owned())?;
@@ -366,15 +366,15 @@ fn setup(root: &str, id: &str) -> Result<(String, BTreeMap<String, String>), Str
 }
 
 /// One app-server process driven over its stdio RPC. Dropping it kills the process.
-struct Client {
+pub(super) struct Client {
     _child: Child,
     stdin: ChildStdin,
-    lines: Lines<BufReader<ChildStdout>>,
-    rpc: Rpc,
+    pub(super) lines: Lines<BufReader<ChildStdout>>,
+    pub(super) rpc: Rpc,
 }
 
 impl Client {
-    async fn start(
+    pub(super) async fn start(
         binary: &str,
         cwd: &str,
         env: &BTreeMap<String, String>,
@@ -384,6 +384,7 @@ impl Client {
         })
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .kill_on_drop(true)
         .spawn()
         .map_err(|_| START_FAILED.to_owned())?;
         let stdin = child.stdin.take().ok_or_else(|| START_FAILED.to_owned())?;
@@ -405,7 +406,7 @@ impl Client {
         Ok(client)
     }
 
-    async fn flush(&mut self) -> Result<(), String> {
+    pub(super) async fn flush(&mut self) -> Result<(), String> {
         for line in self.rpc.take_outbox() {
             self.stdin
                 .write_all(format!("{line}\n").as_bytes())
@@ -433,7 +434,7 @@ impl Client {
         }
     }
 
-    async fn request(&mut self, method: &str, params: Value) -> Result<Value, String> {
+    pub(super) async fn request(&mut self, method: &str, params: Value) -> Result<Value, String> {
         let id = self
             .rpc
             .call(method, Some(params), None)

@@ -2,7 +2,9 @@
 //! Port of providers/ipc.cjs and the sign-in path of adapters/claude.cjs. Claude Code keeps its credentials in the
 //! instance's private home, so Draggy never holds a token and writes none to disk.
 
+pub(crate) mod claude_chat;
 mod codex;
+pub(crate) mod codex_chat;
 mod install;
 mod session;
 
@@ -11,6 +13,7 @@ pub use self::codex::Codex;
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::ErrorKind;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock, PoisonError};
 use std::time::Duration;
 
@@ -40,6 +43,17 @@ const CODEX: &str = "codex";
 const PROGRESS: &str = "providers:account-progress";
 const UNKNOWN: &str = "provider-unknown-error";
 const ACCOUNT_UNAVAILABLE: &str = "account-runtime-unavailable";
+/// Bumped when the gateway stops: a chat turn begun before the bump ends, and its process dies with it.
+static STOPS: AtomicU64 = AtomicU64::new(0);
+
+fn stop_epoch() -> u64 {
+    STOPS.load(Ordering::SeqCst)
+}
+
+/// Ends every running and parked chat turn: the bump reaches the running ones, the caller clears the parked ones.
+fn bump_stop_epoch() {
+    STOPS.fetch_add(1, Ordering::SeqCst);
+}
 /// How long a status read or a listing may take before it is given up on.
 const UTILITY_MS: u64 = 60_000;
 
