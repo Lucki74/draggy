@@ -1,5 +1,4 @@
-//! Turns LiteLLM's and OpenRouter's public price lists into the table Draggy prices replies from. Port of
-//! electron/pricing/build.cjs.
+//! Turns LiteLLM's and OpenRouter's public price lists into the table Draggy prices replies from.
 
 use std::collections::{BTreeMap, BTreeSet};
 

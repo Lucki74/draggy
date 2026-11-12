@@ -1,6 +1,5 @@
 //! Cloud voices over the user's own key. The request is made here, in the Rust process, and the renderer only
-//! receives PCM frames. Nothing about the text or the audio is logged beyond its size. Port of
-//! electron/tts/cloud/openai.cjs and gemini.cjs.
+//! receives PCM frames. Nothing about the text or the audio is logged beyond its size.
 
 use base64::Engine as _;
 use serde_json::{Value, json};

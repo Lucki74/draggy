@@ -126,7 +126,7 @@ async fn export_chat(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
     Ok(json!({ "saved": true, "file": file, "bytes": bytes }))
 }
 
-/// Replaces the characters a file name cannot hold with spaces, as electron/main.cjs does.
+/// Replaces the characters a file name cannot hold with spaces.
 fn safe_name(raw: &str) -> String {
     raw.chars()
         .map(|c| {

@@ -1,5 +1,5 @@
 //! The table replies are priced from. A refreshed copy wins over the snapshot that ships with the app, but only when
-//! it parses and holds enough prices to be believed. Port of electron/pricing/table.cjs.
+//! it parses and holds enough prices to be believed.
 
 use std::fs;
 use std::path::{Path, PathBuf};

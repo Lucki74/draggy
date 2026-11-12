@@ -1,5 +1,5 @@
 //! The colibri engine on Windows: release install, rollback, the embeddable Python it runs on, and the gateway process.
-//! Port of electron/colibriBinary.cjs and the start/stop/health half of electron/colibriProcess.cjs.
+//! Start, stop and health checks for the gateway process.
 
 use std::collections::VecDeque;
 use std::fs;
@@ -745,7 +745,7 @@ impl Progress {
 }
 
 /// Where the earliest of `words` starts a word in `text`, or None.
-/// The load phase a gateway line implies, never going backwards. The same word patterns as the Electron side.
+/// The load phase a gateway line implies, never going backwards.
 fn load_phase(line: &str, current: &'static str) -> &'static str {
     static DENSE_FIRST: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r"(?i)\b(dense|backbone|shared)\b.*\b(load|read|weights)")

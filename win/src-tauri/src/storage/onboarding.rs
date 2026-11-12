@@ -1,4 +1,4 @@
-//! First-run setup state. Ports the boot decision and the four handlers of electron/main.cjs (858-876, 1511-1560).
+//! First-run setup state: the boot decision and the four setup handlers.
 //! Nothing here starts a download; it only reads and writes the setup record.
 
 use std::path::Path;

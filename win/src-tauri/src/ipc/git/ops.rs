@@ -66,7 +66,7 @@ impl<R: GitRunner> Git<R> {
         self.spawn_logged(diag, root, argv).await
     }
 
-    /// Runs one process and writes the `proc.spawn` lines the Electron build writes.
+    /// Runs one process and writes the `proc.spawn` diagnostic lines.
     async fn spawn_logged(&self, diag: &Diagnostics, root: &Path, argv: Vec<String>) -> GitRun {
         let cwd = root.display().to_string();
         diag.info(

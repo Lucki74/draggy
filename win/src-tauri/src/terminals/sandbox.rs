@@ -1,5 +1,5 @@
 //! Runs a command through the Windows sandbox launcher (win/sandbox): an AppContainer that sees one project
-//! folder. Mirrors electron/sandbox.cjs. The launcher fails closed, and so does this.
+//! folder. The launcher fails closed, and so does this.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;

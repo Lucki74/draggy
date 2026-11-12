@@ -1,5 +1,5 @@
 //! Measured speed per colibri model on this computer: tokens per second and, when the gateway reports it,
-//! the expert cache hit rate. Numbers only, never text. Port of electron/tierStats.cjs.
+//! the expert cache hit rate. Numbers only, never text.
 //! The file is `tier-stats.json` in the data folder; a missing or damaged file starts empty.
 
 use std::fs;

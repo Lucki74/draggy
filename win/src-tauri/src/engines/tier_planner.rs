@@ -1,5 +1,5 @@
-//! Where a colibri model lives (VRAM, RAM, disk) and how fast it should run. Port of electron/tierPlanner.cjs for colibri
-//! models only: a pure function of the hardware report (its JSON) and the catalog entry.
+//! Where a colibri model lives (VRAM, RAM, disk) and how fast it should run.
+//! Colibri models only: a pure function of the hardware report (its JSON) and the catalog entry.
 
 use serde_json::{Value, json};
 
@@ -107,7 +107,7 @@ fn refusal(reason: &str, suggestion: &str, base: &Value, warnings: &[String]) ->
 }
 
 /// Plans one colibri model against the hardware report. Returns the TierPlan object the renderer reads.
-/// The engines installed here, as Electron's tier planner reads them.
+/// The engines installed here.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Availability {
     pub llamacpp: bool,
@@ -115,7 +115,7 @@ pub struct Availability {
     pub colibri: bool,
 }
 
-/// The tier plan for one model. Catalog entries are all colibri kind, which Electron plans without checking the
+/// The tier plan for one model. Catalog entries are all colibri kind, so the planner does not check the
 /// engines, so the flags do not change this output; they are carried for llama.cpp kinds.
 pub fn plan_model(
     model: &Model,

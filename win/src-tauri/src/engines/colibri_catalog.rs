@@ -1,4 +1,4 @@
-//! The colibri models the app offers (plan appendix A.1). Port of electron/colibriCatalog.cjs.
+//! The colibri models the app offers (plan appendix A.1).
 //! Sizes are the download as listed on Hugging Face. `routed_gb` is what one token reads from the experts;
 //! where the plan has no measurement it is derived from the active-expert fraction and flagged `estimated`.
 

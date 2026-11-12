@@ -1,5 +1,5 @@
 //! The image engine's pure rules: smoke-test verdicts, archive entry safety, memory placement, request sizing.
-//! Port of the pure parts of electron/sdServer.cjs and sdBinaryManager.cjs; the process and download half follows.
+//! The process and download half lives in sd_server.rs and sd_install.rs.
 
 use crate::engines::image_models::requests;
 use draggy_engine::platform::{Arch, Os};
@@ -423,7 +423,7 @@ fn bounded(raw: Option<&Value>, min: f64, max: f64) -> Value {
         .map_or(Value::Null, |n| json!(n.clamp(min, max)))
 }
 
-/// Checks a request the way the Electron side does. Refusals carry the app's own text and the E_REQUEST code.
+/// Checks a request. Refusals carry the app's own text and the E_REQUEST code.
 pub fn parse_request(raw: &Value) -> Result<Parsed, SdError> {
     let text = |key: &str| {
         raw.get(key)

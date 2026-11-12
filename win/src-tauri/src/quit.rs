@@ -1,5 +1,5 @@
 //! The quit handshake: ask the window to save what it holds, wait for its answer or a timeout, then
-//! exit. Mirrors electron/quitFlush.cjs.
+//! exit.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;

@@ -64,7 +64,7 @@ pub(super) fn now_ms() -> i64 {
         .map_or(0, |elapsed| elapsed.as_millis() as i64)
 }
 
-/// Electron's Boolean(): zero, empty, null and false are off; anything else is on.
+/// Zero, empty, null and false are off; anything else is on.
 fn truthy(value: Option<&Value>) -> bool {
     match value {
         None | Some(Value::Null) => false,

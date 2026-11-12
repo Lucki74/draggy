@@ -1,4 +1,4 @@
-//! Finds the npm that installs MCP servers, as Electron did: beside the app, then in each PATH folder that holds npx.
+//! Finds the npm that installs MCP servers: beside the app, then in each PATH folder that holds npx.
 //! The npm script runs under the node program, so no shell shim is ever started.
 
 use std::ffi::OsStr;

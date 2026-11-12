@@ -1,5 +1,4 @@
-//! Image request rules: what a request may hold, how its picture is named and how a LoRA is written. Port of
-//! electron/imageRequests.cjs.
+//! Image request rules: what a request may hold, how its picture is named and how a LoRA is written.
 
 use std::sync::LazyLock;
 
@@ -141,7 +140,7 @@ impl Refusal {
     }
 }
 
-/// Checks a request from the renderer. Numbers are clamped rather than refused, as the Electron app does.
+/// Checks a request from the renderer. Numbers are clamped rather than refused.
 pub fn check_request(raw: &Value) -> Result<Checked, Refusal> {
     let request_id = raw
         .get("requestId")

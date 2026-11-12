@@ -34,7 +34,7 @@ pub struct AppState {
     pub mcp: Arc<mcp::Host>,
 }
 
-/// `logs/app.log`, `debug.log` and `events.jsonl` under the data folder, like the Electron build.
+/// `logs/app.log`, `debug.log` and `events.jsonl` under the data folder.
 fn open_log(data_dir: &Path) -> Diagnostics {
     let packaged = !cfg!(debug_assertions);
     let env_file = if packaged {
@@ -68,7 +68,7 @@ fn show_main_window(app: &tauri::App, data_dir: &Path) -> tauri::Result<()> {
     let system_dark = matches!(window.theme(), Ok(tauri::Theme::Dark));
     let [r, g, b] = theme::background_for(setting, system_dark);
     window.set_background_color(Some(Color(r, g, b, 255)))?;
-    // TODO: hidden title bar with a themed overlay, as Electron's titleBarStyle hidden does.
+    // TODO: hidden title bar with a themed overlay.
     window.show()
 }
 
@@ -142,7 +142,7 @@ pub fn run() {
             ipc::providers::start_auto_refresh(app.handle());
             ipc::providers::attach_focus_refresh(app.handle());
             ipc::updater::start(app.handle());
-            // As Electron: the filter lists wait for a finished setup.
+            // The filter lists wait for a finished setup.
             if !app.state::<AppState>().storage.show_setup() {
                 browser::adblock::start(app.handle());
             }

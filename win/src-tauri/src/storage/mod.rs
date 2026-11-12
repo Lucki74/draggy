@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use draggy_diagnostics::Diagnostics;
 use draggy_storage::Storage;
 
-/// A chat folder id: ASCII word characters and dashes, as electron/main.cjs `chatDirPath` accepts.
+/// A chat folder id: ASCII word characters and dashes.
 pub fn is_chat_id(id: &str) -> bool {
     (1..=128).contains(&id.len())
         && id
@@ -27,7 +27,7 @@ pub struct Db {
 
 impl Db {
     /// Opens the database, recovers unrecorded metric turns and decides whether setup shows. A database
-    /// that will not open is logged and every call is then refused, as the Electron build does.
+    /// that will not open is logged and every call is then refused.
     pub fn open(data_dir: &Path, diag: &Diagnostics) -> Self {
         let storage = match Storage::open(data_dir) {
             Ok(storage) => Some(Arc::new(storage)),

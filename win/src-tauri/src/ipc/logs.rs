@@ -14,7 +14,7 @@ use crate::{AppState, theme};
 #[path = "../diagnostics/bundle.rs"]
 mod bundle;
 
-/// Shown once per process: the Electron flag is read and cleared the same way.
+/// Shown once per process: the crash flag is read and cleared the same way.
 static CRASH_NOTICE_TAKEN: AtomicBool = AtomicBool::new(false);
 
 pub fn register_all(registry: &mut Registry) {
@@ -71,7 +71,7 @@ async fn set_level(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
     Ok(level_json(&diag.level_state()))
 }
 
-/// Answers the Electron way: an empty string on success, the error text when the shell refuses.
+/// Answers with an empty string on success, or the error text when the shell refuses.
 async fn open_folder(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     let dir = app
         .state::<AppState>()

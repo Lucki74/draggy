@@ -1,5 +1,5 @@
-//! The window colour before the page paints, chosen from the saved theme. Port of the colour logic in
-//! electron/theme.cjs; a hardcoded dark one flashed every light-theme launch.
+//! The window colour before the page paints, chosen from the saved theme.
+//! A hardcoded dark one flashed every light-theme launch.
 
 use std::path::Path;
 

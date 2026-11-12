@@ -1,5 +1,4 @@
-//! Facts about this machine that Electron got from `os` and Chromium: memory, volume space, the processor and graphics
-//! card names.
+//! Facts about this machine: memory, volume space, the processor and graphics card names.
 
 use std::path::PathBuf;
 use std::sync::LazyLock;
@@ -79,8 +78,7 @@ pub async fn cpu_model() -> String {
         .unwrap_or_else(|| "Unknown CPU".to_owned())
 }
 
-/// The graphics card's name: nvidia-smi first, then the display class in the registry. Chromium's GPU report, which
-/// Electron used, has no Tauri counterpart.
+/// The graphics card's name: nvidia-smi first, then the display class in the registry.
 pub async fn gpu_name() -> Option<String> {
     let runner = ProcessRunner;
     let nvidia = run_text(

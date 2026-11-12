@@ -21,7 +21,7 @@ pub fn register_all(registry: &mut Registry) {
     register!(registry, "model-size" => model_size);
 }
 
-/// The one repository download allowed at a time, as the Electron build kept `largeDownload`.
+/// The one repository download allowed at a time.
 static ACTIVE: Mutex<Option<Arc<Cancel>>> = Mutex::new(None);
 
 /// Holds the busy slot until dropped.

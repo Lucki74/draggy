@@ -24,7 +24,7 @@ use super::pdf_writer;
 use super::{IpcError, Registry};
 use crate::AppState;
 
-/// Electron's executable list (documents.cjs). Anything here opens in the file manager, never runs.
+/// Extensions that open in the file manager and never run.
 const EXECUTABLE_EXTENSIONS: &[&str] = &[
     ".exe",
     ".msi",
@@ -144,7 +144,7 @@ fn folders_for(storage: &Mutex<Storage>, chats: &Path, workspace: &str) -> Vec<P
     }
 }
 
-/// A chat's folder: a plain id only, as the Electron build's `chatDirPath` allows.
+/// A chat's folder: a plain id only.
 fn chat_dir(chats: &Path, id: &str) -> Option<PathBuf> {
     let valid = (1..=128).contains(&id.len())
         && id
@@ -157,7 +157,7 @@ fn lock(value: &Mutex<Storage>) -> MutexGuard<'_, Storage> {
     value.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Checkpoint rows live in storage; the bytes they name live beside them, as in Electron's `checkpoints.cjs`.
+/// Checkpoint rows live in storage; the bytes they name live beside them.
 #[derive(Clone)]
 pub struct Checkpoints {
     storage: Arc<Mutex<Storage>>,
@@ -336,7 +336,7 @@ fn log_outcome(app: &AppHandle, op: &str, outcome: &Value) {
     }
 }
 
-/// Tells the canvas a file changed, as the Electron `announceChange` does.
+/// Tells the canvas a file changed.
 pub(crate) fn announce(app: &AppHandle, workspace: &str, outcome: &Value) {
     if outcome.get("success") != Some(&Value::Bool(true)) {
         return;
@@ -364,7 +364,7 @@ fn opt_text(value: Option<&Value>) -> Option<String> {
     Some(arg_text(value)).filter(|text| !text.is_empty())
 }
 
-/// Electron's `Number(value) || 1` for an edit count, with 0 meaning one.
+/// Edit count: a missing or non-numeric value means one, and 0 also means one.
 fn count_arg(value: Option<&Value>) -> i64 {
     let number = match value {
         Some(Value::Number(n)) => n.as_f64(),
@@ -552,7 +552,7 @@ async fn fs_edit(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     Ok(outcome)
 }
 
-/// Replaces text, tolerating CRLF files and whitespace at line ends, as Electron's `fileOps.edit` does.
+/// Replaces text, tolerating CRLF files and whitespace at line ends.
 fn edit_now(
     s: &Services,
     workspace: &str,
@@ -1038,7 +1038,7 @@ async fn open_created_files(app: AppHandle, _args: Vec<Value>) -> Result<Value, 
         if let Err(error) = fs::create_dir_all(&dir) {
             return fail(error.to_string());
         }
-        // Electron answers with the shell's error text, empty on success.
+        // Answers with the shell's error text, empty on success.
         let text = match opener_app.opener().open_path(path_text(&dir), None::<&str>) {
             Ok(()) => String::new(),
             Err(error) => error.to_string(),

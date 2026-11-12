@@ -1,5 +1,5 @@
 //! What one IPC call writes to the log: channel, duration, argument count and size, correlation id.
-//! Port of electron/ipcLog.cjs. Argument values never reach the log.
+//! Argument values never reach the log.
 
 use draggy_diagnostics::{Diagnostics, ErrorInfo, ipc_slow_ms};
 use serde_json::{Map, Value, json};

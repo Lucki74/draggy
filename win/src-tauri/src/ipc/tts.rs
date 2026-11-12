@@ -224,7 +224,7 @@ fn forget(turn: &str, slot: u64) {
     }
 }
 
-/// The error code the renderer sees, as the Electron adapters name them.
+/// The error code the renderer sees.
 fn error_code(error: &SpeakError) -> String {
     match error {
         SpeakError::Empty | SpeakError::Transport => "failed".to_owned(),

@@ -294,7 +294,7 @@ async fn index_folder(
     let mut seen: HashSet<String> = HashSet::new();
     for (position, file) in files.iter().enumerate() {
         let path_key = file.path.to_string_lossy().into_owned();
-        // Electron marks the file seen before the ceiling check, so the file that hits the ceiling keeps its rows.
+        // The file is marked seen before the ceiling check, so the file that hits the ceiling keeps its rows.
         seen.insert(path_key.clone());
         if db(dir, |s| s.total_chunks()).await? >= MAX_INDEXED_CHUNKS {
             break;
@@ -325,7 +325,7 @@ async fn index_folder(
         }
     }
 
-    // Files that left the folder lose their rows; files past the chunk ceiling are not seen, so their rows go, as in electron/library.cjs.
+    // Files that left the folder lose their rows; files past the chunk ceiling are not seen, so their rows go.
     for (path, row) in existing {
         if !seen.contains(&path) {
             db(dir, move |s| s.drop_file(row.id)).await?;

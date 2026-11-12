@@ -1,5 +1,5 @@
 //! Handlers for the storage channels: chats, workspaces, key-value settings, metrics, checkpoints and
-//! first-run setup. They answer in the shapes electron/main.cjs 3424-3569 does, since the renderer is unchanged.
+//! first-run setup. They answer in the Electron-era shapes, since the renderer is unchanged.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -87,7 +87,7 @@ pub(crate) async fn blocking<T: Send + 'static>(
 }
 
 /// Runs store work off the UI thread. A closed store answers `when_closed`; any other failure is
-/// logged under `scope` and answered as `{success:false,error}`, as the Electron `wrap` does.
+/// logged under `scope` and answered as `{success:false,error}`.
 pub(crate) async fn with_storage<F>(
     app: &AppHandle,
     scope: &'static str,
@@ -506,7 +506,7 @@ async fn workspace_save(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcEr
 
 async fn workspace_delete(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let id = js_string(args.first());
-    // TODO: close this workspace's file watcher first (electron/main.cjs:3519) once the fs slice owns the map.
+    // TODO: close this workspace's file watcher first once the fs slice owns the map.
     with_storage(&app, "workspace", closed(), move |storage| {
         Ok(json!({ "success": true, "deleted": storage.delete_workspace(&id)? }))
     })
@@ -574,7 +574,7 @@ async fn onboarding_complete(app: AppHandle, args: Vec<Value>) -> Result<Value, 
     let reply = setup_call(&app, move |storage, _| onboarding::complete(storage, &path)).await?;
     if reply["success"] == true {
         app.state::<AppState>().storage.set_show_setup(false);
-        // TODO: start the update check here (electron/main.cjs:1535), in its slice.
+        // TODO: start the update check here, in its slice.
         crate::browser::adblock::start(&app);
     }
     Ok(reply)
@@ -588,7 +588,7 @@ async fn onboarding_reset(app: AppHandle, _args: Vec<Value>) -> Result<Value, Ip
     .await?;
     if reply["success"] == true {
         app.state::<AppState>().storage.set_show_setup(true);
-        // TODO: show the main window and reload it at index.html?onboarding=true (electron/main.cjs:1556).
+        // TODO: show the main window and reload it at index.html?onboarding=true.
     }
     Ok(reply)
 }

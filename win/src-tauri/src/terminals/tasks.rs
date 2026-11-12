@@ -1,5 +1,5 @@
-//! Background tasks: commands that keep running while the model works on something else. The win-side port of
-//! `win/electron/tasks.cjs`. A task runs on a pseudo-terminal when the computer has one, else on plain pipes; a
+//! Background tasks: commands that keep running while the model works on something else.
+//! A task runs on a pseudo-terminal when the computer has one, else on plain pipes; a
 //! foreground command can be taken over with `adopt`. Output is kept in memory (the end of it) and written to a
 //! log file, so the model can read it later with `task_output`. The pure text rules live in `draggy_tools`.
 

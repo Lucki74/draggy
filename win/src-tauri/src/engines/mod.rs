@@ -43,7 +43,7 @@ static VOLUMES: VolumeFn = sysinfo::volume_space;
 /// Flags each engine build answered, so `--cache-ram` and friends are asked for once per binary.
 pub static ENGINE_FLAGS: LazyLock<FlagCache> = LazyLock::new(FlagCache::new);
 
-/// The environment an engine child starts with: its GPU runner folders first on PATH, as Electron's getEngineEnvironment.
+/// The environment an engine child starts with: its GPU runner folders first on PATH.
 /// Only the overrides; the spawn keeps the rest of the process environment.
 pub fn engine_env(
     user_data: &Path,

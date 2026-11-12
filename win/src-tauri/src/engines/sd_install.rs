@@ -1,5 +1,4 @@
-//! Installs and checks the stable-diffusion engine binary, one runner folder per GPU backend. Port of
-//! electron/sdBinaryManager.cjs.
+//! Installs and checks the stable-diffusion engine binary, one runner folder per GPU backend.
 
 use std::fs;
 use std::io;
@@ -33,7 +32,7 @@ pub fn runner_dir(user_data: &Path, runner: &str) -> PathBuf {
     engine_root(user_data, sd_runner::release_for(Os::Windows)).join(runner)
 }
 
-/// Whether the NVIDIA driver is present, the same check the Electron side makes.
+/// Whether the NVIDIA driver is present.
 pub fn has_nvidia_driver() -> bool {
     let root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into());
     Path::new(&root)

@@ -1,5 +1,5 @@
 //! Cuts 16-bit mono PCM into 40 ms frames, the size the player expects. A trailing odd byte waits for the next
-//! chunk, so a sample is never split. Port of electron/tts/cloud/frames.cjs.
+//! chunk, so a sample is never split.
 
 pub const SAMPLE_RATE: u32 = 24_000;
 /// 40 ms of 16-bit mono.

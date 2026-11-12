@@ -1,5 +1,5 @@
 //! The embedding server: one llama-server with --embedding on loopback, started on first use and stopped after a
-//! minute idle. Port of electron/embedServer.cjs.
+//! minute idle.
 
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};

@@ -1,4 +1,4 @@
-//! Paper, wiki and code search over public APIs. Port of searchSource in electron/sources.cjs. The parsers are
+//! Paper, wiki and code search over public APIs. The parsers are
 //! core's; this file sends the requests and joins the answers.
 
 use std::fmt::Write as _;

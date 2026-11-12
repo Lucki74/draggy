@@ -1,4 +1,4 @@
-//! Handlers for the research channels. The saved runs live in library.db beside the library index, as in Electron.
+//! Handlers for the research channels. The saved runs live in library.db beside the library index.
 
 use serde_json::{Value, json};
 use tauri::AppHandle;

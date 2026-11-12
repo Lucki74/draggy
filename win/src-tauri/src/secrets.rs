@@ -27,7 +27,7 @@ impl fmt::Display for KeystoreError {
 impl std::error::Error for KeystoreError {}
 
 /// The Windows keystore. Credentials are grouped by owner (a server id, or `search:brave`) and each owner
-/// holds named fields, as in Electron's store. Dropping it wipes the AES key it holds.
+/// holds named fields. Dropping it wipes the AES key it holds.
 pub struct Keystore {
     store: SecretStore<WindowsVault>,
 }

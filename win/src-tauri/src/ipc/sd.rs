@@ -819,7 +819,6 @@ async fn stop_chat_model(engines: &Engines) {
 }
 
 /// Size in GB of the chat model file that is running, 0 when none runs or the file cannot be read.
-/// Port of Electron's loadedChatModelGB.
 fn loaded_chat_gb(running: bool, model: Option<&Path>) -> f64 {
     if !running {
         return 0.0;

@@ -1,5 +1,5 @@
-//! Image models: the catalogue, what is in the image folder, how a model is loaded and installed. Port of
-//! electron/imageModels.cjs. Families and request rules live in the submodules.
+//! Image models: the catalogue, what is in the image folder, how a model is loaded and installed.
+//! Families and request rules live in the submodules.
 
 pub mod families;
 pub mod requests;

@@ -1,4 +1,4 @@
-//! Updater channels: the state stream and the install trigger. Port of electron/updater.cjs.
+//! Updater channels: the state stream and the install trigger.
 //! Checks run at launch and every six hours; a download starts only when the user asks to install.
 
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -79,7 +79,7 @@ async fn install(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     }
 }
 
-/// Starts the launch check and the six-hour checks. Disabled in debug builds, as Electron is unpackaged.
+/// Starts the launch check and the six-hour checks. Disabled in debug builds.
 pub fn start(app: &AppHandle) {
     if cfg!(debug_assertions) {
         set(app, |s| {
@@ -276,7 +276,7 @@ fn warn(app: &AppHandle, message: &str, reason: Option<String>) {
     }
 }
 
-/// Non-empty text, or None. Electron falls back to a fixed message when the error text is empty.
+/// Non-empty text, or None when the text is empty.
 fn non_empty(text: &str) -> Option<&str> {
     let trimmed = text.trim();
     (!trimmed.is_empty()).then_some(trimmed)

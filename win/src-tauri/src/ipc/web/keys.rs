@@ -1,4 +1,4 @@
-//! Keys for the search providers, kept in the keystore. Port of electron/searchKey.cjs. The renderer only
+//! Keys for the search providers, kept in the keystore. The renderer only
 //! writes a key and reads back whether one is set (Brave also gets the last four characters).
 
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
@@ -10,7 +10,7 @@ use tauri::{AppHandle, Manager};
 use crate::AppState;
 use crate::secrets::Keystore;
 
-/// The field each owner keeps its key under, as Electron does.
+/// The field each owner keeps its key under.
 const FIELD: &str = "apiKey";
 
 /// One key: the owner it is stored under, and the value kept for this run when no keystore holds it.

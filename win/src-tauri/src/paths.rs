@@ -1,11 +1,11 @@
-//! Where Draggy keeps its data. Electron names the folder after the app, so Tauri's identifier-derived
-//! folder would look like a lost install. Also carries the legacy `localai` folder over, as appData.cjs did.
+//! Where Draggy keeps its data. Electron-era installs named the folder after the app, so Tauri's identifier-derived
+//! folder would look like a lost install. Also carries the legacy `localai` folder over from Electron-era installs.
 
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// The folder name Electron's `app.setName("Draggy")` gives under `%APPDATA%`.
+/// The folder name Electron-era installs used under `%APPDATA%`.
 const APP_FOLDER: &str = "Draggy";
 
 /// Names the app answered to before, tried in order. Both spellings because only case-sensitive

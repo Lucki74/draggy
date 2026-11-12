@@ -50,7 +50,7 @@ fn nvidia() -> bool {
     has_nvidia_driver(&host_platform(), &system_root())
 }
 
-/// Electron's `sanitizeMoeStream`: a stream setting from the renderer is only used when its numbers make sense.
+/// A stream setting from the renderer is only used when its numbers make sense.
 pub fn sanitize_moe_stream(value: Option<&Value>) -> Option<MoeStream> {
     let object = value?.as_object()?;
     let number = |key: &str| object.get(key).and_then(Value::as_f64);

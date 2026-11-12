@@ -1,5 +1,5 @@
 //! Handlers for the provider channels: the catalog, the added providers and their keys, model listings, the
-//! connection test, the local scan and the account channels. Port of win/electron/providers/ipc.cjs and autoRefresh.cjs.
+//! connection test, the local scan and the account channels.
 //! Claude and Codex accounts have runtimes.
 
 pub(crate) mod account;

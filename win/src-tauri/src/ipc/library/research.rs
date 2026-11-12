@@ -1,11 +1,11 @@
-//! The research tables, kept in library.db beside the library index, as electron/researchLibrary.cjs does.
+//! The research tables, kept in library.db beside the library index, in the layout Electron-era builds wrote.
 //! Runs and sources travel as the renderer's camelCase JSON; the SQL here matches that module.
 
 use draggy_storage::{hash_text, to_match};
 use rusqlite::{Connection, OptionalExtension, Result, Row, Transaction, params};
 use serde_json::{Map, Value, json};
 
-/// Verbatim from electron/researchLibrary.cjs so both builds read the same file.
+/// Schema of the Electron-era library.db, kept verbatim so both builds read the same file.
 pub const SCHEMA: &str = "
   CREATE TABLE IF NOT EXISTS research_runs (
     id             TEXT PRIMARY KEY,
@@ -395,7 +395,7 @@ fn int(value: &Value, key: &str) -> Option<i64> {
         .and_then(|v| v.as_i64().or_else(|| v.as_f64().map(|n| n as i64)))
 }
 
-// TODO(research-retention): applyRetention (electron/researchLibrary.cjs) is not ported; it runs outside these handlers.
+// TODO(research-retention): applyRetention is not ported; it runs outside these handlers.
 
 #[cfg(test)]
 mod tests {

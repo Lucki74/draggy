@@ -200,7 +200,7 @@ fn python_extras(app: &AppHandle) -> Option<Extras> {
     })
 }
 
-/// Extra folders and environment the renderer asks for, read as the Electron handler did.
+/// Extra folders and environment the renderer asks for.
 fn extras_from(options: Option<&Value>) -> Option<Extras> {
     let extras = option(options, "extras")?;
     let folders = |name: &str| -> Vec<PathBuf> {

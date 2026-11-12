@@ -1,6 +1,5 @@
 //! Writes a PDF from Markdown or HTML. WebView2 lays the document out and prints it in a hidden window
-//! with no capabilities and scripts switched off, as Electron's pdfWriter did in Chromium. The
-//! Markdown converter is a line walk ported from `markdownHtml.cjs`.
+//! with no capabilities and scripts switched off. The Markdown converter is a line walk.
 
 use std::fs;
 use std::path::Path;
@@ -20,7 +19,7 @@ use crate::browser::cdp_webview2::WebView2Cdp;
 /// How long Chromium is given to lay out and to print one document.
 const PRINT_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// Inches. A4 is 8.27 by 11.69 in, the same paper Electron asked for.
+/// Inches. A4 is 8.27 by 11.69 in.
 const PAPER_WIDTH: f64 = 8.27;
 const PAPER_HEIGHT: f64 = 11.69;
 

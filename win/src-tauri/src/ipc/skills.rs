@@ -1,5 +1,5 @@
 //! Handlers for the skill channels. The listing and reads come from draggy_tools::skills; this file finds the roots
-//! and keeps the user's switches in the key-value store, as electron/main.cjs 4030-4066 does.
+//! and keeps the user's switches in the key-value store.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -40,7 +40,6 @@ fn library_root(app: &AppHandle) -> Option<PathBuf> {
         candidates.push(
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("..")
-                .join("electron")
                 .join(LIBRARY_DIR),
         );
     }
@@ -79,7 +78,7 @@ fn listing_reply(skills: &[Skill]) -> Value {
     json!({ "success": true, "skills": skills })
 }
 
-/// The reply for a read. A file read carries the file and an empty body, as the Electron build does.
+/// The reply for a read. A file read carries the file and an empty body.
 fn read_reply(result: Result<SkillRead, SkillError>) -> Value {
     match result {
         Ok(read) => {

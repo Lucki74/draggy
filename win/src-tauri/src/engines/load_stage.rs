@@ -1,5 +1,5 @@
-//! Turns llama-server output into the load steps the prompt shows. Port of electron/loadProgress.cjs and the stage
-//! parsing in llamaProcess.cjs. Every number is one the engine reported.
+//! Turns llama-server output into the load steps the prompt shows.
+//! Every number is one the engine reported.
 
 use std::sync::{Arc, LazyLock, Mutex, PoisonError};
 use std::time::Instant;

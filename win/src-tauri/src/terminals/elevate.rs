@@ -1,5 +1,5 @@
 //! One command as administrator, behind the Windows UAC prompt. The command goes into a batch file and its output
-//! comes back through a file, since an elevated process cannot share pipes. Port of `win/electron/elevate.cjs`.
+//! comes back through a file, since an elevated process cannot share pipes.
 
 use std::fs;
 use std::path::Path;

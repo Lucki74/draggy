@@ -1,4 +1,4 @@
-//! The diagnostics zip a person sends with a bug report, a port of electron/diagnosticsBundle.cjs.
+//! The diagnostics zip a person sends with a bug report.
 //! Text goes through the secret and path scrubbers. Chats and keys never reach it: the settings are an allowlist.
 
 use std::io::{Cursor, Write};
@@ -247,7 +247,7 @@ fn without_debug_text(text: &str) -> String {
         .join("\n")
 }
 
-/// A line that is not JSON stays in, as the Electron filter keeps it.
+/// A line that is not JSON stays in.
 fn without_debug_jsonl(text: &str) -> String {
     text.split('\n')
         .filter(|line| {
@@ -322,7 +322,7 @@ fn readme(sources: &Sources, choices: Choices, files: &[String], removed: usize)
             "  Crash dumps were left out.".to_owned()
         },
     ]);
-    // A blank line stays only when the line before it is not blank, as the Electron filter does.
+    // A blank line stays only when the line before it is not blank.
     let kept: Vec<String> = lines
         .iter()
         .enumerate()

@@ -1,5 +1,4 @@
-//! Recovers turns the metrics table lacks from `logs/events.jsonl*`. Ports `backfillMetrics` in
-//! electron/storage.cjs (339-445). Runs once, then leaves a marker in the kv table.
+//! Recovers turns the metrics table lacks from `logs/events.jsonl*`. Runs once, then leaves a marker in the kv table.
 
 use std::collections::HashMap;
 use std::path::Path;

@@ -1,5 +1,5 @@
 //! Handlers for the git channels. Read calls take a workspace or chat folder; stage, unstage, commit and
-//! switch branch write to it. Failures come back as `{ success: false, error }`, as the Electron wrapper gives.
+//! switch branch write to it. Failures come back as `{ success: false, error }`.
 
 mod ops;
 
@@ -147,7 +147,7 @@ fn data_dir() -> Option<PathBuf> {
     paths::data_dir(std::env::var_os("APPDATA")).ok()
 }
 
-/// The guard that keeps Draggy's own storage out of reach, as the Electron build sets it.
+/// The guard that keeps Draggy's own storage out of reach.
 fn guard() -> Guard {
     Guard::new(data_dir())
 }

@@ -1,5 +1,5 @@
 //! Handlers for the app shell channels: quit, boot hand-off, native toast, disk space, connectivity and
-//! opening a created file. Each mirrors its electron/main.cjs handler.
+//! opening a created file.
 
 use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
@@ -18,7 +18,7 @@ use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use super::{IpcError, Registry};
 use crate::{AppState, ipc, paths};
 
-/// Electron's toast limits: the title and body are cut before they reach the OS.
+/// Toast limits: the title and body are cut before they reach the OS.
 const TITLE_LIMIT: usize = 120;
 const BODY_LIMIT: usize = 240;
 
@@ -49,7 +49,7 @@ async fn quit_app(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> 
 }
 
 /// The splash's hand-off. The Tauri app has no splash, so the model and the open request go straight
-/// to the main window with the same values Electron sent. Empty model and other opens are dropped.
+/// to the main window. Empty model and other opens are dropped.
 async fn boot_finished(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     if app.get_webview_window("main").is_none() {
         return Ok(Value::Null);
@@ -108,7 +108,7 @@ async fn check_internet(_app: AppHandle, _args: Vec<Value>) -> Result<Value, Ipc
     Ok(Value::Bool(online))
 }
 
-/// Opens only files under the created-files folder. A refusal is returned as text, as Electron did.
+/// Opens only files under the created-files folder. A refusal is returned as text.
 async fn open_file(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let raw = text_arg(args.first());
     let Some(resolved) =

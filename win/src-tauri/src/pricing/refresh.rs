@@ -1,5 +1,5 @@
 //! Keeps the price table and the exchange rates current. The only code that reaches the network for pricing: three
-//! fixed GET URLs, no user data in them, nothing followed to another host. Port of electron/pricing/refresh.cjs.
+//! fixed GET URLs, no user data in them, nothing followed to another host.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -235,7 +235,7 @@ impl<C: HttpClient + 'static> Refresher<C> {
         Ok(at)
     }
 
-    /// One allowed GET, answered as its JSON. Errors carry the same words the Electron build gives.
+    /// One allowed GET, answered as its JSON.
     async fn fetch_json(&self, url: &str) -> Result<Value, String> {
         if !ALLOWED_URLS.contains(&url) {
             return Err("address is not on the pricing allowlist".to_owned());

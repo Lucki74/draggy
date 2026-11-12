@@ -1,4 +1,4 @@
-//! Handlers for the web search and page channels. Port of the search and page IPC in electron/main.cjs.
+//! Handlers for the web search and page channels.
 //! Keys stay in the keystore: the renderer gets only whether one is set.
 
 pub(crate) mod keys;

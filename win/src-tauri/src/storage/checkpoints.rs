@@ -1,5 +1,5 @@
-//! Checkpoint bytes on disk and the `CheckpointStore` the file tools use. Ports electron/checkpoints.cjs:
-//! content addressed, so ten edits keep only the distinct versions.
+//! Checkpoint bytes on disk and the `CheckpointStore` the file tools use.
+//! Bytes are content addressed, so ten edits keep only the distinct versions.
 
 use std::collections::HashSet;
 use std::fs;

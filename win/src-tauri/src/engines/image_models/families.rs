@@ -1,5 +1,5 @@
 //! Image model families: the family a file belongs to, the encoders and VAE it needs beside it, its defaults and
-//! how it takes a reference picture. Port of electron/imageFamilies.cjs.
+//! how it takes a reference picture.
 
 use std::sync::LazyLock;
 

@@ -1,5 +1,5 @@
 //! Which cloud voice providers the user agreed to send reply text to. Kept in settings under one key, per provider,
-//! so the renderer cannot grant it through the settings store. Port of electron/tts/consent.cjs.
+//! so the renderer cannot grant it through the settings store.
 
 use serde_json::{Map, Value, json};
 

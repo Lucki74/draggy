@@ -1,5 +1,5 @@
 //! Foreground commands the model runs in a project: a real shell in the project folder, stoppable, with output cut
-//! to a size a model can read. The win-side port of `win/electron/commands.cjs`. A command can be moved to the
+//! to a size a model can read. A command can be moved to the
 //! background as a task, and a chat's folder and environment carry over from one command to the next.
 
 use std::collections::{BTreeMap, HashMap};

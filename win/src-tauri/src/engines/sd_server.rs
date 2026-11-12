@@ -1,5 +1,4 @@
-//! The stable-diffusion server: one process on loopback, image jobs run one at a time, cancel and stop. Port of
-//! electron/sdServer.cjs.
+//! The stable-diffusion server: one process on loopback, image jobs run one at a time, cancel and stop.
 
 use std::collections::{HashMap, HashSet};
 use std::net::TcpListener;

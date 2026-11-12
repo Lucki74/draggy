@@ -1,4 +1,4 @@
-//! MCP Apps widgets: markup from a server, staged for an isolated frame. Port of win/electron/widgets.cjs. Each widget is
+//! MCP Apps widgets: markup from a server, staged for an isolated frame. Each widget is
 //! served from widget://<token>/ under a no-network policy, so it can show only what it was given.
 
 use std::borrow::Cow;

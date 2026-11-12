@@ -1,4 +1,4 @@
-//! Downloads every file of a Hugging Face repository into one folder, as the Electron largeModelStore did.
+//! Downloads every file of a Hugging Face repository into one folder.
 //! Partial files resume, each finished file is checked against its LFS hash, and a marker keeps a
 //! half-finished folder from passing as a model.
 
@@ -196,7 +196,7 @@ fn need_for(bytes: u64) -> u64 {
 }
 
 /// The roomiest fixed drive that holds the files plus 10%. Removable drives are never used.
-/// Unlike the Electron planner, no benchmark decides between drives yet.
+/// No benchmark decides between drives yet.
 pub fn choose_volume(files: &[RepoFile], drives: &[Drive]) -> Target {
     let need = need_for(total_bytes(files));
     let internal: Vec<&Drive> = drives.iter().filter(|drive| !drive.removable).collect();

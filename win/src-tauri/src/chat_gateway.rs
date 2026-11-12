@@ -1,5 +1,5 @@
 //! The chat gateway: the renderer's `draggy-ai://chat` requests go to an axum server on 127.0.0.1 at a random port,
-//! behind a bearer token made at launch. Ports win/electron/providers/gateway.cjs; the answers come from
+//! behind a bearer token made at launch. The answers come from
 //! `draggy_providers::gateway`. A reply streams from a blocking task, and a reader that leaves stops the engine.
 
 use std::collections::BTreeMap;
