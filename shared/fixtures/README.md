@@ -1,6 +1,6 @@
 # Golden fixtures
 
-These files pin behavior that the Electron app (TypeScript) and the Rust core must share. Each area is a folder, each file a list of cases:
+These files pin behavior that the Windows app (TypeScript) and the Rust core must share. Each area is a folder, each file a list of cases:
 
 ```json
 {
@@ -12,7 +12,7 @@ These files pin behavior that the Electron app (TypeScript) and the Rust core mu
 }
 ```
 
-The TypeScript runner lives in `src/__tests__/fixtures/<area>.test.ts` and calls the existing implementation. The Rust runner lives in `core/crates/<crate>/tests/fixtures.rs` and uses `draggy-testkit` to read the same files. A fixture change has to pass in both, which catches drift while both implementations exist.
+A TypeScript runner, where one exists, lives in `win/src/__tests__/fixtures/<area>.test.ts` and calls the existing implementation. The Rust runner lives in `core/crates/<crate>/tests/fixtures.rs` and uses `draggy-testkit` to read the same files. Areas with a TypeScript runner must pass in both. The Electron reference is gone, so the Rust runners are now the only check for the other areas.
 
 Rules for writing a case:
 

@@ -1,5 +1,5 @@
-//! Runs the golden fixtures in `shared/fixtures/providers/*.json` through the port, as
-//! `src/__tests__/fixtures/providers.test.ts` runs them through the Electron reference. Both sides canonicalise the
+//! Runs the golden fixtures in `shared/fixtures/providers/*.json` through the port.
+//! The Electron reference that produced these expected values is no longer in the repository. Both sides canonicalise the
 //! output the same way: whole numbers compare as integers, and a tool call's `arguments` string compares as the JSON
 //! it holds, since key order is not meaningful.
 

@@ -1,5 +1,4 @@
-//! Runs the golden fixtures in `shared/fixtures/tools/{files,git,skills}-*.json` through the Rust port. The vitest runner
-//! in `src/__tests__/fixtures/toolsFiles.test.ts` calls the Electron reference on the same files, so both must agree.
+//! Runs the golden fixtures in `shared/fixtures/tools/{files,git,skills}-*.json` through the Rust port. The Electron reference that produced these expected values is no longer in the repository.
 #![cfg(unix)]
 
 use std::cell::RefCell;
@@ -969,9 +968,7 @@ async fn diff_case(input: &Value) -> Value {
 /// The skills the shipped library lists, as the app lists them. Folder paths are left out: they differ per machine.
 fn library_case() -> Value {
     let roots = Roots {
-        library: Some(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../win/skills-library"),
-        ),
+        library: Some(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../win/skills-library")),
         user: None,
         project: None,
     };

@@ -1,5 +1,5 @@
-//! Runs the recorded MCP sessions in `shared/fixtures/mcp/mcp-session-*.json` through the client. The vitest runner in
-//! `src/__tests__/fixtures/mcp-session.test.ts` replays the same inputs through `electron/mcp.cjs`, so both must agree.
+//! Runs the recorded MCP sessions in `shared/fixtures/mcp/mcp-session-*.json` through the client.
+//! The Electron reference that produced these expected values is no longer in the repository.
 
 mod client_support;
 

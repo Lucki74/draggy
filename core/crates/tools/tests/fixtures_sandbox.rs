@@ -1,5 +1,4 @@
-//! Runs `shared/fixtures/tools/sandbox-env.json` through the Rust port. The vitest runner in
-//! `src/__tests__/fixtures/toolsSandbox.test.ts` calls electron/sandboxPolicy.cjs on the same file.
+//! Runs `shared/fixtures/tools/sandbox-env.json` through the Rust port. The Electron reference that produced these expected values is no longer in the repository.
 
 use draggy_testkit::cases;
 use draggy_tools::sandbox::is_secret_name;

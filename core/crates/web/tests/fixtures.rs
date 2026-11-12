@@ -1,6 +1,5 @@
-//! Runs the golden fixtures in `shared/fixtures/web` through the port. The vitest runner in
-//! `src/__tests__/fixtures/web.test.ts` runs the same inputs through electron/urlPolicy.cjs, search.cjs and
-//! connectivity.cjs, with canned HTTP and a virtual clock, so both must agree.
+//! Runs the golden fixtures in `shared/fixtures/web` through the port.
+//! The Electron reference that produced these expected values is no longer in the repository.
 
 use std::collections::HashMap;
 use std::fmt::Debug;

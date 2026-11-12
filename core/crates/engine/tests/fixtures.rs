@@ -1,5 +1,5 @@
-//! Runs the golden fixtures in `shared/fixtures/engine` through the port, as `src/__tests__/fixtures/engine.test.ts` does for
-//! the Electron/CJS reference. Whole numbers are compared as integers on both sides, so 64-bit values stay exact through JSON.
+//! Runs the golden fixtures in `shared/fixtures/engine` through the port.
+//! Whole numbers are compared as integers, so 64-bit values stay exact through JSON.
 
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};

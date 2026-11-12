@@ -1,6 +1,5 @@
-//! Runs the golden fixtures in `shared/fixtures/apiserver` through the port. The vitest runner in
-//! `src/__tests__/fixtures/apiserver.test.ts` runs the same inputs through electron/apiServer.cjs, with the request
-//! listener invoked directly and a fixed clock, so both must agree.
+//! Runs the golden fixtures in `shared/fixtures/apiserver` through the port.
+//! The Electron reference that produced these expected values is no longer in the repository.
 
 use std::collections::HashMap;
 use std::convert::Infallible;

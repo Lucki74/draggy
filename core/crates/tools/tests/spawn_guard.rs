@@ -1,5 +1,5 @@
-//! Keeps process spawning in one file: only `core/crates/tools/src/spawn.rs` may name the process APIs. This is the
-//! core-side twin of electron/spawning.test.js, which keeps every child behind platform.spawnHidden.
+//! Keeps process spawning in one file: only `core/crates/tools/src/spawn.rs` may name the process APIs.
+//! Every child process must stay behind the hidden-spawn helpers in `spawn.rs`.
 
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -1,6 +1,5 @@
-//! Runs the golden fixtures in `shared/fixtures/documents` through the port. The vitest runner in
-//! `src/__tests__/fixtures/documents.test.ts` calls electron/markdownHtml.cjs, htmlDocument.cjs and officeStyle.cjs
-//! with the same args, so both must agree.
+//! Runs the golden fixtures in `shared/fixtures/documents` through the port.
+//! The Electron reference that produced these expected values is no longer in the repository.
 
 use draggy_documents::{html, markdown_html, office_style};
 use draggy_testkit::{cases, files};
