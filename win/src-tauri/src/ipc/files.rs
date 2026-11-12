@@ -1210,3 +1210,61 @@ mod tests {
         assert!(store.read("../../etc").is_none());
     }
 }
+
+/// The picture a project file holds, as a data URL, for an image request's starting image.
+pub(crate) fn read_project_image(workspace: &str, target: &str) -> Result<String, String> {
+    let s = services()?;
+    let value = read_now(&s, workspace, target)?;
+    match value.get("dataUrl").and_then(Value::as_str) {
+        Some(url) if value["isImage"].as_bool() == Some(true) => Ok(url.to_owned()),
+        _ => Err("That file is not an image".to_owned()),
+    }
+}
+
+/// Where a project file lives: the workspace's first folder joined with a relative path. Refuses paths that leave it.
+pub(crate) fn project_target(workspace: &str, target: &str) -> Result<PathBuf, String> {
+    let s = services()?;
+    if !stays_in_project(target) {
+        return Err("The path is outside the project".to_owned());
+    }
+    let root = folders_for(&s.storage, &s.chats, workspace)
+        .into_iter()
+        .next()
+        .ok_or_else(|| "The project folder is not available".to_owned())?;
+    Ok(root.join(target))
+}
+
+/// Writes a generated picture, as a data URL, into a project file. Returns the path, checkpoint id and whether the file is new.
+pub(crate) fn write_project_image(
+    workspace: &str,
+    target: &str,
+    data_url: &str,
+    chat: Option<&str>,
+) -> Result<(PathBuf, i64, bool), String> {
+    let s = services()?;
+    s.ops
+        .write(workspace, target, data_url, chat)
+        .map(|written| (written.path, written.checkpoint_id, written.created))
+        .map_err(|error| error.to_string())
+}
+
+/// Whether a project path is relative and never climbs out of its folder.
+fn stays_in_project(target: &str) -> bool {
+    Path::new(target)
+        .components()
+        .all(|part| matches!(part, Component::Normal(_) | Component::CurDir))
+}
+
+#[cfg(test)]
+mod project_path_tests {
+    use super::stays_in_project;
+
+    #[test]
+    fn project_paths_stay_inside_the_folder() {
+        assert!(stays_in_project("art/cat.png"));
+        assert!(stays_in_project("./cat.png"));
+        assert!(!stays_in_project("../cat.png"));
+        assert!(!stays_in_project("art/../../cat.png"));
+        assert!(!stays_in_project("/etc/cat.png"));
+    }
+}

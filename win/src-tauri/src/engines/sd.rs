@@ -355,15 +355,32 @@ pub enum Init {
     Data(String),
     /// A picture in the created-files folder, by the path the chat stored.
     Created(String),
-    /// A picture in a project, by the path inside it.
-    Project(String),
+    /// A picture in a project, by the path inside it. A missing optional picture leaves the job text-only.
+    Project {
+        workspace: String,
+        path: String,
+        optional: bool,
+    },
 }
 
 /// Where the finished picture goes: the chat, or a path in a project.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Destination {
     Chat,
-    Project(String),
+    Project {
+        workspace: String,
+        path: String,
+        chat: Option<String>,
+        overwrite: bool,
+    },
+}
+
+/// The workspace a project request names, `default` when none is given. Port of imageRequests.cjs.
+fn workspace_of(value: &Value) -> String {
+    value
+        .get("workspaceId")
+        .and_then(Value::as_str)
+        .map_or_else(|| "default".to_owned(), str::to_owned)
 }
 
 /// Whether a path ends in an extension an image can be saved as.
@@ -484,7 +501,11 @@ pub fn parse_request(raw: &Value) -> Result<Parsed, SdError> {
                 if path.is_empty() {
                     return Err(refuse("The starting image needs a path"));
                 }
-                Init::Project(path.to_owned())
+                Init::Project {
+                    workspace: workspace_of(init),
+                    path: path.to_owned(),
+                    optional: init.get("optional").and_then(Value::as_bool) == Some(true),
+                }
             }
             _ => return Err(refuse("Unknown starting image")),
         },
@@ -502,7 +523,15 @@ pub fn parse_request(raw: &Value) -> Result<Parsed, SdError> {
             if !output_extension_ok(path) {
                 return Err(refuse("An image can only be saved as .png, .jpg or .webp"));
             }
-            Destination::Project(path.to_owned())
+            Destination::Project {
+                workspace: workspace_of(dest),
+                path: path.to_owned(),
+                chat: dest
+                    .get("chatId")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                overwrite: dest.get("overwrite").and_then(Value::as_bool) == Some(true),
+            }
         }
         _ => Destination::Chat,
     };
@@ -1071,10 +1100,40 @@ mod placement_tests {
             "An image can only be saved as .png, .jpg or .webp"
         );
         let good = json!({"requestId": "r1", "prompt": "x",
-            "destination": {"kind": "project", "path": "a.webp"}});
+            "destination": {"kind": "project", "path": "a.webp", "workspaceId": "w1", "chatId": "c1", "overwrite": true}});
         assert_eq!(
             parse_request(&good).unwrap().destination,
-            Destination::Project("a.webp".into())
+            Destination::Project {
+                workspace: "w1".into(),
+                path: "a.webp".into(),
+                chat: Some("c1".into()),
+                overwrite: true,
+            }
+        );
+        let defaults = json!({"requestId": "r1", "prompt": "x",
+            "destination": {"kind": "project", "path": "a.png"}});
+        assert_eq!(
+            parse_request(&defaults).unwrap().destination,
+            Destination::Project {
+                workspace: "default".into(),
+                path: "a.png".into(),
+                chat: None,
+                overwrite: false,
+            }
+        );
+    }
+
+    #[test]
+    fn project_init_reads_workspace_and_optional_flag() {
+        let raw = json!({"requestId": "r1", "prompt": "x",
+            "init": {"kind": "project", "path": "ref/cat.png", "workspaceId": "w2", "optional": true}});
+        assert_eq!(
+            parse_request(&raw).unwrap().init,
+            Init::Project {
+                workspace: "w2".into(),
+                path: "ref/cat.png".into(),
+                optional: true,
+            }
         );
     }
 }

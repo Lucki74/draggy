@@ -489,19 +489,29 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
         Err(error) => return Ok(failure(error.code, error.message)),
     };
     let request_id = parsed.request_id.clone();
-    // Project files are read and written by the file pipeline, which is not wired to the image engine yet.
-    if matches!(parsed.init, Init::Project(_)) {
-        return Ok(failure(
-            "E_INIT_IMAGE",
-            "Starting images from a project are not wired to the image engine yet",
-        ));
-    }
-    if matches!(parsed.destination, sdlogic::Destination::Project(_)) {
-        return Ok(failure(
-            "E_FAILED",
-            "Saving into a project is not wired to the image engine yet",
-        ));
-    }
+    // Checked before minutes of work, so a refused path costs nothing.
+    let project_out = match &parsed.destination {
+        sdlogic::Destination::Project {
+            workspace,
+            path,
+            overwrite,
+            ..
+        } => {
+            let target = match super::files::project_target(workspace, path) {
+                Ok(target) => target,
+                Err(message) => return Ok(failure("E_PATH", message)),
+            };
+            if !overwrite && target.exists() {
+                let name = target
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                return Ok(failure("E_EXISTS", format!("{name} already exists")));
+            }
+            Some((workspace.clone(), path.clone()))
+        }
+        sdlogic::Destination::Chat => None,
+    };
     let progress = |value: Value| {
         let mut event = value;
         event["requestId"] = json!(request_id);
@@ -555,7 +565,20 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
     parsed.input["lora"] = Value::Array(lora_inputs);
 
     let has_init = match &parsed.init {
-        Init::None | Init::Project(_) => false,
+        Init::None => false,
+        Init::Project {
+            workspace,
+            path,
+            optional,
+        } => match super::files::read_project_image(workspace, path) {
+            Ok(url) => {
+                parsed.input["initImage"] = json!(url);
+                true
+            }
+            // A reference the chat tracked may have been moved or deleted; that is text-only, not a failure.
+            Err(_) if *optional => false,
+            Err(message) => return Ok(failure("E_INIT_IMAGE", message)),
+        },
         Init::Data(url) => {
             parsed.input["initImage"] = json!(url);
             true
@@ -695,6 +718,54 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
             return Ok(failure(error.code, error.message));
         }
     };
+
+    if let Some((workspace, target)) = project_out {
+        let lower = target.to_ascii_lowercase();
+        let mime = if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
+            "image/jpeg"
+        } else if lower.ends_with(".webp") {
+            "image/webp"
+        } else {
+            "image/png"
+        };
+        let data_url = format!(
+            "data:{mime};base64,{}",
+            base64::engine::general_purpose::STANDARD.encode(&bytes)
+        );
+        let chat = match &parsed.destination {
+            sdlogic::Destination::Project { chat, .. } => chat.clone(),
+            sdlogic::Destination::Chat => None,
+        };
+        return Ok(
+            match super::files::write_project_image(&workspace, &target, &data_url, chat.as_deref())
+            {
+                Ok((path, checkpoint_id, created)) => {
+                    progress(json!({ "status": "done" }));
+                    json!({
+                        "success": true,
+                        "path": path.to_string_lossy(),
+                        "filename": path.file_name().map(|n| n.to_string_lossy().into_owned()),
+                        "checkpointId": checkpoint_id,
+                        "created": created,
+                        "width": clamped.width,
+                        "height": clamped.height,
+                        "seed": clamped.seed,
+                        "model": chosen,
+                        "referenceUsed": reference.is_some(),
+                        "referenceDropped": clamped.reference_dropped,
+                    })
+                }
+                Err(message) => failure(
+                    "E_SAVE",
+                    if message.is_empty() {
+                        "The image could not be saved".to_owned()
+                    } else {
+                        message
+                    },
+                ),
+            },
+        );
+    }
 
     let out_dir = super::files::created_dir(&engines.user_data);
     if let Err(error) = fs::create_dir_all(&out_dir) {
