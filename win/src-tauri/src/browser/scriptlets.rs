@@ -9,8 +9,9 @@ const SCRIPTLETS: [(&str, &str); 4] = [
     (
         "set-constant",
         r#"(() => {
-  const path = '{{1}}'.split('.');
-  const raw = '{{2}}';
+  const unq = (s) => s.split(String.fromCharCode(92, 117, 48, 48, 50, 55)).join("'");
+  const path = unq('{{1}}').split('.');
+  const raw = unq('{{2}}');
   const value = raw === 'undefined' ? undefined : raw === 'false' ? false : raw === 'true' ? true
     : raw === 'null' ? null : raw === 'emptyStr' ? '' : raw === 'noopFunc' ? () => {}
     : raw === 'trueFunc' ? () => true : raw === 'falseFunc' ? () => false
@@ -37,7 +38,8 @@ const SCRIPTLETS: [(&str, &str); 4] = [
     (
         "abort-on-property-read",
         r#"(() => {
-  const path = '{{1}}'.split('.');
+  const unq = (s) => s.split(String.fromCharCode(92, 117, 48, 48, 50, 55)).join("'");
+  const path = unq('{{1}}').split('.');
   const last = path.pop();
   let owner = window;
   for (const key of path) owner = owner && owner[key];
@@ -45,7 +47,7 @@ const SCRIPTLETS: [(&str, &str); 4] = [
   try {
     Object.defineProperty(owner, last, {
       configurable: true,
-      get() { throw new ReferenceError('{{1}}'); },
+      get() { throw new ReferenceError(unq('{{1}}')); },
       set() {},
     });
   } catch (_) {}
@@ -54,8 +56,9 @@ const SCRIPTLETS: [(&str, &str); 4] = [
     (
         "no-setTimeout-if",
         r#"(() => {
-  const needle = '{{1}}';
-  const delay = '{{2}}';
+  const unq = (s) => s.split(String.fromCharCode(92, 117, 48, 48, 50, 55)).join("'");
+  const needle = unq('{{1}}');
+  const delay = unq('{{2}}');
   const hasDelay = !/^\{\{\d\}\}$/.test(delay);
   const native = window.setTimeout;
   window.setTimeout = function (callback, ms, ...rest) {
@@ -69,8 +72,9 @@ const SCRIPTLETS: [(&str, &str); 4] = [
     (
         "json-prune",
         r#"(() => {
-  const prune = '{{1}}'.split(' ').filter(Boolean);
-  const needles = '{{2}}'.split(' ').filter(Boolean);
+  const unq = (s) => s.split(String.fromCharCode(92, 117, 48, 48, 50, 55)).join("'");
+  const prune = unq('{{1}}').split(' ').filter(Boolean);
+  const needles = unq('{{2}}').split(' ').filter(Boolean);
   const nativeParse = JSON.parse;
   const has = (obj, path) => {
     let o = obj;
@@ -164,5 +168,94 @@ mod tests {
             .url_cosmetic_resources("https://other.test/")
             .injected_script;
         assert!(injected.is_empty());
+    }
+}
+
+/// Rewrites the arguments of every `##+js(...)` filter so that, once the engine pastes them into a
+/// template, they are safe inside a JS string literal: quotes and backslashes become `\uXXXX`.
+pub fn escape_args(list: &str) -> String {
+    let mut out = String::with_capacity(list.len());
+    for line in list.split_inclusive('\n') {
+        match line.find("##+js(") {
+            Some(start) if line.trim_end().ends_with(')') => {
+                let open = start + "##+js(".len();
+                let close = line.trim_end().len() - 1;
+                out.push_str(&line[..open]);
+                out.push_str(&rewrite_args(&line[open..close]));
+                out.push_str(&line[close..]);
+            }
+            _ => out.push_str(line),
+        }
+    }
+    out
+}
+
+/// Splits on unescaped commas, undoes filter escapes, then writes each value back with quotes
+/// and backslashes as `\uXXXX` escapes that the filter syntax leaves alone.
+fn rewrite_args(args: &str) -> String {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut chars = args.chars();
+    while let Some(c) = chars.next() {
+        if c == BACKSLASH {
+            if let Some(next) = chars.next() {
+                current.push(next);
+            }
+        } else if c == ',' {
+            parts.push(std::mem::take(&mut current));
+        } else {
+            current.push(c);
+        }
+    }
+    parts.push(current);
+    parts
+        .iter()
+        .map(|part| encode_arg(part.trim_start()))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+const BACKSLASH: char = '\u{5c}';
+const SINGLE_QUOTE: char = '\u{27}';
+
+/// A single quote becomes a text escape for the templates to decode. Backslashes are left alone,
+/// since the engine JSON-escapes each argument itself.
+fn encode_arg(value: &str) -> String {
+    let mut out = String::new();
+    for c in value.chars() {
+        if c == SINGLE_QUOTE {
+            out.push(BACKSLASH);
+            out.push_str("u0027");
+        } else if c == ',' || c == ')' {
+            out.push(BACKSLASH);
+            out.push(c);
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod escape_tests {
+    use adblock::Engine;
+    use adblock::lists::{FilterSet, ParseOptions};
+
+    use super::*;
+
+    #[test]
+    fn quote_and_backslash_arguments_stay_inside_the_literal() {
+        let list =
+            format!("example.test##+js(json-prune, a{SINGLE_QUOTE}b{BACKSLASH}{BACKSLASH}c)\n");
+        let mut set = FilterSet::new(false);
+        set.add_filter_list(escape_args(&list), ParseOptions::default());
+        let mut engine = Engine::new_with_filter_set(set);
+        engine.use_resources(resources());
+        let injected = engine
+            .url_cosmetic_resources("https://example.test/")
+            .injected_script;
+        let expected = format!("'a{BACKSLASH}{BACKSLASH}u0027b{BACKSLASH}{BACKSLASH}c'");
+        assert!(injected.contains(&expected), "{injected}");
+        assert!(!injected.contains("'a'b"), "{injected}");
     }
 }

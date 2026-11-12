@@ -363,7 +363,9 @@ fn watch_tab(app: &AppHandle, webview: &Webview) {
     let cdp = WebView2Cdp::new(webview.clone());
     let mut loaded = cdp.subscribe("Page.domContentEventFired");
     let mut navigated = cdp.subscribe("Page.frameNavigated");
+    let mut requested = cdp.subscribe("Page.frameRequestedNavigation");
     tauri::async_runtime::spawn(async move {
+        let mut pre_script: Option<String> = None;
         loop {
             tokio::select! {
                 event = loaded.recv() => {
@@ -371,6 +373,12 @@ fn watch_tab(app: &AppHandle, webview: &Webview) {
                         break;
                     }
                     settle_page(&app, &cdp).await;
+                }
+                event = requested.recv() => {
+                    let Ok(event) = event else { break };
+                    if let Some(url) = event["url"].as_str() {
+                        register_pre_script(&cdp, &mut pre_script, &event, url).await;
+                    }
                 }
                 event = navigated.recv() => {
                     let Ok(event) = event else { break };
@@ -393,6 +401,47 @@ fn watch_tab(app: &AppHandle, webview: &Webview) {
             }
         }
     });
+}
+
+/// Before a top-frame navigation starts, installs the page's scriptlets so they run before page
+/// scripts. The previous script is removed first. Subframe navigations are ignored.
+#[cfg(windows)]
+async fn register_pre_script(
+    cdp: &WebView2Cdp,
+    current: &mut Option<String>,
+    event: &Value,
+    url: &str,
+) {
+    let top = cdp.call("Page.getFrameTree", json!({})).await;
+    let top_id = top
+        .ok()
+        .and_then(|tree| tree["frameTree"]["frame"]["id"].as_str().map(str::to_owned));
+    if top_id.as_deref() != event["frameId"].as_str() {
+        return;
+    }
+    if let Some(id) = current.take() {
+        let _ = cdp
+            .call(
+                "Page.removeScriptToEvaluateOnNewDocument",
+                json!({ "identifier": id }),
+            )
+            .await;
+    }
+    let Some(rules) = adblock::page_rules(url) else {
+        return;
+    };
+    if rules.script.is_empty() {
+        return;
+    }
+    if let Ok(result) = cdp
+        .call(
+            "Page.addScriptToEvaluateOnNewDocument",
+            json!({ "source": rules.script }),
+        )
+        .await
+    {
+        *current = result["identifier"].as_str().map(str::to_owned);
+    }
 }
 
 #[cfg(not(windows))]

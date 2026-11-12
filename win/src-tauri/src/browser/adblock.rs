@@ -154,7 +154,7 @@ async fn fetch_lists() -> Result<Vec<String>, &'static str> {
 fn build(lists: Vec<String>) -> Engine {
     let mut set = FilterSet::new(false);
     for text in lists {
-        set.add_filter_list(text, ParseOptions::default());
+        set.add_filter_list(scriptlets::escape_args(&text), ParseOptions::default());
     }
     set.add_filter_list(EXTRA_RULES.to_owned(), ParseOptions::default());
     Engine::new_with_filter_set(set)
