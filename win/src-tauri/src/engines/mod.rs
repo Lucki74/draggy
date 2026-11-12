@@ -4,6 +4,7 @@
 //! here. Engines bind 127.0.0.1 only, and nothing downloads until the renderer asks.
 
 pub mod colibri;
+pub mod image_models;
 pub mod load_stage;
 pub mod net;
 pub mod sd;
