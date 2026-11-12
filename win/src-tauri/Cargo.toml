@@ -26,7 +26,9 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 aes-gcm = "0.10"
+axum = "0.8"
 base64 = "0.22"
+draggy-api = { path = "../../core/crates/api" }
 draggy-diagnostics = { path = "../../core/crates/diagnostics" }
 draggy-documents = { path = "../../core/crates/documents" }
 draggy-engine = { path = "../../core/crates/engine" }
@@ -35,6 +37,7 @@ draggy-models = { path = "../../core/crates/models" }
 draggy-providers = { path = "../../core/crates/providers" }
 draggy-web = { path = "../../core/crates/web" }
 draggy-storage = { path = "../../core/crates/storage" }
+futures-util = "0.3"
 getrandom = "0.3"
 sha1 = "0.10"
 sha2 = "0.10"
@@ -51,6 +54,7 @@ portable-pty = "0.9"
 regex = "1"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt", "sync", "time"] }
+tokio-util = "0.7"
 windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem", "Win32_System_SystemInformation"] }
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }
 zeroize = "1"

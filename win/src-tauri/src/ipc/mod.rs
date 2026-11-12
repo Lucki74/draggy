@@ -22,6 +22,7 @@ macro_rules! register {
     };
 }
 
+pub(crate) mod api_server;
 mod app;
 mod call_log;
 pub(crate) mod code_runner;
@@ -48,6 +49,7 @@ mod terminals;
 mod tier;
 mod tts;
 pub(crate) mod web;
+pub(crate) mod widgets;
 
 pub use call_log::{arg_bytes, correlation_id, is_silent, scope_for};
 
@@ -85,6 +87,7 @@ impl Registry {
             warned: Mutex::new(HashSet::new()),
         };
         app::register_all(&mut registry);
+        api_server::register_all(&mut registry);
         mcp::register_all(&mut registry);
         code_runner::register_all(&mut registry);
         files::register_all(&mut registry);
@@ -103,6 +106,7 @@ impl Registry {
         terminals::register_all(&mut registry);
         pricing::register_all(&mut registry);
         providers::register_all(&mut registry);
+        widgets::register_all(&mut registry);
         skills::register_all(&mut registry);
         library::register_all(&mut registry);
         research::register_all(&mut registry);

@@ -255,7 +255,7 @@ async fn call(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
         .unwrap_or_else(|| json!({}));
     let options = CallOptions {
         cid: arg(&args, 3).and_then(Value::as_str).map(str::to_owned),
-        widgets: false,
+        widgets: true,
     };
     let outcome = host(&app)
         .call_tool(&server, &tool, tool_args, &options)

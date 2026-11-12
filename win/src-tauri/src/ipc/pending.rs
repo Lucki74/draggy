@@ -2,14 +2,6 @@
 //! registry and out of this list; tests/channels.rs fails when the two drift.
 
 pub const PENDING_CHANNELS: &[&str] = &[
-    "api-server:configure",
-    "api-server:done",
-    "api-server:failed",
-    "api-server:model",
-    "api-server:ready",
-    "api-server:regenerate-key",
-    "api-server:status",
-    "api-server:text",
     "browser-agent:release",
     "browser-agent:stop",
     "browser-bar-action",
@@ -38,13 +30,6 @@ pub const PENDING_CHANNELS: &[&str] = &[
     "browser-trace",
     "browser-type",
     "browser-wait",
-    "providers:account-cancel",
-    "providers:account-sign-in",
-    "providers:account-sign-out",
-    "providers:account-status",
-    "providers:account-submit-code",
     "updater:install",
     "updater:state",
-    "widget:release",
-    "widget:stage",
 ];

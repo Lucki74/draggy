@@ -8,6 +8,7 @@ export type ModelRef =
 import type { Message, ProviderInstance, ProviderModel } from "../types";
 import type { PromptProfile } from "../prompts";
 import { swallowed } from "../logger";
+import { invoke } from "@tauri-apps/api/core";
 
 /** What a provider hands back to be sent again later, tagged with the instance it belongs to. */
 export interface ProviderState {
@@ -145,3 +146,40 @@ export async function draggyRef(message: Message): Promise<DraggyRef> {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   return { id: message.id, hash: Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("") };
 }
+
+/** Where the chat gateway listens and the token it wants on every request. */
+export interface GatewayInfo {
+  url: string;
+  token: string;
+}
+
+/** Points a chat-gateway request at the gateway with its bearer token. Other URLs pass through untouched. */
+export function gatewayRequest(
+  input: string,
+  init: RequestInit | undefined,
+  info: GatewayInfo,
+): [string, RequestInit] {
+  if (!input.startsWith(CHAT_ENDPOINT)) return [input, init ?? {}];
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${info.token}`);
+  return [`${info.url}/chat${input.slice(CHAT_ENDPOINT.length)}`, { ...init, headers }];
+}
+
+let gatewayInstalled = false;
+
+/** In the Tauri shell, fetches the gateway's address once and routes chat requests through it. */
+export function installChatGateway(): void {
+  if (gatewayInstalled || typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return;
+  gatewayInstalled = true;
+  const original = window.fetch.bind(window);
+  const info = invoke<GatewayInfo>("gateway_info");
+  info.catch(swallowed("gateway", "chat gateway address unavailable", null));
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const text = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!text.startsWith(CHAT_ENDPOINT)) return original(input, init);
+    const [url, rest] = gatewayRequest(text, init, await info);
+    return original(url, rest);
+  };
+}
+
+installChatGateway();

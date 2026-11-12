@@ -1,8 +1,9 @@
 //! Handlers for the provider channels: the catalog, the added providers and their keys, model listings, the
-//! connection test and the local scan. Port of win/electron/providers/ipc.cjs and autoRefresh.cjs. The account
-//! channels are not ported yet.
+//! connection test, the local scan and the account channels. Port of win/electron/providers/ipc.cjs and autoRefresh.cjs.
+//! Claude and Codex accounts have runtimes.
 
-mod adapters;
+pub(crate) mod account;
+pub(crate) mod adapters;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
@@ -24,6 +25,9 @@ use crate::AppState;
 
 /// The port the local engine listens on by default. Scans skip it.
 const ENGINE_PORT: u16 = 11435;
+/// The api server's default port and the key its settings live under. Scans skip its port too.
+const API_DEFAULT_PORT: u16 = 11500;
+const API_CONFIG_KEY: &str = "apiServer";
 const FIRST_REFRESH: Duration = Duration::from_secs(30);
 const EVERY_REFRESH: Duration = Duration::from_secs(6 * 60 * 60);
 const MODELS_CHANGED: &str = "providers:models-changed";
@@ -46,12 +50,20 @@ pub fn register_all(registry: &mut Registry) {
     register!(registry, "providers:models" => models);
     register!(registry, "providers:test" => test);
     register!(registry, "providers:scan" => scan);
+    register!(registry, "providers:account-sign-in" => account::sign_in);
+    register!(registry, "providers:account-cancel" => account::cancel);
+    register!(registry, "providers:account-submit-code" => account::submit_code);
+    register!(registry, "providers:account-sign-out" => account::sign_out);
+    register!(registry, "providers:account-status" => account::status);
 }
 
 async fn catalog(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     let view = blocking(move || {
         let keystore = keystore_open(&app);
-        catalog_view(Catalog::bundled().entries(), keystore)
+        let bundled = Catalog::bundled();
+        let mut view = catalog_view(bundled.entries(), keystore);
+        account::fill_downloads(&mut view, bundled.entries());
+        view
     })
     .await?;
     Ok(view)
@@ -146,11 +158,9 @@ async fn test(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
 
 async fn scan(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     blocking(move || {
-        let servers = Discovery::new(AppHttp).scan(
-            &Catalog::bundled(),
-            &[ENGINE_PORT],
-            cfg!(debug_assertions),
-        );
+        let ports = [ENGINE_PORT, api_port(&app)];
+        let servers =
+            Discovery::new(AppHttp).scan(&Catalog::bundled(), &ports, cfg!(debug_assertions));
         diag(&app).info(
             "providers.ipc",
             "scan done",
@@ -175,12 +185,12 @@ pub(crate) fn start_auto_refresh(app: &AppHandle) {
     });
 }
 
-/// Cloud providers first, then local servers, as the reference does. Accounts are skipped until their runtime is ported.
+/// Cloud providers first, then local servers, as the reference does. Accounts refresh with the rest.
 fn refresh_round(app: &AppHandle) {
     let mut providers = store(app);
     for local in [false, true] {
         for view in providers.list() {
-            if !view.enabled || view.kind == "account" || (view.kind == "local") != local {
+            if !view.enabled || (view.kind == "local") != local {
                 continue;
             }
             let _ = refresh_one(app, &mut providers, &view.id);
@@ -317,7 +327,13 @@ fn log_failure(app: &AppHandle, kind: &str) {
 }
 
 fn with_lister<T>(work: impl FnOnce(&mut Lister) -> T) -> T {
-    let lister = LISTER.get_or_init(|| Mutex::new(ModelLister::new(AppHttp)));
+    let lister = LISTER.get_or_init(|| {
+        Mutex::new(
+            ModelLister::new(AppHttp)
+                .with_account("claude", Box::new(account::Claude))
+                .with_account("codex", Box::new(account::Codex)),
+        )
+    });
     let mut guard = lister.lock().unwrap_or_else(PoisonError::into_inner);
     work(&mut guard)
 }
@@ -340,6 +356,24 @@ fn kv(app: &AppHandle) -> AppKv {
         storage: state.storage.handle(),
         diag: Some(Arc::clone(&state.diag)),
     }
+}
+
+/// The port the api server is set to, or its default. Scans skip it, as they skip the engine's.
+fn api_port(app: &AppHandle) -> u16 {
+    let raw = app
+        .state::<AppState>()
+        .storage
+        .handle()
+        .and_then(|storage| storage.get_value(API_CONFIG_KEY).ok().flatten());
+    api_port_from(raw.as_deref())
+}
+
+fn api_port_from(raw: Option<&str>) -> u16 {
+    raw.and_then(|text| serde_json::from_str::<Value>(text).ok())
+        .and_then(|value| value.get("port").and_then(Value::as_u64))
+        .and_then(|port| u16::try_from(port).ok())
+        .filter(|port| (1024..=65535).contains(port))
+        .unwrap_or(API_DEFAULT_PORT)
 }
 
 fn keystore_open(app: &AppHandle) -> bool {
@@ -429,5 +463,17 @@ mod tests {
         assert_eq!(text(&[json!(3)], 0), "");
         assert_eq!(text(&[json!("id")], 0), "id");
         assert_eq!(arg(&[], 2), Value::Null);
+    }
+
+    #[test]
+    fn api_port_comes_from_settings_or_the_default() {
+        assert_eq!(api_port_from(None), 11500);
+        assert_eq!(
+            api_port_from(Some(r#"{"enabled":true,"port":12000}"#)),
+            12000
+        );
+        assert_eq!(api_port_from(Some(r#"{"port":80}"#)), 11500);
+        assert_eq!(api_port_from(Some(r#"{"port":70000}"#)), 11500);
+        assert_eq!(api_port_from(Some("junk")), 11500);
     }
 }

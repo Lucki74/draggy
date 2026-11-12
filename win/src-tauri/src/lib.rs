@@ -1,6 +1,7 @@
 //! Draggy for Windows: a Tauri shell around the React renderer. The renderer keeps the Electron API
 //! shape; `ipc` serves its channels.
 
+pub mod chat_gateway;
 pub mod engines;
 pub mod ipc;
 pub mod mcp;
@@ -79,6 +80,11 @@ fn focus_main_window(app: &tauri::AppHandle) {
 }
 
 pub fn run() {
+    // The port must be known before the window, so the CSP can name the gateway's origin.
+    let mut context = tauri::generate_context!();
+    let listener = chat_gateway::bind().expect("the chat gateway could not bind");
+    chat_gateway::restrict_csp(&mut context, listener.port())
+        .expect("the chat gateway could not set its CSP");
     tauri::Builder::default()
         // Must come first so a second launch is caught before anything else starts.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -87,8 +93,15 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
-        .invoke_handler(tauri::generate_handler![ipc::ipc_invoke, ipc::ipc_send])
-        .setup(|app| {
+        .register_uri_scheme_protocol("widget", |_ctx, request| {
+            ipc::widgets::serve(&request.uri().to_string())
+        })
+        .invoke_handler(tauri::generate_handler![
+            ipc::ipc_invoke,
+            ipc::ipc_send,
+            chat_gateway::gateway_info
+        ])
+        .setup(move |app| {
             let data_dir = paths::data_dir(std::env::var_os("APPDATA"))?;
             // Before anything writes, so a legacy folder moves into an empty one.
             let adopted = data_dir
@@ -115,6 +128,13 @@ pub fn run() {
                 registry: Arc::new(ipc::Registry::build()),
                 quit: Arc::new(quit::Quit::default()),
             });
+            let gateway = chat_gateway::start(
+                listener,
+                chat_gateway::engine_port(app.handle().clone()),
+                chat_gateway::production_serve(app.handle().clone()),
+            );
+            app.manage(gateway);
+            ipc::api_server::apply_saved(app.handle());
             ipc::mcp::adopt_stored_credentials(app.handle());
             ipc::providers::start_auto_refresh(app.handle());
             show_main_window(app, &data_dir)?;
@@ -143,14 +163,18 @@ pub fn run() {
                 }
             }
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building Draggy")
         .run(|app, event| {
             // Every exit path ends here; without the marker the next launch reports a crash.
             if let tauri::RunEvent::Exit = event
                 && let Some(state) = app.try_state::<AppState>()
             {
-                // No engine child may outlive the window.
+                // No engine child or open port may outlive the window.
+                if let Some(gateway) = app.try_state::<chat_gateway::ChatGateway>() {
+                    gateway.stop();
+                }
+                ipc::api_server::stop_all();
                 tauri::async_runtime::block_on(state.engines.shutdown());
                 terminals::stop_all();
                 tauri::async_runtime::block_on(state.mcp.stop_all());
