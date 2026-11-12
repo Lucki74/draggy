@@ -4,6 +4,8 @@
 
 use std::path::PathBuf;
 
+use draggy_engine::binary_manager::find_llama_binary;
+use draggy_engine::llama_flags::supports_moe_stream;
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_opener::OpenerExt;
@@ -14,7 +16,7 @@ use crate::AppState;
 use crate::engines::colibri_catalog::{self, Entry};
 use crate::engines::tier_planner::{self, Availability, DEFAULT_CONTEXT_TOKENS, Model};
 use crate::engines::tier_stats::{self, Sample};
-use crate::engines::{Engines, colibri, now_ms};
+use crate::engines::{ENGINE_FLAGS, EngineSetup, Engines, RUNNER, colibri, host_platform, now_ms};
 use crate::models::large_store;
 use crate::pricing::build::iso_utc;
 
@@ -68,9 +70,24 @@ async fn build_catalog(
     } else {
         DEFAULT_CONTEXT_TOKENS
     };
+    let llama = find_llama_binary(&host_platform(), Some(&engines.user_data));
+    let llamacpp_stream = match &llama {
+        Some(binary) => {
+            let setup = EngineSetup::new(engines).await;
+            supports_moe_stream(
+                &RUNNER,
+                &ENGINE_FLAGS,
+                binary,
+                &setup.env,
+                Some(&setup.user_data),
+            )
+            .await
+        }
+        None => false,
+    };
     let availability = Availability {
         llamacpp: true,
-        llamacpp_stream: false,
+        llamacpp_stream,
         colibri: colibri::runtime(&engines.user_data).is_some(),
     };
     let volumes = drive_volumes(&hardware);

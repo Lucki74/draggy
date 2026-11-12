@@ -228,6 +228,13 @@ async fn start(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
         ),
         None,
     );
+    if engines.sd.yield_to_chat().await {
+        state.diag.info(
+            "gguf",
+            "gguf:start stopped the image engine to give the chat model its memory back",
+            None,
+        );
+    }
     let platform = host_platform();
     let Some(binary) = find_llama_binary(&platform, Some(&engines.user_data)) else {
         state.diag.error(

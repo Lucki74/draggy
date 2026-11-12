@@ -589,11 +589,13 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
             took_chat = true;
         }
         let free_vram = sd_install::free_vram_gb().await;
+        let chat = engines.llama().await.status();
+        let loaded = loaded_chat_gb(chat.running, chat.model.as_deref());
         let memory = sysinfo::memory();
         let plan_memory = sdlogic::Memory {
             free_vram_gb: free_vram,
             total_vram_gb: vram,
-            loaded_llm_gb: 0.0,
+            loaded_llm_gb: loaded,
             unified: false,
             free_ram_gb: memory.free_bytes as f64 / gb,
             total_ram_gb: memory.total_bytes as f64 / gb,
@@ -611,7 +613,8 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
         if placement == Placement::UnloadChat {
             stop_chat_model(&engines).await;
             took_chat = true;
-            placement = sdlogic::placement_after_unload(need, vram, free_vram.unwrap_or(0.0));
+            placement =
+                sdlogic::placement_after_unload(need, vram, free_vram.unwrap_or(0.0) + loaded);
         }
     }
     let offload = placement == Placement::Offload;
@@ -737,6 +740,47 @@ async fn sd_stop(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
 /// Stops the chat model so its memory goes to the image engine.
 async fn stop_chat_model(engines: &Engines) {
     engines.llama().await.stop().await;
+}
+
+/// Size in GB of the chat model file that is running, 0 when none runs or the file cannot be read.
+/// Port of Electron's loadedChatModelGB.
+fn loaded_chat_gb(running: bool, model: Option<&Path>) -> f64 {
+    if !running {
+        return 0.0;
+    }
+    model
+        .and_then(|path| std::fs::metadata(path).ok())
+        .map_or(0.0, |meta| meta.len() as f64 / 1024_f64.powi(3))
+}
+
+#[cfg(test)]
+mod loaded_chat_tests {
+    use super::loaded_chat_gb;
+    use std::path::Path;
+
+    #[test]
+    fn nothing_loaded_counts_as_zero() {
+        assert_eq!(
+            loaded_chat_gb(false, Some(Path::new("/nope/model.gguf"))),
+            0.0
+        );
+        assert_eq!(loaded_chat_gb(true, None), 0.0);
+        assert_eq!(
+            loaded_chat_gb(true, Some(Path::new("/definitely/missing.gguf"))),
+            0.0
+        );
+    }
+
+    #[test]
+    fn running_model_counts_its_file_size_in_gb() {
+        let dir = std::env::temp_dir().join(format!("loaded-chat-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("chat.gguf");
+        std::fs::write(&file, vec![0_u8; 1024 * 1024]).unwrap();
+        let gb = loaded_chat_gb(true, Some(&file));
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!((gb - 1.0 / 1024.0).abs() < 1e-9);
+    }
 }
 
 /// Starts the image engine with one model and its LoRA folder, plus the placement flags. Returns the failure code and message.
