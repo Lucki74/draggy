@@ -29,6 +29,8 @@
     "shots": "node scripts/screenshots.cjs",
     "wiki:shots": "node scripts/wiki-shots.cjs",
     "clips": "node scripts/clips.cjs",
+    "browser:eval": "node scripts/browser-eval.cjs",
+    "bench:engine": "node scripts/bench-engine.cjs",
     "check": "npm run typecheck && npm run lint && npm run test",
     "icons": "node scripts/make-icons.mjs",
     "skills:lint": "node scripts/skills/lint.mjs"
