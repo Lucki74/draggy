@@ -506,7 +506,7 @@ async fn workspace_save(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcEr
 
 async fn workspace_delete(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let id = js_string(args.first());
-    // TODO: close this workspace's file watcher first once the fs slice owns the map.
+    super::files::close_workspace_watcher(&id);
     with_storage(&app, "workspace", closed(), move |storage| {
         Ok(json!({ "success": true, "deleted": storage.delete_workspace(&id)? }))
     })
@@ -574,7 +574,8 @@ async fn onboarding_complete(app: AppHandle, args: Vec<Value>) -> Result<Value, 
     let reply = setup_call(&app, move |storage, _| onboarding::complete(storage, &path)).await?;
     if reply["success"] == true {
         app.state::<AppState>().storage.set_show_setup(false);
-        // TODO: start the update check here, in its slice.
+        // The launch check waited for setup, as in the reference; the start is once per process.
+        super::updater::start(&app);
         crate::browser::adblock::start(&app);
     }
     Ok(reply)

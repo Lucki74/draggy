@@ -1,11 +1,14 @@
 //! Handlers for the files channels: the project file tools (`fs:*`) and the folder of files the model made.
 //! Blocking file work runs on the blocking pool; every answer keeps the Electron shape.
 
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
@@ -392,10 +395,96 @@ fn is_executable(name: &str) -> bool {
 async fn fs_list(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let workspace = arg_text(args.first());
     let target = arg_text(args.get(1));
+    let watch_app = app.clone();
     run(&app, "list", move |s| {
+        if let Some(root) = s.folders(&workspace).first() {
+            ensure_workspace_watcher(&watch_app, &workspace, root);
+        }
         answer(list_now(s, &workspace, &target))
     })
     .await
+}
+
+/// Watchers of project roots by workspace id. Dropping one stops it.
+fn watchers() -> &'static Mutex<HashMap<String, RecommendedWatcher>> {
+    static WATCHERS: OnceLock<Mutex<HashMap<String, RecommendedWatcher>>> = OnceLock::new();
+    WATCHERS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Folders the watcher never reports: VCS, dependencies, build output and app data.
+const SKIPPED_FOLDERS: &[&str] = &[".git", "node_modules", "dist", "dist-electron", ".draggy"];
+
+fn ignored_change(rel: &str) -> bool {
+    rel.ends_with(".swp")
+        || rel.ends_with('~')
+        || SKIPPED_FOLDERS
+            .iter()
+            .any(|name| rel.contains(&format!("/{name}/")) || rel.starts_with(name))
+}
+
+/// Starts the watcher for a workspace root unless one runs. Outside changes reach the canvas as `file-changed`,
+/// coalesced over 150 ms.
+pub(crate) fn ensure_workspace_watcher(app: &AppHandle, workspace: &str, root: &Path) {
+    let mut map = watchers().lock().unwrap_or_else(PoisonError::into_inner);
+    if map.contains_key(workspace) || !root.exists() {
+        return;
+    }
+    let pending: Arc<Mutex<(u64, PathBuf)>> = Arc::new(Mutex::new((0, root.to_path_buf())));
+    let root_path = root.to_path_buf();
+    let (handler_app, id) = (app.clone(), workspace.to_owned());
+    let handler = move |result: notify::Result<notify::Event>| {
+        let Ok(event) = result else { return };
+        for changed in event.paths {
+            let rel = changed
+                .strip_prefix(&root_path)
+                .unwrap_or(&changed)
+                .to_string_lossy()
+                .replace('\\', "/");
+            if ignored_change(&rel) {
+                continue;
+            }
+            let generation = {
+                let mut slot = pending.lock().unwrap_or_else(PoisonError::into_inner);
+                slot.0 += 1;
+                slot.1 = changed;
+                slot.0
+            };
+            let (pending, app, id) = (Arc::clone(&pending), handler_app.clone(), id.clone());
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(150)).await;
+                let path = {
+                    let slot = pending.lock().unwrap_or_else(PoisonError::into_inner);
+                    (slot.0 == generation).then(|| slot.1.clone())
+                };
+                if let Some(path) = path {
+                    let payload = json!({ "workspaceId": id, "path": path_text(&path) });
+                    crate::ipc::emit(&app, "file-changed", payload);
+                }
+            });
+        }
+    };
+    let started = notify::recommended_watcher(handler).and_then(|mut watcher| {
+        watcher.watch(root, RecursiveMode::Recursive)?;
+        Ok(watcher)
+    });
+    match started {
+        Ok(watcher) => {
+            map.insert(workspace.to_owned(), watcher);
+        }
+        Err(error) => app.state::<AppState>().diag.debug(
+            "fs",
+            &format!("could not watch workspace: {error}"),
+            None,
+        ),
+    }
+}
+
+/// Stops a workspace's watcher before the workspace is deleted.
+pub(crate) fn close_workspace_watcher(workspace: &str) {
+    watchers()
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .remove(workspace);
 }
 
 fn list_now(s: &Services, workspace: &str, target: &str) -> Result<Value, String> {

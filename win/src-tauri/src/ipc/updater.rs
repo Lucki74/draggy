@@ -1,6 +1,7 @@
 //! Updater channels: the state stream and the install trigger.
 //! Checks run at launch and every six hours; a download starts only when the user asks to install.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
@@ -52,6 +53,8 @@ struct Found {
 }
 
 static STATE: Mutex<State> = Mutex::new(State::idle());
+/// Set by the first `start`, so the launch check runs once whichever of boot or setup comes first.
+static STARTED: AtomicBool = AtomicBool::new(false);
 static FOUND: Mutex<Option<Found>> = Mutex::new(None);
 
 /// What the install channel does for a status: download a found update, install a downloaded one, or nothing.
@@ -79,8 +82,11 @@ async fn install(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     }
 }
 
-/// Starts the launch check and the six-hour checks. Disabled in debug builds.
+/// Starts the launch check and the six-hour checks. Disabled in debug builds. Only the first call starts them.
 pub fn start(app: &AppHandle) {
+    if STARTED.swap(true, Ordering::SeqCst) {
+        return;
+    }
     if cfg!(debug_assertions) {
         set(app, |s| {
             s.status = "disabled";

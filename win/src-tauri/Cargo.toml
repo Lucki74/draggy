@@ -29,6 +29,7 @@ adblock = { version = "0.13.5", default-features = false, features = ["embedded-
 aes-gcm = "0.10"
 axum = "0.8"
 base64 = "0.22"
+notify = "8"
 unicode-normalization = "0.1.26"
 draggy-api = { path = "../../core/crates/api" }
 draggy-diagnostics = { path = "../../core/crates/diagnostics" }

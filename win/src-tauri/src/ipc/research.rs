@@ -1,15 +1,63 @@
 //! Handlers for the research channels. The saved runs live in library.db beside the library index.
 
-use serde_json::{Value, json};
-use tauri::AppHandle;
+use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::library::research::{get_run, list_runs, remove_run, save_run, search};
+use serde_json::{Value, json};
+use tauri::{AppHandle, Manager};
+
+use super::library::research::{apply_retention, get_run, list_runs, remove_run, save_run, search};
 use super::library::{data_dir, db};
 use super::storage::js_string;
 use super::{IpcError, Registry};
+use crate::AppState;
 
 const LIST_LIMIT: i64 = 100;
 const SEARCH_LIMIT: i64 = 20;
+
+/// Drops runs past the research keep setting, once at launch. Failures are logged and the app goes on.
+pub(crate) fn prune_at_start(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let dir = data_dir(&app);
+        let keep = research_keep(&dir);
+        let now = i64::try_from(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_or(0, |elapsed| elapsed.as_millis()),
+        )
+        .unwrap_or(0);
+        let outcome = db(&dir, move |s| apply_retention(s.conn_mut(), &keep, now)).await;
+        let state = app.state::<AppState>();
+        match outcome {
+            Ok(0) => {}
+            Ok(count) => state.diag.info(
+                "research",
+                "old runs removed",
+                Some(json!({ "count": count })),
+            ),
+            Err(error) => state.diag.warn(
+                "research",
+                &format!("could not prune old runs: {error}"),
+                None,
+            ),
+        }
+    });
+}
+
+/// The `researchKeep` setting, or "forever" when the settings are missing or unreadable.
+fn research_keep(dir: &Path) -> String {
+    let settings = crate::theme::saved_settings(&dir.join("draggy.db"))
+        .and_then(|text| serde_json::from_str::<Value>(&text).ok());
+    match settings
+        .as_ref()
+        .and_then(|value| value.get("researchKeep"))
+    {
+        Some(Value::String(text)) => text.clone(),
+        Some(Value::Number(number)) => number.to_string(),
+        _ => "forever".to_owned(),
+    }
+}
 
 pub fn register_all(registry: &mut Registry) {
     register!(registry, "research:list" => list);

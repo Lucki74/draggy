@@ -138,12 +138,13 @@ pub fn run() {
             app.manage(gateway);
             app.manage(ipc::browser::Panes::default());
             ipc::api_server::apply_saved(app.handle());
+            ipc::research::prune_at_start(app.handle());
             ipc::mcp::adopt_stored_credentials(app.handle());
             ipc::providers::start_auto_refresh(app.handle());
             ipc::providers::attach_focus_refresh(app.handle());
-            ipc::updater::start(app.handle());
-            // The filter lists wait for a finished setup.
+            // The launch check and the filter lists wait for a finished setup; onboarding:complete starts them.
             if !app.state::<AppState>().storage.show_setup() {
+                ipc::updater::start(app.handle());
                 browser::adblock::start(app.handle());
             }
             show_main_window(app, &data_dir)?;

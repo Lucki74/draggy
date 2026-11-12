@@ -294,6 +294,23 @@ fn instance_uses(app: &AppHandle) -> Vec<InstanceUse> {
         .collect()
 }
 
+/// The provider rows the diagnostics bundle carries: type, kind, protocol, enabled and hasKey. No keys.
+pub(crate) fn bundle_entries(app: &AppHandle) -> Vec<Value> {
+    store(app)
+        .list()
+        .into_iter()
+        .map(|view| {
+            json!({
+                "type": view.provider_type,
+                "kind": view.kind,
+                "protocol": view.protocol,
+                "enabled": view.enabled,
+                "hasKey": view.has_key,
+            })
+        })
+        .collect()
+}
+
 /// The catalog in use: the bundled one, or the remote file laid over it.
 pub(crate) fn active_catalog() -> Catalog {
     ACTIVE_CATALOG

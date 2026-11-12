@@ -1,5 +1,5 @@
 //! One dispatcher behind two Tauri commands. The renderer's channel names stay the Electron ones; a
-//! channel is served by a handler in the registry, or answers "not implemented" until it is ported.
+//! channel is served by a handler in the registry, or is refused as an unknown channel.
 
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
@@ -42,7 +42,7 @@ mod pdf_writer;
 pub mod pending;
 mod pricing;
 pub(crate) mod providers;
-mod research;
+pub(crate) mod research;
 mod sd;
 mod shell;
 mod skills;
@@ -65,7 +65,7 @@ pub enum IpcError {
 impl std::fmt::Display for IpcError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NotImplemented(channel) => write!(f, "not implemented: {channel}"),
+            Self::NotImplemented(channel) => write!(f, "unknown channel: {channel}"),
             Self::Failed(message) => f.write_str(message),
         }
     }
@@ -150,7 +150,7 @@ impl Registry {
                 let shown: String = channel.chars().take(64).collect();
                 diag.warn(
                     "ipc",
-                    "channel not ported yet",
+                    "unknown channel",
                     Some(serde_json::json!({ "channel": shown })),
                 );
             }

@@ -660,6 +660,7 @@ impl Web {
         Ok(HttpResponse {
             status: reply.status,
             body: reply.body,
+            final_url: url.to_owned(),
         })
     }
 }
@@ -771,6 +772,7 @@ impl HttpClient for Probe {
             Ok(status) => Ok(HttpResponse {
                 status,
                 body: String::new(),
+                final_url: request.url,
             }),
             Err(error) => Err(error),
         })

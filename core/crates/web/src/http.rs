@@ -5,6 +5,11 @@ use std::time::Duration;
 
 use encoding_rs::{Encoding, UTF_8};
 
+use crate::policy::UrlPolicy;
+
+/// Redirect hops a request may follow. Node's fetch and the hidden browser both follow 20.
+const REDIRECT_LIMIT: usize = 20;
+
 /// The verbs the port uses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Method {
@@ -24,11 +29,13 @@ pub struct HttpRequest {
     pub page: bool,
 }
 
-/// A status and the body text. A HEAD response has an empty body.
+/// A status and the body text. A HEAD response has an empty body. `final_url` is the address that answered after any
+/// redirects, which is where relative links on the page resolve.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HttpResponse {
     pub status: u16,
     pub body: String,
+    pub final_url: String,
 }
 
 /// Why no response arrived. The text never includes the request URL, so a query cannot leak through it.
@@ -64,18 +71,35 @@ impl ReqwestClient {
         // Node's fetch and the hidden browser both follow 20 redirects; reqwest's default stops at 10.
         Ok(Self {
             api: build(
-                reqwest::Client::builder().redirect(reqwest::redirect::Policy::limited(20)),
+                reqwest::Client::builder()
+                    .redirect(reqwest::redirect::Policy::limited(REDIRECT_LIMIT)),
             )?,
             page: build(
                 reqwest::Client::builder()
                     .cookie_store(true)
-                    .redirect(reqwest::redirect::Policy::limited(20)),
+                    .redirect(page_redirects()),
             )?,
             no_redirects: build(
                 reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()),
             )?,
         })
     }
+}
+
+/// Scraped pages hold every redirect hop to the URL policy, as `page` reads do. A refused hop fails the request.
+fn page_redirects() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if redirect_allowed(attempt.url().as_str(), attempt.previous().len()) {
+            attempt.follow()
+        } else {
+            attempt.error("redirect refused by the URL policy")
+        }
+    })
+}
+
+/// True when a hop may be followed: the hop count is under the limit and the URL policy allows the address.
+pub fn redirect_allowed(url: &str, hops_so_far: usize) -> bool {
+    hops_so_far < REDIRECT_LIMIT && UrlPolicy::new().is_fetchable_url(url, false)
 }
 
 fn build(builder: reqwest::ClientBuilder) -> Result<reqwest::Client, HttpError> {
@@ -105,6 +129,7 @@ impl HttpClient for ReqwestClient {
         }
         let response = builder.send().await.map_err(map_error)?;
         let status = response.status().as_u16();
+        let final_url = response.url().to_string();
         let content_type = response
             .headers()
             .get(reqwest::header::CONTENT_TYPE)
@@ -116,7 +141,11 @@ impl HttpClient for ReqwestClient {
         } else {
             String::from_utf8_lossy(&bytes).into_owned()
         };
-        Ok(HttpResponse { status, body })
+        Ok(HttpResponse {
+            status,
+            body,
+            final_url,
+        })
     }
 }
 
@@ -146,5 +175,36 @@ fn map_error(error: reqwest::Error) -> HttpError {
         HttpError::Timeout
     } else {
         HttpError::Failed(error.without_url().to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn public_hops_are_followed_and_private_hops_refused() {
+        assert!(redirect_allowed("https://example.com/next", 1));
+        assert!(!redirect_allowed("http://127.0.0.1/admin", 1));
+        assert!(!redirect_allowed("http://192.168.1.10/", 1));
+        assert!(!redirect_allowed("http://localhost/", 1));
+    }
+
+    #[test]
+    fn hop_limit_stops_a_long_chain() {
+        assert!(redirect_allowed("https://example.com/", REDIRECT_LIMIT - 1));
+        assert!(!redirect_allowed("https://example.com/", REDIRECT_LIMIT));
+    }
+
+    #[test]
+    fn page_decodes_by_charset_and_defaults_to_utf8() {
+        assert_eq!(decode_page("café".as_bytes(), None), "café");
+        assert_eq!(
+            decode_page(
+                &[0x63, 0x61, 0x66, 0xE9],
+                Some("text/html; charset=ISO-8859-1")
+            ),
+            "café"
+        );
     }
 }

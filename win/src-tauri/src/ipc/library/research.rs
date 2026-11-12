@@ -395,7 +395,26 @@ fn int(value: &Value, key: &str) -> Option<i64> {
         .and_then(|v| v.as_i64().or_else(|| v.as_f64().map(|n| n as i64)))
 }
 
-// TODO(research-retention): applyRetention is not ported; it runs outside these handlers.
+const DAY_MS: i64 = 24 * 60 * 60 * 1000;
+
+/// Drops runs started before the keep window of the research setting. Returns how many went.
+pub fn apply_retention(conn: &mut Connection, setting: &str, now: i64) -> Result<usize> {
+    let days = match setting {
+        "30" => 30,
+        "90" => 90,
+        _ => return Ok(0),
+    };
+    let cutoff = now - days * DAY_MS;
+    let old: Vec<String> = {
+        let mut stmt = conn.prepare("SELECT id FROM research_runs WHERE started_at < ?1")?;
+        let ids = stmt.query_map([cutoff], |row| row.get(0))?;
+        ids.collect::<Result<_>>()?
+    };
+    for id in &old {
+        remove_run(conn, id)?;
+    }
+    Ok(old.len())
+}
 
 #[cfg(test)]
 mod tests {
@@ -457,5 +476,24 @@ mod tests {
         assert_eq!(runs.len(), 1);
         assert_eq!(runs[0]["id"], "e1");
         assert_eq!(runs[0]["depth"], "deep");
+    }
+
+    #[test]
+    fn retention_drops_only_runs_past_the_keep_window() {
+        let mut conn = Connection::open_in_memory().expect("open");
+        init(&conn).expect("schema");
+        let now = 100 * DAY_MS;
+        for (id, started) in [("old", 1000), ("recent", now - DAY_MS)] {
+            let run = json!({ "id": id, "workspaceId": "default", "status": "done", "startedAt": started });
+            save_run(&mut conn, &run).expect("save");
+        }
+        assert_eq!(
+            apply_retention(&mut conn, "forever", now).expect("forever"),
+            0
+        );
+        assert_eq!(apply_retention(&mut conn, "30", now).expect("30"), 1);
+        let left = list_runs(&conn, None, 10).expect("list");
+        assert_eq!(left.len(), 1);
+        assert_eq!(left[0]["id"], "recent");
     }
 }

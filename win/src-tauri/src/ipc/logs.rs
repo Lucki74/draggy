@@ -1,6 +1,9 @@
 //! Handlers for the logs channels and the diagnostics bundle channels.
 
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::SystemTime;
 
 use draggy_diagnostics::{LevelChange, LevelState, LogFile, Scopes};
 use serde_json::{Map, Value, json};
@@ -8,6 +11,7 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
+use super::providers;
 use super::{IpcError, Registry};
 use crate::{AppState, theme};
 
@@ -120,10 +124,13 @@ async fn tail(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
 }
 
 /// What the bundle needs from this process. Settings come from the same store the renderer uses.
-fn sources(app: &AppHandle) -> bundle::Sources {
-    let state = app.state::<AppState>();
-    let diag = &state.diag;
-    let db = diag.dir().parent().unwrap_or(diag.dir()).join("draggy.db");
+async fn sources(app: &AppHandle) -> bundle::Sources {
+    let (diag, mcp) = {
+        let state = app.state::<AppState>();
+        (Arc::clone(&state.diag), Arc::clone(&state.mcp))
+    };
+    let data_dir = diag.dir().parent().unwrap_or(diag.dir()).to_path_buf();
+    let db = data_dir.join("draggy.db");
     let settings = match theme::saved_settings(&db) {
         Some(text) => serde_json::from_str::<Value>(&text).unwrap_or_else(|_| {
             diag.swallow(
@@ -149,19 +156,58 @@ fn sources(app: &AppHandle) -> bundle::Sources {
     system.insert("arch".to_owned(), json!(arch));
     system.insert("packaged".to_owned(), json!(!cfg!(debug_assertions)));
     system.insert("level".to_owned(), level_json(&diag.level_state()));
+    let providers = {
+        let app = app.clone();
+        tauri::async_runtime::spawn_blocking(move || providers::bundle_entries(&app))
+            .await
+            .unwrap_or_default()
+    };
+    let mcp_servers = mcp
+        .list()
+        .await
+        .iter()
+        .map(|server| json!({ "id": server.id, "status": server.status, "tools": server.tools.len() }))
+        .collect();
     bundle::Sources {
         log_dir: diag.dir().to_path_buf(),
-        // Crash dumps and the provider and MCP lists are not ported to Rust yet.
-        crash_dumps: Vec::new(),
+        crash_dumps: crash_dumps(&data_dir.join("Crashpad")),
         home_dir: std::env::var("USERPROFILE").unwrap_or_default(),
         user_name: std::env::var("USERNAME").unwrap_or_default(),
         app_version: app.package_info().version.to_string(),
         created_at: bundle::iso_from_unix_ms(now_unix_ms()),
         system,
         settings,
-        providers: Vec::new(),
-        mcp_servers: Vec::new(),
+        providers,
+        mcp_servers,
     }
+}
+
+/// Every .dmp under the crash folder, newest first, three folders deep at most.
+fn crash_dumps(root: &Path) -> Vec<PathBuf> {
+    fn walk(dir: &Path, depth: u32, found: &mut Vec<(SystemTime, PathBuf)>) {
+        if depth > 3 {
+            return;
+        }
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(&path, depth + 1, found);
+            } else if path.extension().is_some_and(|ext| ext == "dmp") {
+                let mtime = entry
+                    .metadata()
+                    .and_then(|meta| meta.modified())
+                    .unwrap_or(SystemTime::UNIX_EPOCH);
+                found.push((mtime, path));
+            }
+        }
+    }
+    let mut found = Vec::new();
+    walk(root, 0, &mut found);
+    found.sort_by_key(|entry| std::cmp::Reverse(entry.0));
+    found.into_iter().map(|(_, path)| path).collect()
 }
 
 fn now_unix_ms() -> i64 {
@@ -187,13 +233,13 @@ fn choices(value: Option<&Value>) -> bundle::Choices {
 }
 
 async fn preview(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
-    Ok(bundle::preview(&sources(&app), choices(args.first())))
+    Ok(bundle::preview(&sources(&app).await, choices(args.first())))
 }
 
 /// The save dialog opens in Documents; nothing is written until the person picks a file.
 async fn export(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let picks = choices(args.first());
-    let sources = sources(&app);
+    let sources = sources(&app).await;
     let mut dialog = app
         .dialog()
         .file()

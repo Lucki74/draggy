@@ -399,7 +399,14 @@ mod tests {
                 .get(&request.url)
                 .cloned()
                 .unwrap_or((404, String::new()));
-            async move { Ok(HttpResponse { status, body }) }
+            let final_url = request.url.clone();
+            async move {
+                Ok(HttpResponse {
+                    status,
+                    body,
+                    final_url,
+                })
+            }
         }
     }
 
