@@ -39,15 +39,9 @@ jobs:
             | sed -n 's#^refs/tags/b-\([0-9]\+\)$#\1#p' | sort -n | tail -1)
           echo "n=$(( ${last:-0} + 1 ))" >> "$GITHUB_OUTPUT"
 
-  build:
+  windows:
     needs: prepare
-    strategy:
-      # A platform that fails stops the rest.
-      fail-fast: true
-      matrix:
-        include:
-          - { os: windows-latest, script: "electron:build" }
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     permissions:
       contents: read
     defaults:
@@ -64,12 +58,29 @@ jobs:
           cache: npm
           cache-dependency-path: win/package-lock.json
 
+      - run: rustup toolchain install stable --profile minimal
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: win/src-tauri
+
       - run: npm ci
 
-      - name: Build the sandbox launcher
-        working-directory: win/sandbox
-        run: cargo build --release
+      # vendor/ is git-ignored, so the pinned node.exe sidecar and embeddable Python are fetched here.
+      - name: Fetch the pinned node.exe sidecar
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pin = Get-Content -Raw scripts/node-pin.json | ConvertFrom-Json
+          New-Item -ItemType Directory -Force -Path vendor/node | Out-Null
+          $dest = Join-Path $PWD 'vendor/node/node.exe'
+          Invoke-WebRequest -Uri "https://nodejs.org/dist/$($pin.version)/win-x64/node.exe" -OutFile $dest
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $dest).Hash.ToLowerInvariant()
+          if ($hash -ne $pin.sha256) { throw "node.exe sha256 $hash does not match pin $($pin.version)" }
 
+      - run: npm run fetch:python
+
+      - run: npm run stage:sidecars
 
       - name: Typecheck, lint and test
         run: npm run check
@@ -84,15 +95,50 @@ jobs:
           npm version "3.0.$N" --no-git-tag-version --allow-same-version
           printf '%s\n' "$NOTES" > build/release-notes.md
 
-      - run: npm run ${{ matrix.script }}
+      - name: Build the Tauri app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri:build
+
+      # Renames the NSIS setup, then writes the Tauri updater feed and the bridge latest.yml the Electron copies read.
+      - name: Name the installer and write the update feeds
+        shell: pwsh
+        env:
+          N: ${{ needs.prepare.outputs.n }}
+          NOTES: ${{ inputs.notes }}
+          REPO: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = "3.0.$env:N"
+          $nsis = Join-Path $PWD 'src-tauri/target/release/bundle/nsis'
+          $setup = Get-ChildItem -LiteralPath $nsis -Filter '*-setup.exe' | Select-Object -First 1
+          if (-not $setup) { throw "No NSIS setup found in $nsis" }
+          $sigPath = "$($setup.FullName).sig"
+          if (-not (Test-Path -LiteralPath $sigPath)) { throw 'No updater signature next to the setup; createUpdaterArtifacts is off' }
+          $out = Join-Path $PWD 'dist-tauri'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $installer = Join-Path $out 'draggy_setup.exe'
+          Copy-Item -LiteralPath $setup.FullName -Destination $installer
+          ./scripts/bridge-latest-yml.ps1 -Setup $installer -Version $version -Out (Join-Path $out 'latest.yml')
+          $feed = [ordered]@{
+            version   = $version
+            notes     = $env:NOTES
+            pub_date  = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+            platforms = [ordered]@{
+              'windows-x86_64' = [ordered]@{
+                signature = (Get-Content -Raw -LiteralPath $sigPath).Trim()
+                url       = "https://github.com/$env:REPO/releases/download/updater-windows/draggy_setup.exe"
+              }
+            }
+          }
+          $json = $feed | ConvertTo-Json -Depth 5
+          [System.IO.File]::WriteAllText((Join-Path $out 'latest-windows.json'), $json + "`n", (New-Object System.Text.UTF8Encoding $false))
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: dist-${{ matrix.os }}
-          path: |
-            win/dist-electron/*.exe
-            win/dist-electron/*.blockmap
-            win/dist-electron/latest*.yml
+          name: dist-windows
+          path: win/dist-tauri/*
           if-no-files-found: error
 
   macos:
@@ -205,7 +251,7 @@ jobs:
   # Drafting first and publishing last means a failed upload never leaves a half-empty Latest
   # release that installed apps would pick up.
   publish:
-    needs: [prepare, build, macos, linux]
+    needs: [prepare, windows, macos, linux]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     permissions:
@@ -251,6 +297,14 @@ jobs:
 
           gh release download "b-$n" --repo "$GITHUB_REPOSITORY" --pattern latest-linux.yml --dir out
 
+      # The Tauri feed and installer go to the rolling updater-windows release, so the b-N release keeps only the bridge latest.yml.
+      - name: Split out the Windows updater feed
+        shell: bash
+        run: |
+          mkdir -p updater
+          mv out/latest-windows.json updater/
+          cp out/draggy_setup.exe updater/
+
       - name: Generate SHA256SUMS.txt
         shell: bash
         run: |
@@ -270,3 +324,14 @@ jobs:
           gh release create "b-$N" out/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "build-$N" --notes "$body" --draft
           gh release edit "b-$N" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
+      - name: Publish the Windows updater feed
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view updater-windows --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create updater-windows --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "Windows updater feed" --notes "Rolling feed read by the in-app updater. Replaced on every Windows release." --latest=false
+          fi
+          gh release upload updater-windows updater/* --repo "$GITHUB_REPOSITORY" --clobber
