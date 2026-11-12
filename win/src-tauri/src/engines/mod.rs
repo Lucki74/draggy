@@ -3,6 +3,7 @@
 //! Child processes start through core: `draggy_tools::spawn` sets CREATE_NO_WINDOW, so no extra spawn helper is needed
 //! here. Engines bind 127.0.0.1 only, and nothing downloads until the renderer asks.
 
+pub mod colibri;
 pub mod load_stage;
 pub mod net;
 pub mod sysinfo;
@@ -27,7 +28,7 @@ use tokio::sync::OnceCell;
 pub type Llama = LlamaSupervisor<HttpProbe, SystemClock, ProcessRunner>;
 type VolumeFn = fn(&str) -> Option<Space>;
 
-static RUNNER: ProcessRunner = ProcessRunner;
+pub static RUNNER: ProcessRunner = ProcessRunner;
 static VOLUMES: VolumeFn = sysinfo::volume_space;
 
 /// Cached answer of `get-system-specs`, plus the typed part the hardware report reads.
@@ -49,6 +50,7 @@ pub struct Engines {
     pub policy: Mutex<UrlPolicy>,
     pub projectors: Mutex<Projectors>,
     pub capabilities: Mutex<CapabilityCache>,
+    pub colibri: colibri::ColibriServer,
 }
 
 pub fn host_platform() -> Platform {
@@ -100,6 +102,7 @@ impl Engines {
             policy: Mutex::new(UrlPolicy::new()),
             projectors: Mutex::new(Projectors::new()),
             capabilities: Mutex::new(CapabilityCache::default()),
+            colibri: colibri::ColibriServer::new(),
         }
     }
 
@@ -201,6 +204,7 @@ impl Engines {
         if let Some(llama) = self.llama.get() {
             llama.stop().await;
         }
+        self.colibri.stop().await;
     }
 }
 
