@@ -5,11 +5,13 @@ pub mod engines;
 pub mod ipc;
 pub mod models;
 pub mod paths;
+pub mod pricing;
 pub mod quit;
 pub mod secrets;
 pub mod storage;
 pub mod terminals;
 pub mod theme;
+pub mod tts;
 
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher};

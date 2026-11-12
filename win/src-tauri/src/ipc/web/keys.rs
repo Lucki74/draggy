@@ -126,6 +126,13 @@ fn open(app: &AppHandle) -> Option<Mutex<Keystore>> {
     }
 }
 
+/// The key kept under an owner with no slot of its own, such as a provider's. Empty when none is kept.
+pub fn stored(app: &AppHandle, owner: &str) -> String {
+    with_store(app, |store| store.get(owner, FIELD))
+        .flatten()
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::hint;
