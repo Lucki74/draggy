@@ -35,14 +35,21 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
-    "icon": ["icons/icon.ico"],
-    "externalBin": ["binaries/node"],
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/node"
+    ],
     "resources": {
       "../../shared/pricing/prices.json": "prices.json",
       "../../shared/fixtures/web/config.json": "search-config.json",
       "../../LICENSE": "LICENSE",
-      "../../NOTICE": "NOTICE"
+      "../../NOTICE": "NOTICE",
+      "../skills-library/**/*": "skills-library/"
     },
     "publisher": "The Draggy authors",
     "copyright": "Copyright © 2026 The Draggy authors",
@@ -57,8 +64,12 @@
   "plugins": {
     "updater": {
       "pubkey": "PLACEHOLDER_UPDATER_PUBKEY",
-      "endpoints": ["https://github.com/Lucki74/draggy/releases/download/updater-windows/latest-windows.json"],
-      "windows": { "installMode": "quiet" }
+      "endpoints": [
+        "https://github.com/Lucki74/draggy/releases/download/updater-windows/latest-windows.json"
+      ],
+      "windows": {
+        "installMode": "quiet"
+      }
     }
   }
 }
