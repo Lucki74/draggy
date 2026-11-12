@@ -47,15 +47,15 @@ pub fn register_all(registry: &mut Registry) {
     register!(registry, "onboarding:reset" => onboarding_reset);
 }
 
-fn refused(message: &str) -> Value {
+pub(crate) fn refused(message: &str) -> Value {
     json!({ "success": false, "error": message })
 }
 
-fn closed() -> Value {
+pub(crate) fn closed() -> Value {
     refused(CLOSED)
 }
 
-fn truthy(value: &Value) -> bool {
+pub(crate) fn truthy(value: &Value) -> bool {
     match value {
         Value::Null => false,
         Value::Bool(flag) => *flag,
@@ -66,7 +66,7 @@ fn truthy(value: &Value) -> bool {
 }
 
 /// JavaScript's `String(value)` for what a renderer call can send.
-fn js_string(value: Option<&Value>) -> String {
+pub(crate) fn js_string(value: Option<&Value>) -> String {
     match value {
         None => "undefined".to_owned(),
         Some(Value::Null) => "null".to_owned(),
@@ -78,7 +78,7 @@ fn js_string(value: Option<&Value>) -> String {
     }
 }
 
-async fn blocking<T: Send + 'static>(
+pub(crate) async fn blocking<T: Send + 'static>(
     work: impl FnOnce() -> T + Send + 'static,
 ) -> Result<T, IpcError> {
     tauri::async_runtime::spawn_blocking(work)
@@ -88,7 +88,7 @@ async fn blocking<T: Send + 'static>(
 
 /// Runs store work off the UI thread. A closed store answers `when_closed`; any other failure is
 /// logged under `scope` and answered as `{success:false,error}`, as the Electron `wrap` does.
-async fn with_storage<F>(
+pub(crate) async fn with_storage<F>(
     app: &AppHandle,
     scope: &'static str,
     when_closed: Value,
