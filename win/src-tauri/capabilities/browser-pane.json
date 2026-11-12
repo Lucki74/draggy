@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "browser-pane",
+  "description": "Browser pane child webviews (browser-pane-N). Granted nothing: no IPC, no events, no plugins.",
+  "webviews": ["browser-pane*"],
+  "permissions": []
+}

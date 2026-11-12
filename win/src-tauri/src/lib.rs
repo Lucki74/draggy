@@ -1,6 +1,7 @@
 //! Draggy for Windows: a Tauri shell around the React renderer. The renderer keeps the Electron API
 //! shape; `ipc` serves its channels.
 
+pub mod browser;
 pub mod chat_gateway;
 pub mod engines;
 pub mod ipc;
@@ -134,6 +135,7 @@ pub fn run() {
                 chat_gateway::production_serve(app.handle().clone()),
             );
             app.manage(gateway);
+            app.manage(ipc::browser::Panes::default());
             ipc::api_server::apply_saved(app.handle());
             ipc::mcp::adopt_stored_credentials(app.handle());
             ipc::providers::start_auto_refresh(app.handle());

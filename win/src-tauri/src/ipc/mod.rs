@@ -24,6 +24,7 @@ macro_rules! register {
 
 pub(crate) mod api_server;
 mod app;
+pub(crate) mod browser;
 mod call_log;
 pub(crate) mod code_runner;
 mod colibri;
@@ -87,6 +88,7 @@ impl Registry {
             warned: Mutex::new(HashSet::new()),
         };
         app::register_all(&mut registry);
+        browser::register_all(&mut registry);
         api_server::register_all(&mut registry);
         mcp::register_all(&mut registry);
         code_runner::register_all(&mut registry);
@@ -186,8 +188,21 @@ pub async fn ipc_invoke(
 
 /// Fire and forget from the renderer; a failure is logged there and in the file.
 #[tauri::command]
-pub async fn ipc_send(app: AppHandle, channel: String, args: Vec<Value>) -> Result<(), String> {
+pub async fn ipc_send(
+    app: AppHandle,
+    webview: tauri::Webview,
+    channel: String,
+    args: Vec<Value>,
+) -> Result<(), String> {
+    if !is_main_window(webview.label()) {
+        return Err("ipc_send is only accepted from the main window".to_owned());
+    }
     run(app, channel, args).await.map(|_| ())
+}
+
+/// Only the main window may send; the api-server reply channels rely on this.
+fn is_main_window(label: &str) -> bool {
+    label == "main"
 }
 
 /// Pushes an event to the window, as `webContents.send` did. A closed window is not an error.
@@ -204,5 +219,17 @@ pub fn emit(app: &AppHandle, channel: &str, value: Value) -> bool {
             }
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_main_window;
+
+    #[test]
+    fn only_the_main_window_may_send() {
+        assert!(is_main_window("main"));
+        assert!(!is_main_window("settings"));
+        assert!(!is_main_window(""));
     }
 }

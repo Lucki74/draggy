@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "What the main window may call. The browser pane webview gets no capability at all.",
-  "windows": ["main"],
+  "description": "What the main webview may call. Matched by webview label only, so the browser pane webviews never get it.",
+  "webviews": ["main"],
   "permissions": [
     "core:default",
     "core:event:allow-listen",
