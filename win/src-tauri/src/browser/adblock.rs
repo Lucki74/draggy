@@ -4,15 +4,16 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use adblock::Engine;
 use adblock::lists::{FilterSet, ParseOptions};
 use adblock::request::Request;
-use adblock::Engine;
 use tauri::{AppHandle, Manager};
 
+use super::scriptlets;
 use crate::AppState;
 
 /// The version is in the name: a cache is a compiled copy of these lists.
@@ -82,7 +83,9 @@ pub fn start(app: &AppHandle) {
     };
     tauri::async_runtime::spawn(async move {
         match load(dir).await {
-            Ok(engine) => {
+            Ok(mut engine) => {
+                // Scriptlets are not part of the cached lists, so they are attached on every start.
+                engine.use_resources(scriptlets::resources());
                 let _ = ENGINE.set(engine);
                 diag.info("net.adblock", "filter engine ready", None);
             }
@@ -176,6 +179,8 @@ pub struct PageRules {
     pub css: String,
     pub exceptions: HashSet<String>,
     pub generichide: bool,
+    /// Scriptlet JavaScript for the page's `##+js` filters; empty when there are none.
+    pub script: String,
 }
 
 /// Site cosmetic rules for a page URL; None while blocking is off or the engine is not ready.
@@ -190,6 +195,7 @@ pub fn page_rules(url: &str) -> Option<PageRules> {
         css: hide_css(&selectors),
         exceptions: resources.exceptions,
         generichide: resources.generichide,
+        script: resources.injected_script,
     })
 }
 
@@ -236,10 +242,10 @@ fn request_type(context: i32) -> &'static str {
 #[cfg(windows)]
 pub fn install(webview: &tauri::Webview) {
     use webview2_com::Microsoft::Web::WebView2::Win32::{
-        ICoreWebView2, ICoreWebView2WebResourceRequestedEventArgs,
-        COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL,
+        COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL, ICoreWebView2,
+        ICoreWebView2WebResourceRequestedEventArgs,
     };
-    use webview2_com::{take_pwstr, WebResourceRequestedEventHandler};
+    use webview2_com::{WebResourceRequestedEventHandler, take_pwstr};
     use windows::core::{HSTRING, PWSTR};
 
     const DOCUMENT_CONTEXT: i32 = 1;

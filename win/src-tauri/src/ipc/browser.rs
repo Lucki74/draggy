@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use regex::Regex;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tauri::webview::{NewWindowResponse, WebviewBuilder, WebviewWindowBuilder};
 use tauri::{
     AppHandle, LogicalPosition, LogicalSize, Manager, Position, Rect, Size, Url, Webview,
@@ -18,7 +18,8 @@ use tauri_plugin_opener::OpenerExt;
 use tokio::sync::{broadcast, oneshot, watch};
 use tokio::time::sleep;
 
-use super::{emit, IpcError, Registry};
+use super::{IpcError, Registry, emit};
+use crate::AppState;
 use crate::browser::adblock;
 use crate::browser::cdp::Cdp;
 #[cfg(not(windows))]
@@ -31,12 +32,11 @@ use crate::browser::elements;
 use crate::browser::input_watch::{self, AgentInput, Input};
 use crate::browser::observe::{self, Fail, Observer};
 use crate::browser::pages;
-use crate::browser::pane::{self, Bounds, Tabs, MAX_TABS};
+use crate::browser::pane::{self, Bounds, MAX_TABS, Tabs};
 use crate::browser::policy;
 use crate::browser::safety::{Grants, RateLimit, Standing};
 use crate::browser::trace::Trace;
 use crate::browser::{act, overlay, safety};
-use crate::AppState;
 
 const PANE_LABEL: &str = "browser-pane-";
 const MAIN_WINDOW: &str = "main";
@@ -417,6 +417,15 @@ async fn settle_page(app: &AppHandle, cdp: &WebView2Cdp) {
     let Some(rules) = href.as_str().and_then(adblock::page_rules) else {
         return;
     };
+    // Scriptlets patch the page's own globals, so they run in the main world, not the isolated one.
+    if !rules.script.is_empty() {
+        let _ = cdp
+            .call(
+                "Runtime.evaluate",
+                json!({ "expression": rules.script, "returnByValue": true }),
+            )
+            .await;
+    }
     let mut css = rules.css.clone();
     if !rules.generichide {
         let probe = "({ classes: [...new Set([...document.querySelectorAll('[class]')].flatMap((el) => [...el.classList]))], ids: [...document.querySelectorAll('[id]')].map((el) => el.id) })";
@@ -1500,10 +1509,10 @@ async fn popout_current(app: &AppHandle) {
         return;
     };
     let url = page_url(&cdp).await;
-    if let Ok(parsed) = Url::parse(&url) {
-        if matches!(parsed.scheme(), "http" | "https") {
-            let _ = open_popout(app, parsed);
-        }
+    if let Ok(parsed) = Url::parse(&url)
+        && matches!(parsed.scheme(), "http" | "https")
+    {
+        let _ = open_popout(app, parsed);
     }
 }
 

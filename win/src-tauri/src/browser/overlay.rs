@@ -3,7 +3,7 @@
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::cdp::{Cdp, CdpError};
 
@@ -134,11 +134,7 @@ pub fn accent_of(raw_settings: Option<&str>) -> &'static str {
 pub fn color_of(raw: &str) -> &str {
     let hex =
         raw.len() == 7 && raw.starts_with('#') && raw[1..].bytes().all(|b| b.is_ascii_hexdigit());
-    if hex {
-        raw
-    } else {
-        DEFAULT_COLOR
-    }
+    if hex { raw } else { DEFAULT_COLOR }
 }
 
 /// The script that paints the frame, and moves the cursor to a point when one is given.
@@ -219,9 +215,11 @@ mod tests {
         hold(Some((3.0, 4.0)));
         hold(None);
         assert_eq!(held_point(), Some(Some((3.0, 4.0))));
-        assert!(repaint_script(DEFAULT_COLOR)
-            .unwrap_or_default()
-            .contains("const rest = true;"));
+        assert!(
+            repaint_script(DEFAULT_COLOR)
+                .unwrap_or_default()
+                .contains("const rest = true;")
+        );
         release();
         assert!(repaint_script(DEFAULT_COLOR).is_none());
     }

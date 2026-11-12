@@ -16,4 +16,5 @@ pub mod pages;
 pub mod pane;
 pub mod policy;
 pub mod safety;
+pub mod scriptlets;
 pub mod trace;
