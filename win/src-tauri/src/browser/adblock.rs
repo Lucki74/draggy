@@ -1,15 +1,16 @@
 //! Ad and tracker blocking for the browser pane. The lists are the ones Electron fetched; they are
 //! compiled once and cached under app data. Each pane webview asks the engine about every request.
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
 use std::time::Duration;
 
-use adblock::Engine;
 use adblock::lists::{FilterSet, ParseOptions};
 use adblock::request::Request;
+use adblock::Engine;
 use tauri::{AppHandle, Manager};
 
 use crate::AppState;
@@ -18,6 +19,7 @@ use crate::AppState;
 const CACHE_FILE: &str = "adblock-engine-v1.bin";
 const FETCH_TIMEOUT: Duration = Duration::from_secs(60);
 const SETTING_KEY: &str = "adblockEnabled";
+const STYLE_ID: &str = "draggy-cosmetic";
 
 /// Electron's list set: uBlock Origin's defaults, AdGuard's, OISD, and the anti-adblock wall list.
 const LIST_URLS: &[&str] = &[
@@ -169,6 +171,51 @@ pub fn should_block(url: &str, source_url: &str, request_type: &str) -> bool {
     }
 }
 
+/// Cosmetic rules for one page: site hide rules, the exceptions that skip generic rules, and generichide.
+pub struct PageRules {
+    pub css: String,
+    pub exceptions: HashSet<String>,
+    pub generichide: bool,
+}
+
+/// Site cosmetic rules for a page URL; None while blocking is off or the engine is not ready.
+pub fn page_rules(url: &str) -> Option<PageRules> {
+    if !ENABLED.load(Ordering::SeqCst) {
+        return None;
+    }
+    let resources = ENGINE.get()?.url_cosmetic_resources(url);
+    let mut selectors: Vec<String> = resources.hide_selectors.into_iter().collect();
+    selectors.sort();
+    Some(PageRules {
+        css: hide_css(&selectors),
+        exceptions: resources.exceptions,
+        generichide: resources.generichide,
+    })
+}
+
+/// Generic hide rules for the classes and ids a page uses, less the page's exceptions.
+pub fn generic_css(classes: &[String], ids: &[String], exceptions: &HashSet<String>) -> String {
+    match ENGINE.get() {
+        Some(engine) => hide_css(&engine.hidden_class_id_selectors(classes, ids, exceptions)),
+        None => String::new(),
+    }
+}
+
+fn hide_css(selectors: &[String]) -> String {
+    selectors
+        .iter()
+        .map(|selector| format!("{selector} {{ display: none !important; }}\n"))
+        .collect()
+}
+
+/// Script that sets the one cosmetic style element of the page to `css`.
+pub fn style_script(css: &str) -> String {
+    let text = serde_json::to_string(css).unwrap_or_else(|_| "\"\"".to_owned());
+    format!(
+        "(() => {{ let el = document.getElementById('{STYLE_ID}'); if (!el) {{ el = document.createElement('style'); el.id = '{STYLE_ID}'; (document.head || document.documentElement).appendChild(el); }} el.textContent = {text}; return true; }})()"
+    )
+}
+
 /// Maps a WebView2 resource context to the request type the engine's rules use.
 #[cfg(any(windows, test))]
 fn request_type(context: i32) -> &'static str {
@@ -189,10 +236,10 @@ fn request_type(context: i32) -> &'static str {
 #[cfg(windows)]
 pub fn install(webview: &tauri::Webview) {
     use webview2_com::Microsoft::Web::WebView2::Win32::{
-        COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL, ICoreWebView2,
-        ICoreWebView2WebResourceRequestedEventArgs,
+        ICoreWebView2, ICoreWebView2WebResourceRequestedEventArgs,
+        COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL,
     };
-    use webview2_com::{WebResourceRequestedEventHandler, take_pwstr};
+    use webview2_com::{take_pwstr, WebResourceRequestedEventHandler};
     use windows::core::{HSTRING, PWSTR};
 
     const DOCUMENT_CONTEXT: i32 = 1;
@@ -280,6 +327,22 @@ mod tests {
         assert!(check("https://ads.example/banner.js"));
         assert!(!check("https://ads.example/allowed/x.js"));
         assert!(!check("https://site.test/app.js"));
+    }
+
+    #[test]
+    fn hide_rules_become_one_display_none_rule_each() {
+        let css = hide_css(&[".ad".to_owned(), "#promo".to_owned()]);
+        assert_eq!(
+            css,
+            ".ad { display: none !important; }\n#promo { display: none !important; }\n"
+        );
+    }
+
+    #[test]
+    fn style_script_quotes_the_css_as_one_string() {
+        let script = style_script("a[x=\"</style>\"] { }");
+        assert!(script.contains("\\\"</style>\\\""));
+        assert!(script.contains(STYLE_ID));
     }
 
     #[test]

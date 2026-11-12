@@ -8,20 +8,18 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use regex::Regex;
-use serde_json::{Value, json};
-use tauri::webview::WebviewBuilder;
+use serde_json::{json, Value};
+use tauri::webview::{NewWindowResponse, WebviewBuilder, WebviewWindowBuilder};
 use tauri::{
     AppHandle, LogicalPosition, LogicalSize, Manager, Position, Rect, Size, Url, Webview,
     WebviewUrl,
 };
 use tauri_plugin_opener::OpenerExt;
-#[cfg(not(windows))]
-use tokio::sync::broadcast;
-use tokio::sync::{oneshot, watch};
+use tokio::sync::{broadcast, oneshot, watch};
 use tokio::time::sleep;
 
-use super::{IpcError, Registry, emit};
-use crate::AppState;
+use super::{emit, IpcError, Registry};
+use crate::browser::adblock;
 use crate::browser::cdp::Cdp;
 #[cfg(not(windows))]
 use crate::browser::cdp::CdpError;
@@ -33,11 +31,12 @@ use crate::browser::elements;
 use crate::browser::input_watch::{self, AgentInput, Input};
 use crate::browser::observe::{self, Fail, Observer};
 use crate::browser::pages;
-use crate::browser::pane::{self, Bounds, MAX_TABS, Tabs};
+use crate::browser::pane::{self, Bounds, Tabs, MAX_TABS};
 use crate::browser::policy;
 use crate::browser::safety::{Grants, RateLimit, Standing};
 use crate::browser::trace::Trace;
 use crate::browser::{act, overlay, safety};
+use crate::AppState;
 
 const PANE_LABEL: &str = "browser-pane-";
 const MAIN_WINDOW: &str = "main";
@@ -56,6 +55,7 @@ const CONSENT_WAIT: Duration = Duration::from_secs(120);
 const DENY: &str = "deny";
 /// The saved ad-block choice, under the key the Electron build used.
 const ADBLOCK_KEY: &str = "adblockEnabled";
+const SETTINGS_KEY: &str = "draggy_settings";
 const TRACE_KIND: &str = "The trace kind is console or network.";
 const TRACE_EVENTS: [&str; 5] = [
     "Runtime.consoleAPICalled",
@@ -144,6 +144,8 @@ async fn pane_visible(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcErro
     let panes = app.state::<Panes>();
     panes.lock().set_visible(args.first().is_some_and(truthy));
     apply_layout(&panes);
+    // A pane that mounts again starts with an empty bar, so it hears where the page is either way.
+    broadcast_bar_state(&app).await;
     Ok(json!({ "success": true }))
 }
 
@@ -326,8 +328,14 @@ fn create_tab(app: &AppHandle, panes: &Panes) -> Result<Webview, String> {
         panes.labels.fetch_add(1, Ordering::Relaxed)
     );
     let blank = Url::parse(BLANK).map_err(|error| error.to_string())?;
+    let opener = app.clone();
     let builder = WebviewBuilder::new(&label, WebviewUrl::External(blank))
-        .on_navigation(|url: &Url| matches!(url.scheme(), "http" | "https" | "about"));
+        .on_navigation(|url: &Url| matches!(url.scheme(), "http" | "https" | "about"))
+        .on_new_window(move |url: Url, _features| {
+            let app = opener.clone();
+            tauri::async_runtime::spawn(async move { open_link(&app, url).await });
+            NewWindowResponse::Deny
+        });
     let webview = window
         .add_child(
             builder,
@@ -340,10 +348,99 @@ fn create_tab(app: &AppHandle, panes: &Panes) -> Result<Webview, String> {
     crate::browser::adblock::install(&webview);
     // The trace starts with the tab, as Electron's does, so early console lines are kept.
     trace_of(app, &webview);
+    watch_tab(app, &webview);
     app.state::<AppState>()
         .diag
         .info("window.browser.pane", "pane tab created", None);
     Ok(webview)
+}
+
+/// Settles each page as it loads: repaints the agent frame, adds cosmetic rules and updates the bar.
+#[cfg(windows)]
+fn watch_tab(app: &AppHandle, webview: &Webview) {
+    let app = app.clone();
+    let label = webview.label().to_owned();
+    let cdp = WebView2Cdp::new(webview.clone());
+    let mut loaded = cdp.subscribe("Page.domContentEventFired");
+    let mut navigated = cdp.subscribe("Page.frameNavigated");
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::select! {
+                event = loaded.recv() => {
+                    if matches!(event, Err(broadcast::error::RecvError::Closed)) {
+                        break;
+                    }
+                    settle_page(&app, &cdp).await;
+                }
+                event = navigated.recv() => {
+                    let Ok(event) = event else { break };
+                    // Only the top frame counts; the host is logged, never the path or query.
+                    let frame = &event["frame"];
+                    if frame.get("parentId").is_some() {
+                        continue;
+                    }
+                    if let Some(host) = frame["url"].as_str().and_then(host_of) {
+                        app.state::<AppState>().diag.info(
+                            "window.browser.pane",
+                            "page navigated",
+                            Some(json!({ "host": host })),
+                        );
+                    }
+                    if front_label(&app).as_deref() == Some(label.as_str()) {
+                        broadcast_bar_state(&app).await;
+                    }
+                }
+            }
+        }
+    });
+}
+
+#[cfg(not(windows))]
+fn watch_tab(_app: &AppHandle, _webview: &Webview) {}
+
+fn front_label(app: &AppHandle) -> Option<String> {
+    front_webview(app).map(|webview| webview.label().to_owned())
+}
+
+fn host_of(raw: &str) -> Option<String> {
+    Url::parse(raw).ok()?.host_str().map(str::to_owned)
+}
+
+#[cfg(windows)]
+async fn settle_page(app: &AppHandle, cdp: &WebView2Cdp) {
+    if let Some(script) = overlay::repaint_script(accent(app)) {
+        let _ = overlay::run(cdp, &script).await;
+    }
+    let Ok(href) = pages::evaluate(cdp, "location.href").await else {
+        return;
+    };
+    let Some(rules) = href.as_str().and_then(adblock::page_rules) else {
+        return;
+    };
+    let mut css = rules.css.clone();
+    if !rules.generichide {
+        let probe = "({ classes: [...new Set([...document.querySelectorAll('[class]')].flatMap((el) => [...el.classList]))], ids: [...document.querySelectorAll('[id]')].map((el) => el.id) })";
+        if let Ok(page) = pages::evaluate(cdp, probe).await {
+            let names = |key: &str| -> Vec<String> {
+                page[key]
+                    .as_array()
+                    .map(|items| {
+                        items
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .map(str::to_owned)
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            };
+            css.push_str(&adblock::generic_css(
+                &names("classes"),
+                &names("ids"),
+                &rules.exceptions,
+            ));
+        }
+    }
+    let _ = overlay::run(cdp, &adblock::style_script(&css)).await;
 }
 
 /// Puts each tab where the pane says: the front tab at the stored rectangle while shown, the rest hidden.
@@ -532,9 +629,20 @@ fn halted(app: &AppHandle) -> bool {
 }
 
 /// Paints the agent's frame, moving the cursor to a point when one is given. A failed paint is not a failed step.
-async fn paint(cdp: &impl Cdp, point: Option<(f64, f64)>, click: bool) {
-    let script = overlay::paint_script(point, click, overlay::DEFAULT_COLOR);
+async fn paint(cdp: &impl Cdp, point: Option<(f64, f64)>, click: bool, accent: &str) {
+    overlay::hold(point);
+    let script = overlay::paint_script(point, click, false, accent);
     let _ = overlay::run(cdp, &script).await;
+}
+
+/// The saved accent colour, which the agent's frame is painted in.
+fn accent(app: &AppHandle) -> &'static str {
+    let raw = app
+        .state::<AppState>()
+        .storage
+        .handle()
+        .and_then(|store| store.get_value(SETTINGS_KEY).ok().flatten());
+    overlay::accent_of(raw.as_deref())
 }
 
 /// Takes the agent's frame off the page once the run is over or the user has taken it.
@@ -542,6 +650,7 @@ async fn hide_overlay(app: &AppHandle) {
     let Some(cdp) = page_cdp(app) else {
         return;
     };
+    overlay::release();
     let _ = overlay::run(&cdp, &overlay::hide_script()).await;
 }
 
@@ -606,7 +715,7 @@ where
         let Some(dialogs) = dialogs_of(&gate) else {
             return pages::failure("pane_unavailable", None);
         };
-        paint(&*cdp, None, false).await;
+        paint(&*cdp, None, false, accent(app)).await;
         // A click that raises an alert never returns until the alert is answered.
         let mut out = tokio::select! {
             result = f(cdp.clone()) => match result {
@@ -817,6 +926,7 @@ async fn click(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     }
     let (observer, _) = panes_parts(&app);
     let gate = app.clone();
+    let color = accent(&app);
     Ok(acting(&app, move |cdp| async move {
         let point = match (&by_ref, by_index) {
             (Some(reference), _) => {
@@ -849,9 +959,9 @@ async fn click(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
             .and_then(Value::as_array)
             .map(|a| a.iter().filter_map(Value::as_str).collect())
             .unwrap_or_default();
-        paint(&*cdp, Some(point), false).await;
+        paint(&*cdp, Some(point), false, color).await;
         sleep(Duration::from_millis(400)).await;
-        paint(&*cdp, Some(point), true).await;
+        paint(&*cdp, Some(point), true, color).await;
         act::click_at(
             &*cdp,
             point.0,
@@ -924,10 +1034,11 @@ async fn press_key(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
 async fn hover(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let target = args.first().cloned().unwrap_or(Value::Null);
     let (observer, _) = panes_parts(&app);
+    let color = accent(&app);
     Ok(acting(&app, move |cdp| async move {
         let (x, y) = locate(&observer, &cdp, &target).await?;
         act::hover(&*cdp, x, y).await?;
-        paint(&*cdp, Some((x, y)), false).await;
+        paint(&*cdp, Some((x, y)), false, color).await;
         Ok(json!({}))
     })
     .await)
@@ -1371,13 +1482,86 @@ async fn bar_action(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError>
             open_current(&app).await;
             true
         }
-        // Pop-out needs a second window, which this build does not open yet.
+        "popout" => {
+            popout_current(&app).await;
+            true
+        }
         _ => false,
     };
     if done {
         broadcast_bar_state(&app).await;
     }
     Ok(json!({ "success": done }))
+}
+
+/// Opens the page in a window of its own. Only web addresses qualify, as in the bar's pop-out.
+async fn popout_current(app: &AppHandle) {
+    let Some(cdp) = page_cdp(app) else {
+        return;
+    };
+    let url = page_url(&cdp).await;
+    if let Ok(parsed) = Url::parse(&url) {
+        if matches!(parsed.scheme(), "http" | "https") {
+            let _ = open_popout(app, parsed);
+        }
+    }
+}
+
+/// A window with one page and no bar. It gets the pane's rules: http, https and about pages only.
+fn open_popout(app: &AppHandle, url: Url) -> Result<(), String> {
+    let label = format!(
+        "{PANE_LABEL}popout-{}",
+        app.state::<Panes>().labels.fetch_add(1, Ordering::Relaxed)
+    );
+    let opener = app.clone();
+    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
+        .title("Draggy")
+        .inner_size(1200.0, 820.0)
+        .on_navigation(|url: &Url| matches!(url.scheme(), "http" | "https" | "about"))
+        .on_new_window(move |url: Url, _features| {
+            let app = opener.clone();
+            tauri::async_runtime::spawn(async move { open_link(&app, url).await });
+            NewWindowResponse::Deny
+        })
+        .build()
+        .map_err(|error| error.to_string())?;
+    #[cfg(windows)]
+    {
+        let webview: &Webview = window.as_ref();
+        crate::browser::adblock::install(webview);
+    }
+    #[cfg(not(windows))]
+    let _ = window;
+    Ok(())
+}
+
+/// A link that asks for a new window. While the agent drives it opens a tab the agent can see; otherwise it
+/// replaces the page the person is on. Private addresses are refused while the agent drives.
+async fn open_link(app: &AppHandle, url: Url) {
+    if !matches!(url.scheme(), "http" | "https") {
+        return;
+    }
+    let driving = locked(&app.state::<Panes>().run).is_some();
+    let allowed = if driving {
+        policy::check(url.as_str())
+    } else {
+        policy::check_typed(url.as_str())
+    };
+    if allowed.is_err() {
+        return;
+    }
+    if driving {
+        if add_tab(app).is_err() {
+            return;
+        }
+        let newest = app.state::<Panes>().lock().views().last().cloned();
+        if let Some(webview) = newest {
+            load(&webview, &url).await;
+        }
+    } else if let Some(webview) = front_webview(app) {
+        load(&webview, &url).await;
+    }
+    broadcast_bar_state(app).await;
 }
 
 /// Opens the page's own web address in the system browser, and nothing else.
@@ -1397,13 +1581,27 @@ async fn broadcast_bar_state(app: &AppHandle) {
     let Some(cdp) = page_cdp(app) else {
         return;
     };
-    let script = "({ url: location.href, title: document.title || '', loading: document.readyState !== 'complete', canGoBack: history.length > 1 })";
+    let script = "({ url: location.href, title: document.title || '', loading: document.readyState !== 'complete' })";
     let Ok(mut state) = pages::evaluate(&cdp, script).await else {
         return;
     };
+    state["canGoBack"] = json!(can_go_back(&cdp).await);
     state["canGoForward"] = json!(pages::can_go_forward(&cdp).await);
     state["adblock"] = json!(adblock_on(app));
     emit(app, "browser-bar-state", state);
+}
+
+/// Back is possible when the history cursor is past its first entry.
+async fn can_go_back(cdp: &impl Cdp) -> bool {
+    match cdp.call("Page.getNavigationHistory", json!({})).await {
+        Ok(list) => {
+            list.get("currentIndex")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                > 0
+        }
+        Err(_) => false,
+    }
 }
 
 /// The toolbar menu grows the bar in Electron. The Tauri bar is part of the window, so there is nothing to move.
@@ -1539,6 +1737,25 @@ mod tests {
         assert!(answer_consent(&panes, "consent-1", "bogus"));
         assert_eq!(rx.try_recv().ok().as_deref(), Some(DENY));
         assert!(!answer_consent(&panes, "consent-1", "always"));
+    }
+
+    #[tokio::test]
+    async fn back_is_possible_past_the_first_history_entry() {
+        let at_start = FakeCdp::default();
+        at_start.answer("Page.getNavigationHistory", json!({ "currentIndex": 0 }));
+        assert!(!can_go_back(&at_start).await);
+        let second = FakeCdp::default();
+        second.answer("Page.getNavigationHistory", json!({ "currentIndex": 1 }));
+        assert!(can_go_back(&second).await);
+    }
+
+    #[test]
+    fn host_of_keeps_only_the_host() {
+        assert_eq!(
+            host_of("https://news.test/a?token=secret").as_deref(),
+            Some("news.test")
+        );
+        assert_eq!(host_of("not a url"), None);
     }
 
     #[test]

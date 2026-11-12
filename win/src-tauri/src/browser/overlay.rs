@@ -1,13 +1,26 @@
 //! The agent's frame and cursor. Painted in an isolated world, so the page cannot see or reach it.
 #![cfg_attr(not(windows), allow(dead_code))]
 
-use serde_json::{Value, json};
+use std::sync::{Mutex, MutexGuard, PoisonError};
+
+use serde_json::{json, Value};
 
 use super::cdp::{Cdp, CdpError};
 
 const WORLD: &str = "draggy-agent";
 const ATTR: &str = "data-draggy-agent-overlay";
 pub const DEFAULT_COLOR: &str = "#d55e00";
+
+/// The accent names the settings can hold, with their colours, as the Electron theme had them.
+const ACCENTS: [(&str, &str); 7] = [
+    ("vermilion", "#d55e00"),
+    ("blue", "#0072b2"),
+    ("orange", "#e69f00"),
+    ("green", "#009e73"),
+    ("pink", "#cc79a7"),
+    ("sky", "#56b4e9"),
+    ("yellow", "#f0e442"),
+];
 
 /// The frame, the cursor and the click ripple. The frame is static: an animated shadow keeps a page repainting.
 const PAINT: &str = r##"(() => {
@@ -44,15 +57,16 @@ const PAINT: &str = r##"(() => {
   if (x !== null && y !== null) {
     const last = window.__draggyAgentLast;
     const still = Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    // A cursor new to the page slides in from up and left, one that was here glides from where it stopped.
-    const from = last || { x: x - 60, y: y - 40 };
+    // A cursor new to the page slides in from up and left, unless it is put straight on its point.
+    const rest = __REST__;
+    const from = last || (rest ? { x, y } : { x: x - 60, y: y - 40 });
     const distance = Math.hypot(x - from.x, y - from.y);
     if (!last) {
       cursor.style.transition = 'none';
       cursor.style.transform = 'translate(' + from.x + 'px,' + from.y + 'px)';
       void cursor.getBoundingClientRect();
     }
-    const ms = still ? 0 : Math.round(Math.min(450, 180 + distance * 0.35));
+    const ms = still || rest ? 0 : Math.round(Math.min(450, 180 + distance * 0.35));
     cursor.style.opacity = '1';
     cursor.style.transition = ms ? 'transform ' + ms + 'ms cubic-bezier(.45,0,.2,1), opacity .15s' : 'none';
     cursor.style.transform = 'translate(' + x + 'px,' + y + 'px)';
@@ -70,15 +84,66 @@ const PAINT: &str = r##"(() => {
 
 const HIDE: &str = "(() => { document.querySelectorAll('[__ATTR__]').forEach((el) => el.remove()); return true; })()";
 
+/// Whether the agent's frame is on, and the last cursor point it was given.
+#[derive(Clone, Copy, Default)]
+struct Held {
+    on: bool,
+    point: Option<(f64, f64)>,
+}
+
+static HELD: Mutex<Held> = Mutex::new(Held {
+    on: false,
+    point: None,
+});
+
+fn held() -> MutexGuard<'static, Held> {
+    HELD.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Marks the frame as held, so a page that loads again is painted again. A finite point is remembered.
+pub fn hold(point: Option<(f64, f64)>) {
+    let mut state = held();
+    state.on = true;
+    if let Some(point) = point.filter(|(x, y)| x.is_finite() && y.is_finite()) {
+        state.point = Some(point);
+    }
+}
+
+/// Clears the held state, as the Electron overlay did when the run ended.
+pub fn release() {
+    *held() = Held::default();
+}
+
+/// The remembered cursor point while the frame is held; None when it is not.
+pub fn held_point() -> Option<Option<(f64, f64)>> {
+    let state = held();
+    state.on.then_some(state.point)
+}
+
+/// The accent colour in the saved settings JSON, vermilion when none is saved or the name is unknown.
+pub fn accent_of(raw_settings: Option<&str>) -> &'static str {
+    let name = raw_settings
+        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+        .and_then(|settings| settings.get("accent")?.as_str().map(str::to_owned));
+    name.as_deref()
+        .and_then(|name| ACCENTS.iter().find(|(key, _)| *key == name))
+        .map_or(DEFAULT_COLOR, |(_, hex)| hex)
+}
+
 /// The accent if it is a six-digit hex colour, else the default, as the Electron overlay checks it.
 pub fn color_of(raw: &str) -> &str {
     let hex =
         raw.len() == 7 && raw.starts_with('#') && raw[1..].bytes().all(|b| b.is_ascii_hexdigit());
-    if hex { raw } else { DEFAULT_COLOR }
+    if hex {
+        raw
+    } else {
+        DEFAULT_COLOR
+    }
 }
 
 /// The script that paints the frame, and moves the cursor to a point when one is given.
-pub fn paint_script(point: Option<(f64, f64)>, click: bool, color: &str) -> String {
+/// `rest` puts a cursor new to the page straight on the point.
+pub fn paint_script(point: Option<(f64, f64)>, click: bool, rest: bool, color: &str) -> String {
     let (x, y) = match point {
         Some((x, y)) => (x.to_string(), y.to_string()),
         None => ("null".to_owned(), "null".to_owned()),
@@ -88,7 +153,14 @@ pub fn paint_script(point: Option<(f64, f64)>, click: bool, color: &str) -> Stri
         .replace("__ATTR__", ATTR)
         .replace("__X__", &x)
         .replace("__Y__", &y)
+        .replace("__REST__", if rest { "true" } else { "false" })
         .replace("__CLICK__", if click { "true" } else { "false" })
+}
+
+/// The repaint for a page that has just loaded, while the frame is held; None when it is not.
+pub fn repaint_script(color: &str) -> Option<String> {
+    let point = held_point()?;
+    Some(paint_script(point, false, true, color))
 }
 
 pub fn hide_script() -> String {
@@ -133,8 +205,30 @@ mod tests {
     }
 
     #[test]
+    fn accent_comes_from_the_saved_settings() {
+        assert_eq!(accent_of(Some(r#"{"accent":"blue"}"#)), "#0072b2");
+        assert_eq!(accent_of(Some(r#"{"accent":"nope"}"#)), DEFAULT_COLOR);
+        assert_eq!(accent_of(Some("{bad")), DEFAULT_COLOR);
+        assert_eq!(accent_of(None), DEFAULT_COLOR);
+    }
+
+    #[test]
+    fn held_state_survives_until_released() {
+        release();
+        assert!(held_point().is_none());
+        hold(Some((3.0, 4.0)));
+        hold(None);
+        assert_eq!(held_point(), Some(Some((3.0, 4.0))));
+        assert!(repaint_script(DEFAULT_COLOR)
+            .unwrap_or_default()
+            .contains("const rest = true;"));
+        release();
+        assert!(repaint_script(DEFAULT_COLOR).is_none());
+    }
+
+    #[test]
     fn paint_script_fills_every_placeholder() {
-        let script = paint_script(Some((10.5, 20.0)), true, "#000000");
+        let script = paint_script(Some((10.5, 20.0)), true, false, "#000000");
         assert!(script.contains("const x = 10.5;"));
         assert!(script.contains("const y = 20;"));
         assert!(script.contains("if (true)"));
@@ -142,8 +236,9 @@ mod tests {
             !script.contains("__COLOR__")
                 && !script.contains("__X__")
                 && !script.contains("__CLICK__")
+                && !script.contains("__REST__")
         );
-        let frame_only = paint_script(None, false, "bad");
+        let frame_only = paint_script(None, false, false, "bad");
         assert!(frame_only.contains("const x = null;"));
         assert!(frame_only.contains(DEFAULT_COLOR));
     }
