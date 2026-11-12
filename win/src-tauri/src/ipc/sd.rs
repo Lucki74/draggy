@@ -740,6 +740,11 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
             match super::files::write_project_image(&workspace, &target, &data_url, chat.as_deref())
             {
                 Ok((path, checkpoint_id, created)) => {
+                    super::files::announce(
+                        &app,
+                        &workspace,
+                        &json!({ "success": true, "path": path.to_string_lossy() }),
+                    );
                     progress(json!({ "status": "done" }));
                     json!({
                         "success": true,

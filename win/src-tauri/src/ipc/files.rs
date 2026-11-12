@@ -337,7 +337,7 @@ fn log_outcome(app: &AppHandle, op: &str, outcome: &Value) {
 }
 
 /// Tells the canvas a file changed, as the Electron `announceChange` does.
-fn announce(app: &AppHandle, workspace: &str, outcome: &Value) {
+pub(crate) fn announce(app: &AppHandle, workspace: &str, outcome: &Value) {
     if outcome.get("success") != Some(&Value::Bool(true)) {
         return;
     }
