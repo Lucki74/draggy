@@ -22,12 +22,24 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::ipc::web::keys::with_store;
 
-/// The sidecar that runs stdio servers and the JavaScript runner. Shipped next to the app.
+/// The sidecar that runs stdio servers and the JavaScript runner. Tauri places `externalBin` beside the exe,
+/// which is also `resource_dir` on Windows. Debug builds fall back to the staged copy under `src-tauri/binaries`.
 pub fn node_path() -> PathBuf {
-    std::env::current_exe()
+    let bundled = std::env::current_exe()
         .ok()
-        .and_then(|exe| exe.parent().map(|dir| dir.join("node.exe")))
-        .unwrap_or_else(|| PathBuf::from("node.exe"))
+        .and_then(|exe| exe.parent().map(|dir| dir.join("node.exe")));
+    if let Some(path) = bundled.filter(|path| path.is_file()) {
+        return path;
+    }
+    if cfg!(debug_assertions) {
+        let staged = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("binaries")
+            .join("node-x86_64-pc-windows-msvc.exe");
+        if staged.is_file() {
+            return staged;
+        }
+    }
+    PathBuf::from("node.exe")
 }
 
 /// The last known server states. Readers take this instead of the server lock, so a long call never blocks them.

@@ -6,8 +6,8 @@
   "build": {
     "devUrl": "http://127.0.0.1:5173",
     "frontendDist": "../dist",
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeDevCommand": "npm run stage:sidecars && npm run dev",
+    "beforeBuildCommand": "npm run stage:sidecars && npm run build"
   },
   "app": {
     "withGlobalTauri": false,
@@ -37,12 +37,27 @@
     "active": true,
     "targets": ["nsis"],
     "icon": ["icons/icon.ico"],
-    "resources": { "../../shared/pricing/prices.json": "prices.json" }
+    "externalBin": ["binaries/node"],
+    "resources": {
+      "../../shared/pricing/prices.json": "prices.json",
+      "../../shared/fixtures/web/config.json": "search-config.json",
+      "../../LICENSE": "LICENSE",
+      "../../NOTICE": "NOTICE"
+    },
+    "publisher": "The Draggy authors",
+    "copyright": "Copyright © 2026 The Draggy authors",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "nsis/hooks.nsi"
+      }
+    }
   },
   "plugins": {
     "updater": {
       "pubkey": "PLACEHOLDER_UPDATER_PUBKEY",
-      "endpoints": ["https://github.com/Lucki74/draggy/releases/latest/download/latest.json"],
+      "endpoints": ["https://github.com/Lucki74/draggy/releases/download/updater-windows/latest-windows.json"],
       "windows": { "installMode": "quiet" }
     }
   }
