@@ -2,13 +2,13 @@
 // Regenerates shared/pricing/prices.json from LiteLLM's public price list and OpenRouter's public model list.
 // No price is typed by hand. Run: node scripts/update-prices.mjs [--litellm file] [--openrouter file] [--out file]
 // The two --file flags read a saved copy instead of the network, which is how the tests and offline runs work.
-// The conversion lives in win/electron/pricing/build.cjs, which the app also uses to refresh its own copy.
+// The conversion lives in scripts/pricing/build.cjs.
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-const build = createRequire(import.meta.url)("../win/electron/pricing/build.cjs");
+const build = createRequire(import.meta.url)("./pricing/build.cjs");
 export const { LITELLM_URL, OPENROUTER_URL, LITELLM_PROVIDERS, perMillion, fromLitellm, fromOpenRouter, splitLitellmKey, buildTable, serialize } = build;
 
 async function load(file, url) {
