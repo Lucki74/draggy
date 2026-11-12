@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 
 use crate::js::{text, truthy};
 
-/// Generated from electron/mcpCatalogue.cjs as `JSON.stringify(CATALOGUE, null, 2)`, so both sides load the same servers.
+/// The server list as `JSON.stringify(CATALOGUE, null, 2)` writes it, so every side loads the same servers.
 const DATA: &str = include_str!("../data/catalogue.json");
 
 const NPM_PAGE: &str = "https://www.npmjs.com/package/";

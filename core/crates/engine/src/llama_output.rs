@@ -1,5 +1,4 @@
 //! What one line of llama-server output says: GPU layers, prompt timing, cache reuse and draft acceptance.
-//! Port of watchEngineLine and failureReason in electron/llamaProcess.cjs, and parseAcceptance in draftStats.cjs.
 
 use std::sync::LazyLock;
 

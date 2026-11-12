@@ -1,5 +1,5 @@
 //! Reads the small Markdown subset the office writers take, plus the slide splitter and the CSV reader.
-//! Ports the parsing half of electron/documents.cjs. Every pattern is the JavaScript one, through `js`.
+//! Every pattern is the JavaScript one, through `js`.
 
 use std::sync::LazyLock;
 

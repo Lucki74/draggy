@@ -1,4 +1,4 @@
-//! Asks the model host whether the network is up. Port of electron/connectivity.cjs, with the transition log kept.
+//! Asks the model host whether the network is up, and keeps the transition log.
 
 use std::time::Duration;
 

@@ -1,5 +1,5 @@
 //! The tools a session offers. The harness set is read-only: `read_file` and `list_directory`, both inside the
-//! project folder and both behind the same guard the Electron app uses. More tools join here as they are wired.
+//! project folder and both behind the same guard the app uses. More tools join here as they are wired.
 
 use std::path::PathBuf;
 

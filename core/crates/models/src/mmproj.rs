@@ -1,4 +1,4 @@
-//! Vision projector files that sit beside a model. Port of electron/mmproj.cjs.
+//! Vision projector files that sit beside a model.
 //! The reference keeps refusals in module state; here the caller owns a `Projectors`, so each owner starts empty.
 
 use std::fs;

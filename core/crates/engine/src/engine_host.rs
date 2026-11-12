@@ -1,5 +1,5 @@
 //! One local inference engine at a time. llama.cpp and colibri each own a process; starting one stops the other, so two
-//! models never fight over the same RAM and VRAM. Port of electron/engineHost.cjs.
+//! models never fight over the same RAM and VRAM.
 
 use std::future::Future;
 

@@ -1,5 +1,4 @@
-//! Runs the golden fixtures in `shared/fixtures/web` through the port.
-//! The Electron reference that produced these expected values is no longer in the repository.
+//! Runs the golden fixtures in `shared/fixtures/web` against this crate.
 
 use std::collections::HashMap;
 use std::fmt::Debug;

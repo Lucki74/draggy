@@ -1,5 +1,4 @@
-//! How much graphics memory this computer has, asked of each vendor's tool and of the OS. Port of
-//! `detectVideoMemoryGB` and `parseNvidiaInfo` in electron/platform.cjs.
+//! How much graphics memory this computer has, asked of each vendor's tool and of the OS.
 
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;

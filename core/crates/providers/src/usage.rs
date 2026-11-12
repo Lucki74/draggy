@@ -1,6 +1,6 @@
 //! What a provider reports about tokens, in one shape. Vendors disagree on whether cache hits and reasoning are
 //! inside the headline counts or beside them, so each builder here settles that once and returns disjoint buckets
-//! the cost engine can price one by one. Mirrors `electron/providers/usage.cjs`.
+//! the cost engine can price one by one.
 
 use serde_json::Value;
 

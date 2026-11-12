@@ -1,5 +1,5 @@
-//! Resumable downloads of GGUF files into the models folder. Port of electron/modelStorage.cjs (downloadGgufModel and
-//! cancelDownloadGgufModel). The network, the clock, the pause and the disk come in through traits, so tests run on fakes.
+//! Resumable downloads of GGUF files into the models folder.
+//! The network, the clock, the pause and the disk come in through traits, so tests run on fakes.
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs::{self, File, OpenOptions};

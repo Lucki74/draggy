@@ -1,5 +1,4 @@
-//! Runs the golden fixtures in `shared/fixtures/apiserver` through the port.
-//! The Electron reference that produced these expected values is no longer in the repository.
+//! Runs the golden fixtures in `shared/fixtures/apiserver` against this crate.
 
 use std::collections::HashMap;
 use std::convert::Infallible;

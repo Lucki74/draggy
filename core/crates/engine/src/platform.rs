@@ -1,5 +1,5 @@
 //! What the engine knows about its host: the OS, the CPU architecture, the environment variables it reads, and the
-//! file system and process seams its probes use. Port of the parts of electron/platform.cjs the engine needs.
+//! file system and process seams its probes use.
 
 use std::collections::BTreeMap;
 use std::fs;

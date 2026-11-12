@@ -1,4 +1,4 @@
-//! Parses provider responses, API JSON and scraped pages alike, then normalises them. Port of electron/search.cjs.
+//! Parses provider responses, API JSON and scraped pages alike, then normalises them.
 
 use std::collections::HashSet;
 

@@ -1,4 +1,4 @@
-//! Runs the golden fixtures in `shared/fixtures/tools/task-*.json` through the Rust port. The Electron reference that produced these expected values is no longer in the repository.
+//! Runs the golden fixtures in `shared/fixtures/tools/task-*.json` against the Rust code.
 
 use std::collections::BTreeMap;
 

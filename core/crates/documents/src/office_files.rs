@@ -1,5 +1,4 @@
 //! Routes a file by its extension: which Office reader or writer handles it, and which names are refused outright.
-//! Ports the routing half of electron/documents.cjs (extractText, writeGeneratedFile, isExecutableName).
 
 use std::path::Path;
 

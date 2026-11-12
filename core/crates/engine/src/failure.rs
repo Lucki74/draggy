@@ -1,5 +1,4 @@
 //! Why a llama-server process stopped, read from the lines it printed, and the lines that report speed while it runs.
-//! Port of `classifyFailure` and `watchEngineLine` in electron/llamaProcess.cjs.
 
 use std::sync::LazyLock;
 

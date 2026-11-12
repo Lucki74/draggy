@@ -1,5 +1,4 @@
-//! Runs the golden fixtures in `shared/fixtures/documents` through the port.
-//! The Electron reference that produced these expected values is no longer in the repository.
+//! Runs the golden fixtures in `shared/fixtures/documents` against this crate.
 
 use draggy_documents::{html, markdown_html, office_style};
 use draggy_testkit::{cases, files};

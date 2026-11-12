@@ -1,5 +1,5 @@
-//! Decides which freshly listed models join an instance's menu without the user ticking them. The twin of
-//! `win/electron/providers/autoPin.cjs`; the golden cases in `shared/fixtures/providers/autopin.json` hold both to it.
+//! Decides which freshly listed models join an instance's menu without the user ticking them.
+//! The golden cases in `shared/fixtures/providers/autopin.json` pin this behaviour.
 
 use std::collections::HashSet;
 use std::sync::LazyLock;

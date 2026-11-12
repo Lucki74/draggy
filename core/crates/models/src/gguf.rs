@@ -1,4 +1,4 @@
-//! Header metadata of a GGUF file, ported from electron/ggufParser.cjs.
+//! Header metadata of a GGUF file.
 //! Numbers are f64, as the reference reads every number as a double, so values above 2^53 round the same way.
 
 use std::borrow::Cow;

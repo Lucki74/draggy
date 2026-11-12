@@ -1,4 +1,4 @@
-//! Web policy, search and connectivity, ported from electron/urlPolicy.cjs, search.cjs and connectivity.cjs.
+//! Web policy, search and connectivity.
 //! Network I/O goes through `http::HttpClient`, so tests run on canned responses.
 //!
 //! # Not ported

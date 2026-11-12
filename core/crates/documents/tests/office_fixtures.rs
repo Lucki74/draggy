@@ -1,5 +1,4 @@
-//! Runs the office golden fixtures (`shared/fixtures/documents/documents-office-*.json`) through the port.
-//! The Electron reference that produced these expected values is no longer in the repository.
+//! Runs the office golden fixtures (`shared/fixtures/documents/documents-office-*.json`) against this crate.
 //! Writers are compared by the structure of the file they produce, reduced the same way on both sides.
 
 use std::collections::HashSet;

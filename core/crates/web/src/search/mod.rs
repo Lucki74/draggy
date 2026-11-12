@@ -1,4 +1,4 @@
-//! Provider chain, pacing, cache and request building. Port of electron/search.cjs.
+//! Provider chain, pacing, cache and request building.
 //! Scrapers parse the page as received, so a page that needs JavaScript to fill in results parses empty.
 
 mod dom;

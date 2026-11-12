@@ -1,5 +1,5 @@
 //! The colibri runtime on Linux x86_64 and macOS arm64: which archive to fetch, how it is checked, how the gateway is
-//! launched and what its output lines mean. Port of the launch side of electron/colibriProcess.cjs.
+//! launched and what its output lines mean.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

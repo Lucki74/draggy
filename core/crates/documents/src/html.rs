@@ -1,5 +1,5 @@
 //! The HTML the converters read: a forgiving parser for model-written markup, plus the CSS, colour, size and
-//! entity readers. Ports the pure part of electron/htmlDocument.cjs; the office writers are not here.
+//! entity readers. The office writers are not here.
 
 use std::collections::BTreeMap;
 use std::sync::LazyLock;

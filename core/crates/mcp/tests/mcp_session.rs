@@ -1,5 +1,4 @@
 //! Runs the recorded MCP sessions in `shared/fixtures/mcp/mcp-session-*.json` through the client.
-//! The Electron reference that produced these expected values is no longer in the repository.
 
 mod client_support;
 

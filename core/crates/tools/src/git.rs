@@ -1,4 +1,4 @@
-//! Read-only git for the model: status and diffs, never a commit, stage or fetch. Ports electron/git.cjs. Repository
+//! Read-only git for the model: status and diffs, never a commit, stage or fetch. Repository
 //! config can run programs (fsmonitor, filters, diff drivers), so every call switches those off and takes no locks.
 
 use std::ffi::OsString;

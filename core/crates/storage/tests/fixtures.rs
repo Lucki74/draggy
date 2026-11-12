@@ -1,5 +1,4 @@
 //! Runs the shared storage fixtures (`shared/fixtures/storage/*.json`) against draggy-storage.
-//! The Electron reference that produced these expected values is no longer in the repository.
 
 use std::fs;
 use std::path::Path;

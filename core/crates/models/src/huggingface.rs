@@ -1,4 +1,4 @@
-//! Hugging Face model search, repository files and download resolution. Port of electron/huggingface.cjs.
+//! Hugging Face model search, repository files and download resolution.
 //! The reference keeps its caches in module state; here a `HuggingFace` value owns them, so each owner starts empty.
 
 use std::collections::HashMap;

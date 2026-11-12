@@ -1,4 +1,4 @@
-//! Reads the text of .docx, .pptx and .xlsx packages. Ports readDocx, readPptx and readXlsx in electron/documents.cjs.
+//! Reads the text of .docx, .pptx and .xlsx packages.
 //! Word and PowerPoint text comes from the XML directly; Excel cells are resolved through the shared strings.
 
 use std::sync::LazyLock;

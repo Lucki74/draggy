@@ -1,4 +1,4 @@
-//! Which URLs the model may fetch, and which permissions the app window holds. Port of electron/urlPolicy.cjs.
+//! Which URLs the model may fetch, and which permissions the app window holds.
 
 use std::net::Ipv6Addr;
 

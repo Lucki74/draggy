@@ -96,7 +96,7 @@ fn collapse(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-// Page reading for read_url, ported from electron/pageExtract.cjs: metadata, script-shell detection, paging and the
+// Page reading for read_url: metadata, script-shell detection, paging and the
 // fetch-first flow. There is no hidden browser here, so a page that needs scripts comes back with a note instead.
 
 /// Characters per page of a long read.

@@ -1,6 +1,5 @@
 //! Sign-in and token renewal against fakes: the redirect listener, the browser, the vault and the network are all scripted,
-//! so nothing opens a socket and the stored record can be read back. The reference has no unit tests for these, so the
-//! expectations come from the reference's code paths in electron/mcp.cjs and electron/mcpOauth.cjs.
+//! so nothing opens a socket and the stored record can be read back.
 
 mod support;
 

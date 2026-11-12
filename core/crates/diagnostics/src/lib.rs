@@ -1,4 +1,4 @@
-//! Diagnostics writer, a port of electron/logger.cjs: `app.log`, `debug.log` and `events.jsonl`.
+//! Diagnostics writer: `app.log`, `debug.log` and `events.jsonl`.
 //! Timers are lazy: a timed level or limited window fires on the next call or `tick`, stamped at its due time.
 
 mod clock;
@@ -247,7 +247,7 @@ struct Entry<'a> {
 
 impl Diagnostics {
     /// Opens the three files under `dir`, reading the previous marker and restoring a kept level, then writes the boot line.
-    /// Divergence: the Electron boot line also names app and runtime versions, which the core does not have.
+    /// Electron-era builds also named app and runtime versions on the boot line. This core does not have them.
     pub fn open(dir: impl Into<PathBuf>, config: Config, clock: Arc<dyn Clock>) -> Self {
         let dir = dir.into();
         let Config {
@@ -355,7 +355,7 @@ impl Diagnostics {
         self.emit(Level::Error, scope, message, data, Some(error));
     }
 
-    /// An uncaught error, as logger.cjs logs it, then the recent lines. The Rust shell calls this where Electron has its process hooks.
+    /// Logs an uncaught error, then the recent lines. The shell calls this from its process-level hooks.
     pub fn crash(&self, origin: &str, error: &ErrorInfo) {
         self.fail(origin, "", error, None);
         self.dump_recent(origin);

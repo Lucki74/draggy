@@ -1,5 +1,5 @@
 //! The research library: finished runs with their sources, page snapshots and notes.
-//! Table and column names match electron/researchLibrary.cjs so a library is portable.
+//! Table and column names match what Electron-era builds wrote, so a library is portable.
 
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
@@ -8,7 +8,7 @@ use crate::{Storage, StorageError};
 
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 
-/// Created on first use, not at open, so the shared schema fixture of the Electron build stays as it is.
+/// Created on first use, not at open, so opening a database leaves the shared schema as it is.
 const RESEARCH_SCHEMA: &str = r#"
   CREATE TABLE IF NOT EXISTS research_runs (
     id             TEXT PRIMARY KEY,

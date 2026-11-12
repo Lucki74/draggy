@@ -1,5 +1,4 @@
-//! Runs the golden fixtures in `shared/fixtures/diagnostics` through the writer. The vitest runner in
-//! `src/__tests__/fixtures/diagnostics.test.ts` performs the same ops on electron/logger.cjs, so both must agree.
+//! Runs the golden fixtures in `shared/fixtures/diagnostics` through the writer.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -181,7 +180,7 @@ fn lines_after(before: &str, after: &str) -> Vec<String> {
     split_lines(after.get(before.len()..).unwrap_or_default())
 }
 
-/// The boot line is sequence 1 in every file. Its text names the Electron runtime, so no case pins it.
+/// The boot line is sequence 1 in every file. Electron-era builds named their runtime there, so no case pins it.
 fn without_boot(lines: Vec<String>) -> Vec<String> {
     lines
         .into_iter()

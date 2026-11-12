@@ -1,5 +1,5 @@
 //! What a sandboxed command may see and do, and how each launcher is told. The Windows launcher reads the same spec
-//! as JSON. Mirrors electron/sandboxPolicy.cjs; the scrub rules are pinned by shared/fixtures/sandbox/env.json.
+//! as JSON. The scrub rules are pinned by shared/fixtures/sandbox/env.json.
 
 use std::path::{Path, PathBuf};
 

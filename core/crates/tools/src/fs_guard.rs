@@ -1,5 +1,5 @@
 //! The path policy behind every file tool: a path is resolved, symlinks followed, and checked against the folders the
-//! conversation was given. Ports electron/fsGuard.cjs; refusal messages are the ones the model reads back.
+//! conversation was given. Refusal messages are the ones the model reads back.
 
 use std::fs;
 use std::io;

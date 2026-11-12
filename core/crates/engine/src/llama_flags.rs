@@ -1,5 +1,5 @@
 //! The flags a llama-server build accepts, read from its own `--help` so a newer flag never reaches an older engine.
-//! Kept in memory and on disk, since asking starts the GPU backends. Port of engineFlags in electron/llamaProcess.cjs.
+//! Kept in memory and on disk, since asking starts the GPU backends.
 
 use std::collections::{BTreeSet, HashMap};
 use std::fs;

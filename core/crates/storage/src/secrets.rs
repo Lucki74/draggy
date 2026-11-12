@@ -1,6 +1,5 @@
 //! The credential store behind `secrets.bin`: credentials encrypted by the OS keystore, never plain text on disk.
-//! Port of electron/secrets.cjs. The shells supply the keystore through `SecretVault`, and the migration reads
-//! the `v10` blobs Electron's safeStorage wrote.
+//! The shells supply the keystore through `SecretVault`, and the migration reads the `v10` blobs Electron-era builds wrote with safeStorage.
 
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -20,7 +19,7 @@ const STORE_FILE: &str = "secrets.bin";
 const BASIC_TEXT: &str = "basic_text";
 /// The owner name that JavaScript's `__proto__` setter swallows when no own key of that name exists.
 const PROTO: &str = "__proto__";
-/// The shortest value the log scrubber redacts. `registerSecret` in electron/logScrub.cjs ignores shorter ones.
+/// The shortest value the log scrubber redacts. `registerSecret` ignores shorter ones.
 const MIN_KNOWN_SECRET: usize = 6;
 /// The largest array index JavaScript allows, below 2^32 - 1.
 const MAX_INDEX: usize = (u32::MAX - 1) as usize;
@@ -294,7 +293,7 @@ impl<V: SecretVault> SecretStore<V> {
             }
         };
         // A store written by another machine or install is lost, not fatal: its credentials are entered again.
-        // Electron's keystore hands back text, so bytes that are not UTF-8 read as replacement characters.
+        // Electron-era safeStorage hands back text, so bytes that are not UTF-8 read as replacement characters.
         let text = String::from_utf8_lossy(&plain);
         match parse_any::<Value>(&text) {
             Ok(parsed @ (Value::Object(_) | Value::Array(_))) => {
@@ -437,7 +436,7 @@ impl Cache {
     }
 }
 
-/// Decodes an Electron safeStorage `v10` blob: AES-128-CBC, a 16-byte key from PBKDF2-HMAC-SHA1 over `password`,
+/// Decodes a `v10` blob Electron-era safeStorage wrote: AES-128-CBC, a 16-byte key from PBKDF2-HMAC-SHA1 over `password`,
 /// salt `saltysalt`, and an IV of sixteen spaces. The scheme sets the rounds; the basic_text password is `peanuts`.
 pub fn decrypt_safe_storage_v10(
     blob: &[u8],

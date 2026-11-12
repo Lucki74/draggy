@@ -1,5 +1,5 @@
 //! The file tools past the guard: list, read, write, edit, move, delete, search and undo, with every change kept as a
-//! checkpoint. Ports electron/fileOps.cjs and the checkpoint bookkeeping of electron/checkpoints.cjs. Persistence goes
+//! checkpoint. Persistence goes
 //! through `CheckpointStore`, which the storage crate implements, so this crate does not depend on it.
 
 use std::cmp::Ordering;

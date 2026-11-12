@@ -1,5 +1,5 @@
 //! Skills: folders with a SKILL.md, the shared format. Only name and description sit in the prompt; the body loads on
-//! request, so a hundred skills cost about one. Ports electron/skills.cjs; the roots are passed in, not found.
+//! request, so a hundred skills cost about one. The roots are passed in, not found.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
