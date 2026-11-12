@@ -829,36 +829,6 @@ fn loaded_chat_gb(running: bool, model: Option<&Path>) -> f64 {
         .map_or(0.0, |meta| meta.len() as f64 / 1024_f64.powi(3))
 }
 
-#[cfg(test)]
-mod loaded_chat_tests {
-    use super::loaded_chat_gb;
-    use std::path::Path;
-
-    #[test]
-    fn nothing_loaded_counts_as_zero() {
-        assert_eq!(
-            loaded_chat_gb(false, Some(Path::new("/nope/model.gguf"))),
-            0.0
-        );
-        assert_eq!(loaded_chat_gb(true, None), 0.0);
-        assert_eq!(
-            loaded_chat_gb(true, Some(Path::new("/definitely/missing.gguf"))),
-            0.0
-        );
-    }
-
-    #[test]
-    fn running_model_counts_its_file_size_in_gb() {
-        let dir = std::env::temp_dir().join(format!("loaded-chat-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let file = dir.join("chat.gguf");
-        std::fs::write(&file, vec![0_u8; 1024 * 1024]).unwrap();
-        let gb = loaded_chat_gb(true, Some(&file));
-        std::fs::remove_dir_all(&dir).unwrap();
-        assert!((gb - 1.0 / 1024.0).abs() < 1e-9);
-    }
-}
-
 /// Starts the image engine with one model and its LoRA folder, plus the placement flags. Returns the failure code and message.
 async fn start_engine(
     engines: &Engines,
@@ -887,4 +857,34 @@ async fn start_engine(
         .start(binary, &args, chosen, deadline, &setup.env)
         .await
         .map_err(|error| (error.code.to_owned(), error.message))
+}
+
+#[cfg(test)]
+mod loaded_chat_tests {
+    use super::loaded_chat_gb;
+    use std::path::Path;
+
+    #[test]
+    fn nothing_loaded_counts_as_zero() {
+        assert_eq!(
+            loaded_chat_gb(false, Some(Path::new("/nope/model.gguf"))),
+            0.0
+        );
+        assert_eq!(loaded_chat_gb(true, None), 0.0);
+        assert_eq!(
+            loaded_chat_gb(true, Some(Path::new("/definitely/missing.gguf"))),
+            0.0
+        );
+    }
+
+    #[test]
+    fn running_model_counts_its_file_size_in_gb() {
+        let dir = std::env::temp_dir().join(format!("loaded-chat-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("chat.gguf");
+        std::fs::write(&file, vec![0_u8; 1024 * 1024]).unwrap();
+        let gb = loaded_chat_gb(true, Some(&file));
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!((gb - 1.0 / 1024.0).abs() < 1e-9);
+    }
 }
