@@ -6,8 +6,8 @@ pub(crate) mod account;
 pub(crate) mod adapters;
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError, RwLock};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use draggy_diagnostics::Diagnostics;
 use draggy_providers::autopin::plan_pins;
@@ -15,8 +15,9 @@ use draggy_providers::catalog::{Catalog, CatalogEntry};
 use draggy_providers::discovery::Discovery;
 use draggy_providers::models::{ListError, ModelLister};
 use draggy_providers::registry::{AddArgs, Keystore, Patch, Registry as Providers, RegistryError};
+use draggy_providers::remote_catalog::{InstanceUse, PUBLIC_KEY, Refresh, RemoteCatalog};
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, WindowEvent};
 
 use self::adapters::{AppHttp, AppKeys, AppKv};
 use super::storage::blocking;
@@ -31,6 +32,10 @@ const API_CONFIG_KEY: &str = "apiServer";
 const FIRST_REFRESH: Duration = Duration::from_secs(30);
 const EVERY_REFRESH: Duration = Duration::from_secs(6 * 60 * 60);
 const MODELS_CHANGED: &str = "providers:models-changed";
+/// A focus refresh is skipped when the last one was this recent.
+const FOCUS_GAP: Duration = Duration::from_secs(60);
+/// The remote catalog is checked hourly; the file itself is fetched at most once a day.
+const REMOTE_EVERY: Duration = Duration::from_secs(60 * 60);
 
 type Lister = ModelLister<AppHttp>;
 type Store = Providers<AppKv, AppKeys>;
@@ -39,6 +44,10 @@ type Store = Providers<AppKv, AppKeys>;
 static LISTER: OnceLock<Mutex<Lister>> = OnceLock::new();
 /// The ids each instance listed last round. The first round only seeds this.
 static LAST_IDS: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+/// The bundled catalog with the signed remote file laid over it, once one has been accepted.
+static ACTIVE_CATALOG: RwLock<Option<Catalog>> = RwLock::new(None);
+/// When the last focus refresh started. None until the first.
+static LAST_FOCUS: Mutex<Option<Instant>> = Mutex::new(None);
 
 pub fn register_all(registry: &mut Registry) {
     register!(registry, "providers:catalog" => catalog);
@@ -60,7 +69,7 @@ pub fn register_all(registry: &mut Registry) {
 async fn catalog(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     let view = blocking(move || {
         let keystore = keystore_open(&app);
-        let bundled = Catalog::bundled();
+        let bundled = active_catalog();
         let mut view = catalog_view(bundled.entries(), keystore);
         account::fill_downloads(&mut view, bundled.entries());
         view
@@ -160,7 +169,7 @@ async fn scan(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     blocking(move || {
         let ports = [ENGINE_PORT, api_port(&app)];
         let servers =
-            Discovery::new(AppHttp).scan(&Catalog::bundled(), &ports, cfg!(debug_assertions));
+            Discovery::new(AppHttp).scan(&active_catalog(), &ports, cfg!(debug_assertions));
         diag(&app).info(
             "providers.ipc",
             "scan done",
@@ -174,21 +183,47 @@ async fn scan(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
 /// Keeps every enabled provider's model list current with no setting: shortly after launch, then every six hours.
 /// A new model is pinned into the menu and the page is told; the first round only seeds the list.
 pub(crate) fn start_auto_refresh(app: &AppHandle) {
+    load_remote_catalog(app);
+    let remote_app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            let round_app = remote_app.clone();
+            let _ =
+                tauri::async_runtime::spawn_blocking(move || refresh_remote_catalog(&round_app))
+                    .await;
+            tokio::time::sleep(REMOTE_EVERY).await;
+        }
+    });
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(FIRST_REFRESH).await;
         loop {
             let round_app = app.clone();
-            let _ = tauri::async_runtime::spawn_blocking(move || refresh_round(&round_app)).await;
+            let _ = tauri::async_runtime::spawn_blocking(move || {
+                refresh_round(&round_app, &[false, true])
+            })
+            .await;
             tokio::time::sleep(EVERY_REFRESH).await;
         }
     });
 }
 
+/// Refreshes local servers when the main window gains focus, from launch on.
+pub(crate) fn attach_focus_refresh(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let focus_app = app.clone();
+        window.on_window_event(move |event| {
+            if matches!(event, WindowEvent::Focused(true)) {
+                focus_refresh(&focus_app);
+            }
+        });
+    }
+}
+
 /// Cloud providers first, then local servers, as the reference does. Accounts refresh with the rest.
-fn refresh_round(app: &AppHandle) {
+fn refresh_round(app: &AppHandle, kinds: &[bool]) {
     let mut providers = store(app);
-    for local in [false, true] {
+    for &local in kinds {
         for view in providers.list() {
             if !view.enabled || (view.kind == "local") != local {
                 continue;
@@ -196,6 +231,82 @@ fn refresh_round(app: &AppHandle) {
             let _ = refresh_one(app, &mut providers, &view.id);
         }
     }
+}
+
+/// The window coming back refreshes local servers only, at most once a minute.
+fn focus_refresh(app: &AppHandle) {
+    {
+        let mut last = LAST_FOCUS.lock().unwrap_or_else(PoisonError::into_inner);
+        if !focus_due(*last, Instant::now()) {
+            return;
+        }
+        *last = Some(Instant::now());
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || refresh_round(&app, &[true]));
+}
+
+fn focus_due(last: Option<Instant>, now: Instant) -> bool {
+    last.is_none_or(|at| now.saturating_duration_since(at) >= FOCUS_GAP)
+}
+
+/// The stored remote file is laid over the bundled catalog at start, checked again as if just fetched.
+fn load_remote_catalog(app: &AppHandle) {
+    if let Some(catalog) =
+        RemoteCatalog::new(kv(app), AppHttp, PUBLIC_KEY).load(&instance_uses(app))
+    {
+        set_active_catalog(catalog);
+    }
+}
+
+/// Fetches the signed file at most once a day, and only while a cloud provider is on.
+fn refresh_remote_catalog(app: &AppHandle) {
+    let mut remote = RemoteCatalog::new(kv(app), AppHttp, PUBLIC_KEY);
+    match remote.refresh(now_ms(), &instance_uses(app)) {
+        Refresh::Updated(catalog) => {
+            diag(app).info(
+                "providers.remote",
+                "catalog updated",
+                Some(json!({ "entries": catalog.entries().len() })),
+            );
+            set_active_catalog(catalog);
+        }
+        Refresh::Failed(reason) => {
+            diag(app).warn(
+                "providers.remote",
+                "catalog refresh failed",
+                Some(json!({ "reason": reason })),
+            );
+        }
+        Refresh::Skipped | Refresh::Fresh | Refresh::Unchanged => {}
+    }
+}
+
+fn instance_uses(app: &AppHandle) -> Vec<InstanceUse> {
+    store(app)
+        .list()
+        .into_iter()
+        .map(|view| InstanceUse {
+            provider_type: view.provider_type,
+            kind: view.kind,
+            enabled: view.enabled,
+        })
+        .collect()
+}
+
+/// The catalog in use: the bundled one, or the remote file laid over it.
+pub(crate) fn active_catalog() -> Catalog {
+    ACTIVE_CATALOG
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone()
+        .unwrap_or_else(Catalog::bundled)
+}
+
+fn set_active_catalog(catalog: Catalog) {
+    *ACTIVE_CATALOG
+        .write()
+        .unwrap_or_else(PoisonError::into_inner) = Some(catalog);
 }
 
 fn refresh_one(app: &AppHandle, providers: &mut Store, id: &str) -> Option<()> {
@@ -347,7 +458,7 @@ fn last_ids() -> &'static Mutex<HashMap<String, String>> {
 }
 
 fn store(app: &AppHandle) -> Store {
-    Providers::new(kv(app), AppKeys { app: app.clone() }, Catalog::bundled())
+    Providers::new(kv(app), AppKeys { app: app.clone() }, active_catalog())
 }
 
 fn kv(app: &AppHandle) -> AppKv {
@@ -455,6 +566,14 @@ mod tests {
         };
         let kind = serde_json::to_value(failure.kind).expect("kind");
         assert_eq!(kind, json!("provider-invalid-key"));
+    }
+
+    #[test]
+    fn a_focus_refresh_waits_out_the_gap() {
+        let now = Instant::now();
+        assert!(focus_due(None, now));
+        assert!(!focus_due(Some(now), now + Duration::from_secs(59)));
+        assert!(focus_due(Some(now), now + FOCUS_GAP));
     }
 
     #[test]

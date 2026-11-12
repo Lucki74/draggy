@@ -1,5 +1,6 @@
 //! A ChatGPT account's chat turn: one Codex app-server per request, stopped when the reader goes. Port of
 //! adapters/codex.cjs. A turn that calls a Draggy tool keeps its process until the tool results come back.
+use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
@@ -31,6 +32,44 @@ const SIGNED_OUT: &str = "The ChatGPT account is signed out.";
 const STOPPED: &str = "Codex stopped during the turn.";
 
 static PARKED: Mutex<Vec<Turn>> = Mutex::new(Vec::new());
+/// Each instance's threads the runtime still holds. They last until a stop, a sign-out or a turn that did not end cleanly.
+static THREADS: Mutex<Option<HashMap<String, Threads>>> = Mutex::new(None);
+
+fn threads_for<T>(instance: &str, work: impl FnOnce(&mut Threads) -> T) -> T {
+    let mut guard = THREADS.lock().unwrap_or_else(PoisonError::into_inner);
+    let threads = guard
+        .get_or_insert_with(HashMap::new)
+        .entry(instance.to_owned())
+        .or_insert_with(|| Threads::new(instance, "threadId"));
+    work(threads)
+}
+
+fn forget_thread(turn: &Turn) {
+    let id = turn.thread_id.clone();
+    threads_for(&turn.instance, |threads| threads.forget(&id));
+}
+
+/// Sends the buffered requests; a broken pipe ends the turn and its thread.
+async fn flush_or_forget(turn: &mut Turn) -> Result<(), Box<AccountFailure>> {
+    match turn.client.flush().await {
+        Ok(()) => Ok(()),
+        Err(_) => {
+            forget_thread(turn);
+            Err(stopped())
+        }
+    }
+}
+
+/// Forgets an instance's live threads, as a sign-out does.
+pub(super) fn clear_threads(instance: &str) {
+    if let Some(map) = THREADS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .as_mut()
+    {
+        map.remove(instance);
+    }
+}
 
 /// One turn on its own process: what it has seen, and the tool calls it still waits on.
 struct Turn {
@@ -79,6 +118,7 @@ impl AccountRuntime for CodexChat {
 /// Ends the parked turns and every running one, whose processes die with them.
 pub fn stop_all() {
     bump_stop_epoch();
+    *THREADS.lock().unwrap_or_else(PoisonError::into_inner) = None;
     PARKED
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
@@ -131,7 +171,7 @@ async fn run(
     require_sign_in(&mut client).await?;
     sweep(&messages);
 
-    let plan = Threads::new(&instance, "threadId").plan(&messages);
+    let plan = threads_for(&instance, |threads| threads.plan(&messages));
     let thread_id = match plan.id {
         Some(id) => id,
         None => {
@@ -200,7 +240,7 @@ async fn run(
         .call("turn/start", Some(params), None)
         .map_err(|error| boxed(ErrorKind::UnknownError, &error.message))?;
     turn.turn_start = Some(id);
-    turn.client.flush().await.map_err(|_| stopped())?;
+    flush_or_forget(&mut turn).await?;
     drive(turn, sink).await
 }
 
@@ -227,6 +267,7 @@ async fn drive(mut turn: Turn, sink: &mut dyn AccountSink) -> Result<(), Box<Acc
     loop {
         // Dropping the turn kills its process, which is how a stop or a reader that left ends a turn.
         if sink.cancelled() || turn.epoch != stop_epoch() {
+            forget_thread(&turn);
             return Ok(());
         }
         if settle.is_some_and(|at| Instant::now() >= at) {
@@ -244,10 +285,13 @@ async fn drive(mut turn: Turn, sink: &mut dyn AccountSink) -> Result<(), Box<Acc
             let Some(read) = read else { continue };
             let line = match read {
                 Ok(Some(line)) => line,
-                _ => return Err(stopped()),
+                _ => {
+                    forget_thread(&turn);
+                    return Err(stopped());
+                }
             };
             turn.client.rpc.feed(format!("{line}\n").as_bytes());
-            turn.client.flush().await.map_err(|_| stopped())?;
+            flush_or_forget(&mut turn).await?;
             continue;
         }
         for event in events {
@@ -257,7 +301,7 @@ async fn drive(mut turn: Turn, sink: &mut dyn AccountSink) -> Result<(), Box<Acc
                 Flow::Done(result) => return result,
             }
         }
-        turn.client.flush().await.map_err(|_| stopped())?;
+        flush_or_forget(&mut turn).await?;
     }
 }
 
@@ -380,10 +424,14 @@ fn ending_of(result: &Value, failure: Option<AccountFailure>, limits: Option<&Va
 
 fn completed(turn: &mut Turn, result: &Value, sink: &mut dyn AccountSink) -> Flow {
     let ending = ending_of(result, turn.failure.take(), turn.limits.as_ref());
+    if !matches!(ending, Ending::Stop) {
+        forget_thread(turn);
+    }
     match ending {
         Ending::Stop => {
-            let recorded =
-                Threads::new(&turn.instance, "threadId").record(&turn.thread_id, &turn.messages);
+            let recorded = threads_for(&turn.instance, |threads| {
+                threads.record(&turn.thread_id, &turn.messages)
+            });
             sink.provider_state(&ProviderState {
                 instance_id: turn.instance.clone(),
                 state: recorded["state"].clone(),
@@ -644,5 +692,21 @@ mod tests {
         let limits = merged_limits(Some(json!({ "primary": { "usedPercent": 5 } })), &update);
         assert_eq!(limits["primary"]["usedPercent"], 5);
         assert_eq!(limits["secondary"]["usedPercent"], 9);
+    }
+
+    #[test]
+    fn an_instances_threads_last_until_it_is_cleared() {
+        let instance = "codex-test-threads-clear";
+        threads_for(instance, |_| ());
+        let held = |id: &str| {
+            THREADS
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .as_ref()
+                .is_some_and(|map| map.contains_key(id))
+        };
+        assert!(held(instance));
+        clear_threads(instance);
+        assert!(!held(instance));
     }
 }

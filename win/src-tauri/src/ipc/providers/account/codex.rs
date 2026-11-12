@@ -103,10 +103,9 @@ pub(super) async fn sign_out(root: &str, id: &str) -> Result<(), String> {
     };
     let (home, env) = setup(root, id)?;
     let mut client = Client::start(&binary, &home, &env).await?;
-    client
-        .request("account/logout", json!({}))
-        .await
-        .map(|_| ())
+    client.request("account/logout", json!({})).await?;
+    super::codex_chat::clear_threads(id);
+    Ok(())
 }
 
 /// The model listing of a signed-in or signed-out account: every page the runtime offers, minus hidden ones.

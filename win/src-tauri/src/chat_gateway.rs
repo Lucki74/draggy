@@ -18,7 +18,6 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use draggy_api::server::{HOST, generate_key, same_key};
 
-use draggy_providers::catalog::Catalog;
 use draggy_providers::gateway::{Gateway, GatewayRequest, ReplySink, Sleeper};
 use draggy_providers::http::TransportError;
 use draggy_providers::registry::Registry;
@@ -318,7 +317,7 @@ pub fn production_serve(app: AppHandle) -> Serve {
                 diag: Some(Arc::clone(&state.diag)),
             },
             AppKeys { app: app.clone() },
-            Catalog::bundled(),
+            crate::ipc::providers::active_catalog(),
         );
         let allowed = |origin: &str| {
             origin == RENDERER_ORIGIN || (cfg!(debug_assertions) && origin == DEV_ORIGIN)

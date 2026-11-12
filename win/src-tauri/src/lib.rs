@@ -140,6 +140,7 @@ pub fn run() {
             ipc::api_server::apply_saved(app.handle());
             ipc::mcp::adopt_stored_credentials(app.handle());
             ipc::providers::start_auto_refresh(app.handle());
+            ipc::providers::attach_focus_refresh(app.handle());
             ipc::updater::start(app.handle());
             // As Electron: the filter lists wait for a finished setup.
             if !app.state::<AppState>().storage.show_setup() {

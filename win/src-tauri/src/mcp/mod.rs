@@ -1,6 +1,7 @@
 //! The MCP host: the server table, the sign-in browser and the keystore that holds the secrets. Port of mcp.cjs.
 
 pub mod config;
+pub mod npm;
 pub mod redirect;
 
 use std::path::{Path, PathBuf};
@@ -75,7 +76,14 @@ impl Host {
             vault: Arc::new(KeystoreVault { app: app.clone() }),
             provisioner: Arc::new(NpmProvisioner::new(
                 Some(user_data.join("mcp-servers")),
-                None,
+                npm::resolve_npm(
+                    &node_path(),
+                    &std::env::var_os("PATH").unwrap_or_default(),
+                    std::env::current_exe()
+                        .ok()
+                        .as_deref()
+                        .and_then(Path::parent),
+                ),
             )),
             clock: Arc::new(SystemClock),
         };

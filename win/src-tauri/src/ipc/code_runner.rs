@@ -1,15 +1,15 @@
 //! The `run-code` channel: runs a short Python or JavaScript program in a scratch folder and returns what it
 //! printed. Port of runner.cjs `runCode`. Python comes from PATH; JavaScript runs on the node.exe sidecar.
 
-use std::ffi::OsString;
-use std::path::Path;
+use std::ffi::{OsStr, OsString};
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use draggy_engine::command::{ProcessRunner, run_text};
 use draggy_tools::spawn::{CancelToken, CaptureLimits, SpawnOptions, run};
 use serde_json::{Value, json};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use super::{IpcError, Registry};
 use crate::mcp::config::text;
@@ -104,26 +104,61 @@ fn node_program() -> String {
     crate::mcp::node_path().to_string_lossy().into_owned()
 }
 
-/// The first Python the machine answers to, as the runner probe finds it.
-async fn python_program() -> Option<&'static str> {
-    for candidate in ["python", "py"] {
-        if run_text(&ProcessRunner, candidate, &["--version"], 5000)
+/// The bundled Python, then real installs on PATH. Windows Store aliases in WindowsApps are never tried.
+fn python_candidates(resource_dir: Option<&Path>, path_var: &OsStr) -> Vec<PathBuf> {
+    let (python, py) = if cfg!(windows) {
+        ("python.exe", "py.exe")
+    } else {
+        ("python3", "python")
+    };
+    let mut found: Vec<PathBuf> = resource_dir
+        .map(|dir| dir.join("python").join(python))
+        .filter(|path| path.is_file())
+        .into_iter()
+        .collect();
+    let dirs: Vec<PathBuf> = std::env::split_paths(path_var)
+        .filter(|dir| !dir.as_os_str().is_empty())
+        .filter(|dir| {
+            !dir.to_string_lossy()
+                .to_ascii_lowercase()
+                .contains("windowsapps")
+        })
+        .collect();
+    for name in [python, py] {
+        found.extend(
+            dirs.iter()
+                .map(|dir| dir.join(name))
+                .filter(|path| path.is_file()),
+        );
+    }
+    found
+}
+
+/// The first candidate that answers to `--version`, as the runner probe finds it.
+async fn python_program(app: &AppHandle) -> Option<String> {
+    let resource = app.path().resource_dir().ok();
+    let path_var = std::env::var_os("PATH").unwrap_or_default();
+    for candidate in python_candidates(resource.as_deref(), &path_var) {
+        let program = candidate.to_string_lossy().into_owned();
+        if run_text(&ProcessRunner, &program, &["--version"], 5000)
             .await
             .is_some()
         {
-            return Some(candidate);
+            return Some(program);
         }
     }
     None
 }
 
-async fn run_code(_app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+async fn run_code(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let data_dir = crate::paths::data_dir(std::env::var_os("APPDATA")).map_err(IpcError::Failed)?;
+    let python = python_program(&app).await;
     Ok(execute(
         &data_dir.join("code_runs"),
         args.first(),
         args.get(1),
         args.get(2),
+        python,
     )
     .await)
 }
@@ -134,6 +169,7 @@ async fn execute(
     language: Option<&Value>,
     source: Option<&Value>,
     timeout: Option<&Value>,
+    python: Option<String>,
 ) -> Value {
     let name = text(language);
     let Some(kind) = Language::parse(&name) else {
@@ -150,8 +186,8 @@ async fn execute(
         return json!({ "success": false, "error": "Source is too long to run." });
     }
     let program = match kind {
-        Language::Python => match python_program().await {
-            Some(program) => program.to_owned(),
+        Language::Python => match python {
+            Some(program) => program,
             None => {
                 return json!({
                     "success": false,
@@ -280,6 +316,36 @@ mod tests {
     fn output_is_cut_to_the_limit() {
         let long = "a".repeat(MAX_OUTPUT_CHARS + 5);
         assert_eq!(head(&long).chars().count(), MAX_OUTPUT_CHARS);
+    }
+
+    #[test]
+    fn python_candidates_skip_store_aliases_and_prefer_the_bundle() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let bundle = root.path().join("res");
+        std::fs::create_dir_all(bundle.join("python")).expect("bundle dir");
+        let bundled = bundle.join("python").join(if cfg!(windows) {
+            "python.exe"
+        } else {
+            "python3"
+        });
+        std::fs::write(&bundled, "").expect("bundled");
+        let store = root.path().join("Microsoft").join("WindowsApps");
+        let real = root.path().join("Python");
+        for dir in [&store, &real] {
+            std::fs::create_dir_all(dir).expect("dir");
+        }
+        let name = if cfg!(windows) {
+            "python.exe"
+        } else {
+            "python3"
+        };
+        std::fs::write(store.join(name), "").expect("stub");
+        std::fs::write(real.join(name), "").expect("real");
+        let path = std::env::join_paths([store.clone(), real.clone()]).expect("path");
+        let found = python_candidates(Some(&bundle), &path);
+        assert_eq!(found[0], bundled);
+        assert_eq!(found[1], real.join(name));
+        assert!(found.iter().all(|path| !path.starts_with(&store)));
     }
 
     #[test]
