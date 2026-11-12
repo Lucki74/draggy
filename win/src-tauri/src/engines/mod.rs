@@ -6,6 +6,7 @@
 pub mod colibri;
 pub mod load_stage;
 pub mod net;
+pub mod sd;
 pub mod sysinfo;
 
 use std::path::{Path, PathBuf};
