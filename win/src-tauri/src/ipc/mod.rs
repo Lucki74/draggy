@@ -49,6 +49,7 @@ mod storage;
 mod terminals;
 mod tier;
 mod tts;
+pub mod updater;
 pub(crate) mod web;
 pub(crate) mod widgets;
 
@@ -105,6 +106,7 @@ impl Registry {
         sd::register_all(&mut registry);
         tier::register_all(&mut registry);
         tts::register_all(&mut registry);
+        updater::register_all(&mut registry);
         terminals::register_all(&mut registry);
         pricing::register_all(&mut registry);
         providers::register_all(&mut registry);

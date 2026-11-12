@@ -38,5 +38,12 @@
     "targets": ["nsis"],
     "icon": ["icons/icon.ico"],
     "resources": { "../../shared/pricing/prices.json": "prices.json" }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "PLACEHOLDER_UPDATER_PUBKEY",
+      "endpoints": ["https://github.com/Lucki74/draggy/releases/latest/download/latest.json"],
+      "windows": { "installMode": "quiet" }
+    }
   }
 }

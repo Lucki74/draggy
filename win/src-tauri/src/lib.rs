@@ -94,6 +94,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .register_uri_scheme_protocol("widget", |_ctx, request| {
             ipc::widgets::serve(&request.uri().to_string())
         })
@@ -139,6 +140,7 @@ pub fn run() {
             ipc::api_server::apply_saved(app.handle());
             ipc::mcp::adopt_stored_credentials(app.handle());
             ipc::providers::start_auto_refresh(app.handle());
+            ipc::updater::start(app.handle());
             show_main_window(app, &data_dir)?;
             Ok(())
         })

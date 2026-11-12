@@ -60,6 +60,7 @@ windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security_Cr
 zeroize = "1"
 zip = { version = "8", default-features = false, features = ["deflate"] }
 trash = "5"
+tauri-plugin-updater = "2"
 
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39.1"

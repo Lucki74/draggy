@@ -95,6 +95,66 @@ const FAILURES: &[(&str, &str, &str)] = &[
         "Tell the user the browser pane did not open. They can open it from the browser button.",
     ),
     (
+        "invalid_index",
+        "The element number is not one the page has.",
+        "Call browser_snapshot and use a ref such as e1 instead.",
+    ),
+    (
+        "invalid_key",
+        "That key is not one the browser knows.",
+        "Use a key such as Enter, Tab, Escape, F5, or a single character, with optional Control+ or Shift+ prefixes.",
+    ),
+    (
+        "needs_confirmation",
+        "That action pays, deletes, sends or posts, so the user has to confirm it.",
+        "Ask the user to do it themselves in the browser pane.",
+    ),
+    (
+        "click_blocked",
+        "Another element would receive the click.",
+        "Scroll or close what covers the target, then snapshot again.",
+    ),
+    (
+        "stale_ref",
+        "That ref is not on the page any more.",
+        "Call browser_snapshot again to get fresh refs.",
+    ),
+    (
+        "element_not_found",
+        "The element is not on the page.",
+        "Call browser_snapshot to see what is there, then retry.",
+    ),
+    (
+        "not_editable",
+        "That element cannot take this action.",
+        "Use a text field, a dropdown or a clickable element, as the action needs.",
+    ),
+    (
+        "needs_user",
+        "That field needs the user's own input.",
+        "Ask the user to fill it in themselves in the browser pane.",
+    ),
+    (
+        "rate_limited",
+        "The browser has taken too many actions in a minute.",
+        "Wait a minute before acting again.",
+    ),
+    (
+        "site_denied",
+        "The agent may not act on this site yet.",
+        "Read the page instead, or ask the user to approve the site.",
+    ),
+    (
+        "wait_timeout",
+        "The page did not get there in time.",
+        "Check the page with browser_snapshot, then wait again or act.",
+    ),
+    (
+        "screenshot_failed",
+        "The page would not take a screenshot.",
+        "Try again once the page has finished loading.",
+    ),
+    (
         "unknown",
         "The browser step failed.",
         "Call browser_get_elements to see the page, then retry.",
@@ -120,7 +180,7 @@ impl PageState {
     }
 
     /// A challenge is not something to wait out, so it is named at once.
-    fn is_bot_challenge(&self) -> bool {
+    pub fn is_bot_challenge(&self) -> bool {
         self.title.contains("Just a moment")
             || BOT_CHALLENGE_MARKERS.iter().any(|m| self.head.contains(m))
     }
