@@ -30,6 +30,7 @@ base64 = "0.22"
 draggy-diagnostics = { path = "../../core/crates/diagnostics" }
 draggy-documents = { path = "../../core/crates/documents" }
 draggy-engine = { path = "../../core/crates/engine" }
+draggy-mcp = { path = "../../core/crates/mcp" }
 draggy-models = { path = "../../core/crates/models" }
 draggy-web = { path = "../../core/crates/web" }
 draggy-storage = { path = "../../core/crates/storage" }

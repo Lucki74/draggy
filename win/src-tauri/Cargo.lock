@@ -1161,6 +1161,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "draggy-mcp"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "draggy-tools",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
 name = "draggy-models"
 version = "0.1.0"
 dependencies = [
@@ -1237,6 +1253,7 @@ dependencies = [
  "draggy-diagnostics",
  "draggy-documents",
  "draggy-engine",
+ "draggy-mcp",
  "draggy-models",
  "draggy-storage",
  "draggy-tools",

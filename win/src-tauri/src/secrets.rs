@@ -79,6 +79,30 @@ impl Keystore {
         }
     }
 
+    /// Every field stored under `owner`. Empty when none is.
+    pub fn fields(&mut self, owner: &str) -> Map<String, Value> {
+        match self.store.get(owner) {
+            Value::Object(fields) => fields,
+            _ => Map::new(),
+        }
+    }
+
+    /// Replaces the fields of `owner`. With no fields left the owner is forgotten.
+    pub fn replace(
+        &mut self,
+        owner: &str,
+        fields: &Map<String, Value>,
+    ) -> Result<(), KeystoreError> {
+        if fields.is_empty() {
+            return self.delete(owner);
+        }
+        if self.store.set(owner, fields) {
+            Ok(())
+        } else {
+            Err(KeystoreError(format!("could not save {owner}")))
+        }
+    }
+
     /// The owners that hold at least one stored field, in file order.
     pub fn list_names(&mut self) -> Vec<String> {
         self.store.owners()

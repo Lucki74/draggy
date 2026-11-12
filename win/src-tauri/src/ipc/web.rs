@@ -1,7 +1,7 @@
 //! Handlers for the web search and page channels. Port of the search and page IPC in electron/main.cjs.
 //! Keys stay in the keystore: the renderer gets only whether one is set.
 
-pub(super) mod keys;
+pub(crate) mod keys;
 mod sources;
 
 use std::sync::{Mutex, OnceLock, PoisonError};

@@ -3,6 +3,7 @@
 
 pub mod engines;
 pub mod ipc;
+pub mod mcp;
 pub mod models;
 pub mod paths;
 pub mod pricing;
@@ -28,6 +29,7 @@ pub struct AppState {
     pub quit: Arc<quit::Quit>,
     pub storage: Arc<storage::Db>,
     pub engines: Arc<engines::Engines>,
+    pub mcp: Arc<mcp::Host>,
 }
 
 /// `logs/app.log`, `debug.log` and `events.jsonl` under the data folder, like the Electron build.
@@ -100,13 +102,20 @@ pub fn run() {
             }
             let storage = Arc::new(storage::Db::open(&data_dir, &diag));
             let engines = Arc::new(engines::Engines::new(&data_dir));
+            let mcp = Arc::new(mcp::Host::new(
+                app.handle().clone(),
+                Arc::clone(&diag),
+                &data_dir,
+            )?);
             app.manage(AppState {
                 engines,
+                mcp,
                 storage,
                 diag,
                 registry: Arc::new(ipc::Registry::build()),
                 quit: Arc::new(quit::Quit::default()),
             });
+            ipc::mcp::adopt_stored_credentials(app.handle());
             show_main_window(app, &data_dir)?;
             Ok(())
         })
@@ -143,6 +152,8 @@ pub fn run() {
                 // No engine child may outlive the window.
                 tauri::async_runtime::block_on(state.engines.shutdown());
                 terminals::stop_all();
+                tauri::async_runtime::block_on(state.mcp.stop_all());
+                ipc::code_runner::stop_all();
                 state.diag.end_session(true);
             }
         });

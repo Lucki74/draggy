@@ -100,7 +100,10 @@ fn diag(app: &AppHandle) -> Arc<Diagnostics> {
 }
 
 /// Runs `use_store` on the open keystore. `None` when it is not open.
-fn with_store<T>(app: &AppHandle, use_store: impl FnOnce(&mut Keystore) -> T) -> Option<T> {
+pub(crate) fn with_store<T>(
+    app: &AppHandle,
+    use_store: impl FnOnce(&mut Keystore) -> T,
+) -> Option<T> {
     let store = STORE.get_or_init(|| open(app)).as_ref()?;
     let mut guard = store.lock().unwrap_or_else(PoisonError::into_inner);
     Some(use_store(&mut guard))

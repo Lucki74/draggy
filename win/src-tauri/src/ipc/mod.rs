@@ -24,6 +24,7 @@ macro_rules! register {
 
 mod app;
 mod call_log;
+pub(crate) mod code_runner;
 mod colibri;
 mod commands;
 mod documents;
@@ -33,6 +34,7 @@ mod git;
 mod hardware;
 mod library;
 mod logs;
+pub(crate) mod mcp;
 mod models;
 pub mod pending;
 mod pricing;
@@ -44,7 +46,7 @@ mod storage;
 mod terminals;
 mod tier;
 mod tts;
-mod web;
+pub(crate) mod web;
 
 pub use call_log::{arg_bytes, correlation_id, is_silent, scope_for};
 
@@ -82,6 +84,8 @@ impl Registry {
             warned: Mutex::new(HashSet::new()),
         };
         app::register_all(&mut registry);
+        mcp::register_all(&mut registry);
+        code_runner::register_all(&mut registry);
         files::register_all(&mut registry);
         git::register_all(&mut registry);
         web::register_all(&mut registry);
