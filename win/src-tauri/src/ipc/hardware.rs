@@ -47,13 +47,20 @@ async fn get_system_specs(app: AppHandle, _args: Vec<Value>) -> Result<Value, Ip
 
 async fn probe(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     let engines = engines_of(&app);
+    probe_report(&engines)
+        .await
+        .map_err(|error| IpcError::Failed(error.to_string()))
+}
+
+/// The machine report the planners read: RAM, GPU, CPU and drives with their measured speeds.
+pub async fn probe_report(engines: &Engines) -> Result<Value, serde_json::Error> {
     let specs = engines.hardware_specs().await;
     let topology = engines.topology().await;
     let report = engines
         .probe
         .probe(Some(&specs), sysinfo::memory(), topology, now_ms() as f64)
         .await;
-    serde_json::to_value(report).map_err(|error| IpcError::Failed(error.to_string()))
+    serde_json::to_value(report)
 }
 
 /// What `hardware:benchmark` answers for each way a run can end.

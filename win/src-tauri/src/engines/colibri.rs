@@ -1,22 +1,30 @@
 //! The colibri engine on Windows: release install, rollback, the embeddable Python it runs on, and the gateway process.
 //! Port of electron/colibriBinary.cjs and the start/stop/health half of electron/colibriProcess.cjs.
 
+use std::collections::VecDeque;
 use std::fs;
 use std::io;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::PoisonError;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use super::locked;
+use crate::engines::tier_planner::is_slow_plan;
+use crate::engines::tier_stats;
 use draggy_engine::binary_manager::{BinaryError, Downloader, Extractor};
 use draggy_engine::colibri_runtime::{
     GatewayEvent, build_launch, parse_gateway_line, parse_sums, spawn_plan,
 };
-use draggy_engine::supervisor::{StartResult, Supervisor};
+use draggy_tools::spawn::{hidden_command, kill_tree};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
+use tokio::process::Child;
 
 pub const RELEASES_URL: &str = "https://api.github.com/repos/JustVugg/colibri/releases?per_page=5";
 const ENGINE_LABEL: &str = "colibri";
@@ -579,20 +587,58 @@ pub fn load_failure(kind: &str, detail: &str, model: &str) -> Value {
     })
 }
 
-/// The answer for a gateway that stopped before it was ready, read from its last output lines.
-pub fn failure_from_output(output: &str, model: &str) -> Value {
-    for line in output.lines().map(str::trim).filter(|l| !l.is_empty()) {
-        match parse_gateway_line(line) {
-            GatewayEvent::LoadFail { kind, detail } => return load_failure(&kind, &detail, model),
-            GatewayEvent::Blocked => return blocked_failure(model),
-            _ => {}
-        }
+/// The failure a gateway that printed a load error or a policy block reports, if it did.
+fn output_failure(progress: &Progress, model: &str) -> Option<Value> {
+    if let Some((kind, detail)) = &progress.failure {
+        return Some(load_failure(kind, detail, model));
+    }
+    progress.blocked.then(|| blocked_failure(model))
+}
+
+/// The failure for a gateway that ended while loading: its exit code and its last lines.
+pub fn exit_failure(model: &str, code: &str, recent: &[String]) -> Value {
+    let reason = recent
+        .iter()
+        .rev()
+        .take(3)
+        .rev()
+        .map(String::as_str)
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let log = recent
+        .iter()
+        .rev()
+        .take(40)
+        .rev()
+        .map(String::as_str)
+        .collect::<Vec<_>>()
+        .join("\n");
+    let mut error = format!("colibri stopped while loading {model} (exit code {code})");
+    if !reason.is_empty() {
+        error = format!("{error}: {reason}");
     }
     json!({
         "success": false,
-        "error": format!("colibri stopped while loading {model}"),
+        "error": error,
         "kind": "stopped-loading",
-        "params": { "model": model, "reason": output.lines().rev().take(3).collect::<Vec<_>>().join(" | "), "log": output },
+        "params": { "model": model, "code": code, "reason": reason, "log": log },
+    })
+}
+
+fn exit_text(code: Option<i32>) -> String {
+    code.map_or_else(|| "signal".to_owned(), |c| c.to_string())
+}
+
+/// The failure for a gateway that could not be started at all.
+fn spawn_failure(error: &io::Error, model: &str) -> Value {
+    if error.kind() == io::ErrorKind::PermissionDenied {
+        return blocked_failure(model);
+    }
+    json!({
+        "success": false,
+        "error": error.to_string(),
+        "kind": "engine-missing",
+        "params": { "model": model },
     })
 }
 
@@ -649,16 +695,149 @@ pub fn telemetry_from(health: &Value) -> Value {
     })
 }
 
-#[derive(Clone)]
-struct Served {
-    model: String,
-    port: u16,
+const LOAD_IDLE: Duration = Duration::from_secs(900);
+const POLL: Duration = Duration::from_millis(250);
+const RECENT_LINES: usize = 60;
+const PHASES: [&str; 4] = ["engine", "dense", "experts", "ready"];
+
+/// What the gateway's output has said so far. The readers write it, the start loop reads it.
+#[derive(Debug)]
+struct Progress {
+    recent: VecDeque<String>,
+    failure: Option<(String, String)>,
+    listening: bool,
+    blocked: bool,
+    phase: &'static str,
+    last_activity: Instant,
+    /// Set once the process has ended: its exit code, or None when a signal ended it.
+    exit: Option<Option<i32>>,
+}
+
+impl Progress {
+    fn new() -> Self {
+        Self {
+            recent: VecDeque::new(),
+            failure: None,
+            listening: false,
+            blocked: false,
+            phase: "engine",
+            last_activity: Instant::now(),
+            exit: None,
+        }
+    }
+
+    fn absorb(&mut self, line: &str) {
+        self.last_activity = Instant::now();
+        if self.recent.len() == RECENT_LINES {
+            self.recent.pop_front();
+        }
+        self.recent.push_back(line.to_owned());
+        self.phase = load_phase(line, self.phase);
+        match parse_gateway_line(line) {
+            GatewayEvent::LoadFail { kind, detail } => self.failure = Some((kind, detail)),
+            GatewayEvent::Listening => self.listening = true,
+            GatewayEvent::Blocked => self.blocked = true,
+            GatewayEvent::Line => {}
+        }
+    }
+}
+
+/// Where the earliest of `words` starts a word in `text`, or None.
+fn word_at(text: &str, words: &[&str]) -> Option<usize> {
+    let bytes = text.as_bytes();
+    words
+        .iter()
+        .flat_map(|word| text.match_indices(*word).map(|(at, _)| at))
+        .filter(|&at| at == 0 || !bytes[at - 1].is_ascii_alphanumeric())
+        .min()
+}
+
+/// The load phase a gateway line implies, never going backwards. Lines are matched by their words.
+fn load_phase(line: &str, current: &'static str) -> &'static str {
+    let lower = line.to_ascii_lowercase();
+    let dense_first = word_at(&lower, &["dense", "backbone", "shared"])
+        .is_some_and(|at| word_at(&lower[at..], &["load", "read", "weights"]).is_some());
+    let dense_second = word_at(&lower, &["load"])
+        .is_some_and(|at| lower[at..].contains("dense") || lower[at..].contains("weights"));
+    let experts =
+        word_at(&lower, &["warm", "pin", "prefetch"]).is_some() || lower.contains("hot set");
+    let mut next = current;
+    if dense_first || dense_second {
+        next = "dense";
+    }
+    if experts {
+        next = "experts";
+    }
+    let rank = |phase: &str| PHASES.iter().position(|p| *p == phase).unwrap_or(0);
+    if rank(next) > rank(current) {
+        next
+    } else {
+        current
+    }
+}
+
+fn elapsed_ms(since: Instant) -> u64 {
+    since.elapsed().as_millis() as u64
+}
+
+fn spawn_reader<R>(stream: R, progress: Arc<Mutex<Progress>>)
+where
+    R: AsyncRead + Unpin + Send + 'static,
+{
+    tokio::spawn(async move {
+        let mut lines = BufReader::new(stream).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            let line = line.trim();
+            if !line.is_empty() {
+                locked(&progress).absorb(line);
+            }
+        }
+    });
+}
+
+/// Waits for the process to end and records how it did.
+fn spawn_waiter(mut child: Child, progress: Arc<Mutex<Progress>>) {
+    tokio::spawn(async move {
+        let code = child.wait().await.ok().and_then(|status| status.code());
+        locked(&progress).exit = Some(code);
+    });
+}
+
+/// A model the gateway is serving, and what the app keeps about it.
+#[derive(Debug, Clone)]
+pub struct Served {
+    pub model: String,
+    pub port: u16,
+    pub slow: bool,
+    /// The catalog id and model folder, for the speed history and the hot-set backup.
+    pub catalog: Option<(String, PathBuf)>,
+}
+
+/// One start: what runs, under which plan and environment.
+pub struct Request<'a> {
+    pub rt: &'a Runtime,
+    pub model_dir: &'a Path,
+    pub model: &'a str,
+    pub catalog_id: Option<&'a str>,
+    pub plan: &'a Value,
+    pub lossy: bool,
+    pub physical: usize,
+    /// The engine-wide environment, under the plan's own variables.
+    pub env: Vec<(String, String)>,
+}
+
+/// The gateway process that is running now.
+struct Live {
+    pid: u32,
+    progress: Arc<Mutex<Progress>>,
 }
 
 /// The gateway process: one at a time, on loopback, stopped on app exit.
 pub struct ColibriServer {
-    supervisor: Supervisor,
+    live: Mutex<Option<Live>>,
     served: Mutex<Option<Served>>,
+    /// Bumped on every stop, so a load that was overtaken notices.
+    generation: AtomicU64,
     http: reqwest::Client,
 }
 
@@ -671,8 +850,9 @@ impl Default for ColibriServer {
 impl ColibriServer {
     pub fn new() -> Self {
         Self {
-            supervisor: Supervisor::new(),
+            live: Mutex::new(None),
             served: Mutex::new(None),
+            generation: AtomicU64::new(0),
             http: reqwest::Client::builder()
                 .timeout(Duration::from_millis(1500))
                 .build()
@@ -680,64 +860,171 @@ impl ColibriServer {
         }
     }
 
-    /// Starts the gateway on a free port and waits until it answers /health.
-    pub async fn start(
-        &self,
-        rt: &Runtime,
-        model_dir: &Path,
-        model: &str,
-        plan: &Value,
-        lossy: bool,
-        physical: usize,
-    ) -> Value {
+    /// Starts the gateway on a free port and waits until it answers /health. `on_phase` gets each load phase.
+    pub async fn start(&self, req: Request<'_>, on_phase: &(dyn Fn(Value) + Sync)) -> Value {
         self.stop().await;
+        let generation = self.generation.load(Ordering::SeqCst);
         let port = free_port();
-        let launch = build_launch(&rt.python, &rt.script, model_dir, port, 1);
-        let mut spawn = spawn_plan(launch, port, model);
-        let cuda = rt.variant == "cuda";
-        for (key, value) in plan_environment(plan, cuda, physical, false, lossy) {
-            spawn.env.push((key.into(), value.into()));
-        }
-        match self.supervisor.start(spawn).await {
-            StartResult::Ready => {
-                *self.served.lock().unwrap_or_else(PoisonError::into_inner) = Some(Served {
-                    model: model.into(),
-                    port,
-                });
-                json!({ "success": true, "port": port, "baseUrl": format!("http://127.0.0.1:{port}/v1") })
+        let spawn = spawn_plan(
+            build_launch(&req.rt.python, &req.rt.script, req.model_dir, port, 1),
+            port,
+            req.model,
+        );
+        let mut overrides = req.env;
+        overrides.extend(plan_environment(
+            req.plan,
+            req.rt.variant == "cuda",
+            req.physical,
+            false,
+            req.lossy,
+        ));
+        let child = hidden_command(&spawn.program, spawn.args.as_slice(), |command| {
+            if let Some(cwd) = &spawn.cwd {
+                command.current_dir(cwd);
             }
-            StartResult::Failed { output } => failure_from_output(&output, model),
+            command.envs(spawn.env.iter().map(|(k, v)| (k, v)));
+            command.envs(overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())));
+        })
+        .spawn();
+        let mut child = match child {
+            Ok(child) => child,
+            Err(error) => return spawn_failure(&error, req.model),
+        };
+
+        let progress = Arc::new(Mutex::new(Progress::new()));
+        if let Some(out) = child.stdout.take() {
+            spawn_reader(out, Arc::clone(&progress));
+        }
+        if let Some(err) = child.stderr.take() {
+            spawn_reader(err, Arc::clone(&progress));
+        }
+        let pid = child.id().unwrap_or(0);
+        spawn_waiter(child, Arc::clone(&progress));
+        *locked(&self.live) = Some(Live {
+            pid,
+            progress: Arc::clone(&progress),
+        });
+
+        let started = Instant::now();
+        let mut shown = "engine";
+        loop {
+            let (phase, exit, idle, listening) = {
+                let p = locked(&progress);
+                (p.phase, p.exit, p.last_activity.elapsed(), p.listening)
+            };
+            if phase != shown {
+                shown = phase;
+                on_phase(json!({ "phase": phase, "elapsedMs": elapsed_ms(started) }));
+            }
+            if self.generation.load(Ordering::SeqCst) != generation {
+                return json!({
+                    "success": false,
+                    "error": "Another model was started before this one finished loading",
+                    "kind": "another-model",
+                });
+            }
+            if let Some(code) = exit {
+                // Give the last lines a moment to land: they say why.
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                let (failure, recent) = {
+                    let p = locked(&progress);
+                    (
+                        output_failure(&p, req.model),
+                        p.recent.iter().cloned().collect::<Vec<_>>(),
+                    )
+                };
+                *locked(&self.live) = None;
+                return failure
+                    .unwrap_or_else(|| exit_failure(req.model, &exit_text(code), &recent));
+            }
+            if listening && self.get_json(port, "/health", 1500).await.is_some() {
+                let catalog = req
+                    .catalog_id
+                    .filter(|_| !req.model_dir.as_os_str().is_empty())
+                    .map(|id| (id.to_owned(), req.model_dir.to_path_buf()));
+                *locked(&self.served) = Some(Served {
+                    model: req.model.to_owned(),
+                    port,
+                    slow: is_slow_plan(req.plan),
+                    catalog,
+                });
+                on_phase(json!({ "phase": "ready", "elapsedMs": elapsed_ms(started) }));
+                return json!({
+                    "success": true,
+                    "port": port,
+                    "baseUrl": format!("http://127.0.0.1:{port}/v1"),
+                    "loadMs": elapsed_ms(started),
+                });
+            }
+            if idle > LOAD_IDLE {
+                self.stop().await;
+                return json!({
+                    "success": false,
+                    "error": format!("{} took too long to load. Try again, or choose a smaller model.", req.model),
+                    "kind": "load-timeout",
+                    "params": { "model": req.model },
+                });
+            }
+            tokio::time::sleep(POLL).await;
         }
     }
 
+    /// Stops the gateway and forgets what it served. A load in progress ends as overtaken.
     pub async fn stop(&self) {
-        *self.served.lock().unwrap_or_else(PoisonError::into_inner) = None;
-        self.supervisor.stop().await;
+        self.generation.fetch_add(1, Ordering::SeqCst);
+        *locked(&self.served) = None;
+        let live = locked(&self.live).take();
+        if let Some(live) = live {
+            let exited = locked(&live.progress).exit.is_some();
+            kill_tree(live.pid, exited).await;
+        }
     }
 
-    /// The model and port being served, or None.
-    pub fn status(&self) -> Option<(String, u16)> {
-        self.served
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
-            .map(|s| (s.model, s.port))
+    /// Keeps the learned hot set of the served catalog model outside its folder.
+    pub fn save_usage(&self, user_data: &Path) {
+        let served = locked(&self.served).clone();
+        if let Some((id, dir)) = served.and_then(|s| s.catalog) {
+            tier_stats::backup_usage(user_data, &id, &dir);
+        }
+    }
+
+    /// The model being served, or None.
+    pub fn served(&self) -> Option<Served> {
+        locked(&self.served).clone()
+    }
+
+    /// The expert heat map and hit counts; null without an answer. Counts only: the gateway sends no text.
+    pub async fn experts(&self) -> Value {
+        let Some(port) = self.served().map(|s| s.port) else {
+            return Value::Null;
+        };
+        self.get_json(port, "/experts", 3000)
+            .await
+            .unwrap_or(Value::Null)
     }
 
     pub async fn health(&self) -> Value {
-        let Some((_, port)) = self.status() else {
+        let Some(port) = self.served().map(|s| s.port) else {
             return Value::Null;
         };
-        let body = match self
+        self.get_json(port, "/health", 1500)
+            .await
+            .map(|body| telemetry_from(&body))
+            .unwrap_or(Value::Null)
+    }
+
+    async fn get_json(&self, port: u16, route: &str, timeout_ms: u64) -> Option<Value> {
+        let res = self
             .http
-            .get(format!("http://127.0.0.1:{port}/health"))
+            .get(format!("http://127.0.0.1:{port}{route}"))
+            .timeout(Duration::from_millis(timeout_ms))
             .send()
             .await
-        {
-            Ok(res) if res.status().is_success() => res.json::<Value>().await.ok(),
-            _ => None,
-        };
-        body.map(|b| telemetry_from(&b)).unwrap_or(Value::Null)
+            .ok()?;
+        if !res.status().is_success() {
+            return None;
+        }
+        res.json::<Value>().await.ok()
     }
 }
 
@@ -1019,17 +1306,52 @@ mod tests {
 
     #[test]
     fn load_failures_map_to_renderer_kinds() {
-        let failed = failure_from_output("junk\nengine load failed: kind=nomem need 9 GB", "m");
+        let failed = load_failure("nomem", "need 9 GB", "m");
         assert_eq!(failed["kind"], "colibri-nomem");
         assert_eq!(failed["error"], "colibri could not load m: nomem need 9 GB");
+        assert_eq!(load_failure("oom", "", "m")["kind"], "stopped-loading");
+        assert_eq!(blocked_failure("m")["kind"], "colibri-blocked");
+    }
+
+    #[test]
+    fn exit_failure_names_code_and_last_lines() {
+        let lines: Vec<String> = ["a", "b", "c", "d"].iter().map(|s| s.to_string()).collect();
+        let failed = exit_failure("m", "3221225477", &lines);
         assert_eq!(
-            failure_from_output("LOAD_FAIL kind=oom", "m")["kind"],
-            "stopped-loading"
+            failed["error"],
+            "colibri stopped while loading m (exit code 3221225477): b | c | d"
         );
+        assert_eq!(failed["params"]["code"], "3221225477");
         assert_eq!(
-            failure_from_output("blocked by Application Control policy", "m")["kind"],
+            exit_failure("m", "signal", &[])["error"],
+            "colibri stopped while loading m (exit code signal)"
+        );
+    }
+
+    #[test]
+    fn output_failure_reads_load_fail_and_block() {
+        let mut progress = Progress::new();
+        progress.absorb("junk");
+        assert!(output_failure(&progress, "m").is_none());
+        progress.absorb("engine load failed: kind=nomem need 9 GB");
+        assert_eq!(
+            output_failure(&progress, "m").unwrap()["kind"],
+            "colibri-nomem"
+        );
+        let mut blocked = Progress::new();
+        blocked.absorb("blocked by Application Control policy");
+        assert_eq!(
+            output_failure(&blocked, "m").unwrap()["kind"],
             "colibri-blocked"
         );
+    }
+
+    #[test]
+    fn load_phase_moves_forward_only() {
+        assert_eq!(load_phase("loading dense weights", "engine"), "dense");
+        assert_eq!(load_phase("pinned hot set 40%", "dense"), "experts");
+        assert_eq!(load_phase("loading dense weights", "experts"), "experts");
+        assert_eq!(load_phase("listening", "engine"), "engine");
     }
 
     #[test]

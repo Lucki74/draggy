@@ -77,10 +77,18 @@ impl Embedder for EngineEmbedder {
         Box::pin(async move {
             let binary = find_llama_binary(&host_platform(), Some(&self.engines.user_data));
             let cores = self.engines.topology().await;
+            let setup = crate::engines::EngineSetup::new(&self.engines).await;
             let result = self
                 .engines
                 .embed
-                .embed(binary, &self.engines.models_dir, cores, model, &inputs)
+                .embed(
+                    binary,
+                    &self.engines.models_dir,
+                    cores,
+                    model,
+                    &inputs,
+                    &setup,
+                )
                 .await;
             match result {
                 Ok(vectors) => Ok(vectors.iter().map(|v| normalise(v)).collect()),

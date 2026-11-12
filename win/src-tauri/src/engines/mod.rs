@@ -4,6 +4,7 @@
 //! here. Engines bind 127.0.0.1 only, and nothing downloads until the renderer asks.
 
 pub mod colibri;
+pub mod colibri_catalog;
 pub mod embed_server;
 pub mod image_models;
 pub mod load_stage;
@@ -12,13 +13,17 @@ pub mod sd;
 pub mod sd_install;
 pub mod sd_server;
 pub mod sysinfo;
+pub mod tier_planner;
+pub mod tier_stats;
 
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
 
+use draggy_engine::binary_manager::{engine_environment, has_nvidia_driver};
 use draggy_engine::command::ProcessRunner;
 use draggy_engine::cpu_topology::{self, CpuTopology};
 use draggy_engine::hardware_probe::{HardwareProbe, HardwareSpecs, Space};
+use draggy_engine::llama_flags::FlagCache;
 use draggy_engine::llama_health::{HttpProbe, SystemClock};
 use draggy_engine::llama_process::{Host, LlamaSupervisor};
 use draggy_engine::platform::{Arch, DiskFiles, Env, Os, Platform};
@@ -35,6 +40,41 @@ type VolumeFn = fn(&str) -> Option<Space>;
 
 pub static RUNNER: ProcessRunner = ProcessRunner;
 static VOLUMES: VolumeFn = sysinfo::volume_space;
+/// Flags each engine build answered, so `--cache-ram` and friends are asked for once per binary.
+pub static ENGINE_FLAGS: LazyLock<FlagCache> = LazyLock::new(FlagCache::new);
+
+/// The environment an engine child starts with: its GPU runner folders first on PATH, as Electron's getEngineEnvironment.
+/// Only the overrides; the spawn keeps the rest of the process environment.
+pub fn engine_env(
+    user_data: &Path,
+    vram_gb: f64,
+    explicit: Option<&Path>,
+) -> Vec<(String, String)> {
+    let platform = host_platform();
+    let nvidia = has_nvidia_driver(&platform, &system_root());
+    engine_environment(&platform, user_data, vram_gb, explicit, nvidia).env
+}
+
+/// What an engine child starts with: its environment and the folder its flag answers are kept in.
+pub struct EngineSetup {
+    pub env: Vec<(String, String)>,
+    pub user_data: PathBuf,
+}
+
+impl EngineSetup {
+    /// The setup for the engines' data folder, with the machine's VRAM for the GPU runner choice.
+    pub async fn new(engines: &Engines) -> Self {
+        let vram = engines.specs().await.1;
+        Self {
+            env: engine_env(&engines.user_data, vram, None),
+            user_data: engines.user_data.clone(),
+        }
+    }
+}
+
+fn system_root() -> PathBuf {
+    PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into()))
+}
 
 /// Cached answer of `get-system-specs`, plus the typed part the hardware report reads.
 struct Specs {

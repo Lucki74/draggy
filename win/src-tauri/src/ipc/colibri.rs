@@ -8,7 +8,9 @@ use tauri::{AppHandle, Manager};
 use super::{IpcError, Registry, emit};
 use crate::AppState;
 use crate::engines::colibri;
-use crate::engines::{RUNNER, host_platform};
+use crate::engines::colibri_catalog;
+use crate::engines::tier_stats;
+use crate::engines::{RUNNER, engine_env, host_platform};
 use draggy_engine::binary_manager::TarExtractor;
 
 pub fn register_all(registry: &mut Registry) {
@@ -55,9 +57,9 @@ pub async fn install_engine(app: &AppHandle) -> Value {
 
 async fn status(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     let engines = app.state::<AppState>().engines.clone();
-    let engine = match engines.colibri.status() {
-        Some((model, port)) => {
-            json!({ "kind": "colibri", "running": true, "port": port, "model": model, "slow": false })
+    let engine = match engines.colibri.served() {
+        Some(served) => {
+            json!({ "kind": "colibri", "running": true, "port": served.port, "model": served.model, "slow": served.slow })
         }
         None => {
             json!({ "kind": null, "running": false, "port": null, "model": null, "slow": false })
@@ -97,6 +99,7 @@ async fn start(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
         .unwrap_or_default()
         .to_owned();
     let engines = app.state::<AppState>().engines.clone();
+    engines.colibri.save_usage(&engines.user_data);
 
     if colibri::runtime(&engines.user_data).is_none() {
         let installed = install_engine(&app).await;
@@ -126,13 +129,41 @@ async fn start(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let plan = options.get("plan").cloned().unwrap_or(Value::Null);
     let lossy = options.get("lossy").and_then(Value::as_bool) == Some(true);
     let physical = engines.topology().await.physical;
+    let known = colibri_catalog::find(
+        options
+            .get("modelId")
+            .and_then(Value::as_str)
+            .unwrap_or_default(),
+    );
+    if let Some(known) = known {
+        tier_stats::restore_usage(&engines.user_data, known.id, Path::new(&model_dir));
+    }
+    let vram = engines.specs().await.1;
+    let env = engine_env(&engines.user_data, vram, None);
+    let on_phase = |value: Value| {
+        emit(&app, "colibri-load-phase", value);
+    };
     Ok(engines
         .colibri
-        .start(&rt, Path::new(&model_dir), &name, &plan, lossy, physical)
+        .start(
+            colibri::Request {
+                rt: &rt,
+                model_dir: Path::new(&model_dir),
+                model: &name,
+                catalog_id: known.map(|e| e.id),
+                plan: &plan,
+                lossy,
+                physical,
+                env,
+            },
+            &on_phase,
+        )
         .await)
 }
 
 async fn stop(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
-    app.state::<AppState>().engines.colibri.stop().await;
+    let engines = app.state::<AppState>().engines.clone();
+    engines.colibri.save_usage(&engines.user_data);
+    engines.colibri.stop().await;
     Ok(json!({ "success": true }))
 }

@@ -604,7 +604,12 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
             .sum::<u64>() as f64
             / gb;
         let deadline = Duration::from_millis(sdlogic::load_deadline_ms(size_gb));
-        if let Err(error) = engines.sd.start(&binary, &args, &chosen, deadline).await {
+        let setup = crate::engines::EngineSetup::new(&engines).await;
+        if let Err(error) = engines
+            .sd
+            .start(&binary, &args, &chosen, deadline, &setup.env)
+            .await
+        {
             state
                 .diag
                 .warn("sd", &format!("server start failed: {}", error.code), None);

@@ -13,7 +13,9 @@ use draggy_engine::supervisor::{SpawnPlan, StartResult, Supervisor};
 use serde_json::{Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 
-use super::locked;
+use draggy_engine::llama_flags::engine_flags;
+
+use super::{ENGINE_FLAGS, EngineSetup, RUNNER, locked};
 
 const READY_TIMEOUT: Duration = Duration::from_secs(60);
 const IDLE: Duration = Duration::from_secs(60);
@@ -93,9 +95,10 @@ pub fn model_present(models_dir: &Path, model: &str) -> bool {
     resolve_model_file(&gguf_names(models_dir), model).is_some()
 }
 
-/// Arguments for the server: embedding only, no prompt cache, and the chat model's thread split.
-pub fn server_args(file: &str, port: u16, cores: CpuTopology) -> Vec<String> {
-    vec![
+/// Arguments for the server: embedding only, and the chat model's thread split. The prompt cache is switched
+/// off with `--cache-ram 0` only when the binary has that flag.
+pub fn server_args(file: &str, port: u16, cores: CpuTopology, cache_ram: bool) -> Vec<String> {
+    let mut args: Vec<String> = vec![
         "-m".into(),
         file.into(),
         "--port".into(),
@@ -111,13 +114,15 @@ pub fn server_args(file: &str, port: u16, cores: CpuTopology) -> Vec<String> {
         "2048".into(),
         "-ub".into(),
         "2048".into(),
-        "--cache-ram".into(),
-        "0".into(),
         "-t".into(),
         cores.performance.to_string(),
         "-tb".into(),
         cores.performance.max(cores.physical).to_string(),
-    ]
+    ];
+    if cache_ram {
+        args.extend(["--cache-ram".into(), "0".into()]);
+    }
+    args
 }
 
 /// The last non-blank line of the engine's output, as the reason a start failed.
@@ -180,8 +185,9 @@ impl EmbedServer {
         cores: CpuTopology,
         model: &str,
         inputs: &[String],
+        setup: &EngineSetup,
     ) -> Result<Vec<Vec<f32>>, String> {
-        let port = self.ensure(binary, models_dir, cores, model).await?;
+        let port = self.ensure(binary, models_dir, cores, model, setup).await?;
         let response = self
             .http
             .post(format!("http://127.0.0.1:{port}/v1/embeddings"))
@@ -208,6 +214,7 @@ impl EmbedServer {
         models_dir: &Path,
         cores: CpuTopology,
         model: &str,
+        setup: &EngineSetup,
     ) -> Result<u16, String> {
         let shown = if model.is_empty() { "(none)" } else { model };
         let file = resolve_model_file(&gguf_names(models_dir), model)
@@ -219,7 +226,7 @@ impl EmbedServer {
             return Ok(port);
         }
         let binary = binary.ok_or_else(|| NO_ENGINE.to_owned())?;
-        self.launch(&binary, &models_dir.join(&file), &file, cores)
+        self.launch(&binary, &models_dir.join(&file), &file, cores, setup)
             .await
     }
 
@@ -245,14 +252,28 @@ impl EmbedServer {
         path: &Path,
         file: &str,
         cores: CpuTopology,
+        setup: &EngineSetup,
     ) -> Result<u16, String> {
         self.stop().await;
         let port = free_port().ok_or_else(|| "The embedding engine did not start.".to_owned())?;
+        let flags = engine_flags(
+            &RUNNER,
+            &ENGINE_FLAGS,
+            binary,
+            &setup.env,
+            Some(&setup.user_data),
+        )
+        .await;
+        let cache_ram = flags.is_some_and(|flags| flags.contains("--cache-ram"));
         let plan = SpawnPlan {
             program: binary.to_path_buf(),
-            args: server_args(&path.to_string_lossy(), port, cores),
+            args: server_args(&path.to_string_lossy(), port, cores, cache_ram),
             cwd: binary.parent().map(Path::to_path_buf),
-            env: Vec::new(),
+            env: setup
+                .env
+                .iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
             port,
             ready_path: READY_PATH,
             model: file.to_owned(),
@@ -362,7 +383,7 @@ mod tests {
             physical: 8,
             performance: 6,
         };
-        let args = server_args("C:/m/e.gguf", 5005, cores);
+        let args = server_args("C:/m/e.gguf", 5005, cores, true);
         let pair = |flag: &str| {
             args.iter()
                 .position(|a| a == flag)

@@ -79,6 +79,7 @@ impl SdServer {
         model_args: &[String],
         model: &str,
         deadline: Duration,
+        env: &[(String, String)],
     ) -> Result<(), SdError> {
         self.stop().await;
         let port = free_port().ok_or_else(|| SdError {
@@ -102,7 +103,7 @@ impl SdServer {
             program: binary.to_path_buf(),
             args,
             cwd: binary.parent().map(Path::to_path_buf),
-            env: Vec::new(),
+            env: env.iter().map(|(k, v)| (k.into(), v.into())).collect(),
             port,
             ready_path: sd::READY_PATH,
             model: model.to_owned(),
