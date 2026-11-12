@@ -38,6 +38,7 @@ pub(crate) mod mcp;
 mod models;
 pub mod pending;
 mod pricing;
+pub(crate) mod providers;
 mod research;
 mod sd;
 mod shell;
@@ -101,6 +102,7 @@ impl Registry {
         tts::register_all(&mut registry);
         terminals::register_all(&mut registry);
         pricing::register_all(&mut registry);
+        providers::register_all(&mut registry);
         skills::register_all(&mut registry);
         library::register_all(&mut registry);
         research::register_all(&mut registry);

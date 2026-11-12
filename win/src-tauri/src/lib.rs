@@ -116,6 +116,7 @@ pub fn run() {
                 quit: Arc::new(quit::Quit::default()),
             });
             ipc::mcp::adopt_stored_credentials(app.handle());
+            ipc::providers::start_auto_refresh(app.handle());
             show_main_window(app, &data_dir)?;
             Ok(())
         })

@@ -32,6 +32,7 @@ draggy-documents = { path = "../../core/crates/documents" }
 draggy-engine = { path = "../../core/crates/engine" }
 draggy-mcp = { path = "../../core/crates/mcp" }
 draggy-models = { path = "../../core/crates/models" }
+draggy-providers = { path = "../../core/crates/providers" }
 draggy-web = { path = "../../core/crates/web" }
 draggy-storage = { path = "../../core/crates/storage" }
 getrandom = "0.3"
