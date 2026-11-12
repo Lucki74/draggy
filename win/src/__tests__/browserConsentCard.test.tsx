@@ -16,7 +16,7 @@ const answerConsent = vi.fn(async () => ({ success: true }));
 beforeEach(() => {
   answerConsent.mockClear();
   cleanedUp = false;
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     browserAgent: {
       onConsent: (callback: typeof pushConsent) => {
         pushConsent = callback;

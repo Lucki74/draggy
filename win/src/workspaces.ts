@@ -5,7 +5,7 @@ import { effortFromLegacy, isEffortLevel } from "./ai/effort";
 /** A workspace is a plain chat or a folder the model may work in. Settings have two layers, the
  * app's and the workspace's, combined here. */
 
-/** Matches `DEFAULT_WORKSPACE_ID` in electron/storage.cjs. */
+/** Matches `DEFAULT_WORKSPACE_ID` in the Rust storage layer. */
 export const DEFAULT_WORKSPACE_ID = "default";
 
 /** Stood in for the real row until the main process answers, and in tests. */

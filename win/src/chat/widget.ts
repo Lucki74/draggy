@@ -1,5 +1,5 @@
 /** MCP Apps, renderer side: what a widget may ask for and what the app will do. The frame's
- * isolation is set up in electron/widgets.cjs. */
+ * isolation is set up by the widget host. */
 
 /** What a widget may ask the app to do. Anything else is dropped. */
 export type WidgetRequest =

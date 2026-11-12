@@ -157,7 +157,7 @@ async function pixelsOf(image: TrackedImage): Promise<string | null> {
   if (image.dataUrl) return strip(image.dataUrl);
   if (!image.path) return null;
   if (image.location === "project") {
-    const read = await window.electronAPI?.files.read(image.workspaceId || "default", image.path);
+    const read = await window.draggy?.files.read(image.workspaceId || "default", image.path);
     return read?.success && read.dataUrl ? strip(read.dataUrl) : null;
   }
   try {

@@ -43,14 +43,14 @@ export default function App() {
   const [openSettingsOn, setOpenSettingsOn] = useState<"providers" | undefined>();
   useEffect(() => {
     if (isSplashMode) return;
-    return window.electronAPI?.onBootOpen?.((page) => {
+    return window.draggy?.onBootOpen?.((page) => {
       if (page === "providers") setOpenSettingsOn(page);
     });
   }, [isSplashMode]);
 
   useEffect(() => {
     if (isSplashMode) return;
-    return window.electronAPI?.onBootModel((bootModel) => {
+    return window.draggy?.onBootModel((bootModel) => {
       setSettings((prev) =>
         prev.modelName === bootModel ? prev : { ...prev, modelName: bootModel },
       );
@@ -59,11 +59,11 @@ export default function App() {
   }, [isSplashMode, setSettings]);
 
   const handleSplashReady = useCallback((selectedModel: string) => {
-    window.electronAPI?.bootFinished(selectedModel);
+    window.draggy?.bootFinished(selectedModel);
   }, []);
 
   const handleUseProvider = useCallback(() => {
-    window.electronAPI?.bootFinished("", "providers");
+    window.draggy?.bootFinished("", "providers");
   }, []);
 
   const handleModelReady = useCallback(
@@ -84,7 +84,7 @@ export default function App() {
   );
 
   // Held here rather than in the setup, so a download it started carries on once the app is open.
-  const firstDownload = useFirstDownload(window.electronAPI);
+  const firstDownload = useFirstDownload(window.draggy);
   const [waitingFor, setWaitingFor] = useState<string | null>(null);
   const [landed, setLanded] = useState<string | null>(null);
   const [landingPath, setLandingPath] = useState<"local" | "both">("local");
@@ -101,7 +101,7 @@ export default function App() {
   useEffect(() => {
     if (!landed) return;
     // Only now: a record written before the model was on disk would skip the setup after a quit.
-    window.electronAPI?.onboarding?.complete(landingPath).catch(swallowed("app", "the main process already logged this call"));
+    window.draggy?.onboarding?.complete(landingPath).catch(swallowed("app", "the main process already logged this call"));
   }, [landed, landingPath]);
 
   // The optional downloads join the app's own list once the model is in, never beside it.
@@ -163,7 +163,7 @@ export default function App() {
   }
 
   if (!model && !openSettingsOn) {
-    if (window.electronAPI) {
+    if (window.draggy) {
       return (
         <div
           className="w-screen h-screen overflow-hidden flex items-center justify-center bg-[var(--bg-base)] text-[var(--text-main)]"

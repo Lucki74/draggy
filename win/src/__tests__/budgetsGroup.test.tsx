@@ -12,14 +12,14 @@ const t = (key: string) => (translations.en as Record<string, string>)[key] ?? k
 const withBudgets = (budgets: BudgetSettings): AppSettings => ({ ...defaultSettings, budgets });
 
 beforeEach(() => {
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     providers: { list: async () => [{ id: "openai", kind: "cloud", enabled: true, label: "OpenAI" }] },
   };
 });
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("the budgets settings", () => {

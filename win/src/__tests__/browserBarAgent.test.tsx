@@ -13,7 +13,7 @@ const stop = vi.fn(async () => ({ success: true }));
 
 beforeEach(() => {
   stop.mockClear();
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     browserBar: {
       action: vi.fn(async () => ({ success: true })),
       setMenuOpen: vi.fn(async () => ({ success: true })),
@@ -64,7 +64,7 @@ describe("the pane bar while the agent drives", () => {
 
   it("no longer asks for consent in the bar", () => {
     const onConsent = vi.fn(() => () => {});
-    (window as unknown as { electronAPI: { browserAgent: { onConsent: unknown } } }).electronAPI.browserAgent.onConsent =
+    (window as unknown as { draggy: { browserAgent: { onConsent: unknown } } }).draggy.browserAgent.onConsent =
       onConsent;
     render(<BrowserBar t={t} embedded />);
     expect(onConsent).not.toHaveBeenCalled();
@@ -72,7 +72,7 @@ describe("the pane bar while the agent drives", () => {
 
   it("does not listen in the separate browser window", () => {
     const onState = vi.fn(() => () => {});
-    (window as unknown as { electronAPI: { browserAgent: { onState: unknown } } }).electronAPI.browserAgent.onState =
+    (window as unknown as { draggy: { browserAgent: { onState: unknown } } }).draggy.browserAgent.onState =
       onState;
     render(<BrowserBar t={t} />);
     expect(onState).not.toHaveBeenCalled();

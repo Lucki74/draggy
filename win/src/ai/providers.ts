@@ -49,7 +49,7 @@ export async function remoteModelInfo(model: string): Promise<(ProviderModel & {
   const ref = parseRef(model);
   if (ref.kind !== "remote" || !ref.valid || typeof window === "undefined") return null;
   try {
-    const api = window.electronAPI?.providers;
+    const api = window.draggy?.providers;
     // The instance only picks the prompt; a failed lookup costs the full prompt, never the model's info.
     const [answer, instances] = await Promise.all([api?.models(ref.instanceId), api?.list?.().catch(() => [])]);
     const found = answer?.success ? answer.models.find((m) => m.id === ref.modelId) : undefined;
@@ -89,7 +89,7 @@ export interface ModelGroup {
 /** Every enabled provider's ticked models, under its label; the engine's own come from `listInstalledModels`.
  * A ticked model its listing lacks still shows, knowing nothing, so an offline provider keeps its place. */
 export async function listAllModels(): Promise<ModelGroup[]> {
-  const api = typeof window === "undefined" ? undefined : window.electronAPI?.providers;
+  const api = typeof window === "undefined" ? undefined : window.draggy?.providers;
   if (!api) return [];
   const instances = (await api.list().catch(() => [])).filter((instance) => instance.enabled);
   return Promise.all(

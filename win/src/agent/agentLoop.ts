@@ -653,7 +653,7 @@ async function readLoadedSkills(workspaceId: string, ids: string[]): Promise<Loa
 
   const results = await Promise.all(
     ids.map((id) =>
-      window.electronAPI?.skills?.read(workspaceId, id, { enabledOnly: true }).catch(swallowed("agent", "the main process already logged this call")),
+      window.draggy?.skills?.read(workspaceId, id, { enabledOnly: true }).catch(swallowed("agent", "the main process already logged this call")),
     ),
   );
 
@@ -694,8 +694,8 @@ export async function measureTurn(
   if (!options.allowLoad && (await isLoadedAt(input.model, numCtx)) !== true) return null;
   if (options.signal.aborted || llamaIsBusy()) return null;
 
-  if (options.allowLoad && typeof window !== "undefined" && window.electronAPI?.gguf) {
-    const warmStart = await window.electronAPI.gguf.start({
+  if (options.allowLoad && typeof window !== "undefined" && window.draggy?.gguf) {
+    const warmStart = await window.draggy.gguf.start({
       modelPath: ggufModelName(input.model),
       contextSize: numCtx,
       exactContext: typeof fixedContext === "number",
@@ -1186,7 +1186,7 @@ async function runTurn(
 
     // Background tasks that ended since the model last looked are reported once, here.
     if (toolContext.chatId) {
-      const ended = await window.electronAPI?.tasks?.takeInbox(toolContext.chatId).catch(swallowed("agent", "the report of ended tasks is retried on the next request", null));
+      const ended = await window.draggy?.tasks?.takeInbox(toolContext.chatId).catch(swallowed("agent", "the report of ended tasks is retried on the next request", null));
       if (ended?.items && ended.items.length > 0) wire.push({ role: "user", content: describeEnded(ended.items) });
     }
 
@@ -1290,8 +1290,8 @@ async function runTurn(
 
     try {
       // A provider's model has no file to load; starting the engine for it fails as a missing model.
-      if (typeof window !== "undefined" && window.electronAPI?.gguf && !isRemote(model)) {
-        const started = await window.electronAPI.gguf.start({
+      if (typeof window !== "undefined" && window.draggy?.gguf && !isRemote(model)) {
+        const started = await window.draggy.gguf.start({
           modelPath: ggufModelName(model),
           contextSize: numCtx,
           exactContext: typeof settings.fixedContextSize === "number",
@@ -1960,12 +1960,12 @@ async function runTurn(
     host.onMetrics?.(metrics);
     // Counts and timings only: the speed this computer reached feeds the plan's estimate for the model.
     if (colibri && !signal.aborted && metrics.tokensPerSecond > 0) {
-      void window.electronAPI?.tier?.record?.({ tokPerSec: metrics.tokensPerSecond, tokens: metrics.responseTokens });
+      void window.draggy?.tier?.record?.({ tokPerSec: metrics.tokensPerSecond, tokens: metrics.responseTokens });
     }
   }
 
   if (!signal.aborted && shouldNotify(slow, Date.now() - turnStartedAt)) {
-    void window.electronAPI?.notifyDone?.(host.t("largeDoneTitle"), host.t("largeDoneBody"));
+    void window.draggy?.notifyDone?.(host.t("largeDoneTitle"), host.t("largeDoneBody"));
   }
 
   logAgentStep(

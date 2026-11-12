@@ -13,7 +13,7 @@ export default function BrowserPane({ t }: { t: (key: string) => string }) {
   const hasPage = page.loading || (Boolean(page.url) && page.url !== "about:blank");
 
   useEffect(() => {
-    const api = window.electronAPI?.browserPane;
+    const api = window.draggy?.browserPane;
     const body = bodyRef.current;
     if (!api || !body) return;
 

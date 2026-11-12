@@ -8,7 +8,7 @@ import Onboarding, { type SetupOutcome } from "../onboarding/Onboarding";
 import { useFirstDownload } from "../onboarding/useFirstDownload";
 import App from "../App";
 import { GeneralPage } from "../settings/GeneralPages";
-import { installFakeElectronApi } from "./helpers/electronApi";
+import { installFakeDraggyApi } from "./helpers/draggyApi";
 import { THEME_PALETTES } from "../onboarding/palettes";
 import { defaultSettings } from "../app/settings";
 import { translations } from "../translations";
@@ -56,7 +56,7 @@ function freshMachine({ online = true, installed = [] as string[] } = {}) {
       complete: vi.fn(async (setupPath: string) => ({ success: true, record: { version: 1, status: "done", path: setupPath } })),
     },
   };
-  (window as unknown as { electronAPI: unknown }).electronAPI = api;
+  (window as unknown as { draggy: unknown }).draggy = api;
   return { api, order, finish: (filename: string) => pending.get(filename)?.({ success: true }) };
 }
 
@@ -73,7 +73,7 @@ function Harness({
     ...defaultSettings,
     ...(language ? { language } : {}),
   });
-  const download = useFirstDownload(window.electronAPI);
+  const download = useFirstDownload(window.draggy);
   onSettings?.(settings);
   return (
     <Onboarding
@@ -103,7 +103,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("the setup's screens", () => {
@@ -255,12 +255,12 @@ describe("the appearance cards", () => {
 
 describe("from the setup into the app", () => {
   it("lands in the app on Start, and a reload would no longer open the setup", async () => {
-    installFakeElectronApi();
-    const fake = window.electronAPI as unknown as Record<string, unknown>;
+    installFakeDraggyApi();
+    const fake = window.draggy as unknown as Record<string, unknown>;
     const machine = freshMachine();
     const parts = machine.api as unknown as Record<string, unknown>;
     for (const key of Object.keys(parts)) fake[key] = parts[key];
-    (window as unknown as { electronAPI: unknown }).electronAPI = fake;
+    (window as unknown as { draggy: unknown }).draggy = fake;
     window.history.pushState(null, "", "/?onboarding=true");
 
     render(<App />);
@@ -286,7 +286,7 @@ describe("from the setup into the app", () => {
 
 describe("running the setup again", () => {
   it("asks first, then has main reopen the setup", async () => {
-    const fake = installFakeElectronApi();
+    const fake = installFakeDraggyApi();
     render(<GeneralPage settings={defaultSettings} onUpdate={() => {}} t={en} />);
 
     fireEvent.click(screen.getByRole("button", { name: en("onbRunAgainButton") }));
@@ -373,12 +373,12 @@ describe("the preferences step", () => {
 
 describe("an extra still downloading at Start", () => {
   it("is taken on by the app's own downloads", async () => {
-    installFakeElectronApi();
-    const fake = window.electronAPI as unknown as Record<string, unknown>;
+    installFakeDraggyApi();
+    const fake = window.draggy as unknown as Record<string, unknown>;
     const machine = freshMachine();
     const parts = machine.api as unknown as Record<string, unknown>;
     for (const key of Object.keys(parts)) fake[key] = parts[key];
-    (window as unknown as { electronAPI: unknown }).electronAPI = fake;
+    (window as unknown as { draggy: unknown }).draggy = fake;
     window.history.pushState(null, "", "/?onboarding=true");
 
     render(<App />);
@@ -405,12 +405,12 @@ describe("an extra still downloading at Start", () => {
 
 /** The whole app on a new install, with the fake main process standing in for the real one. */
 function freshApp() {
-  installFakeElectronApi();
-  const fake = window.electronAPI as unknown as Record<string, unknown>;
+  installFakeDraggyApi();
+  const fake = window.draggy as unknown as Record<string, unknown>;
   const machine = freshMachine();
   const parts = machine.api as unknown as Record<string, unknown>;
   for (const key of Object.keys(parts)) fake[key] = parts[key];
-  (window as unknown as { electronAPI: unknown }).electronAPI = fake;
+  (window as unknown as { draggy: unknown }).draggy = fake;
   window.history.pushState(null, "", "/?onboarding=true");
   render(<App />);
   return machine;

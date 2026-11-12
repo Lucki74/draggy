@@ -34,7 +34,7 @@ export default function AppFrame({ serverId, html, t, onCall }: AppFrameProps) {
     let token: string | null = null;
     let dropped = false;
 
-    const api = window.electronAPI?.widgets;
+    const api = window.draggy?.widgets;
 
     void api?.stage(html).then((staged) => {
       if (!staged?.success || !staged.url) return;
@@ -59,7 +59,7 @@ export default function AppFrame({ serverId, html, t, onCall }: AppFrameProps) {
       onCall ??
       widgetCaller(
         serverId,
-        async (id, tool, args) => window.electronAPI?.mcp?.call(id, tool, args),
+        async (id, tool, args) => window.draggy?.mcp?.call(id, tool, args),
         annotationsFor,
       ),
     [serverId, onCall],

@@ -83,7 +83,7 @@ export function useSessions(): SessionStore {
     const onUnload = () => void flush();
 
     // Main waits for this before it closes storage; beforeunload alone is not waited for.
-    const stopQuit = window.electronAPI?.onBeforeQuit?.(flush);
+    const stopQuit = window.draggy?.onBeforeQuit?.(flush);
     window.addEventListener("beforeunload", onUnload);
     return () => {
       stopQuit?.();

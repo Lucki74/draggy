@@ -18,7 +18,7 @@ let readMock = vi.fn();
 
 beforeEach(() => {
   readMock = vi.fn(async () => ({ success: true, text: "", truncated: false, binary: true }));
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     listCreatedFiles: vi.fn(async () => ({
       success: true,
       files: [file("a dragon.png", "png"), file("blob.bin", "bin")],
@@ -29,7 +29,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("CreatedFiles picture preview", () => {

@@ -371,7 +371,7 @@ export async function openConversation(
 
   const searchTheWeb = async (query: string): Promise<string> => {
     try {
-      const results = (await window.electronAPI?.searchWeb(query)) ?? [];
+      const results = (await window.draggy?.searchWeb(query)) ?? [];
       return summariseResults(results);
     } catch (error) {
       logRendererEvent("renderer.voice", "WARN", "web search failed", { error });

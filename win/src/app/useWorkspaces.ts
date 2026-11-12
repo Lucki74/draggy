@@ -38,7 +38,7 @@ export function useWorkspaces(): WorkspaceStore {
   );
 
   useEffect(() => {
-    const api = window.electronAPI?.workspaces;
+    const api = window.draggy?.workspaces;
     if (!api) return;
 
     let cancelled = false;
@@ -62,7 +62,7 @@ export function useWorkspaces(): WorkspaceStore {
   }, []);
 
   const addProject = useCallback(async (permissionMode?: PermissionMode) => {
-    const api = window.electronAPI?.workspaces;
+    const api = window.draggy?.workspaces;
     if (!api) return null;
 
     const picked = await api.pickFolder();
@@ -83,7 +83,7 @@ export function useWorkspaces(): WorkspaceStore {
 
   const remove = useCallback(
     async (id: string) => {
-      const api = window.electronAPI?.workspaces;
+      const api = window.draggy?.workspaces;
       if (!api || id === DEFAULT_WORKSPACE_ID) return { removed: false };
 
       const result = await api.remove(id);
@@ -111,7 +111,7 @@ export function useWorkspaces(): WorkspaceStore {
       const updated: Workspace = { ...current, ...patch, updatedAt: Date.now() };
       setWorkspaces((prev) => prev.map((one) => (one.id === id ? updated : one)));
 
-      await window.electronAPI?.workspaces?.save(updated).catch(swallowed("app", "the main process already logged this call"));
+      await window.draggy?.workspaces?.save(updated).catch(swallowed("app", "the main process already logged this call"));
     },
     [workspaces],
   );
@@ -155,7 +155,7 @@ export function useWorkspaces(): WorkspaceStore {
         prev.map((one) => (one.id === next.id ? next : one)),
       );
 
-      void window.electronAPI?.workspaces?.save(next).catch(swallowed("app", "the main process already logged this call"));
+      void window.draggy?.workspaces?.save(next).catch(swallowed("app", "the main process already logged this call"));
     },
     [active],
   );

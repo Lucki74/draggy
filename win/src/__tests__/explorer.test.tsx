@@ -31,7 +31,7 @@ beforeEach(() => {
     ],
   }));
 
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     files: {
       read: readMock,
       list: listMock,
@@ -46,7 +46,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("Explorer component", () => {
@@ -108,7 +108,7 @@ describe("Explorer component", () => {
 
   it("reloads file list in real time when onChanged fires", async () => {
     let changeCb: ((change: { workspaceId?: string }) => void) | null = null;
-    (window as unknown as { electronAPI: { files: { onChanged: unknown } } }).electronAPI.files.onChanged = (
+    (window as unknown as { draggy: { files: { onChanged: unknown } } }).draggy.files.onChanged = (
       cb: (change: { workspaceId?: string }) => void,
     ) => {
       changeCb = cb;

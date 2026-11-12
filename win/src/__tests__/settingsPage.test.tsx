@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import SettingsPage from "../settings/SettingsPage";
 import { defaultSettings } from "../app/settings";
-import { clearFakeElectronApi, installFakeElectronApi } from "./helpers/electronApi";
+import { clearFakeDraggyApi, installFakeDraggyApi } from "./helpers/draggyApi";
 import type { SettingsTab } from "../settings/pages";
 import type { Workspace } from "../types";
 
@@ -52,12 +52,12 @@ function renderSettings(tab: SettingsTab, overrides: Record<string, unknown> = {
 }
 
 beforeEach(() => {
-  installFakeElectronApi();
+  installFakeDraggyApi();
 });
 
 afterEach(() => {
   cleanup();
-  clearFakeElectronApi();
+  clearFakeDraggyApi();
 });
 
 describe("the settings menu", () => {

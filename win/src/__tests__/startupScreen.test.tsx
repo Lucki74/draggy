@@ -28,7 +28,7 @@ function installBridge({ present, installs }: { present: boolean; installs: bool
   });
   const status = vi.fn(async () => ({ hasBinary, ready: hasBinary, runnerType: "vulkan" }));
 
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     gguf: {
       status,
       setupEngine,
@@ -47,7 +47,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("StartupScreen engine setup", () => {
@@ -86,7 +86,7 @@ describe("StartupScreen engine setup", () => {
 function installFreshMachine(resolved: { url: string; filename: string; size: number } | null) {
   const resolveModelUrl = vi.fn(async () => resolved);
   const downloadModel = vi.fn(async () => ({ success: true }));
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     getSystemSpecs: async () => ({ vram: 12, ram: 64, platform: "win32", arch: "x64", cpu: "AMD" }),
     checkInternet: async () => true,
     checkDiskSpace: async () => 500,

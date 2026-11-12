@@ -1,7 +1,7 @@
 import type { LogEntry } from "./types";
 import { generateId } from "./utils";
 
-/** Mirrors electron/logger.cjs's SENSITIVE_KEYS. These pass through whole, since the renderer has
+/** Mirrors the main process's SENSITIVE_KEYS. These pass through whole, since the renderer has
  * no sync SHA-256 and the main process hashes the full value for both log files. */
 const SENSITIVE_KEYS = new Set([
   "prompt",
@@ -44,7 +44,7 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 
 function send(entries: LogEntry[]) {
   if (typeof window === "undefined") return;
-  window.electronAPI?.logBatch?.(entries);
+  window.draggy?.logBatch?.(entries);
 }
 
 function flush() {

@@ -3,14 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { colibriEngine, isSlowModel, NOTIFY_AFTER_MS, shouldNotify, SLOW_TOOL_LOOPS, thinkingAllowed, toolLoopLimit } from "../slowMode";
 
 const install = (slow: boolean, type = "colibri") => {
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     providers: { list: vi.fn(async () => [{ id: "c1", type }]) },
     colibri: { status: vi.fn(async () => ({ engine: { slow } })) },
   };
 };
 
 afterEach(() => {
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("slow model mode", () => {

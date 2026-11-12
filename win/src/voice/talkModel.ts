@@ -136,7 +136,7 @@ export async function provideTalkModel(
     );
 
     // The file keeps the name its repository gave it, so it is looked up again once it has landed.
-    const files = (await window.electronAPI?.gguf?.listModels()) ?? [];
+    const files = (await window.draggy?.gguf?.listModels()) ?? [];
     const landed = installedMatch(plan.download.model, files.map((file) => file.filename));
     if (!landed) throw new Error(`${plan.download.label} was downloaded but is not in the models folder.`);
     return { model: landed, substituted: false };

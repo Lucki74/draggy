@@ -88,7 +88,6 @@ export function sortEntries(entries: DirectoryEntry[]): DirectoryEntry[] {
 const NOISE = new Set([
   "node_modules",
   "dist",
-  "dist-electron",
   "build",
   "out",
   "target",

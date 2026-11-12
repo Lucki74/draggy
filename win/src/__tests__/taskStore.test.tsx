@@ -31,7 +31,7 @@ let emit: (event: TaskEvent) => void = () => {};
 beforeEach(() => {
   resetTaskStore();
   resetTerminalBus();
-  Object.defineProperty(window, "electronAPI", {
+  Object.defineProperty(window, "draggy", {
     configurable: true,
     value: {
       tasks: {
@@ -49,7 +49,7 @@ afterEach(() => {
   cleanup();
   resetTaskStore();
   resetTerminalBus();
-  Reflect.deleteProperty(window, "electronAPI");
+  Reflect.deleteProperty(window, "draggy");
 });
 
 describe("task store", () => {

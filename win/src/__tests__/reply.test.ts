@@ -327,7 +327,7 @@ describe("what the model is given to answer from", () => {
 describe("a voice reply from a provider's model", () => {
   it("never starts the engine", async () => {
     const start = vi.fn(async () => ({ success: true }));
-    vi.stubGlobal("window", { electronAPI: { gguf: { start } } });
+    vi.stubGlobal("window", { draggy: { gguf: { start } } });
     installChat([["Hello"]]);
     const deltas: string[] = [];
     await streamVoiceChat({ model: "@anthropic/claude-x", messages: [{ role: "user", content: "hi" }], onDelta: (delta) => void deltas.push(delta) });

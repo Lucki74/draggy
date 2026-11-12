@@ -23,7 +23,7 @@ function stubBridge(overrides: Record<string, unknown> = {}) {
     };
 
   vi.stubGlobal("window", {
-    electronAPI: {
+    draggy: {
       mcp: {
         catalogue: record("catalogue", { servers: [] }),
         config: record("config", { config: {} }),
@@ -124,7 +124,7 @@ describe("the skills list", () => {
     }));
 
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         skills: {
           list: async () => ({ success: true, skills: SHELF }),
           read,

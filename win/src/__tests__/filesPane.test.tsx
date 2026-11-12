@@ -17,7 +17,7 @@ let revealMock = vi.fn();
 beforeEach(() => {
   openMock = vi.fn(async () => ({ success: true }));
   revealMock = vi.fn(async () => ({ success: true }));
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     files: {
       list: vi.fn(async () => ({
         success: true,
@@ -35,7 +35,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 const gitStatus = {

@@ -43,7 +43,7 @@ function stubCommands(answer: (command: string, emit: (runId: string, chunk: str
   const cancel = vi.fn(async () => ({ success: true }));
 
   vi.stubGlobal("window", {
-    electronAPI: {
+    draggy: {
       commands: {
         run: async (workspaceId: string, runId: string, command: string, options: unknown) => {
           calls.push({ workspaceId, runId, command, options });

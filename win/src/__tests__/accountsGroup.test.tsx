@@ -56,14 +56,14 @@ function stubMain({ instances = [] as ProviderInstance[], status = { signedIn: f
       return () => progress.delete(callback);
     }),
   };
-  (window as unknown as { electronAPI: unknown }).electronAPI = { providers: api };
+  (window as unknown as { draggy: unknown }).draggy = { providers: api };
   const emit = (p: AccountProgress) => act(() => progress.forEach((callback) => callback(p)));
   return { api, emit, settle: (answer: unknown) => act(async () => settle(answer)), listeners: () => progress.size };
 }
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 const page = () => render(<ProvidersPage engineModels={3} t={en} />);

@@ -21,7 +21,7 @@ type Translate = (key: string) => string;
 function TrustedSites({ t }: { t: Translate }) {
   const [sites, setSites] = useState<string[]>([]);
   useEffect(() => {
-    void window.electronAPI?.browserAgent?.trustedSites().then(setSites);
+    void window.draggy?.browserAgent?.trustedSites().then(setSites);
   }, []);
   if (!sites.length) return null;
   return (
@@ -32,7 +32,7 @@ function TrustedSites({ t }: { t: Translate }) {
             <span className="truncate">{origin}</span>
             <Button
               onClick={() => {
-                void window.electronAPI?.browserAgent.revokeSite(origin);
+                void window.draggy?.browserAgent.revokeSite(origin);
                 setSites((list) => list.filter((o) => o !== origin));
               }}
             >
@@ -143,7 +143,7 @@ function useCloudProviders(active: boolean): CloudState {
   useEffect(() => {
     if (!active) return;
     let live = true;
-    window.electronAPI?.tts
+    window.draggy?.tts
       ?.providers()
       .then((answer) => live && setState(answer))
       .catch(() => live && setState({ providers: [], consent: {} }));
@@ -176,8 +176,8 @@ function CloudVoiceRows({
   const allowed = state.consent[provider.id]?.includes("text") ?? false;
   const setConsent = (grant: boolean) => {
     const call = grant
-      ? window.electronAPI?.tts?.grantConsent(provider.id)
-      : window.electronAPI?.tts?.revokeConsent(provider.id);
+      ? window.draggy?.tts?.grantConsent(provider.id)
+      : window.draggy?.tts?.revokeConsent(provider.id);
     void call?.then(state.refresh);
   };
 
@@ -299,7 +299,7 @@ export function TalkPage({ settings, onUpdate, manager, t }: ChatPageProps) {
                 disabled: !neuralPossible,
                 title: neuralPossible ? undefined : t("naturalVoiceUnavailable"),
               },
-              ...(window.electronAPI?.tts ? [{ value: "cloud", label: t("voiceCloud"), icon: <Icon name="cloud" size={12} /> }] : []),
+              ...(window.draggy?.tts ? [{ value: "cloud", label: t("voiceCloud"), icon: <Icon name="cloud" size={12} /> }] : []),
             ]}
             onChange={(voiceEngine) => onUpdate({ voiceEngine: voiceEngine as AppSettings["voiceEngine"] })}
           />

@@ -86,7 +86,7 @@ export default function ModelSearch({ vram, ram, unifiedMemory, phaseFor, onPick
     );
 
   useEffect(() => {
-    const api = window.electronAPI;
+    const api = window.draggy;
     if (!api) return;
 
     let cancelled = false;
@@ -120,7 +120,7 @@ export default function ModelSearch({ vram, ram, unifiedMemory, phaseFor, onPick
       const reference = `${modelId(model)}:${size}`;
       if (sizes[reference]) continue;
 
-      window.electronAPI
+      window.draggy
         ?.modelSize(modelId(model), size)
         .then((result) => {
           if (cancelled || !result?.success || !result.bytes) return;

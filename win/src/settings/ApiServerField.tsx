@@ -19,7 +19,7 @@ export default function ApiServerField({ t }: ApiServerFieldProps) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const api = window.electronAPI?.apiServer;
+  const api = window.draggy?.apiServer;
 
   useEffect(() => {
     if (!api) return;

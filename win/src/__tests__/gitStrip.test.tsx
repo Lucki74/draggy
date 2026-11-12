@@ -28,12 +28,12 @@ const diff = vi.fn(async () => ({ success: true, diff: "@@ -1 +1 @@\n-before\n+a
 
 beforeEach(() => {
   diff.mockClear();
-  (window as unknown as { electronAPI: unknown }).electronAPI = { git: { diff } };
+  (window as unknown as { draggy: unknown }).draggy = { git: { diff } };
 });
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 const show = (status: GitStatus = STATUS, onOpenFile = vi.fn()) => {

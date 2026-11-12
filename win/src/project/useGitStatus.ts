@@ -15,7 +15,7 @@ export function useGitStatus(workspaceId: string, root: string | null): GitStatu
   const key = `${workspaceId}:${root ?? ""}`;
 
   useEffect(() => {
-    const api = window.electronAPI?.git;
+    const api = window.draggy?.git;
     if (!api || !root) return;
 
     let current = true;
@@ -37,7 +37,7 @@ export function useGitStatus(workspaceId: string, root: string | null): GitStatu
 
     refresh();
 
-    const stopListening = window.electronAPI?.files?.onChanged?.((change) => {
+    const stopListening = window.draggy?.files?.onChanged?.((change) => {
       if (!change.workspaceId || change.workspaceId === workspaceId) soon();
     });
 

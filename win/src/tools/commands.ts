@@ -108,7 +108,7 @@ async function runInBox(
     const seconds = Math.min(Math.max(Number(args.timeout_seconds) || 120, 1), MAX_TIMEOUT_SECONDS);
     const background = args.background === true;
     const stepId = ctx.newId();
-    const api = window.electronAPI?.commands;
+    const api = window.draggy?.commands;
 
     ctx.pushStep({
       id: stepId,

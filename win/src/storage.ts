@@ -104,13 +104,13 @@ const sqliteBackend: StorageBackend = {
   kind: "sqlite",
 
   async loadSessions() {
-    const result = await window.electronAPI!.db.loadChats();
+    const result = await window.draggy!.db.loadChats();
     if (!result?.success || !result.chats) return [];
     return result.chats.map(settleSession);
   },
 
   async saveSession(session) {
-    const result = await window.electronAPI!.db.saveChat(stripRuntimeFields(session));
+    const result = await window.draggy!.db.saveChat(stripRuntimeFields(session));
     return {
       ok: Boolean(result?.success),
       reason: result?.error ?? "the database reported no result",
@@ -118,25 +118,25 @@ const sqliteBackend: StorageBackend = {
   },
 
   async deleteSession(id) {
-    await window.electronAPI!.db.deleteChat(id);
+    await window.draggy!.db.deleteChat(id);
   },
 
   async clearSessions() {
-    await window.electronAPI!.db.clearChats();
+    await window.draggy!.db.clearChats();
   },
 
   async searchSessions(query) {
-    const result = await window.electronAPI!.db.searchChats(query);
+    const result = await window.draggy!.db.searchChats(query);
     return result?.success ? (result.results ?? []) : [];
   },
 
   async loadSettings() {
-    const result = await window.electronAPI!.db.get(SETTINGS_KEY);
+    const result = await window.draggy!.db.get(SETTINGS_KEY);
     return result?.value ? safeJsonParse<Partial<AppSettings>>(result.value) : null;
   },
 
   async saveSettings(settings) {
-    await window.electronAPI!.db.set(SETTINGS_KEY, JSON.stringify(settings));
+    await window.draggy!.db.set(SETTINGS_KEY, JSON.stringify(settings));
   },
 };
 
@@ -218,7 +218,7 @@ const localStorageBackend: StorageBackend = {
   },
 };
 
-const backend: StorageBackend = window.electronAPI?.db
+const backend: StorageBackend = window.draggy?.db
   ? sqliteBackend
   : localStorageBackend;
 
@@ -233,7 +233,7 @@ export interface MigrationReport {
 }
 
 export async function migrateFromLocalStorage(): Promise<MigrationReport> {
-  const api = window.electronAPI;
+  const api = window.draggy;
   if (!api?.db) return { ran: false, imported: 0 };
 
   try {

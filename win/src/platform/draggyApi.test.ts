@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createElectronApi } from "./electronApi";
-import type { IpcLike } from "./electronApi";
+import { createDraggyApi } from "./draggyApi";
+import type { IpcLike } from "./draggyApi";
 
 
 type Listener = (event: unknown, value: unknown) => void;
@@ -26,10 +26,10 @@ function fakeIpc() {
   return { ipc, sent, emit, count: (channel: string) => (listeners.get(channel) ?? []).length };
 }
 
-describe("createElectronApi", () => {
+describe("createDraggyApi", () => {
   it("removes only its own listener and warns once past 20", () => {
     const { ipc, sent, count } = fakeIpc();
-    const api = createElectronApi(ipc);
+    const api = createDraggyApi(ipc);
     const disposers = Array.from({ length: 22 }, () => api.pricing.onUpdated(() => {}));
     expect(count("pricing-updated")).toBe(22);
     expect(sent.filter(([channel]) => channel === "logs:write")).toHaveLength(1);
@@ -40,7 +40,7 @@ describe("createElectronApi", () => {
 
   it("answers the quit handshake after the handlers settle, even with none", async () => {
     const { ipc, sent, emit } = fakeIpc();
-    const api = createElectronApi(ipc);
+    const api = createDraggyApi(ipc);
     emit("app:flush-saves");
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(sent).toContainEqual(["app:saves-flushed"]);
@@ -57,7 +57,7 @@ describe("createElectronApi", () => {
 
   it("replays a boot model that arrived before anyone subscribed", () => {
     const { ipc, emit } = fakeIpc();
-    const api = createElectronApi(ipc);
+    const api = createDraggyApi(ipc);
     emit("boot-model", "gguf:x");
     const seen: unknown[] = [];
     api.onBootModel((model) => seen.push(model));

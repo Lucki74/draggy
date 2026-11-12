@@ -17,7 +17,7 @@ const SAMPLE: ChatSession[] = [
   { id: "c", title: "Render the trailer at 60 fps", updatedAt: Date.now() - 30 * hour, messages: [], workspaceId: "w2", isGenerating: false, pinned: true },
 ];
 
-/** The sidebar with sample sessions, for checking rows, marks and menus without Electron. */
+/** The sidebar with sample sessions, for checking rows, marks and menus without the desktop app. */
 export function SidebarPreview({ mode = "code" }: { mode?: "chat" | "code" }) {
   const [sessions, setSessions] = useState(SAMPLE);
   const [current, setCurrent] = useState("a");

@@ -64,7 +64,7 @@ beforeEach(() => {
       return () => {};
     }),
   };
-  (window as unknown as { electronAPI: unknown }).electronAPI = { shell };
+  (window as unknown as { draggy: unknown }).draggy = { shell };
 });
 
 afterEach(() => {
@@ -159,7 +159,7 @@ describe("shell tabs", () => {
   });
 
   it("says so when the terminal is not available", async () => {
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
+    (window as unknown as { draggy: unknown }).draggy = {
       shell: { ...shell, open: vi.fn(async () => ({ success: false, unavailable: true })) },
     };
     render(<Harness />);

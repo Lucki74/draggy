@@ -33,18 +33,18 @@ function bridge({ engineReady = true, installs = true } = {}) {
       deleteModel: vi.fn(async () => true),
     },
   };
-  (window as unknown as { electronAPI: unknown }).electronAPI = api;
+  (window as unknown as { draggy: unknown }).draggy = api;
   return { api, pending, order, finish: (filename: string) => pending.get(filename)?.({ success: true }) };
 }
 
 afterEach(() => {
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("the setup's downloads", () => {
   it("does nothing until a model is chosen", async () => {
     const { api } = bridge();
-    renderHook(() => useFirstDownload(window.electronAPI));
+    renderHook(() => useFirstDownload(window.draggy));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(api.gguf.status).not.toHaveBeenCalled();
     expect(api.gguf.setupEngine).not.toHaveBeenCalled();
@@ -53,7 +53,7 @@ describe("the setup's downloads", () => {
 
   it("sets up a missing engine and downloads the chosen model together", async () => {
     const { api, finish } = bridge({ engineReady: false });
-    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    const { result } = renderHook(() => useFirstDownload(window.draggy));
 
     act(() => result.current.chooseModel("org/Model-GGUF:Q4"));
     await waitFor(() => expect(api.gguf.downloadModel).toHaveBeenCalled());
@@ -67,7 +67,7 @@ describe("the setup's downloads", () => {
 
   it("cancels a different running download before starting the new one", async () => {
     const { api, order } = bridge();
-    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    const { result } = renderHook(() => useFirstDownload(window.draggy));
 
     act(() => result.current.chooseModel("org/First-GGUF:Q4"));
     await waitFor(() => expect(order).toContain("download First-GGUF-Q4.gguf"));
@@ -82,7 +82,7 @@ describe("the setup's downloads", () => {
 
   it("leaves the same choice alone", async () => {
     const { api } = bridge();
-    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    const { result } = renderHook(() => useFirstDownload(window.draggy));
     act(() => result.current.chooseModel("org/Same-GGUF:Q4"));
     await waitFor(() => expect(api.gguf.downloadModel).toHaveBeenCalledTimes(1));
     act(() => result.current.chooseModel("org/Same-GGUF:Q4"));
@@ -93,7 +93,7 @@ describe("the setup's downloads", () => {
 
   it("adopts an installed model without downloading anything", async () => {
     const { api } = bridge();
-    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    const { result } = renderHook(() => useFirstDownload(window.draggy));
     act(() => result.current.chooseModel("installed", "mine.gguf"));
     expect(result.current.model).toMatchObject({ phase: "done", filename: "mine.gguf" });
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -102,7 +102,7 @@ describe("the setup's downloads", () => {
 
   it("reports a failed download and tries again on retry", async () => {
     const { api, pending } = bridge();
-    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    const { result } = renderHook(() => useFirstDownload(window.draggy));
     act(() => result.current.chooseModel("org/Flaky-GGUF:Q4"));
     await waitFor(() => expect(pending.has("Flaky-GGUF-Q4.gguf")).toBe(true));
 
@@ -115,7 +115,7 @@ describe("the setup's downloads", () => {
 
   it("says the engine is missing when setup leaves it missing", async () => {
     bridge({ engineReady: false, installs: false });
-    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    const { result } = renderHook(() => useFirstDownload(window.draggy));
     act(() => result.current.chooseModel("org/Model-GGUF:Q4"));
     await waitFor(() => expect(result.current.engine).toMatchObject({ phase: "error", error: "missingGgufEngine" }));
   });
@@ -124,7 +124,7 @@ describe("the setup's downloads", () => {
 describe("the optional downloads", () => {
   it("waits for the model, then runs them one at a time", async () => {
     const { order, finish } = bridge();
-    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    const { result } = renderHook(() => useFirstDownload(window.draggy));
     act(() => result.current.chooseModel("org/Main-GGUF:Q4"));
     act(() => {
       result.current.queueExtra("org/Voice-GGUF:Q4", "Voice");
@@ -146,7 +146,7 @@ describe("the optional downloads", () => {
 
   it("runs them with the engine alone on a provider's path, cancelling a model chosen before", async () => {
     const { api, order } = bridge({ engineReady: false });
-    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    const { result } = renderHook(() => useFirstDownload(window.draggy));
     act(() => result.current.chooseModel("org/Main-GGUF:Q4"));
     await waitFor(() => expect(order).toContain("download Main-GGUF-Q4.gguf"));
 
@@ -161,7 +161,7 @@ describe("the optional downloads", () => {
 
   it("stops an extra that is dropped, removing what it wrote", async () => {
     const { api, order, finish } = bridge();
-    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    const { result } = renderHook(() => useFirstDownload(window.draggy));
     act(() => result.current.chooseModel("org/Main-GGUF:Q4"));
     act(() => result.current.queueExtra("org/Voice-GGUF:Q4", "Voice"));
     await waitFor(() => expect(order).toContain("download Main-GGUF-Q4.gguf"));
@@ -181,7 +181,7 @@ describe("the optional downloads", () => {
       downloadRepo: vi.fn(async () => ({ success: true })),
     };
     (api as unknown as { sd: typeof sd }).sd = sd;
-    const { result } = renderHook(() => useFirstDownload(window.electronAPI));
+    const { result } = renderHook(() => useFirstDownload(window.draggy));
     act(() => result.current.chooseModel("org/Main-GGUF:Q4"));
     act(() => result.current.queueExtra("org/Image-GGUF:Q4_K_M", "Image", "image"));
     await waitFor(() => expect(order).toContain("download Main-GGUF-Q4.gguf"));

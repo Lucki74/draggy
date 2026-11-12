@@ -1,4 +1,4 @@
-//! Keeps electronApi.ts and the Rust registry in step: every channel the renderer calls is either
+//! Keeps draggyApi.ts and the Rust registry in step: every channel the renderer calls is either
 //! served or listed as pending, and nothing is served that the renderer never calls.
 
 use std::collections::BTreeSet;
@@ -9,9 +9,9 @@ use draggy_win::ipc::{Registry, pending::PENDING_CHANNELS};
 fn renderer_channels() -> BTreeSet<String> {
     let source = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../src/platform/electronApi.ts"
+        "/../src/platform/draggyApi.ts"
     ))
-    .expect("electronApi.ts is readable");
+    .expect("draggyApi.ts is readable");
     let mut found = BTreeSet::new();
     for call in ["ipc.invoke(", "ipc.send("] {
         for part in source.split(call).skip(1) {
@@ -39,7 +39,7 @@ fn every_renderer_channel_is_registered_or_pending() {
 }
 
 #[test]
-fn every_registered_channel_exists_in_electron_api() {
+fn every_registered_channel_exists_in_draggy_api() {
     let used = renderer_channels();
     let unknown: Vec<_> = Registry::build()
         .channels()

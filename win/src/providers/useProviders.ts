@@ -26,8 +26,8 @@ function providersChanged() {
   for (const listener of listeners) listener();
 }
 
-type Api = NonNullable<NonNullable<Window["electronAPI"]>["providers"]>;
-const api = (): Api | undefined => (typeof window === "undefined" ? undefined : window.electronAPI?.providers);
+type Api = NonNullable<NonNullable<Window["draggy"]>["providers"]>;
+const api = (): Api | undefined => (typeof window === "undefined" ? undefined : window.draggy?.providers);
 
 export type ChangeResult = { ok: true; instance?: ProviderInstance } | { ok: false; error: ProviderFailure };
 

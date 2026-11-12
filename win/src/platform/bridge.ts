@@ -1,16 +1,15 @@
-/** Installs `window.electronAPI` when the page runs inside Tauri. Electron's preload does it there,
- * so this does nothing outside Tauri. Import it before anything reads the API. */
+/** Installs `window.draggy` when the page runs inside Tauri, and does nothing outside it. Import it before anything reads the API. */
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
-import { createElectronApi } from "./electronApi";
-import type { IpcLike } from "./electronApi";
+import { createDraggyApi } from "./draggyApi";
+import type { IpcLike } from "./draggyApi";
 import { logRendererEvent } from "../logger";
 
 type Listener = (event: unknown, value: unknown) => void;
 
-/** Tauri rejects with a bare string; callers expect an Error like Electron's. */
+/** Tauri rejects with a bare string; callers expect an Error. */
 function asError(reason: unknown): Error {
   return reason instanceof Error ? reason : new Error(String(reason));
 }
@@ -52,5 +51,5 @@ function createTauriIpc(): IpcLike {
 }
 
 if ((window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
-  window.electronAPI = createElectronApi(createTauriIpc());
+  window.draggy = createDraggyApi(createTauriIpc());
 }

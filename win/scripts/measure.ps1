@@ -1,5 +1,5 @@
 # Measures one Draggy build: installer size, unpacked size, time to first window and memory at idle.
-# Run it on the Electron build and on the Tauri build with the same machine and data folder.
+# Run it on the previous build and on the Tauri build with the same machine and data folder.
 param(
   [Parameter(Mandatory = $true)][string]$Exe,
   [string]$Installer = "",

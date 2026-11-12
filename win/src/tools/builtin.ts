@@ -5,7 +5,7 @@ import type { BrowserResult, SearchResult } from "../types";
 import { SOURCE_KINDS, type SourceKind } from "../research/run";
 import { recordRead, recordReading, recordSearch, repeatedSearch, runFooter, spendCall } from "../research/session";
 
-const api = () => window.electronAPI;
+const api = () => window.draggy;
 
 /** The failure line a browser tool hands the model: what happened and what to try next. */
 const browserFailure = (result: BrowserResult<object> | undefined) =>

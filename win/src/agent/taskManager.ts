@@ -891,7 +891,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   /** A background task ended while nobody was looking: tell the model, in a turn of its own. The
    * report is taken from the main process only once the turn is certain to start, so nothing is lost. */
   async function wakeForEnded(chatId: string) {
-    const tasks = typeof window === "undefined" ? undefined : window.electronAPI?.tasks;
+    const tasks = typeof window === "undefined" ? undefined : window.draggy?.tasks;
     if (!tasks || !host.getSession(chatId)) return;
     if (runs.has(chatId) || parked.has(chatId) || folds.has(chatId) || queueOf(chatId).length > 0) return;
     if (stoppedByUser.has(chatId) || (wakes.get(chatId) ?? 0) >= MAX_CONSECUTIVE_WAKES) return;
@@ -910,7 +910,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   if (typeof window !== "undefined") {
-    window.electronAPI?.tasks?.onEvent?.((event) => {
+    window.draggy?.tasks?.onEvent?.((event) => {
       if (event.type === "ended" && event.wake) void wakeForEnded(event.chatId);
     });
   }

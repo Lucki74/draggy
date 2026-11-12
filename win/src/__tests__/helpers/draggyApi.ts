@@ -60,7 +60,7 @@ function stub(): unknown {
   });
 }
 
-export function installFakeElectronApi(): FakeApi {
+export function installFakeDraggyApi(): FakeApi {
   const updater = new Channel<Record<string, unknown>>();
   const mcp = new Channel<Record<string, unknown>>();
   const bootOpen = new Channel<string>();
@@ -222,7 +222,7 @@ export function installFakeElectronApi(): FakeApi {
     },
   };
 
-  (window as unknown as { electronAPI: unknown }).electronAPI = new Proxy(api, {
+  (window as unknown as { draggy: unknown }).draggy = new Proxy(api, {
     get: (target, key) =>
       key in target ? target[key as keyof typeof api] : stub(),
   });
@@ -230,6 +230,6 @@ export function installFakeElectronApi(): FakeApi {
   return fake;
 }
 
-export function clearFakeElectronApi() {
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+export function clearFakeDraggyApi() {
+  delete (window as unknown as { draggy?: unknown }).draggy;
 }

@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import LibraryPanel from "../settings/LibraryPanel";
 import type { ModelManager, PullState } from "../settings/useModelManager";
 import { translations } from "../translations";
-import { clearFakeElectronApi, installFakeElectronApi } from "./helpers/electronApi";
+import { clearFakeDraggyApi, installFakeDraggyApi } from "./helpers/draggyApi";
 
 const t = (key: string) => translations.en[key] || key;
 
@@ -29,12 +29,12 @@ function download(name: string): PullState {
 }
 
 beforeEach(() => {
-  installFakeElectronApi();
+  installFakeDraggyApi();
 });
 
 afterEach(() => {
   cleanup();
-  clearFakeElectronApi();
+  clearFakeDraggyApi();
 });
 
 describe("LibraryPanel while a download is running", () => {
@@ -59,7 +59,7 @@ describe("LibraryPanel while a download is running", () => {
 describe("LibraryPanel adding a folder before any embedding model is installed", () => {
   it("downloads the size-matched model by its repository, then indexes with the file that landed", async () => {
     const index = vi.fn(async () => ({ success: true }));
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
+    (window as unknown as { draggy: unknown }).draggy = {
       library: {
         list: async () => ({ success: true, sources: [] }),
         onProgress: () => () => {},

@@ -88,7 +88,7 @@ beforeEach(() => {
     skill: { ...shelf.find((one) => one.id === id)!, body: `How to do the ${id} job.`, files: [] },
   }));
 
-  vi.stubGlobal("electronAPI", {
+  vi.stubGlobal("draggy", {
     skills: { list: async () => ({ success: true, skills: shelf }), read },
   });
 });

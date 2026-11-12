@@ -74,11 +74,11 @@ export class ErrorBoundary extends Component<Props, State> {
             >
               {this.state.copied ? uiText("errorCopied") : uiText("errorCopy")}
             </Button>
-            {typeof window !== "undefined" && window.electronAPI?.openLogs && (
+            {typeof window !== "undefined" && window.draggy?.openLogs && (
               <Button
                 variant="ghost"
                 size="dense"
-                onClick={() => void window.electronAPI?.openLogs?.()}
+                onClick={() => void window.draggy?.openLogs?.()}
                 icon={<Icon name="folder-simple" size={14} />}
               >
                 {uiText("errorOpenLogs")}

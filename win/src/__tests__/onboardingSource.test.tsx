@@ -40,13 +40,13 @@ function machine({ vram = 12, ram = 16, servers = [] as DiscoveredServer[] } = {
       scan: vi.fn(async () => ({ success: true, servers })),
     },
   };
-  (window as unknown as { electronAPI: unknown }).electronAPI = api;
+  (window as unknown as { draggy: unknown }).draggy = api;
   return api;
 }
 
 function Harness() {
   const [settings, setSettings] = useState<AppSettings>({ ...defaultSettings });
-  const download = useFirstDownload(window.electronAPI);
+  const download = useFirstDownload(window.draggy);
   return (
     <Onboarding
       settings={settings}
@@ -72,7 +72,7 @@ beforeEach(() => localStorage.setItem("draggy_settings", "{}"));
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("where the AI runs", () => {

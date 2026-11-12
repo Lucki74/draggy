@@ -74,7 +74,7 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
   const [loaded, setLoaded] = useState<LoadedSkill | null>(null);
   const [adding, setAdding] = useState(false);
 
-  const api = window.electronAPI?.skills;
+  const api = window.draggy?.skills;
 
   useEffect(() => {
     if (!api) return;

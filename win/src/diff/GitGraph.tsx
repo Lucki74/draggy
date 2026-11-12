@@ -62,7 +62,7 @@ export function GitGraph({ workspaceId, t, reloadKey, selected, onSelect }: GitG
   const drag = useRef<{ y: number; height: number } | null>(null);
 
   useEffect(() => {
-    const git = window.electronAPI?.git;
+    const git = window.draggy?.git;
     if (!git || !open) return;
     let live = true;
     git.log(workspaceId, 200, true).then(

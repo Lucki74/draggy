@@ -81,7 +81,7 @@ describe("a model being loaded", () => {
 
   it("shows each step the engine reports, and no timer", async () => {
     let push: (stage: { stage: string; percent?: number; tokensPerSecond?: number }) => void = () => {};
-    (window as unknown as { electronAPI?: unknown }).electronAPI = {
+    (window as unknown as { draggy?: unknown }).draggy = {
       gguf: { onStage: (cb: typeof push) => ((push = cb), () => {}) },
     };
     show([loading]);
@@ -94,12 +94,12 @@ describe("a model being loaded", () => {
     act(() => push({ stage: "readying" }));
     expect(screen.getByText(/is readying/)).toBeTruthy();
     expect(screen.queryByText(/\d+(\.\d)? s/)).toBeNull();
-    delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+    delete (window as unknown as { draggy?: unknown }).draggy;
   });
 
   it("shows only an extending step, with the overall percent, when the window grows", async () => {
     let push: (stage: { stage: string; percent?: number }) => void = () => {};
-    (window as unknown as { electronAPI?: unknown }).electronAPI = {
+    (window as unknown as { draggy?: unknown }).draggy = {
       gguf: { onStage: (cb: typeof push) => ((push = cb), () => {}) },
     };
     show([{ ...loading, extending: true }]);
@@ -109,7 +109,7 @@ describe("a model being loaded", () => {
     act(() => push({ stage: "reading", percent: 50 }));
     expect(screen.getByText("Extending context 75%...")).toBeTruthy();
     expect(screen.queryByText(/RAM|Reading/)).toBeNull();
-    delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+    delete (window as unknown as { draggy?: unknown }).draggy;
   });
 });
 

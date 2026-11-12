@@ -43,13 +43,13 @@ function stubMain({ instances = [] as ProviderInstance[], catalog = [entry("open
       models: ["m-1", "m-2"].map((model) => ({ id: model, ref: `@${id}/${model}`, capabilities: ["completion"], cloud: false, pinned: find(id).pinnedModels.includes(model), override: null })),
     })),
   };
-  (window as unknown as { electronAPI: unknown }).electronAPI = { providers: api };
+  (window as unknown as { draggy: unknown }).draggy = { providers: api };
   return api;
 }
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 const page = () => render(<ProvidersPage engineModels={3} t={en} />);

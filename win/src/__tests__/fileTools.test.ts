@@ -64,7 +64,7 @@ function stubFiles(responses: Record<string, unknown>) {
     };
 
   vi.stubGlobal("window", {
-    electronAPI: {
+    draggy: {
       files: {
         list: record("list"),
         read: record("read"),
@@ -305,7 +305,7 @@ describe("writing, moving and deleting", () => {
   });
 
   it("survives a build with no file bridge at all", async () => {
-    vi.stubGlobal("window", { electronAPI: {} });
+    vi.stubGlobal("window", { draggy: {} });
 
     const { context } = harness();
     const result = await runTool(

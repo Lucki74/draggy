@@ -141,7 +141,7 @@ export function InstanceRow({
 
   const listModels = useCallback(
     async (refresh = false) => {
-      const answer = await window.electronAPI?.providers?.models(instance.id, { refresh }).catch(swallowed("providers", "the main process already logged this call", null));
+      const answer = await window.draggy?.providers?.models(instance.id, { refresh }).catch(swallowed("providers", "the main process already logged this call", null));
       if (answer?.success) {
         setModels(answer.models);
         setFailure(null);
@@ -200,7 +200,7 @@ export function InstanceRow({
             <Button
               onClick={() => {
                 setMessage("");
-                void window.electronAPI?.providers
+                void window.draggy?.providers
                   ?.test(instance.id)
                   .then((answer) => {
                     if (answer.success) {
@@ -242,7 +242,7 @@ function CodeEntry({ id, t }: { id: string; t: Translate }) {
     if (!value) return;
     setCode("");
     setSent(true);
-    const answer = await window.electronAPI?.providers?.accountSubmitCode(id, value).catch(swallowed("providers", "the main process already logged this call", null));
+    const answer = await window.draggy?.providers?.accountSubmitCode(id, value).catch(swallowed("providers", "the main process already logged this call", null));
     if (!answer?.success || !answer.accepted) setSent(false);
   };
   if (sent) return null;
@@ -298,7 +298,7 @@ export function AccountRow({
   useEffect(() => {
     if (!id) return;
     let live = true;
-    void window.electronAPI?.providers
+    void window.draggy?.providers
       ?.accountStatus(id)
       .then((answer) => {
         // A read begun as the row was added can land after its sign-in, and must not undo it.
@@ -313,7 +313,7 @@ export function AccountRow({
   useEffect(() => {
     if (!id || !signedIn || !(open || instance?.enabled)) return;
     let live = true;
-    void window.electronAPI?.providers
+    void window.draggy?.providers
       ?.models(id)
       .then((answer) => {
         if (live && answer.success) setModels(answer.models);
@@ -325,7 +325,7 @@ export function AccountRow({
   }, [id, signedIn, open, instance?.enabled, instance?.modelOverrides]);
 
   const start = async () => {
-    const api = window.electronAPI?.providers;
+    const api = window.draggy?.providers;
     setMessage("");
     setSignIn({ step: "starting" });
     let target = instance;
@@ -371,7 +371,7 @@ export function AccountRow({
 
   const signOut = async () => {
     if (!id) return;
-    await window.electronAPI?.providers?.accountSignOut(id).catch(swallowed("providers", "the main process already logged this call", null));
+    await window.draggy?.providers?.accountSignOut(id).catch(swallowed("providers", "the main process already logged this call", null));
     setStatus({ signedIn: false });
     setModels(null);
     setOpen(false);
@@ -402,7 +402,7 @@ export function AccountRow({
               )}
               {signIn.step === "browser" && <span className="text-xs font-medium text-text-secondary">{t("finishInBrowser")}</span>}
               {signIn.step === "code" && id && <CodeEntry key={asks} id={id} t={t} />}
-              {id && <Button onClick={() => void window.electronAPI?.providers?.accountCancel(id)}>{t("cancel")}</Button>}
+              {id && <Button onClick={() => void window.draggy?.providers?.accountCancel(id)}>{t("cancel")}</Button>}
               {signIn.step === "installing" && (
                 <div
                   role="progressbar"

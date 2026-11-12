@@ -36,12 +36,12 @@ beforeEach(() => {
   stored = [...ROWS];
   list.mockClear();
   clear.mockClear();
-  (window as unknown as { electronAPI: unknown }).electronAPI = { metrics: { list, clear } };
+  (window as unknown as { draggy: unknown }).draggy = { metrics: { list, clear } };
 });
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 const show = async () => {

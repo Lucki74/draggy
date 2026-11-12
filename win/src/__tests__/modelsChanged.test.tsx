@@ -8,7 +8,7 @@ type Change = { id: string; added: string[] };
 describe("models found by the main process", () => {
   afterEach(() => {
     cleanup();
-    delete (window as { electronAPI?: unknown }).electronAPI;
+    delete (window as { draggy?: unknown }).draggy;
   });
 
   it("show up in the model menu without a click, and the listener is released", async () => {
@@ -26,7 +26,7 @@ describe("models found by the main process", () => {
         };
       }),
     };
-    (window as unknown as { electronAPI: unknown }).electronAPI = { providers };
+    (window as unknown as { draggy: unknown }).draggy = { providers };
     const { result, unmount } = renderHook(() => useProviderGroups());
     await waitFor(() => expect(result.current[0]?.models.map((m) => m.id)).toEqual(["gpt-5.5"]));
 

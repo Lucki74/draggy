@@ -10,7 +10,7 @@ interface Subject {
 
 /** What a bug report needs: the error, where the app was, which run, which version, and the log lines just before. */
 export async function collectErrorDetails({ text, scope, cid }: Subject): Promise<string> {
-  const api = window.electronAPI;
+  const api = window.draggy;
   const parts = [text || "Unknown error", "", `scope: ${scope}`, `screen: ${currentScreen()}`];
   if (cid) parts.push(`id: ${cid}`);
   try {

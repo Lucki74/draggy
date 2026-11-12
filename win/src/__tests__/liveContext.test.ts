@@ -54,7 +54,7 @@ function installGguf(options: {
 }) {
   const chats: Record<string, unknown>[] = [];
 
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     gguf: {
       status: async () => {
         const size = options.loadedAt();
@@ -100,7 +100,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   localStorage.clear();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("counting the next turn", () => {

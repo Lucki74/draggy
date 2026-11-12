@@ -5,7 +5,7 @@ import ModelsPage from "../settings/ModelsPage";
 import type { ModelManager } from "../settings/useModelManager";
 import { defaultSettings } from "../app/settings";
 import { translations } from "../translations";
-import { clearFakeElectronApi, installFakeElectronApi } from "./helpers/electronApi";
+import { clearFakeDraggyApi, installFakeDraggyApi } from "./helpers/draggyApi";
 
 const t = (key: string) => translations.en[key] || key;
 
@@ -32,19 +32,19 @@ const model = (name: string, capabilities: string[]) => ({
 });
 
 beforeEach(() => {
-  installFakeElectronApi();
+  installFakeDraggyApi();
 });
 
 afterEach(() => {
   cleanup();
-  clearFakeElectronApi();
+  clearFakeDraggyApi();
 });
 
 /** The tags on the result cards. The Chat button beside "Choose model" is not one of them. */
 const tags = () => screen.queryAllByText("Chat").filter((node) => node.tagName === "SPAN");
 
 async function renderWith(models: ReturnType<typeof model>[]) {
-  (window as unknown as { electronAPI: Record<string, unknown> }).electronAPI.searchModels = async () => ({
+  (window as unknown as { draggy: Record<string, unknown> }).draggy.searchModels = async () => ({
     success: true,
     models,
   });

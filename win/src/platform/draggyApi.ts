@@ -1,7 +1,6 @@
-/** The renderer's whole native API, built on any transport that looks like `ipcRenderer`. Electron's
- * preload.cjs is the original; electronApi.test.ts keeps the two shapes identical until it is removed. */
+/** The renderer's whole native API, built on any transport that matches `IpcLike`. */
 
-/** The four calls the API needs. Listeners get `(event, value)` like Electron's, so one shape serves both shells. */
+/** The four calls the API needs. Listeners get `(event, value)`. */
 export interface IpcLike {
   // The channel decides the reply type, and the declared API types it at each call site.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,7 +15,7 @@ export interface IpcLike {
  * its cleanup, so it logs once. */
 const MAX_LISTENERS_PER_CHANNEL = 20;
 
-export function createElectronApi(ipc: IpcLike): NonNullable<Window["electronAPI"]> {
+export function createDraggyApi(ipc: IpcLike): NonNullable<Window["draggy"]> {
   const listenerCounts = new Map<string, number>();
   const warnedChannels = new Set<string>();
   const subscribe = (channel: string, callback: (value: never) => void) => {

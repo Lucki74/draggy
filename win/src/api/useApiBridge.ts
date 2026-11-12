@@ -20,7 +20,7 @@ export function useApiBridge(input: BridgeInput): void {
   });
 
   useEffect(() => {
-    const bridge = window.electronAPI?.apiServer;
+    const bridge = window.draggy?.apiServer;
     if (!bridge) return;
 
     const running = new Map<string, AbortController>();

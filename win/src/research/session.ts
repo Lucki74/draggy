@@ -89,13 +89,13 @@ export async function settleRun(
     budgetUsed: budgetOf(run, now).used,
     now,
   });
-  await globalThis.window?.electronAPI?.research?.save(record).catch(swallowed("research", "the run stays in the chat", null));
+  await globalThis.window?.draggy?.research?.save(record).catch(swallowed("research", "the run stays in the chat", null));
   return { dropped: run.notes.filter((note) => !note.verified).length };
 }
 
 /** The latest finished run saved for this chat, for a follow-up after the turn that ran it is gone. */
 export async function priorRun(ctx: Partial<Pick<ToolContext, "workspaceId" | "chatId">>): Promise<SavedRun | null> {
-  const api = globalThis.window?.electronAPI?.research;
+  const api = globalThis.window?.draggy?.research;
   if (!api || !ctx.chatId) return null;
   const listed = await api.list(ctx.workspaceId).catch(swallowed("research", "no earlier run is offered", null));
   const latest = (listed?.runs ?? [])

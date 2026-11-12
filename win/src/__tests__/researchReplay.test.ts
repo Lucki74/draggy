@@ -147,7 +147,7 @@ describe("replay behind the web tools", () => {
   beforeEach(() => {
     resetRegistry();
     registerBuiltinTools();
-    vi.stubGlobal("window", { electronAPI: replayApi(corpus) });
+    vi.stubGlobal("window", { draggy: replayApi(corpus) });
   });
   afterEach(() => vi.unstubAllGlobals());
 

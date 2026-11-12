@@ -9,9 +9,9 @@ export function useUpdateDialog() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    if (!window.electronAPI?.updater) return;
+    if (!window.draggy?.updater) return;
 
-    const updater = window.electronAPI.updater;
+    const updater = window.draggy.updater;
 
     // Already downloaded before this window opened, which is the usual case:
     // the check runs twenty seconds after launch and the download is quiet.

@@ -13,7 +13,7 @@ export default defineConfig({
     reporters: ["default"],
     coverage: {
       // The logic-heavy modules the suite is actually aimed at. Screens and workers are left out:
-      // they are driven by Electron and a GPU, not by anything a coverage number here would mean.
+      // they are driven by the desktop app and a GPU, not by anything a coverage number here would mean.
       include: [
         "src/agent/*.ts",
         "src/chat/attachments.ts",

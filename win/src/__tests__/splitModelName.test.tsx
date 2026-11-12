@@ -5,15 +5,15 @@ import ModelsPage from "../settings/ModelsPage";
 import type { ModelManager } from "../settings/useModelManager";
 import { defaultSettings } from "../app/settings";
 import { translations } from "../translations";
-import { clearFakeElectronApi, installFakeElectronApi } from "./helpers/electronApi";
+import { clearFakeDraggyApi, installFakeDraggyApi } from "./helpers/draggyApi";
 
 const t = (key: string) => translations.en[key] || key;
 const SPLIT = "Qwen3-Coder-Next-Q4_K_M-00001-of-00004.gguf";
 
-beforeEach(() => installFakeElectronApi());
+beforeEach(() => installFakeDraggyApi());
 afterEach(() => {
   cleanup();
-  clearFakeElectronApi();
+  clearFakeDraggyApi();
 });
 
 describe("a split model in the installed list", () => {

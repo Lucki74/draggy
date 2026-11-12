@@ -138,7 +138,7 @@ export function MainColumn({
     const searchFiles = React.useCallback(
         async (name: string) => {
             if (!rootPath) return [];
-            const result = await window.electronAPI?.files?.search(workspaceId, { name, limit: 20 });
+            const result = await window.draggy?.files?.search(workspaceId, { name, limit: 20 });
             return result?.success ? relativePaths(rootPath, result.hits ?? []) : [];
         },
         [workspaceId, rootPath],

@@ -109,7 +109,7 @@ export function useModelManager(page?: string): ModelManager {
 
   useEffect(() => {
     let cancelled = false;
-    window.electronAPI
+    window.draggy
       ?.getSystemSpecs()
       .then((specs) => {
         if (cancelled || !specs) return;

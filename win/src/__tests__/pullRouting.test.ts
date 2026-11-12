@@ -15,7 +15,7 @@ function installBridge() {
   const handlers = new Set<Handler>();
   const downloads: { filename: string; finish: () => void; fail: () => void }[] = [];
 
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     gguf: {
       onProgress: (handler: Handler) => {
         handlers.add(handler);
@@ -35,12 +35,12 @@ function installBridge() {
   };
 
   const emit: Handler = (progress) => handlers.forEach((handler) => handler(progress));
-  const api = (window as unknown as { electronAPI: { gguf: { deleteModel: ReturnType<typeof vi.fn> } } }).electronAPI;
+  const api = (window as unknown as { draggy: { gguf: { deleteModel: ReturnType<typeof vi.fn> } } }).draggy;
   return { emit, downloads, deleteModel: api.gguf.deleteModel };
 }
 
 afterEach(() => {
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("pullModel with several downloads at once", () => {
@@ -78,7 +78,7 @@ describe("pullModel with several downloads at once", () => {
 describe("pullModel when the main process reports a cancel", () => {
   it("rejects as an abort, so the caller treats it as the user's own doing", async () => {
     installBridge();
-    (window as unknown as { electronAPI: { gguf: Record<string, unknown> } }).electronAPI.gguf.downloadModel = async () => ({
+    (window as unknown as { draggy: { gguf: Record<string, unknown> } }).draggy.gguf.downloadModel = async () => ({
       success: false,
       cancelled: true,
     });
@@ -90,7 +90,7 @@ describe("pullModel when the main process reports a cancel", () => {
 describe("pullModel with a name it cannot resolve", () => {
   it("says it could not find the model instead of sending the name to the downloader as a URL", async () => {
     const { downloads } = installBridge();
-    (window as unknown as { electronAPI: Record<string, unknown> }).electronAPI.resolveModelUrl = async () => null;
+    (window as unknown as { draggy: Record<string, unknown> }).draggy.resolveModelUrl = async () => null;
 
     await expect(pullModel("qwen3-embedding:0.6b", () => undefined)).rejects.toThrow(/qwen3-embedding:0\.6b/);
     expect(downloads).toHaveLength(0);
@@ -105,7 +105,7 @@ describe("pullModel with a model split into parts", () => {
   ];
 
   const resolveTo = () => {
-    (window as unknown as { electronAPI: { resolveModelUrl: unknown } }).electronAPI.resolveModelUrl = async () => ({
+    (window as unknown as { draggy: { resolveModelUrl: unknown } }).draggy.resolveModelUrl = async () => ({
       url: parts[0].url,
       filename: parts[0].filename,
       size: 300,
@@ -171,7 +171,7 @@ describe("pullModel progress for parts with unknown or wrong sizes", () => {
 
   it("still reports a total and a percent when the parts carry no size", async () => {
     const { emit, downloads } = installBridge();
-    (window as unknown as { electronAPI: { resolveModelUrl: unknown } }).electronAPI.resolveModelUrl = async () => ({
+    (window as unknown as { draggy: { resolveModelUrl: unknown } }).draggy.resolveModelUrl = async () => ({
       url: unsized[0].url,
       filename: unsized[0].filename,
       parts: unsized,
@@ -198,7 +198,7 @@ describe("pullModel progress for parts with unknown or wrong sizes", () => {
 
   it("does not count bytes a resumed download already had as speed", async () => {
     const { emit, downloads } = installBridge();
-    (window as unknown as { electronAPI: { resolveModelUrl: unknown } }).electronAPI.resolveModelUrl = async () => ({
+    (window as unknown as { draggy: { resolveModelUrl: unknown } }).draggy.resolveModelUrl = async () => ({
       url: unsized[0].url,
       filename: unsized[0].filename,
       parts: unsized.map((part) => ({ ...part, size: 1000 })),

@@ -5,7 +5,7 @@ import { useState } from "react";
 import Onboarding, { type SetupOutcome } from "../onboarding/Onboarding";
 import { useFirstDownload } from "../onboarding/useFirstDownload";
 import App from "../App";
-import { installFakeElectronApi } from "./helpers/electronApi";
+import { installFakeDraggyApi } from "./helpers/draggyApi";
 import { defaultSettings } from "../app/settings";
 import { fill } from "../onboarding/text";
 import { translations } from "../translations";
@@ -82,13 +82,13 @@ function machine({ instances = [] as ProviderInstance[], catalog = [entry()], in
       })),
     },
   };
-  (window as unknown as { electronAPI: unknown }).electronAPI = api;
+  (window as unknown as { draggy: unknown }).draggy = api;
   return api;
 }
 
 function Harness({ onFinish }: { onFinish: (model: string, outcome: SetupOutcome) => void }) {
   const [settings, setSettings] = useState<AppSettings>({ ...defaultSettings });
-  const download = useFirstDownload(window.electronAPI);
+  const download = useFirstDownload(window.draggy);
   return (
     <Onboarding
       settings={settings}
@@ -130,7 +130,7 @@ beforeEach(() => localStorage.setItem("draggy_settings", "{}"));
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("the provider step", () => {
@@ -190,11 +190,11 @@ describe("the provider step", () => {
 
 /** The whole app on a new install, the fake main process under this file's machine. */
 function freshApp(options: Parameters<typeof machine>[0]) {
-  installFakeElectronApi();
-  const fake = window.electronAPI as unknown as Record<string, unknown>;
+  installFakeDraggyApi();
+  const fake = window.draggy as unknown as Record<string, unknown>;
   const api = machine(options);
   for (const [key, value] of Object.entries(api)) fake[key] = value;
-  (window as unknown as { electronAPI: unknown }).electronAPI = fake;
+  (window as unknown as { draggy: unknown }).draggy = fake;
   window.history.pushState(null, "", "/?onboarding=true");
   render(<App />);
   return api;

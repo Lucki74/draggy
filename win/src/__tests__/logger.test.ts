@@ -21,12 +21,12 @@ afterEach(() => {
   flushLogs();
   vi.useRealTimers();
   vi.unstubAllGlobals();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 function stubApi() {
   const logBatch = vi.fn();
-  (window as unknown as { electronAPI: { logBatch: typeof logBatch } }).electronAPI = { logBatch };
+  (window as unknown as { draggy: { logBatch: typeof logBatch } }).draggy = { logBatch };
   return logBatch;
 }
 

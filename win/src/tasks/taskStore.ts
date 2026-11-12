@@ -36,7 +36,7 @@ export function applyTaskEvent(event: TaskEvent): void {
 
 /** Starts listening, and loads what a chat already has running (the window may have reloaded). */
 export function watchTasks(chatId?: string): void {
-  const api = window.electronAPI?.tasks;
+  const api = window.draggy?.tasks;
   if (!api) return;
   if (!started) {
     started = true;
@@ -88,8 +88,8 @@ export function forgetChatTasks(chatId: string): void {
       Object.entries(state.tails).filter(([uid]) => !uid.startsWith(`${chatId}/`)),
     ),
   });
-  void window.electronAPI?.tasks?.forget(chatId).catch((error) => logSwallow("tasks", error, "the main process drops them when the app quits"));
-  void window.electronAPI?.commands?.resetState(chatId).catch((error) => logSwallow("tasks", error, "the saved folder is dropped when the app quits"));
+  void window.draggy?.tasks?.forget(chatId).catch((error) => logSwallow("tasks", error, "the main process drops them when the app quits"));
+  void window.draggy?.commands?.resetState(chatId).catch((error) => logSwallow("tasks", error, "the saved folder is dropped when the app quits"));
 }
 
 export function resetTaskStore(): void {

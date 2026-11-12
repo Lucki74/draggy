@@ -236,7 +236,7 @@ export async function createNeuralVoice(
     worker.postMessage({
       type: "init",
       id: 0,
-      cacheHost: typeof window !== "undefined" && window.electronAPI ? CACHE_HOST : null,
+      cacheHost: typeof window !== "undefined" && window.draggy ? CACHE_HOST : null,
       wasmPath: new URL(ORT_ASSET_DIR, document.baseURI).href,
     });
   });

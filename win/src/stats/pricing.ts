@@ -147,8 +147,8 @@ export function createTurnPricer(sources: PricerSources) {
 /** The pricer wired to the app's own bridges. */
 export const turnPricer = createTurnPricer({
   table: async () => {
-    const answer = await window.electronAPI?.pricing?.table();
+    const answer = await window.draggy?.pricing?.table();
     return answer?.success ? (answer.table ?? null) : null;
   },
-  instances: async () => (await window.electronAPI?.providers?.list?.()) ?? [],
+  instances: async () => (await window.draggy?.providers?.list?.()) ?? [],
 });

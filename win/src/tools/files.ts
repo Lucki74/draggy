@@ -6,7 +6,7 @@ import { renderFolderRules } from "../project/memory";
 /** The file tools. Each hands a path to the main process, the only side that knows which folders
  * this conversation was given. */
 
-const api = () => window.electronAPI?.files;
+const api = () => window.draggy?.files;
 
 const NO_BRIDGE = "The file tools are not available in this build.";
 

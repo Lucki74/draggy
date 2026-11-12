@@ -74,7 +74,7 @@ const CODES = languages.map((language) => language.code);
  * and Skip, on every screen, runs the splash's own automatic setup instead. */
 export default function Onboarding({ settings, onUpdateSettings, download, onFinish }: OnboardingProps) {
   const t = useTranslator(settings.language);
-  const api = window.electronAPI;
+  const api = window.draggy;
   const [path, setPath] = useState<SetupPath>("local");
   const steps = useMemo(() => stepsFor(path), [path]);
   const providers = useProviders({ scanOnOpen: false });

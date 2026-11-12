@@ -369,7 +369,7 @@ describe("the tool that loads one", () => {
       },
     }));
 
-    vi.stubGlobal("window", { electronAPI: { skills: { read } } });
+    vi.stubGlobal("window", { draggy: { skills: { read } } });
 
     const { context, steps } = harness();
     const result = await runTool("use_skill", { id: "invoices" }, context, WITH_SKILLS);
@@ -387,7 +387,7 @@ describe("the tool that loads one", () => {
       file: { name: "templates/weekly.md", content: "# Weekly" },
     }));
 
-    vi.stubGlobal("window", { electronAPI: { skills: { read } } });
+    vi.stubGlobal("window", { draggy: { skills: { read } } });
 
     const { context, steps } = harness();
     const result = await runTool(
@@ -405,7 +405,7 @@ describe("the tool that loads one", () => {
 
   it("tells the model plainly when there is no such skill", async () => {
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         skills: {
           read: async () => ({ success: false, error: 'There is no skill called "x".' }),
         },
@@ -420,7 +420,7 @@ describe("the tool that loads one", () => {
   });
 
   it("survives a build with no skill bridge", async () => {
-    vi.stubGlobal("window", { electronAPI: {} });
+    vi.stubGlobal("window", { draggy: {} });
 
     const { context } = harness();
     const result = await runTool("use_skill", { id: "x" }, context, WITH_SKILLS);
@@ -430,12 +430,12 @@ describe("the tool that loads one", () => {
 });
 
 describe("loadSingleSkill", () => {
-  it("reads a single skill via electronAPI", async () => {
+  it("reads a single skill via draggy", async () => {
     const read = vi.fn(async () => ({
       success: true,
       skill: { ...skill("human", "human", "Humanizer"), body: "Human instructions", files: [] },
     }));
-    vi.stubGlobal("window", { electronAPI: { skills: { read } } });
+    vi.stubGlobal("window", { draggy: { skills: { read } } });
 
     const result = await loadSingleSkill("default", "human");
     expect(read).toHaveBeenCalledWith("default", "human", { enabledOnly: true });

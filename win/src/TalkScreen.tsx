@@ -46,7 +46,7 @@ export default function TalkScreen({ settings, seed, onTurn, onLeave }: TalkScre
   const [failure, setFailure] = useState<Failure>(null);
   const [history, setHistory] = useState(false);
   const [installed, setInstalled] = useState<InstalledModel[] | null>(null);
-  const [vram, setVram] = useState<number | null>(() => (window.electronAPI ? null : 0));
+  const [vram, setVram] = useState<number | null>(() => (window.draggy ? null : 0));
 
   const talkRef = useRef<Conversation | null>(null);
   /** Preparation can take a minute and the user may leave mid-way. The token says whether the
@@ -72,7 +72,7 @@ export default function TalkScreen({ settings, seed, onTurn, onLeave }: TalkScre
     listInstalledModels()
       .then((models) => setInstalled(selectableModels(models)))
       .catch(() => setInstalled([]));
-    window.electronAPI
+    window.draggy
       ?.getSystemSpecs()
       .then((specs) => setVram(specs?.vram ?? 0))
       .catch(() => setVram(0));

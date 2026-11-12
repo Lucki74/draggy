@@ -23,7 +23,7 @@ export interface Detector {
 export type ScoreHandler = (frame: Float32Array, probability: number) => void;
 
 function modelUrl(): string {
-  const host = typeof window !== "undefined" && window.electronAPI
+  const host = typeof window !== "undefined" && window.draggy
     ? CACHE_HOST
     : REMOTE_HOST;
   return host + MODEL_PATH;

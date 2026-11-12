@@ -124,7 +124,7 @@ export function prepareSpeech(
         type: "init",
         id,
         model,
-        cacheHost: window.electronAPI ? CACHE_HOST : null,
+        cacheHost: window.draggy ? CACHE_HOST : null,
         wasmPath: new URL(ORT_ASSET_DIR, document.baseURI).href,
       });
     }).catch((error) => {

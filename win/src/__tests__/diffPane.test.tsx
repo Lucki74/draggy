@@ -72,12 +72,12 @@ describe("DiffPane", () => {
       branches: vi.fn().mockResolvedValue({ success: true, branches: [{ name: "main", current: true }, { name: "feature", current: false }] }),
       checkout: vi.fn().mockResolvedValue({ success: true }),
     };
-    (window as unknown as Record<string, unknown>).electronAPI = { git };
+    (window as unknown as Record<string, unknown>).draggy = { git };
   });
 
   afterEach(() => {
     cleanup();
-    delete (window as unknown as Record<string, unknown>).electronAPI;
+    delete (window as unknown as Record<string, unknown>).draggy;
   });
 
   it("shows the branch, its distance and how many files changed", async () => {

@@ -79,7 +79,7 @@ export default function BudgetsGroup({ settings, onUpdate, t }: BudgetsGroupProp
 
   useEffect(() => {
     let current = true;
-    void window.electronAPI?.providers
+    void window.draggy?.providers
       ?.list?.()
       .then((list) => current && setInstances(list.filter((item) => item.kind === "cloud" && item.enabled)))
       .catch(swallowed("settings", "no per-provider limits are offered"));

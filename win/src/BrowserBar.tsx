@@ -41,7 +41,7 @@ export default function BrowserBar({ t, embedded = false, onState }: BrowserBarP
   });
 
   useEffect(() => {
-    const api = window.electronAPI?.browserBar;
+    const api = window.draggy?.browserBar;
     if (!api) return;
 
     return api.onState((next: BrowserState) => {
@@ -55,12 +55,12 @@ export default function BrowserBar({ t, embedded = false, onState }: BrowserBarP
   const [agent, setAgent] = useState<{ active: boolean; step: string | null }>({ active: false, step: null });
   useEffect(() => {
     // Only the pane is driven by the agent; the separate window has no agent step to show.
-    const api = window.electronAPI?.browserAgent;
+    const api = window.draggy?.browserAgent;
     if (!embedded || !api) return;
     return api.onState(setAgent);
   }, [embedded]);
 
-  const act = (name: Action, value?: string) => window.electronAPI?.browserBar.action(name, value);
+  const act = (name: Action, value?: string) => window.draggy?.browserBar.action(name, value);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -78,7 +78,7 @@ export default function BrowserBar({ t, embedded = false, onState }: BrowserBarP
       icon: <Icon name="shield" size={16} />,
       checked: state.adblock,
       toggle: true,
-      onSelect: () => window.electronAPI?.browserBar.setAdblock(!state.adblock),
+      onSelect: () => window.draggy?.browserBar.setAdblock(!state.adblock),
     },
     { type: "separator", id: "sep" },
     {
@@ -161,7 +161,7 @@ export default function BrowserBar({ t, embedded = false, onState }: BrowserBarP
           </span>
           <button
             type="button"
-            onClick={() => window.electronAPI?.browserAgent.stop()}
+            onClick={() => window.draggy?.browserAgent.stop()}
             className="h-7 flex-shrink-0 rounded-md border border-rule-control px-2 text-[12px] text-text-primary hover:bg-surface-raised"
           >
             {t("browserAgentTakeOver")}
@@ -173,7 +173,7 @@ export default function BrowserBar({ t, embedded = false, onState }: BrowserBarP
         align="end"
         items={items}
         // The separate window draws the menu inside the toolbar view, which has to grow to fit it.
-        onOpenChange={embedded ? undefined : (open) => window.electronAPI?.browserBar.setMenuOpen(open)}
+        onOpenChange={embedded ? undefined : (open) => window.draggy?.browserBar.setMenuOpen(open)}
         trigger={(props) => <IconButton {...props} name="dots-three" size="dense" label={t("browserSettings")} />}
       />
     </div>

@@ -30,7 +30,7 @@ function setup(speak: (turnId: number, request: { text: string }) => Promise<{ s
     },
   );
   vi.stubGlobal("window", {
-    electronAPI: {
+    draggy: {
       tts: {
         speak,
         cancel: async (turn: number) => void cancelled.push(turn),

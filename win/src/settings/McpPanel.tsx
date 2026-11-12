@@ -112,7 +112,7 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
   const [searching, setSearching] = useState(false);
   const [registryError, setRegistryError] = useState<string | null>(null);
 
-  const api = window.electronAPI?.mcp;
+  const api = window.draggy?.mcp;
 
   useEffect(() => {
     if (!api) return;

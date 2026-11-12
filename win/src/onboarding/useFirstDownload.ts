@@ -61,7 +61,7 @@ const IDLE_MODEL: ModelDownload = { phase: "idle", percent: 0, completed: 0, tot
 
 const isAbort = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
 
-export function useFirstDownload(api: BootBridge | undefined = window.electronAPI): FirstDownload {
+export function useFirstDownload(api: BootBridge | undefined = window.draggy): FirstDownload {
   const [engine, setEngine] = useState<EngineDownload>({ phase: "idle", percent: 0 });
   const [model, setModel] = useState<ModelDownload>(IDLE_MODEL);
   const controllerRef = useRef<AbortController | null>(null);

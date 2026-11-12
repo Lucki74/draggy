@@ -7,12 +7,12 @@ import StartupScreen from "../StartupScreen";
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 function hangingBridge() {
   const never = () => new Promise(() => {});
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     gguf: { status: never, listModels: never, onProgress: () => () => {} },
     onDownloadProgress: () => () => {},
   };
