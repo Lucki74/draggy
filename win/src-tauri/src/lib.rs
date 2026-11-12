@@ -141,6 +141,10 @@ pub fn run() {
             ipc::mcp::adopt_stored_credentials(app.handle());
             ipc::providers::start_auto_refresh(app.handle());
             ipc::updater::start(app.handle());
+            // As Electron: the filter lists wait for a finished setup.
+            if !app.state::<AppState>().storage.show_setup() {
+                browser::adblock::start(app.handle());
+            }
             show_main_window(app, &data_dir)?;
             Ok(())
         })

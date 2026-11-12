@@ -336,6 +336,8 @@ fn create_tab(app: &AppHandle, panes: &Panes) -> Result<Webview, String> {
         )
         .map_err(|error| error.to_string())?;
     webview.hide().map_err(|error| error.to_string())?;
+    #[cfg(windows)]
+    crate::browser::adblock::install(&webview);
     // The trace starts with the tab, as Electron's does, so early console lines are kept.
     trace_of(app, &webview);
     app.state::<AppState>()
@@ -1423,6 +1425,10 @@ async fn bar_set_adblock(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcE
     let on = args.first().is_some_and(truthy);
     if let Some(store) = app.state::<AppState>().storage.handle() {
         let _ = store.set_value(ADBLOCK_KEY, if on { "on" } else { "off" });
+    }
+    crate::browser::adblock::set_enabled(on);
+    if on {
+        crate::browser::adblock::start(&app);
     }
     // The filters apply to requests as they are made, so the page shows the change after a reload.
     if let Some(webview) = front_webview(&app) {

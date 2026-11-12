@@ -1,11 +1,11 @@
 //! A database written by this build must still open and read in 1.2.7, which a user may roll back to.
-//! The schema and queries are the ones in `electron/fixtures/v1.2.7/storage.cjs`.
+//! The schema and queries are the ones in the v1.2.7 release, kept in `tests/fixtures/storage-v1.2.7.cjs`.
 
 use draggy_storage::{Chat, Storage};
 use rusqlite::Connection;
 use serde_json::json;
 
-const FIXTURE: &str = include_str!("../../electron/fixtures/v1.2.7/storage.cjs");
+const FIXTURE: &str = include_str!("fixtures/storage-v1.2.7.cjs");
 
 /// The `SCHEMA` template literal of the 1.2.7 storage module.
 fn old_schema() -> &'static str {

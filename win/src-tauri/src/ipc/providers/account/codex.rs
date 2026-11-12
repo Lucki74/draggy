@@ -32,7 +32,7 @@ use crate::ipc::emit;
 
 const CODEX: &str = "codex";
 /// The catalog the reference ships, read at build time so a listing needs no file beside the app.
-const MODELS: &str = include_str!("../../../../../electron/providers/codex/models.json");
+const MODELS: &str = include_str!("codex_models.json");
 const STOPPED: &str = "Codex stopped.";
 const START_FAILED: &str = "Codex did not start.";
 const LOGIN_DONE: &str = "account/login/completed";

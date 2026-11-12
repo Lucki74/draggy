@@ -1,0 +1,90 @@
+! Title: Draggy supplemental
+! Description: First-party advertising and telemetry endpoints that the
+!   general-purpose lists leave alone for compatibility, but which carry no
+!   user-visible function.
+!
+! Why this file exists
+! --------------------
+! EasyList, uBlock Origin and AdGuard are written to be safe on every site on
+! the web, which means they do not blanket-block a platform's own domains: one
+! over-broad rule against facebook.com or googlevideo.com breaks logging in or
+! playing a video for millions of people, and the lists rightly refuse that
+! trade.
+!
+! The endpoints below are the subset where that caution costs nothing. Each is
+! an advertising API, a measurement pixel, or an operating-system telemetry
+! sink. None of them renders anything, carries a login, or delivers media, so
+! blocking them removes tracking without removing behaviour.
+!
+! Anything load-bearing is deliberately NOT here, and the list at the bottom
+! of this file says which and why, so nobody adds them later by mistake.
+
+! --- Search and portal advertising APIs -------------------------------------
+||advertising-api-eu.amazon.com^
+||mads-eu.amazon.com^
+||bingads.microsoft.com^
+||c.bing.com^
+||udcm.yahoo.com^
+||advertising.yahoo.com^
+||log.fc.yahoo.com^
+||gemini.yahoo.com^
+||adtech.yahooinc.com^
+||metrika.yandex.ru^
+||advertising.yandex.ru^
+
+! --- Social measurement pixels ----------------------------------------------
+! The pixels only, never the SDKs the pages actually render with.
+||tr.facebook.com^
+||analytics.twitter.com^
+||analytics.x.com^
+||pixel.redditmedia.com^
+||snap.licdn.com^
+||pixel.quora.com^
+||qevents.quora.com^
+||ads-api.tiktok.com^
+||ads-sg.tiktok.com^
+||business-api.tiktok.com^
+
+! --- Product analytics back ends --------------------------------------------
+||app.posthog.com^
+||eu.posthog.com^
+||tracker.snowplowanalytics.com^
+||metrics.adobe.com^
+||static.klaviyo.com^
+||click.mailchimp.com^
+
+! --- Advertising delivery ---------------------------------------------------
+||dai.google.com^
+||advertising.apple.com^
+
+! --- Operating system and device telemetry ----------------------------------
+||settings-win.data.microsoft.com^
+||vortex-win.data.microsoft.com^
+||watson.telemetry.microsoft.com^
+||telemetry.microsoft.com^
+||xp.apple.com^
+||adlog.vivo.com^
+||ads-api.vivo.com^
+||a.lenovo.com^
+||us.ibs.lgappstv.com^
+||ngfts.lge.com^
+||amoeba.web.roku.com^
+
+! --- Deliberately absent ----------------------------------------------------
+! These appear in ad-blocker scoring tests and would raise the score, and are
+! left alone because each one carries something the user asked for:
+!
+!   connect.facebook.net      the SDK behind "log in with Facebook"
+!   graph.facebook.com        the same SDK's API
+!   graph.instagram.com       Instagram itself
+!   i.instagram.com           Instagram's own images
+!   s.youtube.com             YouTube playback
+!   redirector.googlevideo.com  YouTube's video CDN
+!   g.jwpsrv.com              JW Player, a video player
+!   ssl.p.jwpcdn.com          the same player's assets
+!   tagmanager.google.com     often loads a site's own functionality
+!   widgets.pinterest.com     Pinterest embeds
+!   widget.intercom.io        the support chat a site offers
+!   js.driftt.com             the same
+!   clientstream.launchdarkly.com  feature flags; blocking changes behaviour
+!   cdn.dynamicyield.com      personalisation that can take layout with it

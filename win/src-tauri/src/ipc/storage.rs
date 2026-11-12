@@ -574,7 +574,8 @@ async fn onboarding_complete(app: AppHandle, args: Vec<Value>) -> Result<Value, 
     let reply = setup_call(&app, move |storage, _| onboarding::complete(storage, &path)).await?;
     if reply["success"] == true {
         app.state::<AppState>().storage.set_show_setup(false);
-        // TODO: start the ad blocker and the update check here (electron/main.cjs:1535), in their slices.
+        // TODO: start the update check here (electron/main.cjs:1535), in its slice.
+        crate::browser::adblock::start(&app);
     }
     Ok(reply)
 }

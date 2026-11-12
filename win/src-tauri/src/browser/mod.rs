@@ -2,6 +2,7 @@
 //! the pane's page answers to. The child webviews are created in `ipc::browser`.
 
 pub mod act;
+pub mod adblock;
 pub mod cdp;
 #[cfg(windows)]
 pub mod cdp_webview2;

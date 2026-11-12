@@ -20,6 +20,7 @@ use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_opener::OpenerExt;
 
+use super::pdf_writer;
 use super::{IpcError, Registry};
 use crate::AppState;
 
@@ -870,10 +871,19 @@ async fn create_file_channel(app: AppHandle, args: Vec<Value>) -> Result<Value, 
     let filename = arg_text(args.first());
     let content = arg_text(args.get(1));
     let chat = opt_text(args.get(2));
+    if is_pdf(&base_name(&filename)) {
+        return Ok(create_pdf(&app, filename, content, chat).await);
+    }
     run(&app, "create-file", move |s| {
         answer(create_file(s, &filename, &content, chat.as_deref()))
     })
     .await
+}
+
+fn is_pdf(name: &str) -> bool {
+    Path::new(name)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"))
 }
 
 /// Writes a file the model made into the chat's folder, or the shared created-files folder.
@@ -883,6 +893,17 @@ fn create_file(
     content: &str,
     chat: Option<&str>,
 ) -> Result<Value, String> {
+    let (safe, filepath) = file_target(s, filename, chat)?;
+    write_generated_file(&filepath, content).map_err(|e| e.to_string())?;
+    Ok(json!({ "success": true, "filepath": path_text(&filepath), "filename": safe }))
+}
+
+/// The name and full path a generated file goes to, with its folder made.
+fn file_target(
+    s: &Services,
+    filename: &str,
+    chat: Option<&str>,
+) -> Result<(String, PathBuf), String> {
     let safe = base_name(filename);
     if safe.is_empty() || safe == "." || safe == ".." {
         return Err("That file name is not usable.".to_owned());
@@ -898,15 +919,32 @@ fn create_file(
     };
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let filepath = dir.join(&safe);
-    if Path::new(&safe)
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"))
-    {
-        // TODO: core documents has a PDF reader only; no Rust PDF writer yet.
-        return Err("PDF files cannot be created in this build yet.".to_owned());
-    }
-    write_generated_file(&filepath, content).map_err(|e| e.to_string())?;
-    Ok(json!({ "success": true, "filepath": path_text(&filepath), "filename": safe }))
+    Ok((safe, filepath))
+}
+
+/// A PDF is printed by WebView2, so the target is resolved first and the print window opens after.
+async fn create_pdf(
+    app: &AppHandle,
+    filename: String,
+    content: String,
+    chat: Option<String>,
+) -> Value {
+    let target = tauri::async_runtime::spawn_blocking(move || {
+        services().and_then(|s| file_target(s.as_ref(), &filename, chat.as_deref()))
+    })
+    .await;
+    let outcome = match target {
+        Ok(Ok((safe, filepath))) => match pdf_writer::write_pdf(app, &filepath, &content).await {
+            Ok(()) => {
+                json!({ "success": true, "filepath": path_text(&filepath), "filename": safe })
+            }
+            Err(error) => fail(error),
+        },
+        Ok(Err(error)) => fail(error),
+        Err(error) => fail(error.to_string()),
+    };
+    log_outcome(app, "create-file", &outcome);
+    outcome
 }
 
 async fn read_created_file(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {

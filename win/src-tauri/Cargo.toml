@@ -25,6 +25,7 @@ all = { level = "warn", priority = -1 }
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+adblock = { version = "0.13.5", default-features = false, features = ["embedded-domain-resolver", "full-regex-handling"] }
 aes-gcm = "0.10"
 axum = "0.8"
 base64 = "0.22"

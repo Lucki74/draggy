@@ -38,6 +38,7 @@ mod library;
 mod logs;
 pub(crate) mod mcp;
 mod models;
+mod pdf_writer;
 pub mod pending;
 mod pricing;
 pub(crate) mod providers;
