@@ -153,7 +153,7 @@ Releases are cut from the Release workflow (`release.yml`, run by hand on `main`
 
 The public website lives in `../draggy-website` as an independent repository. Draggy interfaces use Phosphor icons (`@phosphor-icons/core`), while the website maintains its own icon builds.
 
-The screenshot scripts that older notes mention (`screenshots.cjs`, `wiki-shots.cjs`, `clips.cjs`) are not in this repository. Documentation screenshots must be retaken by hand from a running build.
+Documentation screenshots come from `npm run shots`, `npm run wiki:shots` and `npm run clips`. They start a dev build of the app with WebView2 remote debugging on 127.0.0.1, attach through `scripts/tauri-app.cjs` and run on a throwaway data folder.
 
 - Set `TEMP` and `TMP` to a neutral folder such as `C:\demo` first, so settings screenshots do not show your user name.
 - Look at every generation-dependent shot before publishing it.

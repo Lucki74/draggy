@@ -26,6 +26,9 @@
     "test:coverage": "vitest run --coverage",
     "logs": "node scripts/logs.cjs",
     "logs:turn": "node scripts/logs.cjs --turn",
+    "shots": "node scripts/screenshots.cjs",
+    "wiki:shots": "node scripts/wiki-shots.cjs",
+    "clips": "node scripts/clips.cjs",
     "check": "npm run typecheck && npm run lint && npm run test",
     "icons": "node scripts/make-icons.mjs",
     "skills:lint": "node scripts/skills/lint.mjs"
@@ -73,6 +76,7 @@
     "katex": "^0.19.1",
     "license-checker-rseidelsohn": "^5.0.1",
     "onnxruntime-web": "1.31.1",
+    "playwright": "^1.65.0",
     "postcss": "^8.5.32",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
