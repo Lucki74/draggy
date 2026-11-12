@@ -187,8 +187,18 @@ pub async fn ipc_invoke(
     channel: String,
     args: Vec<Value>,
 ) -> Result<Value, String> {
+    let label = webview.label().to_owned();
+    // A popout bar may only run bar channels, against the page it belongs to.
+    if let Some(page) = browser::popout_page_of(&label) {
+        if !browser::may_call(&label, &channel) {
+            return Err("a popout bar may only call browser-bar channels".to_owned());
+        }
+        return browser::popout_bar_call(&app, &page, &channel, args)
+            .await
+            .map_err(|error| error.to_string());
+    }
     // Browser channels drive the pane's pages, so only the main window may call them.
-    if channel.starts_with("browser-") && !is_main_window(webview.label()) {
+    if channel.starts_with("browser-") && !is_main_window(&label) {
         return Err("browser channels are only accepted from the main window".to_owned());
     }
     run(app, channel, args).await

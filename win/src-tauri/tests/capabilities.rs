@@ -93,5 +93,8 @@ fn only_the_main_and_pane_capabilities_name_a_webview() {
         .filter(|(_, value)| !strings(value, "webviews").is_empty())
         .map(|(file, _)| file.as_str())
         .collect();
-    assert_eq!(named, ["browser-pane.json", "main.json"]);
+    assert_eq!(
+        named,
+        ["browser-pane.json", "browser-popout-bar.json", "main.json"]
+    );
 }

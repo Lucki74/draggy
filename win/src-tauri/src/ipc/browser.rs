@@ -9,10 +9,10 @@ use std::time::{Duration, Instant};
 
 use regex::Regex;
 use serde_json::{Value, json};
-use tauri::webview::{NewWindowResponse, WebviewBuilder, WebviewWindowBuilder};
+use tauri::webview::{NewWindowResponse, WebviewBuilder};
 use tauri::{
-    AppHandle, LogicalPosition, LogicalSize, Manager, Position, Rect, Size, Url, Webview,
-    WebviewUrl,
+    AppHandle, Emitter, EventTarget, LogicalPosition, LogicalSize, Manager, Position, Rect, Size,
+    Url, Webview, WebviewUrl,
 };
 use tauri_plugin_opener::OpenerExt;
 use tokio::sync::{broadcast, oneshot, watch};
@@ -360,12 +360,12 @@ fn create_tab(app: &AppHandle, panes: &Panes) -> Result<Webview, String> {
 fn watch_tab(app: &AppHandle, webview: &Webview) {
     let app = app.clone();
     let label = webview.label().to_owned();
+    let page = webview.clone();
     let cdp = WebView2Cdp::new(webview.clone());
     let mut loaded = cdp.subscribe("Page.domContentEventFired");
     let mut navigated = cdp.subscribe("Page.frameNavigated");
     let mut requested = cdp.subscribe("Page.frameRequestedNavigation");
     tauri::async_runtime::spawn(async move {
-        let mut pre_script: Option<String> = None;
         loop {
             tokio::select! {
                 event = loaded.recv() => {
@@ -377,7 +377,7 @@ fn watch_tab(app: &AppHandle, webview: &Webview) {
                 event = requested.recv() => {
                     let Ok(event) = event else { break };
                     if let Some(url) = event["url"].as_str() {
-                        register_pre_script(&cdp, &mut pre_script, &event, url).await;
+                        register_pre_script(&cdp, &label, &event, url).await;
                     }
                 }
                 event = navigated.recv() => {
@@ -394,8 +394,10 @@ fn watch_tab(app: &AppHandle, webview: &Webview) {
                             Some(json!({ "host": host })),
                         );
                     }
-                    if front_label(&app).as_deref() == Some(label.as_str()) {
-                        broadcast_bar_state(&app).await;
+                    if front_label(&app).as_deref() == Some(label.as_str())
+                        || popout_bar_of(&label).is_some()
+                    {
+                        broadcast_state(&app, &page).await;
                     }
                 }
             }
@@ -403,15 +405,14 @@ fn watch_tab(app: &AppHandle, webview: &Webview) {
     });
 }
 
-/// Before a top-frame navigation starts, installs the page's scriptlets so they run before page
-/// scripts. The previous script is removed first. Subframe navigations are ignored.
+/// The page scripts installed before a page's own scripts, by page label, so each can be replaced.
 #[cfg(windows)]
-async fn register_pre_script(
-    cdp: &WebView2Cdp,
-    current: &mut Option<String>,
-    event: &Value,
-    url: &str,
-) {
+static PRE_SCRIPTS: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+
+/// Before a top-frame navigation starts, installs the page's scriptlets so they run before page
+/// scripts. Subframe navigations are ignored.
+#[cfg(windows)]
+async fn register_pre_script(cdp: &WebView2Cdp, label: &str, event: &Value, url: &str) {
     let top = cdp.call("Page.getFrameTree", json!({})).await;
     let top_id = top
         .ok()
@@ -419,11 +420,21 @@ async fn register_pre_script(
     if top_id.as_deref() != event["frameId"].as_str() {
         return;
     }
-    if let Some(id) = current.take() {
+    install_pre_script(cdp, label, url).await;
+}
+
+/// Replaces the page's pre-document script with the one for `url`, or removes it when there is none.
+#[cfg(windows)]
+async fn install_pre_script(cdp: &WebView2Cdp, label: &str, url: &str) {
+    let previous = {
+        let mut map = PRE_SCRIPTS.lock().unwrap_or_else(PoisonError::into_inner);
+        map.get_or_insert_with(HashMap::new).remove(label)
+    };
+    if let Some(identifier) = previous {
         let _ = cdp
             .call(
                 "Page.removeScriptToEvaluateOnNewDocument",
-                json!({ "identifier": id }),
+                json!({ "identifier": identifier }),
             )
             .await;
     }
@@ -439,8 +450,11 @@ async fn register_pre_script(
             json!({ "source": rules.script }),
         )
         .await
+        && let Some(identifier) = result["identifier"].as_str()
     {
-        *current = result["identifier"].as_str().map(str::to_owned);
+        let mut map = PRE_SCRIPTS.lock().unwrap_or_else(PoisonError::into_inner);
+        map.get_or_insert_with(HashMap::new)
+            .insert(label.to_owned(), identifier.to_owned());
     }
 }
 
@@ -558,12 +572,10 @@ fn truthy(value: &Value) -> bool {
 
 #[cfg(windows)]
 async fn load(webview: &Webview, url: &Url) -> Value {
-    pages::navigate(
-        &WebView2Cdp::new(webview.clone()),
-        url.as_str(),
-        NAVIGATE_PACE,
-    )
-    .await
+    let cdp = WebView2Cdp::new(webview.clone());
+    // Our own navigations skip the frame request event, so the scriptlets are set here.
+    install_pre_script(&cdp, webview.label(), url.as_str()).await;
+    pages::navigate(&cdp, url.as_str(), NAVIGATE_PACE).await
 }
 
 #[cfg(not(windows))]
@@ -619,6 +631,16 @@ impl Cdp for PageCdp {
 #[cfg(windows)]
 fn page_cdp(app: &AppHandle) -> Option<PageCdp> {
     front_webview(app).map(|webview| AgentInput::new(WebView2Cdp::new(webview)))
+}
+
+#[cfg(windows)]
+fn cdp_of(webview: &Webview) -> Option<PageCdp> {
+    Some(AgentInput::new(WebView2Cdp::new(webview.clone())))
+}
+
+#[cfg(not(windows))]
+fn cdp_of(_webview: &Webview) -> Option<PageCdp> {
+    None
 }
 
 #[cfg(not(windows))]
@@ -1513,19 +1535,72 @@ fn encode_query(text: &str) -> String {
 }
 
 /// The toolbar's buttons. The Tauri bar lives in the window, so it needs nothing from the pane.
+/// The bar's height in the popout, as Electron's toolbar.
+const BAR_HEIGHT: f64 = 48.0;
+const POPOUT_BAR_PREFIX: &str = "browser-popout-bar-";
+const POPOUT_PAGE_PREFIX: &str = "browser-pane-popout-";
+
+/// The page a popout bar drives, from the bar's label. `None` for any other label.
+pub fn popout_page_of(bar: &str) -> Option<String> {
+    let number = bar.strip_prefix(POPOUT_BAR_PREFIX)?;
+    is_number(number).then(|| format!("{POPOUT_PAGE_PREFIX}{number}"))
+}
+
+/// The bar that belongs to a popout page, from the page's label. `None` for any other label.
+pub fn popout_bar_of(page: &str) -> Option<String> {
+    let number = page.strip_prefix(POPOUT_PAGE_PREFIX)?;
+    is_number(number).then(|| format!("{POPOUT_BAR_PREFIX}{number}"))
+}
+
+fn is_number(text: &str) -> bool {
+    !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+/// Whether a webview may call a browser channel: the main window any, a popout bar its bar channels.
+pub fn may_call(label: &str, channel: &str) -> bool {
+    label == MAIN_WINDOW || (popout_page_of(label).is_some() && channel.starts_with("browser-bar-"))
+}
+
+/// Runs a bar channel from a popout bar against the page that bar belongs to, and no other page.
+pub async fn popout_bar_call(
+    app: &AppHandle,
+    page: &str,
+    channel: &str,
+    args: Vec<Value>,
+) -> Result<Value, IpcError> {
+    let Some(webview) = app.get_webview(page) else {
+        return Ok(json!({ "success": false }));
+    };
+    match channel {
+        "browser-bar-action" => bar_action_on(app, webview, args).await,
+        "browser-bar-set-adblock" => set_adblock(app, &args, Some(webview)).await,
+        "browser-bar-menu" => bar_menu(app.clone(), args).await,
+        _ => Ok(json!({ "success": false })),
+    }
+}
+
 async fn bar_action(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
-    let action = text_arg(&args, 0);
-    let value = text_arg(&args, 1);
     let Some(webview) = front_webview(&app) else {
         return Ok(json!({ "success": false }));
     };
+    bar_action_on(&app, webview, args).await
+}
+
+/// Runs one bar action against one page, then pushes that page's state to its bar.
+async fn bar_action_on(
+    app: &AppHandle,
+    webview: Webview,
+    args: Vec<Value>,
+) -> Result<Value, IpcError> {
+    let action = text_arg(&args, 0);
+    let value = text_arg(&args, 1);
     let done = match action.as_str() {
         "back" | "forward" | "reload" => {
             step(&webview, &action).await;
             true
         }
         "stop" => {
-            if let Some(cdp) = page_cdp(&app) {
+            if let Some(cdp) = cdp_of(&webview) {
                 let _ = cdp.call("Page.stopLoading", json!({})).await;
             }
             true
@@ -1537,24 +1612,24 @@ async fn bar_action(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError>
             true
         }
         "external" => {
-            open_current(&app).await;
+            open_current(app, &webview).await;
             true
         }
         "popout" => {
-            popout_current(&app).await;
+            popout_current(app, &webview).await;
             true
         }
         _ => false,
     };
     if done {
-        broadcast_bar_state(&app).await;
+        broadcast_state(app, &webview).await;
     }
     Ok(json!({ "success": done }))
 }
 
 /// Opens the page in a window of its own. Only web addresses qualify, as in the bar's pop-out.
-async fn popout_current(app: &AppHandle) {
-    let Some(cdp) = page_cdp(app) else {
+async fn popout_current(app: &AppHandle, webview: &Webview) {
+    let Some(cdp) = cdp_of(webview) else {
         return;
     };
     let url = page_url(&cdp).await;
@@ -1565,32 +1640,91 @@ async fn popout_current(app: &AppHandle) {
     }
 }
 
-/// A window with one page and no bar. It gets the pane's rules: http, https and about pages only.
+/// A window with the app's bar on top, 48px tall, and one page below it. The page gets the pane's
+/// rules: http, https and about pages only.
 fn open_popout(app: &AppHandle, url: Url) -> Result<(), String> {
-    let label = format!(
-        "{PANE_LABEL}popout-{}",
-        app.state::<Panes>().labels.fetch_add(1, Ordering::Relaxed)
-    );
-    let opener = app.clone();
-    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
+    let number = app.state::<Panes>().labels.fetch_add(1, Ordering::Relaxed);
+    let window_label = format!("browser-popout-window-{number}");
+    let page_label = format!("{POPOUT_PAGE_PREFIX}{number}");
+    let bar_label = format!("{POPOUT_BAR_PREFIX}{number}");
+    let window = tauri::window::WindowBuilder::new(app, &window_label)
         .title("Draggy")
         .inner_size(1200.0, 820.0)
+        .build()
+        .map_err(|error| error.to_string())?;
+    let bar = WebviewBuilder::new(
+        &bar_label,
+        WebviewUrl::App("index.html?browserbar=true".into()),
+    );
+    window
+        .add_child(
+            bar,
+            LogicalPosition::new(0.0, 0.0),
+            LogicalSize::new(1200.0, BAR_HEIGHT),
+        )
+        .map_err(|error| error.to_string())?;
+    let opener = app.clone();
+    let page = WebviewBuilder::new(&page_label, WebviewUrl::External(url))
         .on_navigation(|url: &Url| matches!(url.scheme(), "http" | "https" | "about"))
         .on_new_window(move |url: Url, _features| {
             let app = opener.clone();
             tauri::async_runtime::spawn(async move { open_link(&app, url).await });
             NewWindowResponse::Deny
-        })
-        .build()
+        });
+    let page = window
+        .add_child(
+            page,
+            LogicalPosition::new(0.0, BAR_HEIGHT),
+            LogicalSize::new(1200.0, 820.0 - BAR_HEIGHT),
+        )
         .map_err(|error| error.to_string())?;
     #[cfg(windows)]
     {
-        let webview: &Webview = window.as_ref();
-        crate::browser::adblock::install(webview);
+        crate::browser::adblock::install(&page);
+        watch_tab(app, &page);
     }
     #[cfg(not(windows))]
-    let _ = window;
+    drop(page);
+    let resize_app = app.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::Resized(size) = event {
+            layout_popout(&resize_app, &window_label, &bar_label, &page_label, *size);
+        }
+    });
     Ok(())
+}
+
+/// Keeps the bar across the top and the page under it when the popout is resized.
+fn layout_popout(
+    app: &AppHandle,
+    window_label: &str,
+    bar_label: &str,
+    page_label: &str,
+    size: tauri::PhysicalSize<u32>,
+) {
+    let Some(window) = app.get_window(window_label) else {
+        return;
+    };
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let logical = size.to_logical::<f64>(scale);
+    place_child(app, bar_label, 0.0, 0.0, logical.width, BAR_HEIGHT);
+    place_child(
+        app,
+        page_label,
+        0.0,
+        BAR_HEIGHT,
+        logical.width,
+        (logical.height - BAR_HEIGHT).max(0.0),
+    );
+}
+
+fn place_child(app: &AppHandle, label: &str, x: f64, y: f64, width: f64, height: f64) {
+    if let Some(view) = app.get_webview(label) {
+        let _ = view.set_bounds(Rect {
+            position: Position::Logical(LogicalPosition::new(x, y)),
+            size: Size::Logical(LogicalSize::new(width, height)),
+        });
+    }
 }
 
 /// A link that asks for a new window. While the agent drives it opens a tab the agent can see; otherwise it
@@ -1623,8 +1757,8 @@ async fn open_link(app: &AppHandle, url: Url) {
 }
 
 /// Opens the page's own web address in the system browser, and nothing else.
-async fn open_current(app: &AppHandle) {
-    let Some(cdp) = page_cdp(app) else {
+async fn open_current(app: &AppHandle, webview: &Webview) {
+    let Some(cdp) = cdp_of(webview) else {
         return;
     };
     let url = page_url(&cdp).await;
@@ -1634,9 +1768,16 @@ async fn open_current(app: &AppHandle) {
     }
 }
 
-/// The bar's state: the page's address, title and load, and the ad-block choice.
+/// Pushes the front page's state to the main window's bar.
 async fn broadcast_bar_state(app: &AppHandle) {
-    let Some(cdp) = page_cdp(app) else {
+    if let Some(webview) = front_webview(app) {
+        broadcast_state(app, &webview).await;
+    }
+}
+
+/// Pushes one page's state to the bar that belongs to it: the main window's bar, or a popout's.
+async fn broadcast_state(app: &AppHandle, webview: &Webview) {
+    let Some(cdp) = cdp_of(webview) else {
         return;
     };
     let script = "({ url: location.href, title: document.title || '', loading: document.readyState !== 'complete' })";
@@ -1645,8 +1786,9 @@ async fn broadcast_bar_state(app: &AppHandle) {
     };
     state["canGoBack"] = json!(can_go_back(&cdp).await);
     state["canGoForward"] = json!(pages::can_go_forward(&cdp).await);
-    state["adblock"] = json!(adblock_on(app));
-    emit(app, "browser-bar-state", state);
+    state["adblock"] = json!(crate::browser::adblock::enabled());
+    let target = popout_bar_of(webview.label()).unwrap_or_else(|| MAIN_WINDOW.to_owned());
+    let _ = app.emit_to(EventTarget::webview(target), "browser-bar-state", state);
 }
 
 /// Back is possible when the history cursor is past its first entry.
@@ -1667,30 +1809,30 @@ async fn bar_menu(_app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError>
     Ok(json!({ "success": true }))
 }
 
-/// The ad-block choice, on unless the saved value is "off". Only the setting is kept here; no filter runs yet.
-fn adblock_on(app: &AppHandle) -> bool {
-    let raw = app
-        .state::<AppState>()
-        .storage
-        .handle()
-        .and_then(|store| store.get_value(ADBLOCK_KEY).ok().flatten());
-    raw.as_deref() != Some("off")
+async fn bar_set_adblock(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let target = front_webview(&app);
+    set_adblock(&app, &args, target).await
 }
 
-async fn bar_set_adblock(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+/// Stores the adblock switch, then reloads and reports the target page only.
+async fn set_adblock(
+    app: &AppHandle,
+    args: &[Value],
+    target: Option<Webview>,
+) -> Result<Value, IpcError> {
     let on = args.first().is_some_and(truthy);
     if let Some(store) = app.state::<AppState>().storage.handle() {
         let _ = store.set_value(ADBLOCK_KEY, if on { "on" } else { "off" });
     }
     crate::browser::adblock::set_enabled(on);
     if on {
-        crate::browser::adblock::start(&app);
+        crate::browser::adblock::start(app);
     }
     // The filters apply to requests as they are made, so the page shows the change after a reload.
-    if let Some(webview) = front_webview(&app) {
+    if let Some(webview) = target {
         step(&webview, "reload").await;
+        broadcast_state(app, &webview).await;
     }
-    broadcast_bar_state(&app).await;
     Ok(json!({ "success": true, "enabled": on }))
 }
 
@@ -1889,5 +2031,52 @@ mod tests {
             .unwrap_or_default();
         assert!(search.starts_with("https://duckduckgo.com/?q=how%20tall%20is%20everest"));
         assert!(typed_url("file:///etc/passwd").is_none());
+    }
+}
+
+#[cfg(test)]
+mod popout_routing_tests {
+    use super::*;
+
+    #[test]
+    fn a_bar_and_its_page_pair_by_number() {
+        assert_eq!(
+            popout_page_of("browser-popout-bar-3").as_deref(),
+            Some("browser-pane-popout-3")
+        );
+        assert_eq!(
+            popout_bar_of("browser-pane-popout-3").as_deref(),
+            Some("browser-popout-bar-3")
+        );
+    }
+
+    #[test]
+    fn malformed_labels_pair_with_nothing() {
+        assert_eq!(popout_page_of("browser-popout-bar-"), None);
+        assert_eq!(popout_page_of("browser-popout-bar-3x"), None);
+        assert_eq!(popout_page_of("main"), None);
+        assert_eq!(popout_bar_of("browser-pane-popout-"), None);
+        assert_eq!(popout_bar_of("browser-pane-1"), None);
+    }
+
+    #[test]
+    fn the_main_window_may_call_any_browser_channel() {
+        assert!(may_call(MAIN_WINDOW, "browser-action"));
+        assert!(may_call(MAIN_WINDOW, "browser-bar-action"));
+    }
+
+    #[test]
+    fn a_popout_bar_may_call_only_bar_channels() {
+        assert!(may_call("browser-popout-bar-1", "browser-bar-action"));
+        assert!(may_call("browser-popout-bar-1", "browser-bar-set-adblock"));
+        assert!(!may_call("browser-popout-bar-1", "browser-action"));
+        assert!(!may_call("browser-popout-bar-1", "browser-navigate"));
+    }
+
+    #[test]
+    fn a_page_or_malformed_bar_label_may_call_no_bar_channel() {
+        assert!(!may_call("browser-pane-popout-1", "browser-bar-action"));
+        assert!(!may_call("browser-popout-bar-", "browser-bar-action"));
+        assert!(!may_call("browser-pane-1", "browser-bar-menu"));
     }
 }

@@ -63,6 +63,11 @@ pub fn set_enabled(on: bool) {
     ENABLED.store(on, Ordering::SeqCst);
 }
 
+/// Whether blocking is on, as the bar shows it.
+pub fn enabled() -> bool {
+    ENABLED.load(Ordering::SeqCst)
+}
+
 /// Loads the engine in the background, once. Reads the saved choice, as Electron's start-up did.
 /// Fetching happens here whether or not blocking is on, which matches Electron's priming.
 pub fn start(app: &AppHandle) {
