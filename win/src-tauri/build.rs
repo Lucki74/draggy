@@ -8,6 +8,9 @@ fn main() {
         println!(
             "cargo:rustc-link-arg-tests=/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'"
         );
+        // The lib's unit-test binary gets no manifest; delay-loading comctl32 keeps it starting.
+        println!("cargo:rustc-link-arg=/DELAYLOAD:comctl32.dll");
+        println!("cargo:rustc-link-lib=delayimp");
     }
     // Listing the commands makes Tauri generate `allow-ipc-invoke` and `allow-ipc-send`, which the
     // capability file grants to the main window only.

@@ -21,6 +21,15 @@ const PRIVATE_HOSTNAMES: &[&str] = &[
 
 /// The URL to load, or the sentence to tell the model why it was refused.
 pub fn check(raw: &str) -> Result<Url, &'static str> {
+    check_with(raw, false)
+}
+
+/// A web address typed in the bar, where the user may open their own local dev server.
+pub fn check_typed(raw: &str) -> Result<Url, &'static str> {
+    check_with(raw, true)
+}
+
+fn check_with(raw: &str, allow_private: bool) -> Result<Url, &'static str> {
     let trimmed = raw.trim();
     if trimmed.chars().any(|c| c.is_ascii_control()) {
         return Err(INVALID);
@@ -32,7 +41,7 @@ pub fn check(raw: &str) -> Result<Url, &'static str> {
     let Some(host) = url.host_str().filter(|h| !h.is_empty()) else {
         return Err(NO_HOST);
     };
-    if is_private_host(host) {
+    if !allow_private && is_private_host(host) {
         return Err(PRIVATE);
     }
     Ok(url)

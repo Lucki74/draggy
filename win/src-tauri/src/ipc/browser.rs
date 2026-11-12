@@ -7,21 +7,24 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
+use regex::Regex;
 use serde_json::{Value, json};
 use tauri::webview::WebviewBuilder;
 use tauri::{
     AppHandle, LogicalPosition, LogicalSize, Manager, Position, Rect, Size, Url, Webview,
     WebviewUrl,
 };
+use tauri_plugin_opener::OpenerExt;
 #[cfg(not(windows))]
 use tokio::sync::broadcast;
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, watch};
 use tokio::time::sleep;
 
 use super::{IpcError, Registry, emit};
 use crate::AppState;
+use crate::browser::cdp::Cdp;
 #[cfg(not(windows))]
-use crate::browser::cdp::{Cdp, CdpError};
+use crate::browser::cdp::CdpError;
 #[cfg(windows)]
 use crate::browser::cdp_webview2::WebView2Cdp;
 use crate::browser::dialogs::{self, DialogState};
@@ -31,6 +34,7 @@ use crate::browser::pages;
 use crate::browser::pane::{self, Bounds, MAX_TABS, Tabs};
 use crate::browser::policy;
 use crate::browser::safety::{Grants, RateLimit, Standing};
+use crate::browser::trace::Trace;
 use crate::browser::{act, safety};
 
 const PANE_LABEL: &str = "browser-pane-";
@@ -48,6 +52,16 @@ const TRUSTED_SITES_KEY: &str = "browserTrustedSites";
 /// A consent the user does not answer within this long is a no.
 const CONSENT_WAIT: Duration = Duration::from_secs(120);
 const DENY: &str = "deny";
+/// The saved ad-block choice, under the key the Electron build used.
+const ADBLOCK_KEY: &str = "adblockEnabled";
+const TRACE_KIND: &str = "The trace kind is console or network.";
+const TRACE_EVENTS: [&str; 5] = [
+    "Runtime.consoleAPICalled",
+    "Runtime.exceptionThrown",
+    "Network.requestWillBeSent",
+    "Network.responseReceived",
+    "Network.loadingFailed",
+];
 
 /// The pane's tabs, one child webview each, the counter that names new ones, and what the user has
 /// let the agent do.
@@ -62,6 +76,9 @@ pub struct Panes {
     consents: Mutex<HashMap<String, oneshot::Sender<String>>>,
     consent_seq: AtomicU64,
     dialogs: Mutex<HashMap<String, Arc<DialogState>>>,
+    /// The agent step in flight; a takeover sends `true` to it.
+    run: Mutex<Option<watch::Sender<bool>>>,
+    traces: Mutex<HashMap<String, Arc<Mutex<Trace>>>>,
 }
 
 impl Panes {
@@ -93,6 +110,12 @@ pub fn register_all(registry: &mut Registry) {
     register!(registry, "browser-grants:list" => grants_list);
     register!(registry, "browser-grants:revoke" => grants_revoke);
     register!(registry, "browser-dialog" => answer_dialog);
+    register!(registry, "browser-agent:stop" => agent_stop);
+    register!(registry, "browser-agent:release" => agent_release);
+    register!(registry, "browser-bar-action" => bar_action);
+    register!(registry, "browser-bar-menu" => bar_menu);
+    register!(registry, "browser-bar-set-adblock" => bar_set_adblock);
+    register!(registry, "browser-trace" => trace);
 }
 
 async fn pane_bounds(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
@@ -474,8 +497,12 @@ where
     if !actions.take() {
         return pages::failure("rate_limited", None);
     }
+    let stop = begin_run(app);
     let gate = app.clone();
-    with_page(app, |cdp| async move {
+    let out = with_page(app, |cdp| async move {
+        if *stop.borrow() {
+            return pages::failure("user_took_over", None);
+        }
         let before = pages::evaluate(&*cdp, SIGNATURE)
             .await
             .unwrap_or(Value::Null);
@@ -496,6 +523,7 @@ where
                 Err(failure) => return failure.reply(),
             },
             () = dialogs.opened() => json!({}),
+            () = taken_over(stop.clone()) => return pages::failure("user_took_over", None),
         };
         sleep(Duration::from_millis(500)).await;
         if let Some(open) = dialogs.pending() {
@@ -537,7 +565,44 @@ where
         }
         out
     })
-    .await
+    .await;
+    end_run(app);
+    out
+}
+
+/// Starts the step a takeover can end. The slot keeps its sender until the step ends.
+fn begin_run(app: &AppHandle) -> watch::Receiver<bool> {
+    let (tx, rx) = watch::channel(false);
+    *locked(&app.state::<Panes>().run) = Some(tx);
+    rx
+}
+
+fn end_run(app: &AppHandle) {
+    locked(&app.state::<Panes>().run).take();
+}
+
+/// Resolves once the user has taken the pane over. A step that ends without one never resolves here.
+async fn taken_over(mut rx: watch::Receiver<bool>) {
+    loop {
+        if *rx.borrow() {
+            return;
+        }
+        if rx.changed().await.is_err() {
+            std::future::pending::<()>().await;
+        }
+    }
+}
+
+async fn agent_stop(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+    if let Some(tx) = locked(&app.state::<Panes>().run).as_ref() {
+        tx.send_replace(true);
+    }
+    Ok(json!({ "success": true }))
+}
+
+/// The run that drove the pane is over. The Electron overlay has no Tauri counterpart yet, so nothing else.
+async fn agent_release(_app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+    Ok(json!({ "success": true }))
 }
 
 const SIGNATURE: &str = "({ url: location.href, title: document.title || '', nodes: document.getElementsByTagName('*').length, text: document.body ? document.body.innerText.length : 0 })";
@@ -976,19 +1041,23 @@ async fn ask_consent(app: &AppHandle, kind: &str, host: &str, detail: &str) -> S
 
 async fn consent_answer(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let id = text_arg(&args, 0);
-    let choice = text_arg(&args, 1);
-    let choice = if matches!(choice.as_str(), "session" | "once" | "always") {
-        choice
-    } else {
-        DENY.to_owned()
-    };
-    let panes = app.state::<Panes>();
-    let sender = locked(&panes.consents).remove(&id);
-    let success = sender.is_some_and(|tx| tx.send(choice).is_ok());
+    let success = answer_consent(&app.state::<Panes>(), &id, &text_arg(&args, 1));
     if success {
         emit(&app, "browser-consent", Value::Null);
     }
     Ok(json!({ "success": success }))
+}
+
+/// Settles the consent a step is waiting on. Anything but a known choice is a deny; an unknown id is not
+/// an answer at all.
+fn answer_consent(panes: &Panes, id: &str, choice: &str) -> bool {
+    let choice = if matches!(choice, "session" | "once" | "always") {
+        choice
+    } else {
+        DENY
+    };
+    let sender = locked(&panes.consents).remove(id);
+    sender.is_some_and(|tx| tx.send(choice.to_owned()).is_ok())
 }
 
 async fn grants_list(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
@@ -1004,15 +1073,11 @@ async fn grants_revoke(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcErr
 }
 
 async fn answer_dialog(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
-    let accept = match args.first().and_then(Value::as_str) {
-        Some("accept") => true,
-        Some("dismiss") => false,
-        _ => {
-            return Ok(pages::failure(
-                "invalid_input",
-                Some("The dialog action is accept or dismiss."),
-            ));
-        }
+    let Some(accept) = dialog_accepts(args.first().and_then(Value::as_str)) else {
+        return Ok(pages::failure(
+            "invalid_input",
+            Some("The dialog action is accept or dismiss."),
+        ));
     };
     let text = args.get(1).and_then(Value::as_str).map(str::to_owned);
     if let Err(failed) = ensure_page(&app).await {
@@ -1031,6 +1096,15 @@ async fn answer_dialog(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcErr
             Err(error) => Fail::from(error).reply(),
         },
     )
+}
+
+/// The renderer's dialog action: accept is true, dismiss is false, anything else is refused.
+fn dialog_accepts(action: Option<&str>) -> Option<bool> {
+    match action {
+        Some("accept") => Some(true),
+        Some("dismiss") => Some(false),
+        _ => None,
+    }
 }
 
 /// The dialog tracker of the page in the front tab, started on first use.
@@ -1067,6 +1141,10 @@ async fn page_url(cdp: &PageCdp) -> String {
 
 /// Runs a script that answers with JSON text and reads the answer.
 async fn read_json(cdp: &PageCdp, script: &str) -> Result<Value, Fail> {
+    read_json_from(cdp, script).await
+}
+
+async fn read_json_from(cdp: &impl Cdp, script: &str) -> Result<Value, Fail> {
     let raw = pages::evaluate(cdp, script).await?;
     let text = raw.as_str().unwrap_or_default();
     serde_json::from_str(text).map_err(|_| Fail::new("script_failed", ""))
@@ -1102,24 +1180,240 @@ async fn confirm(app: &AppHandle, cdp: &PageCdp, why: &str) -> Result<(), Fail> 
 /// Types into a numbered field. A password or payment field is left to the user.
 async fn type_by_index(app: &AppHandle, index: i64, text: &str) -> Value {
     let text = text.to_owned();
-    acting(app, move |cdp| async move {
-        let info = read_json(&cdp, &elements::index_info_script(index)).await?;
-        let attrs = info.get("attrs").cloned().unwrap_or(Value::Null);
-        if let Some(what) = safety::sensitive_field(&attrs) {
-            return Err(Fail::new(
-                "needs_user",
-                format!(
-                    "That is {what}. Ask the user to fill it in themselves in the browser pane."
-                ),
-            ));
-        }
-        let typed = pages::evaluate(&*cdp, &elements::type_into_script(index, &text)).await?;
-        if typed.as_bool() != Some(true) {
-            return Err(no_such_element());
-        }
-        Ok(json!({ "ok": true }))
-    })
+    acting(
+        app,
+        move |cdp| async move { type_at(&*cdp, index, &text).await },
+    )
     .await
+}
+
+/// Types into a numbered field of the page. A password or payment field is left to the user.
+async fn type_at(cdp: &impl Cdp, index: i64, text: &str) -> Result<Value, Fail> {
+    let info = read_json_from(cdp, &elements::index_info_script(index)).await?;
+    let attrs = info.get("attrs").cloned().unwrap_or(Value::Null);
+    if let Some(what) = safety::sensitive_field(&attrs) {
+        return Err(Fail::new(
+            "needs_user",
+            format!("That is {what}. Ask the user to fill it in themselves in the browser pane."),
+        ));
+    }
+    let typed = pages::evaluate(cdp, &elements::type_into_script(index, text)).await?;
+    if typed.as_bool() != Some(true) {
+        return Err(no_such_element());
+    }
+    Ok(json!({ "ok": true }))
+}
+
+/// What the user typed in the address bar: an address, a bare host, or else a search.
+fn typed_url(raw: &str) -> Option<Url> {
+    let value = raw.trim();
+    if value.is_empty() {
+        return None;
+    }
+    let has_scheme = Regex::new(r"(?i)^[a-z][a-z0-9+.-]*://").is_ok_and(|re| re.is_match(value));
+    if has_scheme {
+        return policy::check_typed(value).ok();
+    }
+    let bare_host = Regex::new(r"^[^\s/]+\.[^\s/]{2,}(/|$|\?)").is_ok_and(|re| re.is_match(value));
+    if bare_host {
+        return policy::check_typed(&format!("https://{value}")).ok();
+    }
+    policy::check_typed(&format!(
+        "https://duckduckgo.com/?q={}",
+        encode_query(value)
+    ))
+    .ok()
+}
+
+/// `encodeURIComponent`, for the search fallback.
+fn encode_query(text: &str) -> String {
+    text.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z'
+            | b'a'..=b'z'
+            | b'0'..=b'9'
+            | b'-'
+            | b'_'
+            | b'.'
+            | b'!'
+            | b'~'
+            | b'*'
+            | b'\''
+            | b'('
+            | b')' => (b as char).to_string(),
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
+/// The toolbar's buttons. The Tauri bar lives in the window, so it needs nothing from the pane.
+async fn bar_action(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let action = text_arg(&args, 0);
+    let value = text_arg(&args, 1);
+    let Some(webview) = front_webview(&app) else {
+        return Ok(json!({ "success": false }));
+    };
+    let done = match action.as_str() {
+        "back" | "forward" | "reload" => {
+            step(&webview, &action).await;
+            true
+        }
+        "stop" => {
+            if let Some(cdp) = page_cdp(&app) {
+                let _ = cdp.call("Page.stopLoading", json!({})).await;
+            }
+            true
+        }
+        "navigate" => {
+            if let Some(url) = typed_url(&value) {
+                load(&webview, &url).await;
+            }
+            true
+        }
+        "external" => {
+            open_current(&app).await;
+            true
+        }
+        // Pop-out needs a second window, which this build does not open yet.
+        _ => false,
+    };
+    if done {
+        broadcast_bar_state(&app).await;
+    }
+    Ok(json!({ "success": done }))
+}
+
+/// Opens the page's own web address in the system browser, and nothing else.
+async fn open_current(app: &AppHandle) {
+    let Some(cdp) = page_cdp(app) else {
+        return;
+    };
+    let url = page_url(&cdp).await;
+    let lower = url.to_ascii_lowercase();
+    if lower.starts_with("http://") || lower.starts_with("https://") {
+        let _ = app.opener().open_url(url, None::<&str>);
+    }
+}
+
+/// The bar's state: the page's address, title and load, and the ad-block choice.
+async fn broadcast_bar_state(app: &AppHandle) {
+    let Some(cdp) = page_cdp(app) else {
+        return;
+    };
+    let script = "({ url: location.href, title: document.title || '', loading: document.readyState !== 'complete', canGoBack: history.length > 1, canGoForward: false })";
+    let Ok(mut state) = pages::evaluate(&cdp, script).await else {
+        return;
+    };
+    state["adblock"] = json!(adblock_on(app));
+    emit(app, "browser-bar-state", state);
+}
+
+/// The toolbar menu grows the bar in Electron. The Tauri bar is part of the window, so there is nothing to move.
+async fn bar_menu(_app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+    Ok(json!({ "success": true }))
+}
+
+/// The ad-block choice, on unless the saved value is "off". Only the setting is kept here; no filter runs yet.
+fn adblock_on(app: &AppHandle) -> bool {
+    let raw = app
+        .state::<AppState>()
+        .storage
+        .handle()
+        .and_then(|store| store.get_value(ADBLOCK_KEY).ok().flatten());
+    raw.as_deref() != Some("off")
+}
+
+async fn bar_set_adblock(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let on = args.first().is_some_and(truthy);
+    if let Some(store) = app.state::<AppState>().storage.handle() {
+        let _ = store.set_value(ADBLOCK_KEY, if on { "on" } else { "off" });
+    }
+    // The filters apply to requests as they are made, so the page shows the change after a reload.
+    if let Some(webview) = front_webview(&app) {
+        step(&webview, "reload").await;
+    }
+    broadcast_bar_state(&app).await;
+    Ok(json!({ "success": true, "enabled": on }))
+}
+
+/// Electron's `Math.min(Math.max(Number(limit) || 50, 1), 200)`.
+fn trace_limit(value: Option<&Value>) -> usize {
+    let number = match value {
+        Some(Value::Number(n)) => n.as_f64().unwrap_or(f64::NAN),
+        Some(Value::String(text)) => text.trim().parse::<f64>().unwrap_or(f64::NAN),
+        _ => f64::NAN,
+    };
+    let number = if number.is_nan() || number == 0.0 {
+        50.0
+    } else {
+        number
+    };
+    number.clamp(1.0, 200.0) as usize
+}
+
+async fn trace(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let kind = args.first().and_then(Value::as_str).unwrap_or("");
+    if !matches!(kind, "console" | "network") {
+        return Ok(pages::failure("invalid_input", Some(TRACE_KIND)));
+    }
+    let options = args.get(1).cloned().unwrap_or(Value::Null);
+    let count = trace_limit(options.get("limit"));
+    let only_failed = options.get("onlyFailed") == Some(&Value::Bool(true));
+    let Some(webview) = front_webview(&app) else {
+        return Ok(pages::failure("pane_unavailable", None));
+    };
+    let _ = dialogs_of(&app);
+    let trace = trace_of(&app, &webview);
+    let entries = if kind == "console" {
+        locked(&trace).console(count)
+    } else {
+        locked(&trace).network(count, only_failed)
+    };
+    Ok(json!({ "ok": true, "entries": entries }))
+}
+
+/// The trace of the page in the front tab, started on first use.
+fn trace_of(app: &AppHandle, webview: &Webview) -> Arc<Mutex<Trace>> {
+    let label = webview.label().to_owned();
+    let panes = app.state::<Panes>();
+    let mut map = locked(&panes.traces);
+    if let Some(trace) = map.get(&label) {
+        return trace.clone();
+    }
+    let trace = Arc::new(Mutex::new(Trace::default()));
+    start_trace(webview, trace.clone());
+    map.insert(label, trace.clone());
+    trace
+}
+
+#[cfg(windows)]
+fn start_trace(webview: &Webview, trace: Arc<Mutex<Trace>>) {
+    pump(WebView2Cdp::new(webview.clone()), trace);
+}
+
+#[cfg(not(windows))]
+fn start_trace(_webview: &Webview, _trace: Arc<Mutex<Trace>>) {}
+
+/// Feeds the page's console and network events into the trace. The tasks keep the page driver alive,
+/// since its event senders live there. Events before the first trace request are not seen.
+#[cfg(windows)]
+fn pump(cdp: WebView2Cdp, trace: Arc<Mutex<Trace>>) {
+    let cdp = Arc::new(cdp);
+    for event in TRACE_EVENTS {
+        let mut rx = cdp.subscribe(event);
+        let trace = trace.clone();
+        let keep = cdp.clone();
+        tauri::async_runtime::spawn(async move {
+            let _keep = keep;
+            loop {
+                match rx.recv().await {
+                    Ok(params) => locked(&trace).handle(event, &params),
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        });
+    }
 }
 
 #[cfg(test)]
@@ -1127,10 +1421,96 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+    use crate::browser::cdp::fake::FakeCdp;
 
     #[test]
     fn a_numbered_element_gives_its_click_point() {
         assert_eq!(point_of(&json!({ "x": 4.0, "y": 9.0 })), Some((4.0, 9.0)));
         assert_eq!(point_of(&json!({ "missing": true })), None);
+    }
+
+    #[test]
+    fn a_consent_answer_reaches_the_step_waiting_on_it() {
+        let panes = Panes::default();
+        let (tx, mut rx) = oneshot::channel();
+        locked(&panes.consents).insert("consent-1".to_owned(), tx);
+        assert!(answer_consent(&panes, "consent-1", "bogus"));
+        assert_eq!(rx.try_recv().ok().as_deref(), Some(DENY));
+        assert!(!answer_consent(&panes, "consent-1", "always"));
+    }
+
+    #[test]
+    fn a_consent_for_an_unknown_step_is_not_an_answer() {
+        let panes = Panes::default();
+        assert!(!answer_consent(&panes, "consent-9", "once"));
+    }
+
+    #[test]
+    fn dialog_actions_map_to_accept_or_dismiss() {
+        assert_eq!(dialog_accepts(Some("accept")), Some(true));
+        assert_eq!(dialog_accepts(Some("dismiss")), Some(false));
+        assert_eq!(dialog_accepts(Some("ok")), None);
+        assert_eq!(dialog_accepts(None), None);
+    }
+
+    #[tokio::test]
+    async fn typing_into_a_numbered_field_reads_it_then_types() {
+        let cdp = FakeCdp::default();
+        cdp.answer(
+            "Runtime.evaluate",
+            json!({ "result": { "value": "{\"attrs\":{\"type\":\"text\"}}" } }),
+        )
+        .answer("Runtime.evaluate", json!({ "result": { "value": true } }));
+        assert_eq!(
+            type_at(&cdp, 7, "hello").await.ok(),
+            Some(json!({ "ok": true }))
+        );
+        let scripts: Vec<Value> = cdp.params_of("Runtime.evaluate");
+        assert_eq!(scripts.len(), 2);
+        assert_eq!(
+            scripts[1]["expression"].as_str(),
+            Some(elements::type_into_script(7, "hello").as_str())
+        );
+    }
+
+    #[tokio::test]
+    async fn a_password_field_is_left_to_the_user_without_typing() {
+        let cdp = FakeCdp::default();
+        cdp.answer(
+            "Runtime.evaluate",
+            json!({ "result": { "value": "{\"attrs\":{\"type\":\"password\"}}" } }),
+        );
+        let Err(failed) = type_at(&cdp, 3, "secret").await else {
+            panic!("the password field was typed into");
+        };
+        assert_eq!(failed.reply()["error"]["code"], json!("needs_user"));
+        assert_eq!(cdp.params_of("Runtime.evaluate").len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_takeover_ends_a_waiting_step() {
+        let (tx, rx) = watch::channel(false);
+        let waiting = tokio::spawn(taken_over(rx));
+        tx.send_replace(true);
+        waiting.await.expect("the step ends");
+    }
+
+    #[test]
+    fn typed_text_is_an_address_a_host_or_a_search() {
+        assert_eq!(
+            typed_url("http://localhost:3000/")
+                .map(|u| u.to_string())
+                .as_deref(),
+            Some("http://localhost:3000/")
+        );
+        assert_eq!(
+            typed_url("example.com/a").map(|u| u.to_string()).as_deref(),
+            Some("https://example.com/a")
+        );
+        let search = typed_url("how tall is everest")
+            .map(|u| u.to_string())
+            .unwrap_or_default();
+        assert!(search.starts_with("https://duckduckgo.com/?q=how%20tall%20is%20everest"));
+        assert!(typed_url("file:///etc/passwd").is_none());
     }
 }
