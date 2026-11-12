@@ -1574,7 +1574,7 @@ pub async fn popout_bar_call(
     match channel {
         "browser-bar-action" => bar_action_on(app, webview, args).await,
         "browser-bar-set-adblock" => set_adblock(app, &args, Some(webview)).await,
-        "browser-bar-menu" => bar_menu(app.clone(), args).await,
+        "browser-bar-menu" => popout_menu(app, page, args),
         _ => Ok(json!({ "success": false })),
     }
 }
@@ -1707,15 +1707,55 @@ fn layout_popout(
     };
     let scale = window.scale_factor().unwrap_or(1.0);
     let logical = size.to_logical::<f64>(scale);
-    place_child(app, bar_label, 0.0, 0.0, logical.width, BAR_HEIGHT);
+    let menu_open = popout_menu_is_open(bar_label);
     place_child(
         app,
-        page_label,
+        bar_label,
         0.0,
-        BAR_HEIGHT,
+        0.0,
         logical.width,
-        (logical.height - BAR_HEIGHT).max(0.0),
+        bar_height_for(menu_open, logical.height),
     );
+    let (page_y, page_height) = page_bounds(logical.height);
+    place_child(app, page_label, 0.0, page_y, logical.width, page_height);
+}
+
+/// The menu's extra height under the bar, as Electron's TOOLBAR_MENU_HEIGHT.
+const MENU_HEIGHT: f64 = 260.0;
+
+/// Bars whose menu is open; the bar grows over the page while it is in here.
+static OPEN_MENUS: Mutex<Option<HashSet<String>>> = Mutex::new(None);
+
+fn popout_menu_is_open(bar: &str) -> bool {
+    OPEN_MENUS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .as_ref()
+        .is_some_and(|open| open.contains(bar))
+}
+
+fn set_popout_menu(bar: &str, open: bool) {
+    let mut guard = OPEN_MENUS.lock().unwrap_or_else(PoisonError::into_inner);
+    let set = guard.get_or_insert_with(HashSet::new);
+    if open {
+        set.insert(bar.to_owned());
+    } else {
+        set.remove(bar);
+    }
+}
+
+/// The bar's height: the bar alone, or bar plus menu capped at the window height.
+fn bar_height_for(menu_open: bool, window_height: f64) -> f64 {
+    if menu_open {
+        (BAR_HEIGHT + MENU_HEIGHT).min(window_height)
+    } else {
+        BAR_HEIGHT
+    }
+}
+
+/// The page's top and height. It never moves for a menu; the bar overlays it.
+fn page_bounds(window_height: f64) -> (f64, f64) {
+    (BAR_HEIGHT, (window_height - BAR_HEIGHT).max(0.0))
 }
 
 fn place_child(app: &AppHandle, label: &str, x: f64, y: f64, width: f64, height: f64) {
@@ -1807,6 +1847,61 @@ async fn can_go_back(cdp: &impl Cdp) -> bool {
 /// The toolbar menu grows the bar in Electron. The Tauri bar is part of the window, so there is nothing to move.
 async fn bar_menu(_app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     Ok(json!({ "success": true }))
+}
+
+/// A popout bar's menu open or close: records it and resizes that bar against its window.
+fn popout_menu(app: &AppHandle, page: &str, args: Vec<Value>) -> Result<Value, IpcError> {
+    let Some(bar) = popout_bar_of(page) else {
+        return Ok(json!({ "success": false }));
+    };
+    set_popout_menu(&bar, args.first().is_some_and(truthy));
+    let Some(view) = app.get_webview(&bar) else {
+        return Ok(json!({ "success": false }));
+    };
+    let window = view.window();
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let Ok(size) = window.inner_size() else {
+        return Ok(json!({ "success": false }));
+    };
+    let logical = size.to_logical::<f64>(scale);
+    let page_label = popout_page_of(&bar).unwrap_or_default();
+    place_child(
+        app,
+        &bar,
+        0.0,
+        0.0,
+        logical.width,
+        bar_height_for(popout_menu_is_open(&bar), logical.height),
+    );
+    let (page_y, page_height) = page_bounds(logical.height);
+    place_child(app, &page_label, 0.0, page_y, logical.width, page_height);
+    Ok(json!({ "success": true }))
+}
+
+#[cfg(test)]
+mod menu_bounds_tests {
+    use super::*;
+
+    #[test]
+    fn a_closed_menu_keeps_the_bar_at_its_height() {
+        assert_eq!(bar_height_for(false, 820.0), BAR_HEIGHT);
+    }
+
+    #[test]
+    fn an_open_menu_grows_the_bar_by_the_menu_height() {
+        assert_eq!(bar_height_for(true, 820.0), BAR_HEIGHT + MENU_HEIGHT);
+    }
+
+    #[test]
+    fn an_open_menu_never_exceeds_a_short_window() {
+        assert_eq!(bar_height_for(true, 200.0), 200.0);
+    }
+
+    #[test]
+    fn the_page_stays_under_the_bar_and_fills_the_rest() {
+        assert_eq!(page_bounds(820.0), (BAR_HEIGHT, 820.0 - BAR_HEIGHT));
+        assert_eq!(page_bounds(10.0), (BAR_HEIGHT, 0.0));
+    }
 }
 
 async fn bar_set_adblock(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
