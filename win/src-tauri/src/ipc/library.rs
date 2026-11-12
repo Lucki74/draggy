@@ -10,9 +10,10 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{LazyLock, Mutex, PoisonError};
-use std::time::Duration;
+use std::sync::{Arc, Mutex, PoisonError};
 
+use draggy_diagnostics::Diagnostics;
+use draggy_engine::binary_manager::find_llama_binary;
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
@@ -20,20 +21,20 @@ use tauri_plugin_dialog::DialogExt;
 use super::storage::{blocking, js_string};
 use super::{IpcError, Registry, emit};
 use crate::AppState;
+use crate::engines::embed_server;
+use crate::engines::{Engines, host_platform};
 use chunk::{CANDIDATE_DEPTH, Chunk, fuse, normalise, rank_chunks};
 use scan::FileInfo;
 use store::{DEFAULT_EMBED_MODEL, DEFAULT_WORKSPACE, FileRow, Hit, MAX_INDEXED_CHUNKS, Store};
 
 const EMBED_BATCH: usize = 16;
-const EMBED_BASE_URL: &str = "http://127.0.0.1:11436";
-const EMBED_TIMEOUT: Duration = Duration::from_secs(120);
 const NOT_AVAILABLE: &str = "embedding model not available";
 
 pub type Pending<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-/// Turns passages into vectors. The launcher that starts the embedding server plugs in here.
+/// Turns passages into vectors. The engine-backed one starts the embedding server on first use.
 pub trait Embedder: Send + Sync {
-    fn available(&self) -> Pending<'_, bool>;
+    fn available<'a>(&'a self, model: &'a str) -> Pending<'a, bool>;
     fn embed<'a>(
         &'a self,
         model: &'a str,
@@ -41,30 +42,30 @@ pub trait Embedder: Send + Sync {
     ) -> Pending<'a, Result<Vec<Vec<f32>>, String>>;
 }
 
-/// Posts to an embedding server already listening on the local port.
-// TODO(embed-server): start llama-server --embedding on demand, as electron/embedServer.cjs does; not ported.
-struct HttpEmbedder;
+/// Vectors from the embedding server in the engines, started on first use.
+struct EngineEmbedder {
+    engines: Arc<Engines>,
+    diag: Arc<Diagnostics>,
+}
 
-static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
-    reqwest::Client::builder()
-        .timeout(EMBED_TIMEOUT)
-        .build()
-        .unwrap_or_else(|_| reqwest::Client::new())
-});
+impl EngineEmbedder {
+    fn new(app: &AppHandle) -> Self {
+        let state = app.state::<AppState>();
+        Self {
+            engines: Arc::clone(&state.engines),
+            diag: Arc::clone(&state.diag),
+        }
+    }
+}
 
-static EMBEDDER: HttpEmbedder = HttpEmbedder;
 static STORE: Mutex<Option<Store>> = Mutex::new(None);
 static INDEXING: AtomicBool = AtomicBool::new(false);
 
-impl Embedder for HttpEmbedder {
-    fn available(&self) -> Pending<'_, bool> {
-        Box::pin(async {
-            CLIENT
-                .get(format!("{EMBED_BASE_URL}/health"))
-                .timeout(Duration::from_secs(2))
-                .send()
-                .await
-                .is_ok_and(|response| response.status().is_success())
+impl Embedder for EngineEmbedder {
+    fn available<'a>(&'a self, model: &'a str) -> Pending<'a, bool> {
+        Box::pin(async move {
+            find_llama_binary(&host_platform(), Some(&self.engines.user_data)).is_some()
+                && embed_server::model_present(&self.engines.models_dir, model)
         })
     }
 
@@ -74,47 +75,43 @@ impl Embedder for HttpEmbedder {
         inputs: Vec<String>,
     ) -> Pending<'a, Result<Vec<Vec<f32>>, String>> {
         Box::pin(async move {
-            let payload = json!({ "input": inputs, "model": model }).to_string();
-            let response = CLIENT
-                .post(format!("{EMBED_BASE_URL}/v1/embeddings"))
-                .header("Content-Type", "application/json")
-                .body(payload)
-                .send()
-                .await
-                .map_err(|_| "Embedding failed: the server did not answer".to_owned())?;
-            let status = response.status();
-            let bytes = response
-                .bytes()
-                .await
-                .map_err(|_| "Embedding failed: no body".to_owned())?;
-            if !status.is_success() {
-                let detail: String = String::from_utf8_lossy(&bytes).chars().take(200).collect();
-                return Err(format!("Embedding failed ({}): {detail}", status.as_u16()));
+            let binary = find_llama_binary(&host_platform(), Some(&self.engines.user_data));
+            let cores = self.engines.topology().await;
+            let result = self
+                .engines
+                .embed
+                .embed(binary, &self.engines.models_dir, cores, model, &inputs)
+                .await;
+            match result {
+                Ok(vectors) => Ok(vectors.iter().map(|v| normalise(v)).collect()),
+                Err(error) => {
+                    self.diag.warn(
+                        "library",
+                        "embedding failed",
+                        Some(json!({ "reason": error })),
+                    );
+                    Err(error)
+                }
             }
-            let shape = "Embedding model returned an unexpected shape";
-            let body: Value = serde_json::from_slice(&bytes).map_err(|_| shape.to_owned())?;
-            let vectors: Vec<Vec<f32>> = body["data"]
-                .as_array()
-                .map(|entries| {
-                    entries
-                        .iter()
-                        .filter_map(|entry| entry["embedding"].as_array())
-                        .map(|values| {
-                            values
-                                .iter()
-                                .filter_map(Value::as_f64)
-                                .map(|v| v as f32)
-                                .collect()
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-            if vectors.len() != inputs.len() {
-                return Err(shape.to_owned());
-            }
-            Ok(vectors.iter().map(|v| normalise(v)).collect())
         })
     }
+}
+
+/// The text a passage is embedded as: its heading above its body.
+fn embed_input(chunk: &Chunk) -> String {
+    if chunk.heading.is_empty() {
+        chunk.text.clone()
+    } else {
+        format!("{}\n\n{}", chunk.heading, chunk.text)
+    }
+}
+
+/// The passages' embed inputs, in order, grouped into batches of `EMBED_BATCH`.
+fn embed_batches(passages: &[Chunk]) -> Vec<Vec<String>> {
+    passages
+        .chunks(EMBED_BATCH)
+        .map(|batch| batch.iter().map(embed_input).collect())
+        .collect()
 }
 
 pub fn register_all(registry: &mut Registry) {
@@ -237,7 +234,8 @@ async fn index(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let Some(_claim) = RunClaim::take() else {
         return Ok(json!({ "success": false, "error": "An index run is already in progress." }));
     };
-    if !EMBEDDER.available().await {
+    let embedder = EngineEmbedder::new(&app);
+    if !embedder.available(&model).await {
         return Ok(json!({ "success": false, "error": NOT_AVAILABLE }));
     }
 
@@ -247,7 +245,7 @@ async fn index(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
         return Ok(failure(error));
     }
     Ok(
-        match index_folder(&app, &dir, &source, &model, &workspace).await {
+        match index_folder(&app, &dir, &embedder, &source, &model, &workspace).await {
             Ok(value) => value,
             Err(error) => failure(error),
         },
@@ -263,6 +261,7 @@ enum Failure {
 async fn index_folder(
     app: &AppHandle,
     dir: &Path,
+    embedder: &EngineEmbedder,
     source: &str,
     model: &str,
     workspace: &str,
@@ -295,7 +294,7 @@ async fn index_folder(
         emit_progress(app, "indexing", position + 1, files.len(), &file.path);
 
         let previous = existing.remove(&path_key);
-        match index_file(dir, source_id, file, model, previous).await {
+        match index_file(dir, embedder, source_id, file, model, previous).await {
             Ok((true, count)) => {
                 skipped += 1;
                 chunks += count;
@@ -352,8 +351,9 @@ fn emit_progress(app: &AppHandle, phase: &str, current: usize, total: usize, fil
 }
 
 /// Returns (skipped, chunk count). An unchanged file keeps its rows.
-async fn index_file(
+async fn index_file<E: Embedder>(
     dir: &Path,
+    embedder: &E,
     source_id: i64,
     file: &FileInfo,
     model: &str,
@@ -386,18 +386,8 @@ async fn index_file(
     }
 
     let mut vectors: Vec<Vec<f32>> = Vec::with_capacity(passages.len());
-    for batch in passages.chunks(EMBED_BATCH) {
-        let inputs: Vec<String> = batch
-            .iter()
-            .map(|c| {
-                if c.heading.is_empty() {
-                    c.text.clone()
-                } else {
-                    format!("{}\n\n{}", c.heading, c.text)
-                }
-            })
-            .collect();
-        let embedded = EMBEDDER
+    for inputs in embed_batches(&passages) {
+        let embedded = embedder
             .embed(model, inputs)
             .await
             .map_err(Failure::Embed)?;
@@ -478,7 +468,8 @@ async fn search(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
         Err(error) => return Ok(json!({ "success": false, "error": error, "results": [] })),
     };
 
-    let vector = match EMBEDDER.embed(&model, vec![query.clone()]).await {
+    let embedder = EngineEmbedder::new(&app);
+    let vector = match embedder.embed(&model, vec![query.clone()]).await {
         Ok(mut vectors) => vectors.pop().unwrap_or_default(),
         Err(error) => return Ok(json!({ "success": false, "error": error, "results": [] })),
     };
@@ -525,4 +516,111 @@ async fn clear(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
         Ok(()) => json!({ "success": true }),
         Err(error) => failure(error),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::AtomicUsize;
+
+    /// Returns a vector per input without touching a server; counts the calls.
+    struct Fake {
+        calls: AtomicUsize,
+        fail: bool,
+    }
+
+    impl Embedder for Fake {
+        fn available<'a>(&'a self, _model: &'a str) -> Pending<'a, bool> {
+            Box::pin(async { true })
+        }
+
+        fn embed<'a>(
+            &'a self,
+            _model: &'a str,
+            inputs: Vec<String>,
+        ) -> Pending<'a, Result<Vec<Vec<f32>>, String>> {
+            Box::pin(async move {
+                self.calls.fetch_add(1, Ordering::SeqCst);
+                if self.fail {
+                    return Err("Embedding failed (500): boom".to_owned());
+                }
+                Ok(inputs
+                    .iter()
+                    .map(|text| vec![text.len() as f32, 1.0])
+                    .collect())
+            })
+        }
+    }
+
+    fn passage(heading: &str, text: &str) -> Chunk {
+        Chunk {
+            heading: heading.to_owned(),
+            text: text.to_owned(),
+        }
+    }
+
+    #[test]
+    fn heading_is_embedded_above_body() {
+        assert_eq!(embed_input(&passage("Terms", "Net 30")), "Terms\n\nNet 30");
+        assert_eq!(embed_input(&passage("", "Net 30")), "Net 30");
+    }
+
+    #[test]
+    fn passages_batch_in_order_by_sixteen() {
+        let passages: Vec<Chunk> = (0..35).map(|i| passage("", &i.to_string())).collect();
+        let batches = embed_batches(&passages);
+        let sizes: Vec<usize> = batches.iter().map(Vec::len).collect();
+        assert_eq!(sizes, vec![16, 16, 3]);
+        let flat: Vec<String> = batches.into_iter().flatten().collect();
+        let expected: Vec<String> = (0..35).map(|i| i.to_string()).collect();
+        assert_eq!(flat, expected);
+    }
+
+    #[tokio::test]
+    async fn index_file_stores_one_vector_per_passage() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let file_path = dir.path().join("notes.md");
+        let body = "Payment is due within thirty days of the invoice date. ".repeat(40);
+        std::fs::write(&file_path, format!("# Terms\n\n{body}")).expect("write note");
+        let size = std::fs::metadata(&file_path).expect("stat").len();
+        let info = FileInfo {
+            path: file_path,
+            mtime: 1,
+            size,
+        };
+        let source_id = db(dir.path(), |s| s.ensure_source("/notes", "default"))
+            .await
+            .expect("source");
+        let fake = Fake {
+            calls: AtomicUsize::new(0),
+            fail: false,
+        };
+
+        let outcome = index_file(dir.path(), &fake, source_id, &info, "nomic", None).await;
+        assert!(matches!(outcome, Ok((false, count)) if count > 0));
+        assert!(fake.calls.load(Ordering::SeqCst) >= 1);
+    }
+
+    #[tokio::test]
+    async fn index_file_reports_embedding_failure() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let file_path = dir.path().join("broken.txt");
+        let body = "Payment is due within thirty days of the invoice date. ".repeat(4);
+        std::fs::write(&file_path, &body).expect("write");
+        let info = FileInfo {
+            path: file_path,
+            mtime: 1,
+            size: body.len() as u64,
+        };
+        let source_id = db(dir.path(), |s| s.ensure_source("/broken", "default"))
+            .await
+            .expect("source");
+        let fake = Fake {
+            calls: AtomicUsize::new(0),
+            fail: true,
+        };
+
+        let outcome = index_file(dir.path(), &fake, source_id, &info, "nomic", None).await;
+        assert!(matches!(outcome, Err(Failure::Embed(ref m)) if m.contains("500")));
+    }
 }

@@ -4,6 +4,7 @@
 //! here. Engines bind 127.0.0.1 only, and nothing downloads until the renderer asks.
 
 pub mod colibri;
+pub mod embed_server;
 pub mod image_models;
 pub mod load_stage;
 pub mod net;
@@ -56,6 +57,7 @@ pub struct Engines {
     pub capabilities: Mutex<CapabilityCache>,
     pub colibri: colibri::ColibriServer,
     pub sd: sd_server::SdServer,
+    pub embed: embed_server::EmbedServer,
 }
 
 pub fn host_platform() -> Platform {
@@ -109,6 +111,7 @@ impl Engines {
             capabilities: Mutex::new(CapabilityCache::default()),
             colibri: colibri::ColibriServer::new(),
             sd: sd_server::SdServer::new(),
+            embed: embed_server::EmbedServer::new(),
         }
     }
 
@@ -212,6 +215,7 @@ impl Engines {
         }
         self.colibri.stop().await;
         self.sd.stop().await;
+        self.embed.stop().await;
     }
 }
 
