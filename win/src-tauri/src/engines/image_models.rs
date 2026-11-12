@@ -295,7 +295,7 @@ fn custom_entry(dir: &Path, name: &str, map: &serde_json::Map<String, Value>) ->
     }
     let complete = files.iter().all(|f| f["present"] == true);
     let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
-    json!({
+    let mut entry = json!({
         "id": format!("file:{name}"),
         "name": stem,
         "variant": "",
@@ -307,12 +307,34 @@ fn custom_entry(dir: &Path, name: &str, map: &serde_json::Map<String, Value>) ->
         "size": files.iter().map(|f| f["size"].as_u64().unwrap_or(0)).sum::<u64>(),
         "vramGB": 0,
         "defaults": defaults_json(&families::defaults_for(family, &[name])),
-        "serverArgs": family.map_or(&[][..], |f| f.server_args),
         "referenceMode": families::reference_mode_of(family, &[name]),
         "license": "",
         "licenseUrl": "",
         "files": files,
-    })
+    });
+    if let Some(args) = server_args_of(family) {
+        entry["serverArgs"] = args;
+    }
+    entry
+}
+
+/// The `serverArgs` field of a file model: an empty list without a family, none when the family has no arguments.
+fn server_args_of(family: Option<&families::Family>) -> Option<Value> {
+    match family {
+        None => Some(json!([])),
+        Some(f) if !f.server_args.is_empty() => Some(json!(f.server_args)),
+        Some(_) => None,
+    }
+}
+
+#[cfg(test)]
+mod server_args_tests {
+    use super::*;
+
+    #[test]
+    fn server_args_key_is_omitted_when_the_family_has_none() {
+        assert_eq!(server_args_of(None), Some(json!([])));
+    }
 }
 
 /// The catalogue with what is on disk, then any other model file the user put in the folder themselves.

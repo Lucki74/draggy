@@ -107,7 +107,22 @@ fn refusal(reason: &str, suggestion: &str, base: &Value, warnings: &[String]) ->
 }
 
 /// Plans one colibri model against the hardware report. Returns the TierPlan object the renderer reads.
-pub fn plan_model(model: &Model, hardware: &Value, context_tokens: f64) -> Value {
+/// The engines installed here, as Electron's tier planner reads them.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Availability {
+    pub llamacpp: bool,
+    pub llamacpp_stream: bool,
+    pub colibri: bool,
+}
+
+/// The tier plan for one model. Catalog entries are all colibri kind, which Electron plans without checking the
+/// engines, so the flags do not change this output; they are carried for llama.cpp kinds.
+pub fn plan_model(
+    model: &Model,
+    hardware: &Value,
+    context_tokens: f64,
+    _engines: &Availability,
+) -> Value {
     let ram_total = num(hardware, "/ram/totalGB");
     let unified = hardware
         .pointer("/gpu/unified")
@@ -282,6 +297,7 @@ mod tests {
             &model(),
             &machine(64.0, 8.0, json!([])),
             DEFAULT_CONTEXT_TOKENS,
+            &Availability::default(),
         );
         assert_eq!(plan["engine"], "colibri");
         assert_eq!(plan["disk"]["coldGB"], 0.0);
@@ -298,6 +314,7 @@ mod tests {
             &model(),
             &machine(8.0, 0.0, json!([])),
             DEFAULT_CONTEXT_TOKENS,
+            &Availability::default(),
         );
         assert_eq!(plan["refusal"]["reason"], "ram-floor");
     }
@@ -307,12 +324,18 @@ mod tests {
         let mut big = model();
         big.total_gb = 200.0;
         big.dense_gb = 10.0;
-        let none = plan_model(&big, &machine(32.0, 0.0, json!([])), DEFAULT_CONTEXT_TOKENS);
+        let none = plan_model(
+            &big,
+            &machine(32.0, 0.0, json!([])),
+            DEFAULT_CONTEXT_TOKENS,
+            &Availability::default(),
+        );
         assert_eq!(none["refusal"]["reason"], "no-space");
         let usb = plan_model(
             &big,
             &machine(32.0, 0.0, json!([drive("refuse", 900.0, 0.0)])),
             DEFAULT_CONTEXT_TOKENS,
+            &Availability::default(),
         );
         assert_eq!(usb["refusal"]["reason"], "usb-drive");
     }
@@ -325,6 +348,7 @@ mod tests {
             &big,
             &machine(32.0, 0.0, json!([drive("good", 900.0, 0.0)])),
             DEFAULT_CONTEXT_TOKENS,
+            &Availability::default(),
         );
         assert!(plan["expectedTokPerSec"].is_null());
         assert_eq!(plan["needsDiskTest"], true);
@@ -355,5 +379,37 @@ mod tests {
     fn reserve_has_a_floor() {
         assert_eq!(os_reserve_gb(16.0), 6.0);
         assert!((os_reserve_gb(64.0) - 9.6).abs() < 1e-9);
+    }
+}
+
+#[cfg(test)]
+mod availability_tests {
+    use super::*;
+
+    #[test]
+    fn colibri_entries_plan_the_same_whatever_engines_are_installed() {
+        let hardware = json!({
+            "ram": { "totalGB": 64.0 },
+            "gpu": { "vramGB": 8.0, "unified": false },
+            "drives": [],
+        });
+        let none = Availability::default();
+        let all = Availability {
+            llamacpp: true,
+            llamacpp_stream: true,
+            colibri: true,
+        };
+        let big = Model {
+            total_gb: 40.0,
+            dense_gb: 4.0,
+            routed_gb: 36.0,
+            ram_min_gb: 8.0,
+            estimated: false,
+            kv_bytes_per_token: 0.0,
+        };
+        let plan_none = plan_model(&big, &hardware, 8192.0, &none);
+        let plan_all = plan_model(&big, &hardware, 8192.0, &all);
+        assert_eq!(plan_none["engine"], "colibri");
+        assert_eq!(plan_none, plan_all);
     }
 }

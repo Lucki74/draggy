@@ -61,21 +61,104 @@ pub fn find_server_in(dir: &Path, name: &str, depth: u8) -> Option<PathBuf> {
         .find_map(|sub| find_server_in(sub, name, depth - 1))
 }
 
-/// The installed engine binary, preferring the runner named first. Returns the path and its runner.
-pub fn find_sd_binary(user_data: &Path, preferred: Option<&str>) -> Option<(PathBuf, String)> {
+/// An engine binary found on this machine: where it is, its runner and where it came from.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FoundBinary {
+    pub path: PathBuf,
+    pub runner: String,
+    /// `app` for a managed install, `path` for a binary on PATH.
+    pub source: &'static str,
+}
+
+/// The installed engine binary: the preferred runner, then the other installed runners, then one on PATH.
+pub fn find_sd_binary(user_data: &Path, preferred: Option<&str>) -> Option<FoundBinary> {
     let root = engine_root(user_data, sd_runner::release_for(Os::Windows));
     let names: Vec<String> = fs::read_dir(&root)
-        .ok()?
-        .flatten()
-        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
-        .map(|e| e.file_name().to_string_lossy().into_owned())
-        .collect();
-    sd::order_runners(names, preferred)
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+                .map(|e| e.file_name().to_string_lossy().into_owned())
+                .collect()
+        })
+        .unwrap_or_default();
+    let managed = sd::order_runners(names, preferred)
         .into_iter()
         .find_map(|runner| {
             let server = find_server_in(&root.join(&runner), sd::server_name(true), SEARCH_DEPTH)?;
-            Some((server, runner))
+            Some(FoundBinary {
+                path: server,
+                runner,
+                source: "app",
+            })
+        });
+    managed.or_else(|| {
+        let path_value = std::env::var_os("PATH")?;
+        find_on_path(sd::server_name(true), &path_value).map(|path| FoundBinary {
+            path,
+            runner: "external".into(),
+            source: "path",
         })
+    })
+}
+
+/// The first file called `name` in the folders of a PATH value, in PATH order.
+pub fn find_on_path(name: &str, path_value: &std::ffi::OsStr) -> Option<PathBuf> {
+    std::env::split_paths(path_value)
+        .filter(|dir| !dir.as_os_str().is_empty())
+        .map(|dir| dir.join(name))
+        .find(|candidate| candidate.is_file())
+}
+
+/// The free video memory of the first NVIDIA GPU in GB, from nvidia-smi. None when it cannot be asked.
+pub async fn free_vram_gb() -> Option<f64> {
+    let args = ["--query-gpu=memory.free", "--format=csv,noheader,nounits"];
+    let output = tokio::time::timeout(
+        Duration::from_secs(4),
+        hidden_command("nvidia-smi", &args, |_| {}).output(),
+    )
+    .await
+    .ok()?
+    .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    parse_free_mib(&String::from_utf8_lossy(&output.stdout))
+}
+
+/// The first line of `memory.free` in MiB, as GB. Negative or unreadable values give None.
+pub fn parse_free_mib(text: &str) -> Option<f64> {
+    let mib: i64 = text.lines().next()?.trim().parse().ok()?;
+    (mib >= 0).then(|| mib as f64 / 1024.0)
+}
+
+#[cfg(test)]
+mod lookup_tests {
+    use super::*;
+
+    #[test]
+    fn free_vram_parses_first_gpu_in_gb() {
+        assert_eq!(parse_free_mib("2048\n1024\n"), Some(2.0));
+        assert_eq!(parse_free_mib("-1\n"), None);
+        assert_eq!(parse_free_mib("n/a\n"), None);
+    }
+
+    #[test]
+    fn path_lookup_takes_the_first_folder_with_the_file() {
+        let dir = std::env::temp_dir().join(format!("sd-path-{}", std::process::id()));
+        let empty = dir.join("empty");
+        let with = dir.join("with");
+        fs::create_dir_all(&empty).unwrap();
+        fs::create_dir_all(&with).unwrap();
+        fs::write(with.join("sd-server.exe"), b"x").unwrap();
+        let path = std::env::join_paths([&empty, &with]).unwrap();
+        assert_eq!(
+            find_on_path("sd-server.exe", &path),
+            Some(with.join("sd-server.exe"))
+        );
+        assert_eq!(find_on_path("missing.exe", &path), None);
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
 
 /// The `kind` word the renderer reads for a failed smoke test.

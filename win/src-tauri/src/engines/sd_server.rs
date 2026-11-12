@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::net::TcpListener;
 use std::path::Path;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use base64::Engine as _;
@@ -40,6 +40,8 @@ pub struct SdServer {
     /// Request id to engine job id. The job id is None until the job is posted.
     jobs: Mutex<HashMap<String, Option<String>>>,
     cancelled: Mutex<HashSet<String>>,
+    /// Set when a job stopped the chat model to make room. The engine holds that memory until it stops.
+    took_chat_memory: AtomicBool,
 }
 
 impl Default for SdServer {
@@ -69,6 +71,7 @@ impl SdServer {
             pending: AtomicUsize::new(0),
             jobs: Mutex::new(HashMap::new()),
             cancelled: Mutex::new(HashSet::new()),
+            took_chat_memory: AtomicBool::new(false),
         }
     }
 
@@ -81,7 +84,11 @@ impl SdServer {
         deadline: Duration,
         env: &[(String, String)],
     ) -> Result<(), SdError> {
+        // Replacing the engine does not give the chat model its memory back; the new one takes it over.
+        let holds_chat_memory = self.took_chat_memory.load(Ordering::SeqCst);
         self.stop().await;
+        self.took_chat_memory
+            .store(holds_chat_memory, Ordering::SeqCst);
         let port = free_port().ok_or_else(|| SdError {
             code: "E_ENGINE_START",
             message: "The image engine did not start".into(),
@@ -131,7 +138,29 @@ impl SdServer {
     /// Stops the process and forgets the model it served.
     pub async fn stop(&self) {
         *locked(&self.served) = None;
+        self.took_chat_memory.store(false, Ordering::SeqCst);
         self.supervisor.stop().await;
+    }
+
+    /// Records that a job stopped the chat model to make room, so the engine holds that memory until it stops.
+    pub fn set_took_chat_memory(&self, took: bool) {
+        self.took_chat_memory.store(took, Ordering::SeqCst);
+    }
+
+    /// Jobs waiting or drawing, counting the one in progress.
+    pub fn pending_jobs(&self) -> usize {
+        self.pending.load(Ordering::SeqCst)
+    }
+
+    /// Called before the chat model starts. If images pushed it out, waits for the running job, then stops the
+    /// engine so the chat model gets the GPU back. Returns whether that happened.
+    pub async fn yield_to_chat(&self) -> bool {
+        if !self.took_chat_memory.load(Ordering::SeqCst) {
+            return false;
+        }
+        let _queued = self.queue.lock().await;
+        self.stop().await;
+        true
     }
 
     /// The `sd:status` server block.

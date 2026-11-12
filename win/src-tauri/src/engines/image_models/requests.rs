@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 use serde_json::Value;
+use unicode_normalization::UnicodeNormalization;
 
 /// Longest prompt accepted, in characters.
 pub const MAX_PROMPT: usize = 4000;
@@ -44,14 +45,15 @@ pub fn parse_lora(text: &str) -> Option<Lora> {
     Some(Lora { name, multiplier })
 }
 
-/// A file name stem from a prompt: ASCII words joined by dashes, at most 40 characters, "image" when empty.
+/// A file name stem from a prompt: lowercase ASCII words joined by dashes, at most 40 characters, "image" when empty.
+/// Compatibility characters fold by NFKD and accents are dropped, so "Café" becomes "cafe".
 pub fn slug_for(prompt: &str) -> String {
-    let ascii: String = prompt
-        .chars()
-        .filter(char::is_ascii)
+    let folded: String = prompt
+        .nfkd()
+        .filter(|c| !('\u{300}'..='\u{36f}').contains(c))
         .collect::<String>()
         .to_lowercase();
-    let words: Vec<&str> = ascii
+    let words: Vec<&str> = folded
         .split(|c: char| !c.is_ascii_alphanumeric())
         .filter(|w| !w.is_empty())
         .collect();
@@ -225,6 +227,8 @@ mod tests {
     fn slugs_are_ascii_and_bounded() {
         assert_eq!(slug_for("A Lighthouse, at DUSK!"), "a-lighthouse-at-dusk");
         assert_eq!(slug_for("日本語"), "image");
+        assert_eq!(slug_for("Café Ñandú"), "cafe-nandu");
+        assert_eq!(slug_for("ﬁne ＡＢＣ"), "fine-abc");
         assert!(slug_for(&"word ".repeat(30)).len() <= 40);
     }
 

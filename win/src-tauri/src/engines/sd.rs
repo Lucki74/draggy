@@ -355,6 +355,23 @@ pub enum Init {
     Data(String),
     /// A picture in the created-files folder, by the path the chat stored.
     Created(String),
+    /// A picture in a project, by the path inside it.
+    Project(String),
+}
+
+/// Where the finished picture goes: the chat, or a path in a project.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Destination {
+    Chat,
+    Project(String),
+}
+
+/// Whether a path ends in an extension an image can be saved as.
+pub fn output_extension_ok(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    [".png", ".jpg", ".jpeg", ".webp"]
+        .iter()
+        .any(|ext| lower.ends_with(ext))
 }
 
 /// A checked `sd:generate` request: the engine input before LoRA and picture lookups.
@@ -364,6 +381,7 @@ pub struct Parsed {
     pub model: String,
     pub loras: Vec<(String, f64)>,
     pub init: Init,
+    pub destination: Destination,
     pub input: Value,
 }
 
@@ -458,21 +476,36 @@ pub fn parse_request(raw: &Value) -> Result<Parsed, SdError> {
                 Init::Created(path.to_owned())
             }
             Some("project") => {
-                return Err(refuse(
-                    "A starting image from a project is not available yet",
-                ));
+                let path = init
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .trim();
+                if path.is_empty() {
+                    return Err(refuse("The starting image needs a path"));
+                }
+                Init::Project(path.to_owned())
             }
             _ => return Err(refuse("Unknown starting image")),
         },
     };
-    let saves_to_project = raw
-        .get("destination")
-        .and_then(|d| d.get("kind"))
-        .and_then(Value::as_str)
-        == Some("project");
-    if saves_to_project {
-        return Err(refuse("Saving into a project is not available yet"));
-    }
+    let destination = match raw.get("destination").filter(|d| d.is_object()) {
+        Some(dest) if dest.get("kind").and_then(Value::as_str) == Some("project") => {
+            let path = dest
+                .get("path")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim();
+            if path.is_empty() {
+                return Err(refuse("Saving into a project needs a path"));
+            }
+            if !output_extension_ok(path) {
+                return Err(refuse("An image can only be saved as .png, .jpg or .webp"));
+            }
+            Destination::Project(path.to_owned())
+        }
+        _ => Destination::Chat,
+    };
 
     let flag = |key: &str| raw.get(key).and_then(Value::as_bool) == Some(true);
     let seed = match raw.get("seed").and_then(number) {
@@ -510,6 +543,7 @@ pub fn parse_request(raw: &Value) -> Result<Parsed, SdError> {
             .collect(),
         loras,
         init,
+        destination,
         input,
     })
 }
@@ -979,5 +1013,68 @@ mod port_tests {
         assert_eq!(parsed.input["seed"], json!(-1));
         assert_eq!(parsed.input["width"], json!(2048.0));
         assert_eq!(parsed.init, Init::None);
+    }
+}
+
+/// The placement once a chat model has stepped aside: the GPU when the card can take it, else weights in RAM.
+pub fn placement_after_unload(need_gb: f64, total_vram_gb: f64, free_after_gb: f64) -> Placement {
+    if total_vram_gb >= need_gb + 3.0 || free_after_gb >= need_gb + 3.0 {
+        Placement::Gpu
+    } else {
+        Placement::Offload
+    }
+}
+
+/// The engine flags a job's placement adds. Offload tiles the decode; a crash retry also runs lean attention
+/// and weights in RAM so a driver or memory fault has less to hit.
+pub fn engine_flags(offload: bool, safe: bool) -> Vec<&'static str> {
+    let mut flags = Vec::new();
+    if offload || safe {
+        flags.push("--vae-tiling");
+    }
+    if safe {
+        flags.extend(["--diffusion-fa", "--offload-to-cpu"]);
+    }
+    flags
+}
+
+#[cfg(test)]
+mod placement_tests {
+    use super::*;
+
+    #[test]
+    fn unloaded_chat_stays_on_gpu_only_with_three_gb_spare() {
+        assert_eq!(placement_after_unload(6.0, 12.0, 0.0), Placement::Gpu);
+        assert_eq!(placement_after_unload(6.0, 8.0, 0.0), Placement::Offload);
+        assert_eq!(placement_after_unload(6.0, 4.0, 9.5), Placement::Gpu);
+    }
+
+    #[test]
+    fn offload_and_safe_add_the_same_flags_as_electron() {
+        assert!(engine_flags(false, false).is_empty());
+        assert_eq!(engine_flags(true, false), vec!["--vae-tiling"]);
+        assert_eq!(
+            engine_flags(false, true),
+            vec!["--vae-tiling", "--diffusion-fa", "--offload-to-cpu"]
+        );
+    }
+
+    #[test]
+    fn project_destination_needs_an_image_extension() {
+        assert!(output_extension_ok("art/cat.PNG"));
+        assert!(output_extension_ok("a.jpeg"));
+        assert!(!output_extension_ok("notes.txt"));
+        let bad = json!({"requestId": "r1", "prompt": "x",
+            "destination": {"kind": "project", "path": "a.txt"}});
+        assert_eq!(
+            parse_request(&bad).unwrap_err().message,
+            "An image can only be saved as .png, .jpg or .webp"
+        );
+        let good = json!({"requestId": "r1", "prompt": "x",
+            "destination": {"kind": "project", "path": "a.webp"}});
+        assert_eq!(
+            parse_request(&good).unwrap().destination,
+            Destination::Project("a.webp".into())
+        );
     }
 }

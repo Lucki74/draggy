@@ -375,7 +375,7 @@ async fn delete_model(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcErro
             .map_err(|e| IpcError::Failed(e.to_string()))?;
         vec![name]
     } else {
-        return Err(IpcError::Failed("Unknown image model".into()));
+        return Ok(json!({ "success": false, "error": "Unknown image model" }));
     };
     for name in names {
         let _ = fs::remove_file(dir.join(name));
@@ -417,8 +417,8 @@ async fn sd_status(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError>
         "success": true,
         "release": sd_runner::release_for(host.os),
         "installed": installed.is_some(),
-        "runner": installed.as_ref().map(|(_, runner)| runner.clone()),
-        "source": "managed",
+        "runner": installed.as_ref().map(|found| found.runner.clone()),
+        "source": installed.as_ref().map(|found| found.source),
         "runners": sd_runner::runners_for(host.os, host.arch, nvidia, false),
         "defaultRunner": sd_runner::default_runner(host.os, host.arch, vram, nvidia, false),
         "model": model,
@@ -489,6 +489,19 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
         Err(error) => return Ok(failure(error.code, error.message)),
     };
     let request_id = parsed.request_id.clone();
+    // Project files are read and written by the file pipeline, which is not wired to the image engine yet.
+    if matches!(parsed.init, Init::Project(_)) {
+        return Ok(failure(
+            "E_INIT_IMAGE",
+            "Starting images from a project are not wired to the image engine yet",
+        ));
+    }
+    if matches!(parsed.destination, sdlogic::Destination::Project(_)) {
+        return Ok(failure(
+            "E_FAILED",
+            "Saving into a project is not wired to the image engine yet",
+        ));
+    }
     let progress = |value: Value| {
         let mut event = value;
         event["requestId"] = json!(request_id);
@@ -515,12 +528,13 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
     let host = host_platform();
     let nvidia = sd_install::has_nvidia_driver();
     let preferred = sd_runner::default_runner(host.os, host.arch, vram, nvidia, false);
-    let Some((binary, runner)) = sd_install::find_sd_binary(&engines.user_data, preferred) else {
+    let Some(found) = sd_install::find_sd_binary(&engines.user_data, preferred) else {
         return Ok(failure(
             "E_ENGINE_MISSING",
             "The image engine is not installed",
         ));
     };
+    let (binary, runner) = (found.path, found.runner);
 
     let loras_dir = image_models::loras_dir(&dir);
     let available = image_models::list_loras(&dir);
@@ -541,7 +555,7 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
     parsed.input["lora"] = Value::Array(lora_inputs);
 
     let has_init = match &parsed.init {
-        Init::None => false,
+        Init::None | Init::Project(_) => false,
         Init::Data(url) => {
             parsed.input["initImage"] = json!(url);
             true
@@ -565,55 +579,62 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
     let mode = families::reference_mode_of(family, &hints);
     let defaults = families::defaults_for(family, &hints);
     let need = image_models::memory_need_gb(&resolved, vram);
-    let gb = 1024_f64.powi(3);
-    let memory = sysinfo::memory();
-    let plan_memory = sdlogic::Memory {
-        free_vram_gb: None,
-        total_vram_gb: vram,
-        loaded_llm_gb: 0.0,
-        unified: false,
-        free_ram_gb: memory.free_bytes as f64 / gb,
-        total_ram_gb: memory.total_bytes as f64 / gb,
-        runner: runner.clone(),
-    };
-    let placement = sdlogic::plan_memory(need, &plan_memory);
-    if placement == Placement::Fail {
-        return Ok(json!({
-            "success": false,
-            "code": "E_VRAM",
-            "error": "Not enough memory for this image model",
-            "params": { "needGB": to_fixed1(need) },
-        }));
-    }
-
-    if engines.sd.loaded_model().as_deref() != Some(chosen.as_str()) {
-        progress(json!({ "status": "loading-model" }));
-        let mut args = match image_models::model_args(&resolved) {
-            Ok(args) => args,
-            Err(message) => return Ok(failure("E_MODEL_MISSING", message)),
-        };
-        args.push("--lora-model-dir".into());
-        args.push(loras_dir.to_string_lossy().into_owned());
-        if placement == Placement::Offload {
-            args.push("--offload-to-cpu".into());
+    let mut took_chat = false;
+    let mut placement = Placement::Gpu;
+    let running = engines.sd.loaded_model().as_deref() == Some(chosen.as_str());
+    if !running {
+        let gb = 1024_f64.powi(3);
+        if raw.get("stopChat").and_then(Value::as_bool) == Some(true) {
+            stop_chat_model(&engines).await;
+            took_chat = true;
         }
-        let size_gb = resolved
-            .paths
-            .iter()
-            .map(|(_, path)| fs::metadata(path).map_or(0, |m| m.len()))
-            .sum::<u64>() as f64
-            / gb;
-        let deadline = Duration::from_millis(sdlogic::load_deadline_ms(size_gb));
-        let setup = crate::engines::EngineSetup::new(&engines).await;
-        if let Err(error) = engines
-            .sd
-            .start(&binary, &args, &chosen, deadline, &setup.env)
-            .await
+        let free_vram = sd_install::free_vram_gb().await;
+        let memory = sysinfo::memory();
+        let plan_memory = sdlogic::Memory {
+            free_vram_gb: free_vram,
+            total_vram_gb: vram,
+            loaded_llm_gb: 0.0,
+            unified: false,
+            free_ram_gb: memory.free_bytes as f64 / gb,
+            total_ram_gb: memory.total_bytes as f64 / gb,
+            runner: runner.clone(),
+        };
+        placement = sdlogic::plan_memory(need, &plan_memory);
+        if placement == Placement::Fail {
+            return Ok(json!({
+                "success": false,
+                "code": "E_VRAM",
+                "error": "Not enough memory for this image model",
+                "params": { "needGB": to_fixed1(need) },
+            }));
+        }
+        if placement == Placement::UnloadChat {
+            stop_chat_model(&engines).await;
+            took_chat = true;
+            placement = sdlogic::placement_after_unload(need, vram, free_vram.unwrap_or(0.0));
+        }
+    }
+    let offload = placement == Placement::Offload;
+
+    if !running {
+        progress(json!({ "status": "loading-model" }));
+        if let Err((code, message)) = start_engine(
+            &engines,
+            &binary,
+            &resolved,
+            &chosen,
+            &loras_dir,
+            &sdlogic::engine_flags(offload, false),
+        )
+        .await
         {
             state
                 .diag
-                .warn("sd", &format!("server start failed: {}", error.code), None);
-            return Ok(failure(error.code, error.message));
+                .warn("sd", &format!("server start failed: {code}"), None);
+            return Ok(failure(&code, message));
+        }
+        if took_chat {
+            engines.sd.set_took_chat_memory(true);
         }
     }
 
@@ -625,7 +646,36 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
     };
     let body = sdlogic::build_job_body(&clamped);
 
-    let bytes = match engines.sd.generate(&request_id, body, &progress).await {
+    let mut generated = engines
+        .sd
+        .generate(&request_id, body.clone(), &progress)
+        .await;
+    if matches!(&generated, Err(error) if error.code == "E_CRASH") {
+        state.diag.warn(
+            "sd",
+            "sd-server stopped during a job; restarting it once in safe mode",
+            None,
+        );
+        if let Err((code, message)) = start_engine(
+            &engines,
+            &binary,
+            &resolved,
+            &chosen,
+            &loras_dir,
+            &sdlogic::engine_flags(offload, true),
+        )
+        .await
+        {
+            return Ok(failure(&code, message));
+        }
+        generated = engines.sd.generate(&request_id, body, &progress).await;
+    }
+    // The image engine gives the chat model's memory back once its last job is done.
+    if took_chat && engines.sd.pending_jobs() == 0 {
+        engines.sd.stop().await;
+    }
+
+    let bytes = match generated {
         Ok(bytes) => bytes,
         Err(error) => {
             let status = if error.code == "E_CANCELLED" {
@@ -682,4 +732,39 @@ async fn sd_stop(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     let engines = app.state::<AppState>().engines.clone();
     engines.sd.stop().await;
     Ok(json!({ "success": true }))
+}
+
+/// Stops the chat model so its memory goes to the image engine.
+async fn stop_chat_model(engines: &Engines) {
+    engines.llama().await.stop().await;
+}
+
+/// Starts the image engine with one model and its LoRA folder, plus the placement flags. Returns the failure code and message.
+async fn start_engine(
+    engines: &Engines,
+    binary: &Path,
+    resolved: &image_models::Resolved,
+    chosen: &str,
+    loras_dir: &Path,
+    flags: &[&'static str],
+) -> Result<(), (String, String)> {
+    let mut args = image_models::model_args(resolved)
+        .map_err(|message| ("E_MODEL_MISSING".to_owned(), message))?;
+    args.push("--lora-model-dir".into());
+    args.push(loras_dir.to_string_lossy().into_owned());
+    args.extend(flags.iter().map(|flag| (*flag).to_owned()));
+    let gb = 1024_f64.powi(3);
+    let size_gb = resolved
+        .paths
+        .iter()
+        .map(|(_, path)| fs::metadata(path).map_or(0, |m| m.len()))
+        .sum::<u64>() as f64
+        / gb;
+    let deadline = Duration::from_millis(sdlogic::load_deadline_ms(size_gb));
+    let setup = crate::engines::EngineSetup::new(engines).await;
+    engines
+        .sd
+        .start(binary, &args, chosen, deadline, &setup.env)
+        .await
+        .map_err(|error| (error.code.to_owned(), error.message))
 }

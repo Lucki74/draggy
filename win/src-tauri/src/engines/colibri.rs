@@ -6,10 +6,12 @@ use std::fs;
 use std::io;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::PoisonError;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, LazyLock};
+
+use regex::Regex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use super::locked;
@@ -743,29 +745,23 @@ impl Progress {
 }
 
 /// Where the earliest of `words` starts a word in `text`, or None.
-fn word_at(text: &str, words: &[&str]) -> Option<usize> {
-    let bytes = text.as_bytes();
-    words
-        .iter()
-        .flat_map(|word| text.match_indices(*word).map(|(at, _)| at))
-        .filter(|&at| at == 0 || !bytes[at - 1].is_ascii_alphanumeric())
-        .min()
-}
-
-/// The load phase a gateway line implies, never going backwards. Lines are matched by their words.
+/// The load phase a gateway line implies, never going backwards. The same word patterns as the Electron side.
 fn load_phase(line: &str, current: &'static str) -> &'static str {
-    let lower = line.to_ascii_lowercase();
-    let dense_first = word_at(&lower, &["dense", "backbone", "shared"])
-        .is_some_and(|at| word_at(&lower[at..], &["load", "read", "weights"]).is_some());
-    let dense_second = word_at(&lower, &["load"])
-        .is_some_and(|at| lower[at..].contains("dense") || lower[at..].contains("weights"));
-    let experts =
-        word_at(&lower, &["warm", "pin", "prefetch"]).is_some() || lower.contains("hot set");
+    static DENSE_FIRST: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)\b(dense|backbone|shared)\b.*\b(load|read|weights)")
+            .expect("valid pattern")
+    });
+    static DENSE_SECOND: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)\bload(ing)?\b.*\b(dense|weights)\b").expect("valid pattern")
+    });
+    static EXPERTS: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)\b(warm(ing)?|pin(ned|ning)?|hot set|prefetch)").expect("valid pattern")
+    });
     let mut next = current;
-    if dense_first || dense_second {
+    if DENSE_FIRST.is_match(line) || DENSE_SECOND.is_match(line) {
         next = "dense";
     }
-    if experts {
+    if EXPERTS.is_match(line) {
         next = "experts";
     }
     let rank = |phase: &str| PHASES.iter().position(|p| *p == phase).unwrap_or(0);
@@ -1352,6 +1348,8 @@ mod tests {
         assert_eq!(load_phase("pinned hot set 40%", "dense"), "experts");
         assert_eq!(load_phase("loading dense weights", "experts"), "experts");
         assert_eq!(load_phase("listening", "engine"), "engine");
+        assert_eq!(load_phase("loads dense shards", "engine"), "engine");
+        assert_eq!(load_phase("Warming the experts", "dense"), "experts");
     }
 
     #[test]

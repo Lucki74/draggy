@@ -12,7 +12,7 @@ use super::hardware::probe_report;
 use super::{IpcError, Registry};
 use crate::AppState;
 use crate::engines::colibri_catalog::{self, Entry};
-use crate::engines::tier_planner::{self, DEFAULT_CONTEXT_TOKENS, Model};
+use crate::engines::tier_planner::{self, Availability, DEFAULT_CONTEXT_TOKENS, Model};
 use crate::engines::tier_stats::{self, Sample};
 use crate::engines::{Engines, colibri, now_ms};
 use crate::models::large_store;
@@ -68,11 +68,16 @@ async fn build_catalog(
     } else {
         DEFAULT_CONTEXT_TOKENS
     };
+    let availability = Availability {
+        llamacpp: true,
+        llamacpp_stream: false,
+        colibri: colibri::runtime(&engines.user_data).is_some(),
+    };
     let volumes = drive_volumes(&hardware);
     let models = colibri_catalog::CATALOG
         .iter()
         .map(|entry| {
-            let plan = tier_planner::plan_model(&model_of(entry), &hardware, tokens);
+            let plan = tier_planner::plan_model(&model_of(entry), &hardware, tokens, &availability);
             let plan = tier_stats::apply_observed(
                 &plan,
                 tier_stats::observed(&engines.user_data, entry.id),
