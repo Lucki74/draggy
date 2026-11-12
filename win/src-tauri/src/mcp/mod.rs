@@ -44,7 +44,7 @@ impl Snapshot {
     }
 }
 
-/// The server table and the sign-in flow. Mutations and calls go through one lock; `list` reads the snapshot.
+/// The server table and the sign-in flow. Mutations go through one lock; calls run on a link handle outside it.
 pub struct Host {
     app: AppHandle,
     user_data: PathBuf,
@@ -119,9 +119,18 @@ impl Host {
         args: Value,
         options: &CallOptions,
     ) -> CallOutcome {
-        let mut servers = self.servers.lock().await;
-        let outcome = servers.call_tool(server, tool, args, options).await;
-        self.snapshot.replace(servers.list());
+        let link = self.servers.lock().await.link(server);
+        let outcome = match link {
+            Some(link) => link.call_tool(tool, args, options).await,
+            None => {
+                self.servers
+                    .lock()
+                    .await
+                    .call_tool(server, tool, args, options)
+                    .await
+            }
+        };
+        self.snapshot.replace(self.servers.lock().await.list());
         outcome
     }
 

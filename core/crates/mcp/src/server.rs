@@ -1,5 +1,5 @@
 //! The servers Draggy runs: starting each one, calling its tools and stopping it. Processes and HTTP come in through
-//! traits, so tests answer with scripts. Calls are serialised by the owner of `Servers`.
+//! traits, so tests answer with scripts. A call runs on a `LinkHandle`, outside the lock on `Servers`.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -172,6 +172,9 @@ impl LinkError {
 enum Link<H: Http, P: Process> {
     Http(Transport<H, RemoteCredentials<H>>),
     Stdio(Conn<P>),
+    /// A link whose answers the test controls: a request waits until the gate is opened.
+    #[cfg(test)]
+    Gate(Arc<tokio::sync::Notify>),
 }
 
 impl<H: Http, P: Process> Link<H, P> {
@@ -179,6 +182,8 @@ impl<H: Http, P: Process> Link<H, P> {
         match self {
             Self::Http(_) => "http",
             Self::Stdio(_) => "stdio",
+            #[cfg(test)]
+            Self::Gate(_) => "gate",
         }
     }
 
@@ -186,6 +191,8 @@ impl<H: Http, P: Process> Link<H, P> {
         match self {
             Self::Http(_) => true,
             Self::Stdio(conn) => conn.is_live(),
+            #[cfg(test)]
+            Self::Gate(_) => true,
         }
     }
 
@@ -205,6 +212,11 @@ impl<H: Http, P: Process> Link<H, P> {
                 .request(method, params, limit)
                 .await
                 .map_err(LinkError::plain),
+            #[cfg(test)]
+            Self::Gate(gate) => {
+                gate.notified().await;
+                Ok(json!({"content": [{"type": "text", "text": "done"}]}))
+            }
         }
     }
 
@@ -218,6 +230,8 @@ impl<H: Http, P: Process> Link<H, P> {
                 conn.notify(method, params).await;
                 Ok(())
             }
+            #[cfg(test)]
+            Self::Gate(_) => Ok(()),
         }
     }
 
@@ -225,6 +239,8 @@ impl<H: Http, P: Process> Link<H, P> {
         match self {
             Self::Http(transport) => transport.close().await,
             Self::Stdio(conn) => conn.stop().await,
+            #[cfg(test)]
+            Self::Gate(_) => {}
         }
     }
 }
@@ -236,7 +252,223 @@ struct Live<H: Http, P: Process> {
     error: Option<String>,
     tools: Vec<Value>,
     declares_env: bool,
-    link: Link<H, P>,
+    link: Arc<tokio::sync::Mutex<Link<H, P>>>,
+    stopped: tokio::sync::watch::Sender<bool>,
+}
+
+impl<H: Http, P: Process> Live<H, P> {
+    /// Reads liveness without waiting: a link held by a call counts as alive.
+    fn alive(&self) -> bool {
+        match self.link.try_lock() {
+            Ok(link) => link.alive(),
+            Err(_) => true,
+        }
+    }
+
+    /// A process error, when the link can be read without waiting.
+    fn failure(&self) -> Option<String> {
+        match &*self.link.try_lock().ok()? {
+            Link::Stdio(conn) => conn.failure(),
+            _ => None,
+        }
+    }
+}
+
+/// The call path of a running server. It holds only the link, so `Servers` is free while a call is in flight.
+pub struct LinkHandle<H: Http, P: Process> {
+    id: String,
+    link: Arc<tokio::sync::Mutex<Link<H, P>>>,
+    stopped: tokio::sync::watch::Receiver<bool>,
+    log: Arc<dyn Log>,
+    limits: Limits,
+}
+
+impl<H: Http, P: Process> Clone for LinkHandle<H, P> {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id.clone(),
+            link: self.link.clone(),
+            stopped: self.stopped.clone(),
+            log: self.log.clone(),
+            limits: self.limits,
+        }
+    }
+}
+
+impl<H: Http, P: Process> LinkHandle<H, P> {
+    /// Calls a tool and turns its answer into text. A server stopped mid-call answers with an error.
+    pub async fn call_tool(&self, tool: &str, args: Value, options: &CallOptions) -> CallOutcome {
+        let scope = scope_for(&self.id);
+        let mut link = self.link.lock().await;
+        let transport = link.transport();
+        let started = Instant::now();
+        self.log.line(
+            Level::Info,
+            &scope,
+            "tool call",
+            with_cid(
+                json!({"server": self.id, "transport": transport, "toolName": tool, "argHash": arg_hash(&args)}),
+                &options.cid,
+            ),
+        );
+
+        let params =
+            json!({"name": tool, "arguments": if truthy(Some(&args)) { args } else { json!({}) }});
+        match self.send(&mut link, "tools/call", params).await {
+            Ok(result) => {
+                let text = render_tool_result(&result);
+                let duration_ms = elapsed_ms(started);
+
+                // `isError` means the tool failed, as distinct from the call failing. Both are worth reporting.
+                if truthy(result.get("isError")) {
+                    self.log.line(
+                        Level::Warn,
+                        &scope,
+                        "tool returned an error",
+                        with_cid(
+                            json!({
+                                "server": self.id,
+                                "transport": transport,
+                                "toolName": tool,
+                                "durMs": duration_ms,
+                                "resultChars": utf16_len(&text),
+                                "isError": true,
+                            }),
+                            &options.cid,
+                        ),
+                    );
+                    let error = if text.is_empty() {
+                        "The tool reported an error.".to_owned()
+                    } else {
+                        text
+                    };
+                    return CallOutcome::failed(error);
+                }
+
+                let uri = if options.widgets {
+                    widget_uri(&result)
+                } else {
+                    None
+                };
+                let widget = match uri {
+                    Some(uri) => self
+                        .read_widget(&mut link, transport, &uri)
+                        .await
+                        .map(|html| Widget { uri, html }),
+                    None => None,
+                };
+
+                let result_chars = if text.is_empty() { 0 } else { utf16_len(&text) };
+                self.log.line(
+                    Level::Info,
+                    &scope,
+                    "tool finished",
+                    with_cid(
+                        json!({
+                            "server": self.id,
+                            "transport": transport,
+                            "toolName": tool,
+                            "durMs": duration_ms,
+                            "resultChars": result_chars,
+                            "isError": false,
+                        }),
+                        &options.cid,
+                    ),
+                );
+                CallOutcome::answered(text, widget)
+            }
+            Err(error) => {
+                self.log.line(
+                    Level::Error,
+                    &scope,
+                    "tool call threw",
+                    with_cid(
+                        json!({
+                            "server": self.id,
+                            "transport": transport,
+                            "toolName": tool,
+                            "durMs": elapsed_ms(started),
+                            "isError": true,
+                            "reason": error.message,
+                        }),
+                        &options.cid,
+                    ),
+                );
+                CallOutcome::failed(error.message)
+            }
+        }
+    }
+
+    /// One request on the locked link. Gives up as soon as the server is stopped.
+    async fn send(
+        &self,
+        link: &mut Link<H, P>,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, LinkError> {
+        let mut stopped = self.stopped.clone();
+        tokio::select! {
+            biased;
+            _ = stopped.wait_for(|stop| *stop) => {
+                Err(LinkError::plain(format!("The {} server was stopped.", self.id)))
+            }
+            result = link.request(method, params, self.limits.call) => result,
+        }
+    }
+
+    async fn read_widget(
+        &self,
+        link: &mut Link<H, P>,
+        transport: &str,
+        uri: &str,
+    ) -> Option<String> {
+        let resource = match self.send(link, "resources/read", json!({"uri": uri})).await {
+            Ok(resource) => resource,
+            Err(error) => {
+                self.log.line(
+                    Level::Warn,
+                    &scope_for(&self.id),
+                    "could not read widget",
+                    json!({"server": self.id, "transport": transport, "reason": error.message}),
+                );
+                return None;
+            }
+        };
+
+        // Prefer the part that says it is HTML; fall back to the first with any text, since not every server sets a mime type.
+        let empty = Vec::new();
+        let contents = resource
+            .get("contents")
+            .and_then(Value::as_array)
+            .unwrap_or(&empty);
+        let with_text: Vec<&Value> = contents
+            .iter()
+            .filter(|one| {
+                one.get("text")
+                    .and_then(Value::as_str)
+                    .is_some_and(|text| !trim(text).is_empty())
+            })
+            .collect();
+        let html = with_text
+            .iter()
+            .find(|one| mime_of(one).contains("html"))
+            .or(with_text.first())
+            .copied()?;
+
+        let markup = to_js_string(html.get("text").unwrap_or(&Value::Null));
+        let chars = utf16_len(&markup);
+        if chars > MAX_WIDGET_CHARS {
+            self.log.line(
+                Level::Warn,
+                &scope_for(&self.id),
+                "widget too large to show",
+                json!({"server": self.id, "transport": transport, "chars": chars}),
+            );
+            return None;
+        }
+
+        Some(markup)
+    }
 }
 
 /// Every running server, by id, in the order they started.
@@ -272,7 +504,7 @@ impl<H: Http + Clone, L: Launcher> Servers<H, L> {
     pub fn list(&self) -> Vec<ServerState> {
         self.live
             .iter()
-            .filter(|live| live.link.alive())
+            .filter(|live| live.alive())
             .map(state_of)
             .collect()
     }
@@ -311,8 +543,9 @@ impl<H: Http + Clone, L: Launcher> Servers<H, L> {
     pub async fn stop(&mut self, id: &str) -> bool {
         self.purge();
         if let Some(index) = self.position(id) {
-            let mut live = self.live.remove(index);
-            live.link.close().await;
+            let live = self.live.remove(index);
+            live.stopped.send_replace(true);
+            live.link.lock().await.close().await;
         }
         true
     }
@@ -332,8 +565,9 @@ impl<H: Http + Clone, L: Launcher> Servers<H, L> {
     /// Stops every server, for quitting.
     pub async fn stop_all(&mut self) {
         let all: Vec<Live<H, L::Process>> = std::mem::take(&mut self.live);
-        for mut live in all {
-            live.link.close().await;
+        for live in all {
+            live.stopped.send_replace(true);
+            live.link.lock().await.close().await;
         }
     }
 
@@ -346,123 +580,31 @@ impl<H: Http + Clone, L: Launcher> Servers<H, L> {
         options: &CallOptions,
     ) -> CallOutcome {
         self.purge();
-        let scope = scope_for(server);
-
-        let Some(index) = self.position(server) else {
-            self.log.line(
-                Level::Warn,
-                &scope,
-                "cannot call tool, server not running",
-                with_cid(
-                    json!({"server": server, "transport": "none", "toolName": tool}),
-                    &options.cid,
-                ),
-            );
-            return CallOutcome::failed(format!("The {server} server is not running."));
-        };
-
-        let transport = self.live[index].link.transport();
-        let started = Instant::now();
+        if let Some(handle) = self.link(server) {
+            return handle.call_tool(tool, args, options).await;
+        }
         self.log.line(
-            Level::Info,
-            &scope,
-            "tool call",
+            Level::Warn,
+            &scope_for(server),
+            "cannot call tool, server not running",
             with_cid(
-                json!({"server": server, "transport": transport, "toolName": tool, "argHash": arg_hash(&args)}),
+                json!({"server": server, "transport": "none", "toolName": tool}),
                 &options.cid,
             ),
         );
+        CallOutcome::failed(format!("The {server} server is not running."))
+    }
 
-        let params =
-            json!({"name": tool, "arguments": if truthy(Some(&args)) { args } else { json!({}) }});
-        let limit = self.limits.call;
-        match self.live[index]
-            .link
-            .request("tools/call", params, limit)
-            .await
-        {
-            Ok(result) => {
-                let text = render_tool_result(&result);
-                let duration_ms = elapsed_ms(started);
-
-                // `isError` means the tool failed, as distinct from the call failing. Both are worth reporting.
-                if truthy(result.get("isError")) {
-                    self.log.line(
-                        Level::Warn,
-                        &scope,
-                        "tool returned an error",
-                        with_cid(
-                            json!({
-                                "server": server,
-                                "transport": transport,
-                                "toolName": tool,
-                                "durMs": duration_ms,
-                                "resultChars": utf16_len(&text),
-                                "isError": true,
-                            }),
-                            &options.cid,
-                        ),
-                    );
-                    let error = if text.is_empty() {
-                        "The tool reported an error.".to_owned()
-                    } else {
-                        text
-                    };
-                    return CallOutcome::failed(error);
-                }
-
-                let uri = if options.widgets {
-                    widget_uri(&result)
-                } else {
-                    None
-                };
-                let widget = match uri {
-                    Some(uri) => self
-                        .read_widget(index, server, transport, &uri)
-                        .await
-                        .map(|html| Widget { uri, html }),
-                    None => None,
-                };
-
-                let result_chars = if text.is_empty() { 0 } else { utf16_len(&text) };
-                self.log.line(
-                    Level::Info,
-                    &scope,
-                    "tool finished",
-                    with_cid(
-                        json!({
-                            "server": server,
-                            "transport": transport,
-                            "toolName": tool,
-                            "durMs": duration_ms,
-                            "resultChars": result_chars,
-                            "isError": false,
-                        }),
-                        &options.cid,
-                    ),
-                );
-                CallOutcome::answered(text, widget)
-            }
-            Err(error) => {
-                self.log.line(
-                    Level::Error,
-                    &scope,
-                    "tool call threw",
-                    with_cid(
-                        json!({
-                            "server": server,
-                            "transport": transport,
-                            "toolName": tool,
-                            "durMs": elapsed_ms(started),
-                            "isError": true,
-                            "reason": error.message,
-                        }),
-                        &options.cid,
-                    ),
-                );
-                CallOutcome::failed(error.message)
-            }
-        }
+    /// The call path of a running server. Calls run on the handle, so the owner can list and stop while one is in flight.
+    pub fn link(&self, id: &str) -> Option<LinkHandle<H, L::Process>> {
+        let live = &self.live[self.position(id)?];
+        Some(LinkHandle {
+            id: live.id.clone(),
+            link: live.link.clone(),
+            stopped: live.stopped.subscribe(),
+            log: self.log.clone(),
+            limits: self.limits,
+        })
     }
 
     async fn start_remote(
@@ -488,18 +630,17 @@ impl<H: Http + Clone, L: Launcher> Servers<H, L> {
             error: None,
             tools: Vec::new(),
             declares_env: definition.declares_env(),
-            link: Link::Http(transport),
+            link: Arc::new(tokio::sync::Mutex::new(Link::Http(transport))),
+            stopped: tokio::sync::watch::channel(false).0,
         });
         let index = self.live.len() - 1;
         let started = Instant::now();
 
-        match handshake(
-            &mut self.live[index].link,
-            HTTP_CLIENT_VERSION,
-            self.limits.handshake,
-        )
-        .await
-        {
+        let outcome = {
+            let mut link = self.live[index].link.clone().lock_owned().await;
+            handshake(&mut *link, HTTP_CLIENT_VERSION, self.limits.handshake).await
+        };
+        match outcome {
             Ok((hello, tools)) => {
                 self.mark_ready(index, tools);
                 let summary =
@@ -577,18 +718,21 @@ impl<H: Http + Clone, L: Launcher> Servers<H, L> {
             error: None,
             tools: Vec::new(),
             declares_env: requirements.env.as_ref().is_some_and(|env| !env.is_empty()),
-            link: Link::Stdio(Conn::spawn(id, process, self.log.clone())),
+            link: Arc::new(tokio::sync::Mutex::new(Link::Stdio(Conn::spawn(
+                id,
+                process,
+                self.log.clone(),
+            )))),
+            stopped: tokio::sync::watch::channel(false).0,
         });
         let index = self.live.len() - 1;
         let started = Instant::now();
 
-        match handshake(
-            &mut self.live[index].link,
-            STDIO_CLIENT_VERSION,
-            self.limits.handshake,
-        )
-        .await
-        {
+        let outcome = {
+            let mut link = self.live[index].link.clone().lock_owned().await;
+            handshake(&mut *link, STDIO_CLIENT_VERSION, self.limits.handshake).await
+        };
+        match outcome {
             Ok((hello, tools)) => {
                 self.mark_ready(index, tools);
                 let summary =
@@ -668,10 +812,11 @@ impl<H: Http + Clone, L: Launcher> Servers<H, L> {
 
     /// The stdio handshake failed: stderr is usually the only account of why, so its tail goes into the error.
     async fn fail_handshake(&mut self, index: usize, id: &str, error: LinkError) -> ServerState {
-        let mut live = self.live.remove(index);
+        let live = self.live.remove(index);
         let mut detail = String::new();
+        let mut link = live.link.lock().await;
 
-        if let Link::Stdio(conn) = &live.link {
+        if let Link::Stdio(conn) = &*link {
             detail = stderr_tail(&conn.stderr_text());
             conn.detach();
             if !conn.exit_logged() {
@@ -689,9 +834,10 @@ impl<H: Http + Clone, L: Launcher> Servers<H, L> {
             }
         }
 
-        if let Link::Stdio(conn) = &mut live.link {
+        if let Link::Stdio(conn) = &mut *link {
             conn.join().await;
         }
+        drop(link);
 
         let message = if detail.is_empty() {
             error.message
@@ -699,65 +845,6 @@ impl<H: Http + Clone, L: Launcher> Servers<H, L> {
             format!("{}: {detail}", error.message)
         };
         failed(id, message)
-    }
-
-    async fn read_widget(
-        &mut self,
-        index: usize,
-        server: &str,
-        transport: &str,
-        uri: &str,
-    ) -> Option<String> {
-        let resource = match self.live[index]
-            .link
-            .request("resources/read", json!({"uri": uri}), self.limits.call)
-            .await
-        {
-            Ok(resource) => resource,
-            Err(error) => {
-                self.log.line(
-                    Level::Warn,
-                    &scope_for(server),
-                    "could not read widget",
-                    json!({"server": server, "transport": transport, "reason": error.message}),
-                );
-                return None;
-            }
-        };
-
-        // Prefer the part that says it is HTML; fall back to the first with any text, since not every server sets a mime type.
-        let empty = Vec::new();
-        let contents = resource
-            .get("contents")
-            .and_then(Value::as_array)
-            .unwrap_or(&empty);
-        let with_text: Vec<&Value> = contents
-            .iter()
-            .filter(|one| {
-                one.get("text")
-                    .and_then(Value::as_str)
-                    .is_some_and(|text| !trim(text).is_empty())
-            })
-            .collect();
-        let html = with_text
-            .iter()
-            .find(|one| mime_of(one).contains("html"))
-            .or(with_text.first())
-            .copied()?;
-
-        let markup = to_js_string(html.get("text").unwrap_or(&Value::Null));
-        let chars = utf16_len(&markup);
-        if chars > MAX_WIDGET_CHARS {
-            self.log.line(
-                Level::Warn,
-                &scope_for(server),
-                "widget too large to show",
-                json!({"server": server, "transport": transport, "chars": chars}),
-            );
-            return None;
-        }
-
-        Some(markup)
     }
 
     fn mark_ready(&mut self, index: usize, tools: Vec<Value>) {
@@ -768,13 +855,13 @@ impl<H: Http + Clone, L: Launcher> Servers<H, L> {
 
     /// Drops servers whose process has exited, so the next start of the same id is not refused.
     fn purge(&mut self) {
-        self.live.retain(|live| live.link.alive());
+        self.live.retain(|live| live.alive());
     }
 
     fn position(&self, id: &str) -> Option<usize> {
         self.live
             .iter()
-            .position(|live| live.id == id && live.link.alive())
+            .position(|live| live.id == id && live.alive())
     }
 
     fn state_at(&self, index: usize) -> ServerState {
@@ -846,10 +933,7 @@ fn stderr_tail(text: &str) -> String {
 
 fn state_of<H: Http, P: Process>(live: &Live<H, P>) -> ServerState {
     // A process error leaves the server in the list, marked as failed, as the reference does.
-    let failure = match &live.link {
-        Link::Stdio(conn) => conn.failure(),
-        Link::Http(_) => None,
-    };
+    let failure = live.failure();
     let (status, error) = match failure {
         Some(reason) => ("error", Some(reason)),
         None => (live.status, live.error.clone()),
@@ -955,4 +1039,128 @@ fn field(value: &Value, path: &[&str]) -> Value {
 
 fn elapsed_ms(started: Instant) -> u64 {
     u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::net::{NetError, Request, Response};
+    use crate::ports::{BoxFuture, Clock, MemoryVault, Provisioner};
+    use crate::provision::InstallCommand;
+    use std::future::{Future, ready};
+
+    #[derive(Clone)]
+    struct Offline;
+
+    impl Http for Offline {
+        fn send(
+            &self,
+            _request: Request,
+        ) -> impl Future<Output = Result<Response, NetError>> + Send {
+            ready(Err(NetError::Failed("offline".to_owned())))
+        }
+    }
+
+    struct Nothing;
+
+    impl Log for Nothing {
+        fn line(&self, _level: Level, _scope: &str, _message: &str, _data: Value) {}
+    }
+
+    struct NoPackages;
+
+    impl Provisioner for NoPackages {
+        fn ready(&self) -> bool {
+            false
+        }
+
+        fn install_command(&self, _package: &str) -> Option<InstallCommand> {
+            None
+        }
+
+        fn entry_point(&self, _package: &str) -> Option<String> {
+            None
+        }
+
+        fn install(&self, _command: &InstallCommand) -> BoxFuture<'_, Result<(), String>> {
+            Box::pin(ready(Err(String::new())))
+        }
+    }
+
+    struct Zero;
+
+    impl Clock for Zero {
+        fn now_ms(&self) -> f64 {
+            0.0
+        }
+    }
+
+    struct NoProcess;
+
+    impl Process for NoProcess {
+        fn write_line(&self, _line: String) -> impl Future<Output = bool> + Send {
+            ready(false)
+        }
+
+        fn next_event(&self) -> impl Future<Output = crate::process::Event> + Send {
+            std::future::pending()
+        }
+
+        fn stop(&self) {}
+    }
+
+    struct NoLauncher;
+
+    impl Launcher for NoLauncher {
+        type Process = NoProcess;
+
+        fn program_name(&self) -> String {
+            "none".to_owned()
+        }
+
+        fn spawn(
+            &self,
+            _args: &[String],
+            _env: &serde_json::Map<String, Value>,
+        ) -> Result<NoProcess, String> {
+            Err("no processes in tests".to_owned())
+        }
+    }
+
+    #[tokio::test]
+    async fn listing_and_stopping_proceed_while_a_call_is_in_flight() {
+        let ports = Ports {
+            vault: Arc::new(MemoryVault::default()),
+            provisioner: Arc::new(NoPackages),
+            clock: Arc::new(Zero),
+        };
+        let mut servers = Servers::new(Offline, NoLauncher, Arc::new(Nothing), ports);
+        servers.live.push(Live {
+            id: "fake".to_owned(),
+            status: "ready",
+            error: None,
+            tools: vec![json!({"name": "slow"})],
+            declares_env: false,
+            link: Arc::new(tokio::sync::Mutex::new(Link::Gate(Arc::new(
+                tokio::sync::Notify::new(),
+            )))),
+            stopped: tokio::sync::watch::channel(false).0,
+        });
+
+        let handle = servers.link("fake").expect("the fake server is running");
+        let options = CallOptions::default();
+        let call = handle.call_tool("slow", json!({}), &options);
+        let meanwhile = async {
+            tokio::task::yield_now().await;
+            assert_eq!(servers.list().len(), 1);
+            assert!(servers.stop("fake").await);
+        };
+
+        let (outcome, ()) = tokio::time::timeout(Duration::from_secs(5), async {
+            tokio::join!(call, meanwhile)
+        })
+        .await
+        .expect("listing and stopping must not wait for the call");
+        assert!(!outcome.success);
+    }
 }
