@@ -30,7 +30,21 @@ pub fn node_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("node.exe"))
 }
 
-/// The server table and the sign-in flow. Every call goes through one lock, so a slow call holds the rest.
+/// The last known server states. Readers take this instead of the server lock, so a long call never blocks them.
+#[derive(Default)]
+pub struct Snapshot(std::sync::Mutex<Vec<ServerState>>);
+
+impl Snapshot {
+    pub fn read(&self) -> Vec<ServerState> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    pub fn replace(&self, states: Vec<ServerState>) {
+        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = states;
+    }
+}
+
+/// The server table and the sign-in flow. Mutations and calls go through one lock; `list` reads the snapshot.
 pub struct Host {
     app: AppHandle,
     user_data: PathBuf,
@@ -38,6 +52,7 @@ pub struct Host {
     ports: Ports,
     log: Arc<dyn Log>,
     servers: tokio::sync::Mutex<Servers<ReqwestHttp, StdioLauncher>>,
+    snapshot: Snapshot,
 }
 
 impl Host {
@@ -65,25 +80,36 @@ impl Host {
             ports,
             log,
             servers: tokio::sync::Mutex::new(servers),
+            snapshot: Snapshot::default(),
         })
     }
 
+    /// The servers that are up, from the snapshot. Does not wait for a call in progress.
     pub async fn list(&self) -> Vec<ServerState> {
-        self.servers.lock().await.list()
+        self.snapshot.read()
     }
 
     pub async fn start(&self, id: &str, config: &ServerConfig) -> ServerState {
-        self.servers.lock().await.start(id, config).await
+        let mut servers = self.servers.lock().await;
+        let state = servers.start(id, config).await;
+        self.snapshot.replace(servers.list());
+        state
     }
 
     pub async fn stop(&self, id: &str) -> bool {
-        self.servers.lock().await.stop(id).await
+        let mut servers = self.servers.lock().await;
+        let stopped = servers.stop(id).await;
+        self.snapshot.replace(servers.list());
+        stopped
     }
 
     /// Forgets the sign-in, stops the server, and reports whether it was running.
     pub async fn sign_out(&self, id: &str) -> bool {
         self.ports.vault.remove(&signin::vault_key(id));
-        self.servers.lock().await.sign_out(id).await
+        let mut servers = self.servers.lock().await;
+        let stopped = servers.sign_out(id).await;
+        self.snapshot.replace(servers.list());
+        stopped
     }
 
     pub async fn call_tool(
@@ -93,15 +119,16 @@ impl Host {
         args: Value,
         options: &CallOptions,
     ) -> CallOutcome {
-        self.servers
-            .lock()
-            .await
-            .call_tool(server, tool, args, options)
-            .await
+        let mut servers = self.servers.lock().await;
+        let outcome = servers.call_tool(server, tool, args, options).await;
+        self.snapshot.replace(servers.list());
+        outcome
     }
 
     pub async fn stop_all(&self) {
-        self.servers.lock().await.stop_all().await;
+        let mut servers = self.servers.lock().await;
+        servers.stop_all().await;
+        self.snapshot.replace(Vec::new());
     }
 
     /// Runs one browser sign-in against a remote server, with its own redirect listener.
@@ -217,5 +244,27 @@ impl Browser for OpenBrowser {
                 .open_url(url, None::<String>)
                 .map_err(|error| error.to_string())
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn snapshot_returns_last_replaced_states() {
+        let snapshot = Snapshot::default();
+        assert!(snapshot.read().is_empty());
+        snapshot.replace(vec![ServerState {
+            id: "fs".to_owned(),
+            status: "running",
+            error: None,
+            tools: Vec::new(),
+        }]);
+        let read = snapshot.read();
+        assert_eq!(read.len(), 1);
+        assert_eq!(read[0].id, "fs");
+        snapshot.replace(Vec::new());
+        assert!(snapshot.read().is_empty());
     }
 }
