@@ -46,6 +46,10 @@ impl Fail {
     }
 
     pub fn reply(&self) -> Value {
+        // An empty message takes the table's text for the code.
+        if self.message.is_empty() {
+            return pages::failure(self.code, None);
+        }
         pages::failure(self.code, Some(&self.message))
     }
 }
@@ -286,23 +290,6 @@ impl Observer {
             "scale": 1,
             "url": page_url(pages::evaluate(cdp, "location.href").await),
         }))
-    }
-
-    /// The refs of the last snapshot, in order, as the element list reports them.
-    pub fn elements(&self) -> Vec<Value> {
-        let table = self.table.lock().unwrap_or_else(|e| e.into_inner());
-        let mut rows: Vec<(usize, Value)> = table
-            .iter()
-            .map(|(reference, entry)| {
-                let number = reference[1..].parse().unwrap_or(0);
-                (
-                    number,
-                    json!({ "ref": reference, "role": entry.role, "name": entry.name }),
-                )
-            })
-            .collect();
-        rows.sort_by_key(|(number, _)| *number);
-        rows.into_iter().map(|(_, row)| row).collect()
     }
 
     /// Maps a point in the last screenshot onto the page. Needs a screenshot first.

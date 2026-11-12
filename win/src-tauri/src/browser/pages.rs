@@ -155,6 +155,16 @@ const FAILURES: &[(&str, &str, &str)] = &[
         "Try again once the page has finished loading.",
     ),
     (
+        "dialog_open",
+        "A dialog is open on the page and is waiting for an answer.",
+        "Call browser_dialog with accept or dismiss before anything else.",
+    ),
+    (
+        "no_dialog",
+        "No dialog is open on the page.",
+        "Call browser_snapshot to see the page.",
+    ),
+    (
         "unknown",
         "The browser step failed.",
         "Call browser_get_elements to see the page, then retry.",

@@ -1,6 +1,7 @@
 //! The in-app browser pane's channels: where the pane sits, which tabs it holds and the pages in them.
 //! Each tab is a child webview of the main window that stays hidden until the renderer shows the pane.
 
+use std::collections::HashMap;
 use std::future::Future;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -14,6 +15,7 @@ use tauri::{
 };
 #[cfg(not(windows))]
 use tokio::sync::broadcast;
+use tokio::sync::oneshot;
 use tokio::time::sleep;
 
 use super::{IpcError, Registry, emit};
@@ -22,11 +24,13 @@ use crate::AppState;
 use crate::browser::cdp::{Cdp, CdpError};
 #[cfg(windows)]
 use crate::browser::cdp_webview2::WebView2Cdp;
+use crate::browser::dialogs::{self, DialogState};
+use crate::browser::elements;
 use crate::browser::observe::{self, Fail, Observer};
 use crate::browser::pages;
 use crate::browser::pane::{self, Bounds, MAX_TABS, Tabs};
 use crate::browser::policy;
-use crate::browser::safety::RateLimit;
+use crate::browser::safety::{Grants, RateLimit, Standing};
 use crate::browser::{act, safety};
 
 const PANE_LABEL: &str = "browser-pane-";
@@ -39,14 +43,25 @@ const NAVIGATE_PACE: Duration = Duration::from_secs(2);
 const HISTORY_PACE: Duration = Duration::from_millis(300);
 const TABS_ACTION: &str = "The tabs action is list, new, select or close.";
 const HISTORY_ACTION: &str = "The history action is back, forward or reload.";
+/// The saved trusted sites, under the key the Electron build used.
+const TRUSTED_SITES_KEY: &str = "browserTrustedSites";
+/// A consent the user does not answer within this long is a no.
+const CONSENT_WAIT: Duration = Duration::from_secs(120);
+const DENY: &str = "deny";
 
-/// The pane's tabs, one child webview each, and the counter that names new ones.
+/// The pane's tabs, one child webview each, the counter that names new ones, and what the user has
+/// let the agent do.
 #[derive(Default)]
 pub struct Panes {
     tabs: Mutex<Tabs<Webview>>,
     labels: AtomicU64,
     observer: Arc<Observer>,
     actions: Arc<RateLimit>,
+    grants: Mutex<Option<Grants>>,
+    action_sessions: Mutex<Vec<String>>,
+    consents: Mutex<HashMap<String, oneshot::Sender<String>>>,
+    consent_seq: AtomicU64,
+    dialogs: Mutex<HashMap<String, Arc<DialogState>>>,
 }
 
 impl Panes {
@@ -74,6 +89,10 @@ pub fn register_all(registry: &mut Registry) {
     register!(registry, "browser-scroll" => scroll);
     register!(registry, "browser-select-option" => select_option);
     register!(registry, "browser-wait" => wait);
+    register!(registry, "browser-consent:answer" => consent_answer);
+    register!(registry, "browser-grants:list" => grants_list);
+    register!(registry, "browser-grants:revoke" => grants_revoke);
+    register!(registry, "browser-dialog" => answer_dialog);
 }
 
 async fn pane_bounds(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
@@ -193,6 +212,7 @@ fn close_tab(app: &AppHandle, options: &Value) -> Value {
     let Some(gone) = closed else {
         return pages::failure("invalid_tab", None);
     };
+    locked(&panes.dialogs).remove(gone.label());
     let _ = gone.close();
     apply_layout(&panes);
     json!({ "ok": true })
@@ -424,6 +444,14 @@ where
     let Some(cdp) = page_cdp(app) else {
         return pages::failure("pane_unavailable", None);
     };
+    // A dialog freezes the page, so every step hears about it first.
+    if let Some(open) = dialogs_of(app).and_then(|state| state.pending()) {
+        let message = format!(
+            "A {} dialog is open: \"{}\". Call browser_dialog to answer it.",
+            open.kind, open.message
+        );
+        return pages::failure("dialog_open", Some(&message));
+    }
     f(Arc::new(cdp)).await
 }
 
@@ -446,23 +474,37 @@ where
     if !actions.take() {
         return pages::failure("rate_limited", None);
     }
+    let gate = app.clone();
     with_page(app, |cdp| async move {
         let before = pages::evaluate(&*cdp, SIGNATURE)
             .await
             .unwrap_or(Value::Null);
-        if !safety::site_allowed(
-            before
-                .get("url")
-                .and_then(Value::as_str)
-                .unwrap_or_default(),
-        ) {
+        let url = before
+            .get("url")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if !site_gate(&gate, url).await {
             return pages::failure("site_denied", None);
         }
-        let mut out = match f(cdp.clone()).await {
-            Ok(out) => out,
-            Err(failure) => return failure.reply(),
+        let Some(dialogs) = dialogs_of(&gate) else {
+            return pages::failure("pane_unavailable", None);
+        };
+        // A click that raises an alert never returns until the alert is answered.
+        let mut out = tokio::select! {
+            result = f(cdp.clone()) => match result {
+                Ok(out) => out,
+                Err(failure) => return failure.reply(),
+            },
+            () = dialogs.opened() => json!({}),
         };
         sleep(Duration::from_millis(500)).await;
+        if let Some(open) = dialogs.pending() {
+            return json!({
+                "ok": true,
+                "url": page_url(&cdp).await,
+                "dialog": open.to_value(),
+            });
+        }
         if pages::page_state(&*cdp)
             .await
             .is_ok_and(|state| state.is_bot_challenge())
@@ -534,9 +576,15 @@ async fn snapshot(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> 
 }
 
 async fn get_elements(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
-    let (observer, _) = panes_parts(&app);
-    Ok(with_page(&app, |_cdp| async move {
-        json!({ "ok": true, "elements": observer.elements() })
+    Ok(with_page(&app, |cdp| async move {
+        match read_json(&cdp, &elements::list_script()).await {
+            Ok(list) => json!({ "ok": true, "elements": list }),
+            Err(failure) => {
+                let mut reply = failure.reply();
+                reply["elements"] = json!([]);
+                reply
+            }
+        }
     })
     .await)
 }
@@ -601,23 +649,35 @@ async fn click(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
         .map(str::to_owned);
     let by_point = options.get("x").and_then(Value::as_f64).is_some()
         && options.get("y").and_then(Value::as_f64).is_some();
-    if by_ref.is_none() && !by_point {
+    let by_index = if by_ref.is_none() && !by_point {
+        elements::parse_index(&target)
+    } else {
+        None
+    };
+    if by_ref.is_none() && !by_point && by_index.is_none() {
         return Ok(pages::failure("invalid_index", None));
     }
     let (observer, _) = panes_parts(&app);
+    let gate = app.clone();
     Ok(acting(&app, move |cdp| async move {
-        let point = match &by_ref {
-            Some(reference) => {
+        let point = match (&by_ref, by_index) {
+            (Some(reference), _) => {
                 let entry = observer.resolve(&*cdp, reference).await?;
                 if let Some(why) = safety::risky_action(&entry.role, &entry.name, "") {
-                    return Err(Fail::new(
-                        "needs_confirmation",
-                        format!("This click {why}. Ask the user to do it."),
-                    ));
+                    confirm(&gate, &cdp, &why).await?;
                 }
                 observer.point_of(&*cdp, reference).await?
             }
-            None => observer.shot_point(
+            (None, Some(index)) => {
+                let spot = read_json(&cdp, &elements::click_target_script(index)).await?;
+                let point = point_of(&spot).ok_or_else(no_such_element)?;
+                let info = read_json(&cdp, &elements::index_info_script(index)).await?;
+                if let Some(why) = risky_index(&info) {
+                    confirm(&gate, &cdp, &why).await?;
+                }
+                point
+            }
+            (None, None) => observer.shot_point(
                 options.get("x").and_then(Value::as_f64).unwrap_or(0.0),
                 options.get("y").and_then(Value::as_f64).unwrap_or(0.0),
             )?,
@@ -646,15 +706,18 @@ async fn click(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
 }
 
 async fn type_text(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
-    let target = args
-        .first()
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_owned();
-    if !observe::is_ref(&target) {
-        return Ok(pages::failure("invalid_index", None));
-    }
+    let target_value = args.first().cloned().unwrap_or(Value::Null);
     let text = text_arg(&args, 1);
+    let Some(target) = target_value
+        .as_str()
+        .filter(|t| observe::is_ref(t))
+        .map(str::to_owned)
+    else {
+        return Ok(match elements::parse_index(&target_value) {
+            Some(index) => type_by_index(&app, index, &text).await,
+            None => pages::failure("invalid_index", None),
+        });
+    };
     let options = args.get(2).cloned().unwrap_or(Value::Null);
     let clear = options
         .get("clear")
@@ -665,6 +728,7 @@ async fn type_text(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
         .and_then(Value::as_bool)
         .unwrap_or(false);
     let (observer, _) = panes_parts(&app);
+    let gate = app.clone();
     Ok(acting(&app, move |cdp| async move {
         let entry = observer.resolve(&*cdp, &target).await?;
         let object = observe::object_of(&*cdp, entry.backend_id).await?;
@@ -677,10 +741,7 @@ async fn type_text(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
             ));
         }
         if submit {
-            return Err(Fail::new(
-                "needs_confirmation",
-                "Submitting a form needs the user to confirm it.",
-            ));
+            confirm(&gate, &cdp, "submits a form").await?;
         }
         let (value, landed) = act::type_into(&*cdp, &object, &text, clear, submit).await?;
         Ok(json!({ "value": value, "landed": landed }))
@@ -803,4 +864,273 @@ async fn wait(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
         Ok(json!({ "waited": spent }))
     })
     .await)
+}
+
+/// Locks a slot, reading through a poisoned lock.
+fn locked<T>(slot: &Mutex<T>) -> MutexGuard<'_, T> {
+    slot.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// The saved trusted sites, read from the app store.
+fn saved_trusted(app: &AppHandle) -> Vec<String> {
+    let raw = app
+        .state::<AppState>()
+        .storage
+        .handle()
+        .and_then(|store| store.get_value(TRUSTED_SITES_KEY).ok().flatten());
+    safety::parse_trusted(raw.as_deref())
+}
+
+fn save_trusted(app: &AppHandle, trusted: &[String]) {
+    let Some(store) = app.state::<AppState>().storage.handle() else {
+        return;
+    };
+    if let Ok(text) = serde_json::to_string(trusted) {
+        let _ = store.set_value(TRUSTED_SITES_KEY, &text);
+    }
+}
+
+/// Reads or changes the grants; the saved trusted sites follow any change to them.
+fn with_grants<T>(app: &AppHandle, f: impl FnOnce(&mut Grants) -> T) -> T {
+    let panes = app.state::<Panes>();
+    let mut slot = locked(&panes.grants);
+    let grants = slot.get_or_insert_with(|| Grants::new(saved_trusted(app)));
+    let before = grants.list().to_vec();
+    let out = f(&mut *grants);
+    if grants.list() != before.as_slice() {
+        save_trusted(app, grants.list());
+    }
+    out
+}
+
+/// The first thing the agent does on a site needs the user's word. Returns whether it may go on.
+async fn site_gate(app: &AppHandle, url: &str) -> bool {
+    let Some(origin) = safety::origin_of(url) else {
+        return true;
+    };
+    if with_grants(app, |g| g.standing(&origin)) != Standing::Unknown {
+        return true;
+    }
+    let host = safety::host_of(&origin);
+    match ask_consent(app, "site", &host, "").await.as_str() {
+        "always" => with_grants(app, |g| g.trust(&origin)),
+        "session" => with_grants(app, |g| g.allow_session(&origin)),
+        "once" => {}
+        _ => return false,
+    }
+    true
+}
+
+/// A click or submit that pays, deletes or sends needs the user's word unless they trust the site.
+async fn action_gate(app: &AppHandle, url: &str, why: &str) -> bool {
+    let origin = safety::origin_of(url);
+    if let Some(origin) = origin.as_deref() {
+        let trusted = with_grants(app, |g| g.standing(origin) == Standing::Trusted);
+        let session = locked(&app.state::<Panes>().action_sessions)
+            .iter()
+            .any(|o| o == origin);
+        if trusted || session {
+            return true;
+        }
+    }
+    let host = safety::host_of(origin.as_deref().unwrap_or(""));
+    let choice = ask_consent(app, "action", &host, why).await;
+    if let Some(origin) = origin.as_deref() {
+        match choice.as_str() {
+            "always" => with_grants(app, |g| g.trust(origin)),
+            "session" => {
+                let panes = app.state::<Panes>();
+                locked(&panes.action_sessions).push(origin.to_owned());
+            }
+            _ => {}
+        }
+    }
+    matches!(choice.as_str(), "once" | "always" | "session")
+}
+
+/// Asks the user through the main window and waits for the answer. No answer in time is a deny.
+async fn ask_consent(app: &AppHandle, kind: &str, host: &str, detail: &str) -> String {
+    let (id, waiting) = {
+        let panes = app.state::<Panes>();
+        let seq = panes.consent_seq.fetch_add(1, Ordering::Relaxed) + 1;
+        let id = format!("consent-{seq}");
+        let (tx, rx) = oneshot::channel();
+        locked(&panes.consents).insert(id.clone(), tx);
+        (id, rx)
+    };
+    emit(
+        app,
+        "browser-consent",
+        json!({ "id": id, "kind": kind, "host": host, "detail": detail }),
+    );
+    match tokio::time::timeout(CONSENT_WAIT, waiting).await {
+        Ok(Ok(choice)) => choice,
+        _ => {
+            let panes = app.state::<Panes>();
+            locked(&panes.consents).remove(&id);
+            emit(app, "browser-consent", Value::Null);
+            DENY.to_owned()
+        }
+    }
+}
+
+async fn consent_answer(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let id = text_arg(&args, 0);
+    let choice = text_arg(&args, 1);
+    let choice = if matches!(choice.as_str(), "session" | "once" | "always") {
+        choice
+    } else {
+        DENY.to_owned()
+    };
+    let panes = app.state::<Panes>();
+    let sender = locked(&panes.consents).remove(&id);
+    let success = sender.is_some_and(|tx| tx.send(choice).is_ok());
+    if success {
+        emit(&app, "browser-consent", Value::Null);
+    }
+    Ok(json!({ "success": success }))
+}
+
+async fn grants_list(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+    Ok(json!(with_grants(&app, |g| g.list().to_vec())))
+}
+
+async fn grants_revoke(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let Some(origin) = args.first().and_then(Value::as_str).map(str::to_owned) else {
+        return Ok(json!({ "success": false }));
+    };
+    with_grants(&app, |g| g.revoke(&origin));
+    Ok(json!({ "success": true }))
+}
+
+async fn answer_dialog(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let accept = match args.first().and_then(Value::as_str) {
+        Some("accept") => true,
+        Some("dismiss") => false,
+        _ => {
+            return Ok(pages::failure(
+                "invalid_input",
+                Some("The dialog action is accept or dismiss."),
+            ));
+        }
+    };
+    let text = args.get(1).and_then(Value::as_str).map(str::to_owned);
+    if let Err(failed) = ensure_page(&app).await {
+        return Ok(failed);
+    }
+    let (Some(cdp), Some(state)) = (page_cdp(&app), dialogs_of(&app)) else {
+        return Ok(pages::failure("pane_unavailable", None));
+    };
+    Ok(
+        match dialogs::answer(&state, &cdp, accept, text.as_deref()).await {
+            Ok(Some(dialog)) => {
+                sleep(Duration::from_millis(300)).await;
+                json!({ "ok": true, "answered": dialog.kind, "url": page_url(&cdp).await })
+            }
+            Ok(None) => pages::failure("no_dialog", None),
+            Err(error) => Fail::from(error).reply(),
+        },
+    )
+}
+
+/// The dialog tracker of the page in the front tab, started on first use.
+fn dialogs_of(app: &AppHandle) -> Option<Arc<DialogState>> {
+    let webview = front_webview(app)?;
+    let label = webview.label().to_owned();
+    let panes = app.state::<Panes>();
+    if let Some(state) = locked(&panes.dialogs).get(&label) {
+        return Some(state.clone());
+    }
+    let state = watch_page(&webview);
+    let mut map = locked(&panes.dialogs);
+    let tracked = map.entry(label).or_insert(state).clone();
+    Some(tracked)
+}
+
+#[cfg(windows)]
+fn watch_page(webview: &Webview) -> Arc<DialogState> {
+    dialogs::watch(Arc::new(WebView2Cdp::new(webview.clone())))
+}
+
+#[cfg(not(windows))]
+fn watch_page(_webview: &Webview) -> Arc<DialogState> {
+    Arc::new(DialogState::default())
+}
+
+async fn page_url(cdp: &PageCdp) -> String {
+    pages::evaluate(cdp, "location.href")
+        .await
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .unwrap_or_default()
+}
+
+/// Runs a script that answers with JSON text and reads the answer.
+async fn read_json(cdp: &PageCdp, script: &str) -> Result<Value, Fail> {
+    let raw = pages::evaluate(cdp, script).await?;
+    let text = raw.as_str().unwrap_or_default();
+    serde_json::from_str(text).map_err(|_| Fail::new("script_failed", ""))
+}
+
+fn point_of(spot: &Value) -> Option<(f64, f64)> {
+    Some((spot.get("x")?.as_f64()?, spot.get("y")?.as_f64()?))
+}
+
+fn no_such_element() -> Fail {
+    Fail::new("element_not_found", "No element has that index.")
+}
+
+fn risky_index(info: &Value) -> Option<String> {
+    let role = info.get("role").and_then(Value::as_str).unwrap_or_default();
+    let name = info.get("name").and_then(Value::as_str).unwrap_or_default();
+    let input = info
+        .get("inputType")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    safety::risky_action(role, name, input)
+}
+
+/// Asks before an action that pays, deletes, sends or posts. A refusal is `needs_confirmation`.
+async fn confirm(app: &AppHandle, cdp: &PageCdp, why: &str) -> Result<(), Fail> {
+    let url = page_url(cdp).await;
+    if action_gate(app, &url, why).await {
+        return Ok(());
+    }
+    Err(Fail::new("needs_confirmation", ""))
+}
+
+/// Types into a numbered field. A password or payment field is left to the user.
+async fn type_by_index(app: &AppHandle, index: i64, text: &str) -> Value {
+    let text = text.to_owned();
+    acting(app, move |cdp| async move {
+        let info = read_json(&cdp, &elements::index_info_script(index)).await?;
+        let attrs = info.get("attrs").cloned().unwrap_or(Value::Null);
+        if let Some(what) = safety::sensitive_field(&attrs) {
+            return Err(Fail::new(
+                "needs_user",
+                format!(
+                    "That is {what}. Ask the user to fill it in themselves in the browser pane."
+                ),
+            ));
+        }
+        let typed = pages::evaluate(&*cdp, &elements::type_into_script(index, &text)).await?;
+        if typed.as_bool() != Some(true) {
+            return Err(no_such_element());
+        }
+        Ok(json!({ "ok": true }))
+    })
+    .await
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn a_numbered_element_gives_its_click_point() {
+        assert_eq!(point_of(&json!({ "x": 4.0, "y": 9.0 })), Some((4.0, 9.0)));
+        assert_eq!(point_of(&json!({ "missing": true })), None);
+    }
 }

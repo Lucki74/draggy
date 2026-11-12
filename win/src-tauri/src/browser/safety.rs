@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 
 use regex::Regex;
 use serde_json::Value;
+use tauri::Url;
 
 const CLICKABLE: &[&str] = &[
     "button", "link", "menuitem", "checkbox", "switch", "tab", "option",
@@ -60,9 +61,85 @@ pub fn risky_action(role: &str, name: &str, input_type: &str) -> Option<String> 
     None
 }
 
-/// Whether the agent may act on the page at `url`. No site has been approved yet, so none is.
-pub fn site_allowed(_url: &str) -> bool {
-    false
+/// The origin of an http or https address, as the page reports it, or None for anything else.
+pub fn origin_of(url: &str) -> Option<String> {
+    let parsed = Url::parse(url).ok()?;
+    matches!(parsed.scheme(), "http" | "https").then(|| parsed.origin().ascii_serialization())
+}
+
+/// The host of an address alone: what the logs may keep of it.
+pub fn host_of(url: &str) -> String {
+    Url::parse(url)
+        .ok()
+        .and_then(|parsed| parsed.host_str().map(str::to_owned))
+        .unwrap_or_default()
+}
+
+/// What the user let the agent do on which sites. A trusted site is saved; a session grant is not.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct Grants {
+    trusted: Vec<String>,
+    session: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Standing {
+    Trusted,
+    Session,
+    Unknown,
+}
+
+impl Grants {
+    pub fn new(trusted: Vec<String>) -> Self {
+        let mut grants = Self::default();
+        for origin in trusted {
+            push_unique(&mut grants.trusted, origin);
+        }
+        grants
+    }
+
+    pub fn standing(&self, origin: &str) -> Standing {
+        if self.trusted.iter().any(|o| o == origin) {
+            Standing::Trusted
+        } else if self.session.iter().any(|o| o == origin) {
+            Standing::Session
+        } else {
+            Standing::Unknown
+        }
+    }
+
+    pub fn allow_session(&mut self, origin: &str) {
+        push_unique(&mut self.session, origin.to_owned());
+    }
+
+    pub fn trust(&mut self, origin: &str) {
+        push_unique(&mut self.trusted, origin.to_owned());
+        self.session.retain(|o| o != origin);
+    }
+
+    pub fn revoke(&mut self, origin: &str) {
+        self.trusted.retain(|o| o != origin);
+        self.session.retain(|o| o != origin);
+    }
+
+    pub fn list(&self) -> &[String] {
+        &self.trusted
+    }
+}
+
+fn push_unique(list: &mut Vec<String>, origin: String) {
+    if !list.contains(&origin) {
+        list.push(origin);
+    }
+}
+
+/// The saved trusted sites: a JSON array of origins. Anything else reads as none.
+pub fn parse_trusted(raw: Option<&str>) -> Vec<String> {
+    raw.and_then(|text| serde_json::from_str::<Vec<Value>>(text).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|value| value.as_str().map(str::to_owned))
+        .collect()
 }
 
 /// At most `max` actions in any `window`.
@@ -137,7 +214,35 @@ mod tests {
     }
 
     #[test]
-    fn no_site_is_approved_yet() {
-        assert!(!site_allowed("https://example.com/"));
+    fn a_new_site_is_unknown_until_granted() {
+        let mut grants = Grants::new(vec!["https://a.test".to_owned()]);
+        assert_eq!(grants.standing("https://a.test"), Standing::Trusted);
+        assert_eq!(grants.standing("https://b.test"), Standing::Unknown);
+        grants.allow_session("https://b.test");
+        assert_eq!(grants.standing("https://b.test"), Standing::Session);
+        grants.trust("https://b.test");
+        assert_eq!(grants.list(), ["https://a.test", "https://b.test"]);
+        grants.revoke("https://a.test");
+        assert_eq!(grants.standing("https://a.test"), Standing::Unknown);
+    }
+
+    #[test]
+    fn origins_and_hosts_drop_paths_and_queries() {
+        assert_eq!(
+            origin_of("https://a.test:8443/x?token=1").as_deref(),
+            Some("https://a.test:8443")
+        );
+        assert_eq!(origin_of("about:blank"), None);
+        assert_eq!(host_of("https://a.test/x?q=1"), "a.test");
+    }
+
+    #[test]
+    fn saved_sites_must_be_a_list_of_strings() {
+        assert_eq!(
+            parse_trusted(Some(r#"["https://a.test", 3]"#)),
+            ["https://a.test"]
+        );
+        assert!(parse_trusted(Some("not json")).is_empty());
+        assert!(parse_trusted(None).is_empty());
     }
 }

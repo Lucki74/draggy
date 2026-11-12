@@ -7,9 +7,5 @@ pub const PENDING_CHANNELS: &[&str] = &[
     "browser-bar-action",
     "browser-bar-menu",
     "browser-bar-set-adblock",
-    "browser-consent:answer",
-    "browser-dialog",
-    "browser-grants:list",
-    "browser-grants:revoke",
     "browser-trace",
 ];

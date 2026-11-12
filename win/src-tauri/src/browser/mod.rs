@@ -5,6 +5,8 @@ pub mod act;
 pub mod cdp;
 #[cfg(windows)]
 pub mod cdp_webview2;
+pub mod dialogs;
+pub mod elements;
 pub mod keys;
 pub mod observe;
 pub mod pages;
