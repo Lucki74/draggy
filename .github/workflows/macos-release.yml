@@ -1,9 +1,8 @@
 name: macOS release
 
 # Run from the Actions tab on main. Builds the macOS app as 0.N, where N is one more than the highest macos-b-N tag,
-# signs it ad hoc and publishes a pre-release with a zip. The pre-release flag keeps it away from the Windows updater,
+# and publishes a pre-release with a zip. The pre-release flag keeps it away from the Windows updater,
 # which reads the newest b-N release and falls back to the release marked Latest.
-# Developer ID signing, notarization and Sparkle replace the ad-hoc step once the Apple Developer Program is joined.
 on:
   workflow_dispatch:
     inputs:
@@ -119,7 +118,7 @@ jobs:
           N: ${{ needs.prepare.outputs.n }}
           NOTES: ${{ inputs.notes }}
         run: |
-          body="$NOTES"$'\n\n'"This build is signed ad hoc. On first launch, right-click the app and choose Open."
+          body="$NOTES"
           if [ "$N" -gt 1 ]; then
             body="$body"$'\n\n'"**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/macos-b-$((N-1))...macos-b-$N"
           fi
