@@ -660,10 +660,11 @@ fn edit_now(
             ResolveOptions {
                 must_exist: true,
                 create_parents: false,
+                op: "edit",
             },
         )
         .map_err(|r| r.0)?;
-    let current = fs_guard::read_text(&path, MAX_READ_BYTES).map_err(|e| e.to_string())?;
+    let current = fs_guard::read_text(&path, MAX_READ_BYTES, "edit").map_err(|e| e.to_string())?;
     if find.is_empty() {
         return Err("Nothing was given to replace.".to_owned());
     }

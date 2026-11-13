@@ -233,7 +233,12 @@ fn choices(value: Option<&Value>) -> bundle::Choices {
 }
 
 async fn preview(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
-    Ok(bundle::preview(&sources(&app).await, choices(args.first())))
+    let diag = app.state::<AppState>().diag.clone();
+    Ok(bundle::preview(
+        &sources(&app).await,
+        choices(args.first()),
+        Some(diag.as_ref()),
+    ))
 }
 
 /// The save dialog opens in Documents; nothing is written until the person picks a file.
@@ -258,7 +263,9 @@ async fn export(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
             .map_err(|error| IpcError::Failed(error.to_string()))?,
         _ => return Ok(json!({"saved": false})),
     };
-    let saved = bundle::save(&sources, picks, &target).map_err(IpcError::Failed)?;
+    let diag = app.state::<AppState>().diag.clone();
+    let saved =
+        bundle::save(&sources, picks, &target, Some(diag.as_ref())).map_err(IpcError::Failed)?;
     app.state::<AppState>().diag.info(
         "files",
         "diagnostics bundle saved",

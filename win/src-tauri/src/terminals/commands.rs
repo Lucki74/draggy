@@ -19,7 +19,7 @@ use tokio::sync::oneshot;
 use super::pipe::{self, Pipe, PipeExit, PipeLaunch};
 use super::sandbox::{self, Launch, Spawn, inside};
 use super::shells::{self, Env, build_env};
-use super::tasks::{Adopted, Exit, GRANT_NOTICE, Manager as TaskManager};
+use super::tasks::{Adopted, Exit, Manager as TaskManager};
 
 const MAX_COMMAND_CHARS: usize = 8_000;
 
@@ -154,7 +154,11 @@ pub async fn run(tasks: &'static TaskManager, request: Request) -> Value {
     let shell = request.shell.as_deref();
     let default_shell = request.default_shell.as_deref();
     let sandboxed = request.sandbox.is_some();
-    let plain = match shells::invocation(&env, &text, shell, default_shell, false) {
+    let proven = match &request.sandbox {
+        Some(options) => sandbox_shells(&request, options).await,
+        None => Vec::new(),
+    };
+    let plain = match shells::invocation(&env, &text, shell, default_shell, sandboxed, &proven) {
         Ok(invocation) => invocation,
         Err(error) => return refused(&error),
     };
@@ -168,6 +172,7 @@ pub async fn run(tasks: &'static TaskManager, request: Request) -> Value {
                 shell,
                 default_shell,
                 sandboxed,
+                &proven,
             ) {
                 Ok(invocation) => invocation,
                 Err(error) => return refused(&error),
@@ -240,7 +245,7 @@ pub async fn run(tasks: &'static TaskManager, request: Request) -> Value {
     };
 
     if sandbox::needs_grant(&launch) {
-        (shared.on_output)(GRANT_NOTICE);
+        (shared.on_output)(sandbox::SETUP_NOTE);
         let waiting = Arc::clone(&shared);
         let auto_detach = request.auto_detach;
         tauri::async_runtime::spawn(async move {
@@ -255,6 +260,40 @@ pub async fn run(tasks: &'static TaskManager, request: Request) -> Value {
         shared.begin(launch, limit, request.auto_detach);
     }
     await_reply(answer).await
+}
+
+/// The shell a sandboxed command may use: the one it asked for, once a check showed it starts in the container.
+/// Cmd always starts there, so it needs no check.
+async fn sandbox_shells(request: &Request, options: &sandbox::Options) -> Vec<String> {
+    let mark = format!("echo {}", sandbox::SHELL_MARK);
+    let shell = request.shell.as_deref();
+    let default_shell = request.default_shell.as_deref();
+    let Ok(wanted) = shells::invocation(&Env::system(), &mark, shell, default_shell, false, &[])
+    else {
+        return Vec::new();
+    };
+    if wanted.shell == "cmd" {
+        return Vec::new();
+    }
+    let child_env = build_env(&wanted.env);
+    let spawn = Spawn {
+        file: &wanted.file,
+        args: &wanted.args,
+        verbatim: wanted.verbatim,
+        cwd: &request.root,
+        env: &child_env,
+    };
+    let Ok(launch) = sandbox::wrap(&spawn, options) else {
+        return Vec::new();
+    };
+    if sandbox::needs_grant(&launch) {
+        (request.on_output)(sandbox::SETUP_NOTE);
+    }
+    if sandbox::shell_works(&launch, &wanted.shell).await {
+        vec![wanted.shell]
+    } else {
+        Vec::new()
+    }
 }
 
 async fn await_reply(answer: oneshot::Receiver<Value>) -> Value {

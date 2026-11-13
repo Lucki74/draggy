@@ -10,6 +10,11 @@ use base64::engine::general_purpose::STANDARD;
 use draggy_tools::shell::{clip, timeout_for};
 use draggy_tools::spawn::hidden_command;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
+
+use super::diag;
+
+const SCOPE: &str = "proc.elevate";
 
 /// The exit code Windows gives when the UAC prompt is declined.
 pub const DECLINED: i64 = 1223;
@@ -40,17 +45,46 @@ fn refused(error: &str) -> Value {
     json!({ "success": false, "error": error })
 }
 
+/// A command is never logged: only its length and a short hash, so one run can be matched up later.
+fn fingerprint(text: &str) -> Value {
+    let hash: String = Sha256::digest(text.as_bytes())
+        .iter()
+        .take(4)
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    json!({ "cmdLen": text.chars().count(), "cmdHash": hash })
+}
+
 /// Runs `command` in `cwd` as administrator. Resolves with the same shape the renderer reads for a foreground run.
 pub async fn run_elevated(command: &str, cwd: &Path, timeout_ms: Option<f64>) -> Value {
     let text = command.trim();
     if !cfg!(windows) {
+        if let Some(diag) = diag() {
+            diag.debug(SCOPE, "refused", Some(json!({ "reason": "not-windows" })));
+        }
         return refused("Administrator rights are only available on Windows.");
     }
     if text.is_empty() {
+        if let Some(diag) = diag() {
+            diag.debug(SCOPE, "refused", Some(json!({ "reason": "empty-command" })));
+        }
         return refused("No command was given.");
     }
     if !cwd.exists() {
+        if let Some(diag) = diag() {
+            diag.warn(
+                SCOPE,
+                "refused",
+                Some(json!({ "reason": "no-project-folder" })),
+            );
+        }
         return refused("The project folder is not available.");
+    }
+    let mut data = fingerprint(text);
+    let limit = timeout_for(timeout_ms);
+    data["timeoutMs"] = json!(u64::try_from(limit.as_millis()).unwrap_or(u64::MAX));
+    if let Some(diag) = diag() {
+        diag.debug(SCOPE, "request", Some(data.clone()));
     }
     let mut token = [0u8; 4];
     if getrandom::fill(&mut token).is_err() {
@@ -92,6 +126,9 @@ pub async fn run_elevated(command: &str, cwd: &Path, timeout_ms: Option<f64>) ->
         Ok(Ok(finished)) => finished.status.code().map(i64::from),
         Ok(Err(error)) => {
             let _ = fs::remove_dir_all(&dir);
+            if let Some(diag) = diag() {
+                diag.error(SCOPE, "could not start the elevation shell", Some(json!({ "cmdLen": data["cmdLen"], "cmdHash": data["cmdHash"], "code": error.raw_os_error() })));
+            }
             return refused(&error.to_string());
         }
         Err(_) => None,
@@ -101,6 +138,24 @@ pub async fn run_elevated(command: &str, cwd: &Path, timeout_ms: Option<f64>) ->
 
     let declined = code == Some(DECLINED) && output.is_empty();
     let clipped = clip(&output);
+    let dur_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    if let Some(diag) = diag() {
+        let mut logged = data.clone();
+        logged["durMs"] = json!(dur_ms);
+        logged["exitCode"] = json!(code);
+        if declined {
+            diag.warn(SCOPE, "UAC prompt declined", Some(logged));
+        } else if timed_out {
+            diag.warn(SCOPE, "timed out", Some(logged));
+        } else if code == Some(0) {
+            logged["outputLen"] = json!(output.len());
+            logged["truncated"] = json!(clipped.truncated);
+            diag.info(SCOPE, "finished", Some(logged));
+        } else {
+            logged["truncated"] = json!(clipped.truncated);
+            diag.warn(SCOPE, "finished with error", Some(logged));
+        }
+    }
     let mut result = json!({
         "success": !timed_out && !declined && code == Some(0),
         "exitCode": code,
@@ -110,7 +165,7 @@ pub async fn run_elevated(command: &str, cwd: &Path, timeout_ms: Option<f64>) ->
         "output": if declined { String::new() } else { clipped.text },
         "truncated": clipped.truncated,
         "shell": "cmd",
-        "durationMs": u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+        "durationMs": dur_ms,
     });
     if declined {
         result["error"] = json!("The user declined the administrator prompt.");

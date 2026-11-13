@@ -1,22 +1,33 @@
 //! Runs a command through the Windows sandbox launcher (win/sandbox): an AppContainer that sees one project
 //! folder. The launcher fails closed, and so does this.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::future::Future;
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 use draggy_tools::sandbox::scrub_env;
 use draggy_tools::spawn::hidden_command;
 use serde_json::{Value, json};
 use sha1::{Digest, Sha1};
 
+use super::diag;
+use super::elevate;
+
 const LAUNCHER: &str = "draggy-sandbox.exe";
+const SCOPE: &str = "proc.sandbox";
 // Without these, Node cannot resolve a script path when the drive root is not stat-able.
 const NODE_FLAGS: &str = "--preserve-symlinks --preserve-symlinks-main";
 const UNAVAILABLE: &str = "The sandbox is not available, so the command was not run.";
 const SECRET_FOLDERS: [&str; 5] = [".ssh", ".aws", ".gnupg", ".azure", ".config"];
+/// Printed by the shell check; a shell that starts and runs a command prints it back.
+pub const SHELL_MARK: &str = "dg-shell-ok";
+/// Written into the output while the first grant runs, before the command's own output.
+pub const SETUP_NOTE: &str = "Setting up the sandbox for this folder. The first time can take a few minutes on a big project, and Windows may ask once for administrator rights so commands can list the folders above it.\n";
+/// The launcher's report of a folder above the project that only an administrator can open to listing.
+const NEEDS_ADMIN: &str = "sandbox: needs-admin: ";
 
 /// What a sandboxed command may reach. `launcher` is the launcher binary when one was found.
 #[derive(Clone, Debug, Default)]
@@ -53,6 +64,7 @@ pub struct Grant {
     pub key: String,
     pub spec: Value,
     pub specs: PathBuf,
+    pub cid: String,
 }
 
 /// What to start: the launcher with its spec when sandboxed, else the program itself.
@@ -206,13 +218,23 @@ fn system_root() -> PathBuf {
 
 /// Turns a spawn into one that goes through the launcher. Errors when the sandbox cannot be used, so nothing runs.
 pub fn wrap(spawn: &Spawn<'_>, options: &Options) -> Result<Launch, String> {
+    let cid = options.chat_key.clone();
     let Some(launcher) = options.launcher.clone() else {
+        log_warn(
+            "launcher missing",
+            json!({ "cid": cid, "reason": "unavailable" }),
+        );
         return Err(UNAVAILABLE.into());
     };
     if !options.project.exists() {
+        log_warn("refused", json!({ "cid": cid, "reason": "no-project" }));
         return Err("The project folder is not available.".into());
     }
     if !inside(&options.project, spawn.cwd) {
+        log_warn(
+            "refused",
+            json!({ "cid": cid, "reason": "cwd-outside-project" }),
+        );
         return Err("The command's folder is outside the project.".into());
     }
 
@@ -306,6 +328,18 @@ pub fn wrap(spawn: &Spawn<'_>, options: &Options) -> Result<Launch, String> {
     });
     let spec_file = specs.join(format!("{}.json", random_name()?));
     fs::write(&spec_file, spec.to_string()).map_err(|error| error.to_string())?;
+    log_debug(
+        "launch",
+        json!({
+            "cid": cid,
+            "identity": identity,
+            "access": if options.writable { "rw" } else { "ro" },
+            "network": options.network,
+            "readOnly": read_only_text.len(),
+            "readWrite": read_write_text.len(),
+            "program": spawn.file.file_name().map(|name| name.to_string_lossy().into_owned()),
+        }),
+    );
 
     let mut launcher_env = BTreeMap::new();
     for name in ["SystemRoot", "LOCALAPPDATA"] {
@@ -333,6 +367,7 @@ pub fn wrap(spawn: &Spawn<'_>, options: &Options) -> Result<Launch, String> {
             key,
             spec: access,
             specs,
+            cid,
         }),
     })
 }
@@ -390,6 +425,48 @@ where
     Ok(())
 }
 
+fn log_debug(message: &str, data: Value) {
+    if let Some(diag) = diag() {
+        diag.debug(SCOPE, message, Some(data));
+    }
+}
+
+fn log_info(message: &str, data: Value) {
+    if let Some(diag) = diag() {
+        diag.info(SCOPE, message, Some(data));
+    }
+}
+
+fn log_warn(message: &str, data: Value) {
+    if let Some(diag) = diag() {
+        diag.warn(SCOPE, message, Some(data));
+    }
+}
+
+fn log_error(message: &str, data: Value) {
+    if let Some(diag) = diag() {
+        diag.error(SCOPE, message, Some(data));
+    }
+}
+
+/// Splits the launcher's stderr into the folders that need an administrator listing and the other lines.
+fn split_stderr(stderr: &str) -> (Vec<String>, Vec<String>) {
+    let lines: Vec<String> = stderr
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect();
+    let (admin, rest): (Vec<String>, Vec<String>) = lines
+        .into_iter()
+        .partition(|line| line.starts_with(NEEDS_ADMIN));
+    let folders = admin
+        .iter()
+        .filter_map(|line| line.strip_prefix(NEEDS_ADMIN).map(str::to_owned))
+        .collect();
+    (folders, rest)
+}
+
 async fn default_grant(launch: Launch) -> Result<(), String> {
     let Some(grant) = launch.grant.as_ref() else {
         return Ok(());
@@ -398,21 +475,220 @@ async fn default_grant(launch: Launch) -> Result<(), String> {
     let spec_file = grant.specs.join(format!("{}.json", random_name()?));
     fs::write(&spec_file, grant.spec.to_string()).map_err(|error| error.to_string())?;
     let spec_arg = spec_file.display().to_string();
+    let started = Instant::now();
     let output = hidden_command(&launch.file, &["--grant", spec_arg.as_str()], |command| {
         command.env_clear().envs(&launch.env);
     })
     .output()
-    .await
-    .map_err(|error| error.to_string())?;
-    if output.status.success() {
-        return Ok(());
+    .await;
+    // The spec holds the environment, so it goes as soon as the launcher has read it.
+    let _ = fs::remove_file(&spec_file);
+    let output = output.map_err(|error| error.to_string())?;
+    // The launcher warns on stderr even when it succeeds, for a folder it could not grant.
+    let (admin, rest) = split_stderr(&String::from_utf8_lossy(&output.stderr));
+    let data = json!({
+        "cid": grant.cid,
+        "identity": grant.spec["identity"],
+        "durMs": u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+        "readOnly": grant.spec["readOnly"].as_array().map_or(0, Vec::len),
+        "readWrite": grant.spec["readWrite"].as_array().map_or(0, Vec::len),
+        "warnings": rest.len(),
+        "needsAdmin": admin.len(),
+    });
+    if !output.status.success() {
+        log_error("grant failed", data);
+        let message = rest.join(" ");
+        return Err(if message.is_empty() {
+            output.status.to_string()
+        } else {
+            message
+        });
     }
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
-    Err(if stderr.is_empty() {
-        output.status.to_string()
+    if rest.is_empty() {
+        log_info("granted", data);
     } else {
-        stderr
+        log_warn("grant warned", data);
+    }
+    if !admin.is_empty() {
+        list_folders(&launch, admin).await;
+    }
+    Ok(())
+}
+
+/// Lets every container list folders such as C:\Users and C:\ through Draggy's list capability. It needs one UAC
+/// prompt per machine. It is asked at most once per app run, so a declined prompt does not come back on every command.
+async fn list_folders(launch: &Launch, folders: Vec<String>) {
+    let file = launch.file.clone();
+    list_folders_with(launch, folders, move |folders| {
+        default_elevate(file, folders)
     })
+    .await;
+}
+
+static ADMIN_STEP: LazyLock<tokio::sync::OnceCell<()>> = LazyLock::new(tokio::sync::OnceCell::new);
+
+async fn list_folders_with<F, Fut>(launch: &Launch, folders: Vec<String>, elevate: F)
+where
+    F: FnOnce(Vec<String>) -> Fut,
+    Fut: Future<Output = Value>,
+{
+    let cid = launch.grant.as_ref().map(|grant| grant.cid.clone());
+    ADMIN_STEP
+        .get_or_init(|| async move {
+            let mut unique: Vec<String> = Vec::new();
+            for folder in folders {
+                if !unique.contains(&folder) {
+                    unique.push(folder);
+                }
+            }
+            let count = unique.len();
+            log_info(
+                "asking for admin to list parent folders",
+                json!({ "cid": cid, "folders": count }),
+            );
+            let result = elevate(unique).await;
+            if result["declined"] == json!(true) {
+                log_warn("admin step declined", json!({ "folders": count }));
+            } else if result["success"] == json!(true) {
+                log_info("parent folders listable", json!({ "folders": count }));
+            } else {
+                log_warn(
+                    "admin step failed",
+                    json!({ "exitCode": result["exitCode"], "timedOut": result["timedOut"] == json!(true) }),
+                );
+            }
+        })
+        .await;
+}
+
+async fn default_elevate(file: PathBuf, folders: Vec<String>) -> Value {
+    // Paths that cmd would expand or split are never sent to the elevated batch file.
+    let safe: Vec<String> = folders
+        .into_iter()
+        .filter(|folder| !folder.chars().any(|c| "%&^|<>\"\r\n".contains(c)))
+        .collect();
+    if safe.is_empty() {
+        return json!({ "success": false });
+    }
+    let mut args = vec!["--list-folders".to_owned()];
+    args.extend(safe);
+    let command = command_line(&file, &args, false);
+    elevate::run_elevated(&command, &std::env::temp_dir(), Some(10.0 * 60.0 * 1000.0)).await
+}
+
+/// Shells that passed the check this app run, for callers that cannot wait on one.
+static PROVEN: LazyLock<Mutex<BTreeSet<String>>> = LazyLock::new(|| Mutex::new(BTreeSet::new()));
+/// One lock and result per sandbox identity and shell, so each shell is checked once.
+type ShellCheck = Arc<tokio::sync::Mutex<Option<bool>>>;
+static SHELL_CHECKS: LazyLock<Mutex<HashMap<String, ShellCheck>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// True once `shell` started inside this launch's container and ran `echo` there. Each shell is checked once per
+/// sandbox identity and app run, after the folder grant, since Git's bash and PowerShell can fail to start in an
+/// AppContainer where cmd works.
+pub async fn shell_works(launch: &Launch, shell: &str) -> bool {
+    shell_works_with(launch, shell, default_shell_check).await
+}
+
+async fn shell_works_with<F, Fut>(launch: &Launch, shell: &str, check: F) -> bool
+where
+    F: FnOnce(Launch) -> Fut,
+    Fut: Future<Output = bool>,
+{
+    let identity = launch
+        .grant
+        .as_ref()
+        .map_or(Value::Null, |grant| grant.spec["identity"].clone());
+    let key = json!([identity, shell]).to_string();
+    let cell = {
+        let mut map = SHELL_CHECKS.lock().unwrap_or_else(PoisonError::into_inner);
+        Arc::clone(map.entry(key).or_default())
+    };
+    let mut known = cell.lock().await;
+    if let Some(works) = *known {
+        return works;
+    }
+    let started = Instant::now();
+    let works = match ready(launch).await {
+        Ok(()) => check(launch.clone()).await,
+        Err(_) => false,
+    };
+    let message = if works {
+        "shell works in the sandbox"
+    } else {
+        "shell does not start in the sandbox"
+    };
+    log_info(
+        message,
+        json!({
+            "cid": launch.grant.as_ref().map(|grant| grant.cid.clone()),
+            "identity": identity,
+            "shell": shell,
+            "durMs": u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+        }),
+    );
+    if works {
+        PROVEN
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(shell.to_owned());
+    }
+    *known = Some(works);
+    works
+}
+
+/// The shells that passed the check this app run.
+pub fn proven_shells() -> Vec<String> {
+    PROVEN
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .iter()
+        .cloned()
+        .collect()
+}
+
+async fn default_shell_check(launch: Launch) -> bool {
+    let run = hidden_command(&launch.file, launch.args.as_slice(), |command| {
+        command
+            .env_clear()
+            .envs(&launch.env)
+            .current_dir(&launch.cwd);
+    })
+    .output();
+    match tokio::time::timeout(Duration::from_secs(30), run).await {
+        Ok(Ok(output)) => {
+            output.status.success() && String::from_utf8_lossy(&output.stdout).contains(SHELL_MARK)
+        }
+        _ => false,
+    }
+}
+
+/// Removes spec files left by an earlier run. Each holds a command line and its environment, so none should outlive it.
+pub fn sweep_specs(data_dir: &Path) -> usize {
+    let specs = data_dir.join("sandbox").join("specs");
+    let entries = match fs::read_dir(&specs) {
+        Ok(entries) => entries,
+        Err(error) => {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                log_warn("spec sweep failed", json!({ "code": error.raw_os_error() }));
+            }
+            return 0;
+        }
+    };
+    let mut removed = 0;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|ext| ext == "json") {
+            match fs::remove_file(&path) {
+                Ok(()) => removed += 1,
+                Err(error) => log_warn("spec not removed", json!({ "code": error.raw_os_error() })),
+            }
+        }
+    }
+    if removed > 0 {
+        log_info("old specs removed", json!({ "removed": removed }));
+    }
+    removed
 }
 
 #[cfg(test)]
@@ -524,6 +800,7 @@ mod tests {
                 key: format!("retry-{}", std::process::id()),
                 spec: json!({}),
                 specs: std::env::temp_dir(),
+                cid: "c".into(),
             }),
         };
         let calls = Arc::new(AtomicUsize::new(0));
@@ -550,6 +827,59 @@ mod tests {
         .await;
         assert!(third.is_ok());
         assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn stderr_splits_admin_folders_from_warnings() {
+        let text = "sandbox: needs-admin: C:\\Users\nwarn one\nsandbox: needs-admin: C:\\\n";
+        let (folders, rest) = split_stderr(text);
+        assert_eq!(folders, vec!["C:\\Users".to_owned(), "C:\\".to_owned()]);
+        assert_eq!(rest, vec!["warn one".to_owned()]);
+    }
+
+    #[test]
+    fn sweep_removes_only_spec_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let specs = dir.path().join("sandbox").join("specs");
+        fs::create_dir_all(&specs).expect("specs");
+        fs::write(specs.join("old.json"), b"{}").expect("spec");
+        fs::write(specs.join("keep.txt"), b"x").expect("other");
+        assert_eq!(sweep_specs(dir.path()), 1);
+        assert!(specs.join("keep.txt").exists());
+        assert!(!specs.join("old.json").exists());
+    }
+
+    #[tokio::test]
+    async fn each_shell_is_checked_once_per_identity() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        DONE.lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert("shell-test-key".into());
+        let launch = Launch {
+            file: PathBuf::from("draggy-sandbox.exe"),
+            args: Vec::new(),
+            verbatim: false,
+            cwd: std::env::temp_dir(),
+            env: BTreeMap::new(),
+            grant: Some(Grant {
+                key: "shell-test-key".into(),
+                spec: json!({ "identity": "shell-test-identity" }),
+                specs: std::env::temp_dir(),
+                cid: "c".into(),
+            }),
+        };
+        let calls = Arc::new(AtomicUsize::new(0));
+        for _ in 0..2 {
+            let counted = Arc::clone(&calls);
+            let works = shell_works_with(&launch, "shell-test-a", move |_: Launch| async move {
+                counted.fetch_add(1, Ordering::SeqCst);
+                true
+            })
+            .await;
+            assert!(works);
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert!(proven_shells().contains(&"shell-test-a".to_owned()));
     }
 
     #[test]

@@ -212,7 +212,7 @@ async fn shell_open(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError>
         .filter(|shell| *shell != "default");
     let default_shell = option(options, "defaultShell").and_then(Value::as_str);
     let env = shells::Env::system();
-    let invocation = match shells::invocation(&env, "", requested, default_shell, false) {
+    let invocation = match shells::invocation(&env, "", requested, default_shell, false, &[]) {
         Ok(invocation) => invocation,
         Err(error) => return Ok(refused(&error)),
     };

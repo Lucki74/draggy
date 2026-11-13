@@ -159,26 +159,20 @@ pub struct Invocation {
 }
 
 /// What runs `command`: the shell asked for, else the Default shell setting, else bash, pwsh, Windows
-/// PowerShell. Inside the sandbox only cmd starts, so any other shell is swapped for it with a notice.
+/// PowerShell. Inside the sandbox a shell runs only if `sandbox_shells` lists it (a check showed it starts there),
+/// else the command is swapped for cmd with a notice.
 pub fn invocation(
     env: &Env,
     command: &str,
     requested: Option<&str>,
     default_shell: Option<&str>,
     sandboxed: bool,
+    sandbox_shells: &[String],
 ) -> Result<Invocation, String> {
     let mut shell = requested
         .filter(|name| SHELL_IDS.contains(name))
         .unwrap_or("default");
     let mut notice = None;
-    if sandboxed && shell != "cmd" {
-        if shell != "default" {
-            notice = Some(format!(
-                "{shell} does not run inside the sandbox, so the command ran in cmd."
-            ));
-        }
-        shell = "cmd";
-    }
     if shell == "default" {
         let preferred = default_shell.filter(|name| SHELL_IDS.contains(name));
         let has_bash = find(env, "bash").is_some();
@@ -200,6 +194,18 @@ pub fn invocation(
                 };
             }
         }
+    }
+    // Git's ls, grep and the rest are on PATH too and fail the same way, so the model is steered to cmd's own commands.
+    if sandboxed && shell != "cmd" && !sandbox_shells.iter().any(|name| name == shell) {
+        let posix = if shell == "bash" || shell == "sh" {
+            " Git's Unix tools such as ls and grep do not start there either, so use cmd commands such as dir and findstr."
+        } else {
+            ""
+        };
+        notice = Some(format!(
+            "{shell} does not start inside the sandbox, so the command ran in cmd.{posix}"
+        ));
+        shell = "cmd";
     }
     let base = Invocation {
         shell: shell.to_string(),
@@ -233,13 +239,14 @@ pub fn invocation(
                 ..base
             }
         }
+        // cmd writes in the OEM code page, which reads as mangled UTF-8, so the console switches to UTF-8 first.
         "cmd" => Invocation {
             file: comspec(),
             args: vec![
                 "/d".into(),
                 "/s".into(),
                 "/c".into(),
-                format!("\"{command}\""),
+                format!("\"chcp 65001>nul & {command}\""),
             ],
             verbatim: true,
             ..base
@@ -357,10 +364,10 @@ mod tests {
     fn the_default_setting_wins_then_bash_with_a_notice_when_it_is_missing() {
         let dir = tempfile::tempdir().expect("tempdir");
         let env = env_with(&[], vec![fake_git(dir.path())]);
-        let picked = invocation(&env, "ls", None, Some("cmd"), false).expect("cmd");
+        let picked = invocation(&env, "ls", None, Some("cmd"), false, &[]).expect("cmd");
         assert_eq!(picked.shell, "cmd");
         assert!(picked.notice.is_none());
-        let fallback = invocation(&env, "ls", None, Some("pwsh"), false).expect("bash");
+        let fallback = invocation(&env, "ls", None, Some("pwsh"), false, &[]).expect("bash");
         assert_eq!(fallback.shell, "bash");
         assert_eq!(fallback.args, vec!["--noprofile", "--norc", "-c", "ls"]);
         assert_eq!(
@@ -378,21 +385,30 @@ mod tests {
     #[test]
     fn cmd_gets_the_command_verbatim_and_the_sandbox_forces_it() {
         let env = env_with(&[], vec![]);
-        let cmd = invocation(&env, "dir /b", Some("cmd"), None, false).expect("cmd");
-        assert_eq!(cmd.args, vec!["/d", "/s", "/c", "\"dir /b\""]);
+        let cmd = invocation(&env, "dir /b", Some("cmd"), None, false, &[]).expect("cmd");
+        assert_eq!(
+            cmd.args,
+            vec!["/d", "/s", "/c", "\"chcp 65001>nul & dir /b\""]
+        );
         assert!(cmd.verbatim);
-        let boxed = invocation(&env, "ls", Some("bash"), None, true).expect("boxed");
+        let boxed = invocation(&env, "ls", Some("bash"), None, true, &[]).expect("boxed");
         assert_eq!(boxed.shell, "cmd");
         assert_eq!(
             boxed.notice.as_deref(),
-            Some("bash does not run inside the sandbox, so the command ran in cmd.")
+            Some(
+                "bash does not start inside the sandbox, so the command ran in cmd. Git's Unix tools such as ls and grep do not start there either, so use cmd commands such as dir and findstr."
+            )
         );
-        assert!(
-            invocation(&env, "ls", None, None, true)
-                .expect("boxed")
-                .notice
-                .is_none()
-        );
+    }
+
+    #[test]
+    fn a_proven_shell_runs_inside_the_sandbox() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let env = env_with(&[], vec![fake_git(dir.path())]);
+        let proven = vec!["bash".to_string()];
+        let kept = invocation(&env, "ls", Some("bash"), None, true, &proven).expect("proven");
+        assert_eq!(kept.shell, "bash");
+        assert!(kept.notice.is_none());
     }
 
     #[test]
@@ -400,7 +416,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         std::fs::write(dir.path().join("pwsh.exe"), b"").expect("pwsh");
         let env = env_with(&[dir.path().to_path_buf()], vec![]);
-        let run = invocation(&env, "npm test", Some("pwsh"), None, false).expect("pwsh");
+        let run = invocation(&env, "npm test", Some("pwsh"), None, false, &[]).expect("pwsh");
         assert_eq!(
             &run.args[..5],
             [
@@ -418,7 +434,7 @@ mod tests {
     fn a_requested_shell_that_is_missing_is_an_error() {
         let dir = tempfile::tempdir().expect("tempdir");
         let env = env_with(&[dir.path().to_path_buf()], vec![]);
-        let error = invocation(&env, "", Some("bash"), None, false).expect_err("missing bash");
+        let error = invocation(&env, "", Some("bash"), None, false, &[]).expect_err("missing bash");
         assert_eq!(error, "bash is not installed on this computer.");
     }
 

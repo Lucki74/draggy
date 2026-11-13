@@ -70,20 +70,32 @@ fn has_denied_part(target: &str) -> bool {
         .any(is_denied_name)
 }
 
-/// A refusal the model reads back. Each one is logged at WARN with the rule that matched.
+/// A refusal the model reads back. Each one is logged at WARN with the op and the rule that matched.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{0}")]
 pub struct Refusal(pub String);
 
-fn refuse(rule: &'static str, message: &str) -> Refusal {
-    tracing::warn!(target: "files.guard", rule, "denied");
+fn refuse(op: &str, rule: &'static str, message: &str) -> Refusal {
+    tracing::warn!(target: "files.guard", op, rule, "denied");
     Refusal(message.to_owned())
 }
 
-/// A refusal that names the path it was about, as the reference's WARN line does.
-fn refuse_at(rule: &'static str, message: &str, path: &Path) -> Refusal {
-    tracing::warn!(target: "files.guard", rule, path = %path.display(), "denied");
+/// A refusal that names the file it was about. Only the file name is logged, so the folder layout stays out.
+fn refuse_at(op: &str, rule: &'static str, message: &str, path: &Path) -> Refusal {
+    tracing::warn!(target: "files.guard", op, rule, file = %file_name(path), "denied");
     Refusal(message.to_owned())
+}
+
+/// The op a log line names; a caller that gave none is a plain resolve.
+fn op_or_default(op: &'static str) -> &'static str {
+    if op.is_empty() { "resolve" } else { op }
+}
+
+/// The file name of a path, for the log.
+fn file_name(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }
 
 /// Failure to read a file: a refusal the model can read, or an I/O error the caller must handle.
@@ -96,10 +108,12 @@ pub enum ReadError {
 }
 
 /// Whether a request must name something that exists, and whether missing folders on the way may be made.
+/// `op` names the caller's operation in the log.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ResolveOptions {
     pub must_exist: bool,
     pub create_parents: bool,
+    pub op: &'static str,
 }
 
 /// Text a model can work with: its contents and the size on disk.
@@ -189,9 +203,10 @@ impl Guard {
         requested: &str,
         options: ResolveOptions,
     ) -> Result<PathBuf, Refusal> {
+        let op = op_or_default(options.op);
         let asked = js::trim(requested);
         if asked.is_empty() {
-            return Err(refuse("empty", "No file was named."));
+            return Err(refuse(op, "empty", "No file was named."));
         }
 
         let folders: Vec<&Path> = roots
@@ -201,14 +216,15 @@ impl Guard {
             .collect();
         let Some(first) = folders.first() else {
             return Err(refuse(
-                "no_folder",
+                op,
+                "no-folder",
                 "This conversation has no folder to work in. Open a project first.",
             ));
         };
 
         // A path with a NUL means one thing to this check and another to the system call beneath it.
         if asked.contains('\0') {
-            return Err(refuse("null_byte", "That file name is not usable."));
+            return Err(refuse(op, "null-byte", "That file name is not usable."));
         }
 
         let joined = if Path::new(asked).is_absolute() {
@@ -224,7 +240,7 @@ impl Guard {
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default();
-            return Err(refuse("missing", &format!("There is no {name}.")));
+            return Err(refuse(op, "not-found", &format!("There is no {name}.")));
         }
 
         // exists() is false for a dangling link, so only the link itself shows it; a write would follow it out of the folder.
@@ -232,6 +248,7 @@ impl Guard {
             && fs::symlink_metadata(&absolute).is_ok_and(|meta| meta.file_type().is_symlink())
         {
             return Err(refuse(
+                op,
                 "dangling_link",
                 "That is a link to a file that is not there, so Draggy will not create it.",
             ));
@@ -251,7 +268,7 @@ impl Guard {
             .as_deref()
             .and_then(|path| fs::canonicalize(path).ok());
         let (Some(anchor), Some(real_anchor)) = (anchor, real_anchor) else {
-            return Err(refuse("no_anchor", "That folder does not exist."));
+            return Err(refuse(op, "missing-folder", "That folder does not exist."));
         };
 
         // Whatever of the path was still missing is rebuilt onto the real ancestor, so a symlink along the way is followed.
@@ -268,7 +285,7 @@ impl Guard {
             .iter()
             .any(|folder| fs::canonicalize(folder).is_ok_and(|real| is_inside(&real, &resolved)));
         if !inside {
-            tracing::warn!(target: "files.guard", rule = "outside", path = %resolved.display(), roots = folders.len(), "denied");
+            tracing::warn!(target: "files.guard", op, rule = "outside-project", file = %file_name(&resolved), roots = folders.len(), "denied");
             return Err(Refusal(
                 "That path is outside the folder this conversation can reach.".to_owned(),
             ));
@@ -276,7 +293,8 @@ impl Guard {
 
         if self.protected.iter().any(|one| is_inside(one, &resolved)) {
             return Err(refuse_at(
-                "protected",
+                op,
+                "protected-storage",
                 "That is Draggy's own storage, which is not yours to edit.",
                 &resolved,
             ));
@@ -285,13 +303,14 @@ impl Guard {
         let shown = resolved.to_string_lossy();
         if has_denied_part(&shown) {
             return Err(refuse_at(
-                "credentials",
+                op,
+                "blocked-name",
                 "That file holds credentials, so Draggy does not open it. Tell the user what you need and let them do it.",
                 &resolved,
             ));
         }
 
-        tracing::debug!(target: "files.guard", path = %resolved.display(), "allowed");
+        tracing::debug!(target: "files.guard", op, file = %file_name(&resolved), "allowed");
         Ok(resolved)
     }
 
@@ -318,16 +337,18 @@ fn nearest_existing(target: &Path) -> Option<PathBuf> {
 }
 
 /// Text a model can work with, or the reason it cannot. A file over `limit` is refused, not cut.
-pub fn read_text(file: &Path, limit: u64) -> Result<TextFile, ReadError> {
+pub fn read_text(file: &Path, limit: u64, op: &'static str) -> Result<TextFile, ReadError> {
+    let op = op_or_default(op);
     // TS quirk: a missing file throws from statSync in the reference. Here it is the Io arm, the same failure by value.
     let meta = fs::metadata(file)?;
     if meta.is_dir() {
-        return Err(refuse("folder", "That is a folder, not a file.").into());
+        return Err(refuse(op, "is-folder", "That is a folder, not a file.").into());
     }
     if meta.len() > limit {
         let kb = |bytes: u64| ((bytes as f64) / 1024.0).round() as u64;
         return Err(refuse(
-            "size",
+            op,
+            "too-large",
             &format!(
                 "That file is {} KB, over the {} KB a single read allows. Ask for part of it instead.",
                 kb(meta.len()),
@@ -340,7 +361,7 @@ pub fn read_text(file: &Path, limit: u64) -> Result<TextFile, ReadError> {
     let bytes = fs::read(file)?;
     let probe = &bytes[..bytes.len().min(TEXT_PROBE_BYTES)];
     if probe.contains(&0) {
-        return Err(refuse("not_text", "That file is not text.").into());
+        return Err(refuse(op, "binary", "That file is not text.").into());
     }
 
     Ok(TextFile {

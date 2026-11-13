@@ -1,5 +1,6 @@
 //! JavaScript dialogs on the pane's page. A dialog freezes its page, so every step asks first and the
 //! model answers it. A page leaving with a "leave this page?" prompt is let go.
+//! Dialog text is page content, so only its type and length reach the log.
 
 use std::future::Future;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -11,6 +12,7 @@ use super::cdp::{Cdp, CdpError};
 
 const MAX_MESSAGE: usize = 500;
 const MAX_PROMPT: usize = 200;
+const SCOPE: &str = "browser.dialogs";
 
 /// The dialog open on the page, as the model hears it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,6 +39,7 @@ impl DialogState {
     /// Feeds an opening dialog. Returns the answer to send at once for a leave-page prompt.
     pub fn open(&self, params: &Value) -> Option<Value> {
         if params.get("type").and_then(Value::as_str) == Some("beforeunload") {
+            tracing::debug!(target: SCOPE, "beforeunload auto-accepted");
             return Some(json!({ "accept": true }));
         }
         let dialog = Dialog {
@@ -44,6 +47,12 @@ impl DialogState {
             message: truncated(&or_default(params, "message", ""), MAX_MESSAGE),
             default_prompt: truncated(&or_default(params, "defaultPrompt", ""), MAX_PROMPT),
         };
+        tracing::info!(
+            target: SCOPE,
+            kind = %dialog.kind,
+            message_len = dialog.message.chars().count(),
+            "dialog opened"
+        );
         *lock(&self.pending) = Some(dialog);
         self.opened.notify_waiters();
         None
@@ -71,14 +80,25 @@ pub async fn answer(
     text: Option<&str>,
 ) -> Result<Option<Dialog>, CdpError> {
     let Some(closing) = state.pending() else {
+        tracing::warn!(target: SCOPE, reason = "no-dialog", "answer refused");
         return Ok(None);
     };
     let mut params = json!({ "accept": accept });
     if let Some(text) = text {
         params["promptText"] = json!(text);
     }
-    cdp.call("Page.handleJavaScriptDialog", params).await?;
+    if let Err(error) = cdp.call("Page.handleJavaScriptDialog", params).await {
+        tracing::warn!(target: SCOPE, kind = %closing.kind, accept, "answer failed");
+        return Err(error);
+    }
     state.close();
+    tracing::info!(
+        target: SCOPE,
+        kind = %closing.kind,
+        accept,
+        has_text = text.is_some(),
+        "dialog answered"
+    );
     Ok(Some(closing))
 }
 
@@ -109,11 +129,19 @@ async fn follow<C: Cdp>(
         };
         match next {
             Ok(params) if is_open => {
-                if let Some(reply) = state.open(&params) {
-                    let _ = cdp.call("Page.handleJavaScriptDialog", reply).await;
+                if let Some(reply) = state.open(&params)
+                    && cdp
+                        .call("Page.handleJavaScriptDialog", reply)
+                        .await
+                        .is_err()
+                {
+                    tracing::warn!(target: SCOPE, "beforeunload accept failed");
                 }
             }
-            Ok(_) => state.close(),
+            Ok(_) => {
+                tracing::debug!(target: SCOPE, had_pending = state.pending().is_some(), "dialog closed");
+                state.close();
+            }
             Err(broadcast::error::RecvError::Lagged(_)) => continue,
             Err(broadcast::error::RecvError::Closed) => break,
         }

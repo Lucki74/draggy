@@ -21,9 +21,6 @@ use super::pty::{Host, Launch, OpenError};
 use super::sandbox::{self, Spawn};
 use super::shells::{self, Env};
 
-/// Written into a sandboxed task's output while its folder is granted for the first time.
-pub const GRANT_NOTICE: &str = "Setting up the sandbox for this folder. The first time can take a few minutes on a big project.\n";
-
 pub const MAX_RUNNING_PER_CHAT: usize = 5;
 /// Output kept in memory per task, in characters. Older output stays in the log file.
 const RING_CHARS: usize = 1_000_000;
@@ -524,6 +521,7 @@ impl Manager {
             options.shell,
             options.default_shell,
             options.sandbox.is_some(),
+            &sandbox::proven_shells(),
         )?;
         if let Some(boxed) = options.sandbox {
             let env = shells::build_env(&invocation.env);
@@ -631,7 +629,7 @@ impl Manager {
             self.begin_piped(uid, &launch);
             return;
         }
-        self.append(uid, GRANT_NOTICE);
+        self.append(uid, sandbox::SETUP_NOTE);
         let manager = self.clone();
         let uid = uid.to_owned();
         tauri::async_runtime::spawn(async move {

@@ -33,6 +33,7 @@ notify = "8"
 unicode-normalization = "0.1.26"
 draggy-api = { path = "../../core/crates/api" }
 draggy-diagnostics = { path = "../../core/crates/diagnostics" }
+tracing = "0.1"
 draggy-documents = { path = "../../core/crates/documents" }
 draggy-engine = { path = "../../core/crates/engine" }
 draggy-mcp = { path = "../../core/crates/mcp" }

@@ -14,6 +14,8 @@ use crate::AppState;
 
 const LIST_LIMIT: i64 = 100;
 const SEARCH_LIMIT: i64 = 20;
+/// Tracing target for the research library. Logs carry counts and outcomes, never run text or queries.
+const SCOPE: &str = "research.library";
 
 /// Drops runs past the research keep setting, once at launch. Failures are logged and the app goes on.
 pub(crate) fn prune_at_start(app: &AppHandle) {
@@ -91,7 +93,11 @@ async fn get(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let id = js_string(args.first());
     let dir = data_dir(&app);
     Ok(match db(&dir, move |s| get_run(s.conn(), &id)).await {
-        Ok(run) => json!({ "success": true, "run": run }),
+        Ok(Some(run)) => json!({ "success": true, "run": run }),
+        Ok(None) => {
+            tracing::debug!(target: SCOPE, "run not found");
+            json!({ "success": true, "run": null })
+        }
         Err(error) => failure(error),
     })
 }
@@ -101,8 +107,14 @@ async fn save(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let dir = data_dir(&app);
     Ok(
         match db(&dir, move |s| save_run(s.conn_mut(), &run)).await {
-            Ok(()) => json!({ "success": true }),
-            Err(error) => failure(error),
+            Ok(()) => {
+                tracing::info!(target: SCOPE, "run saved");
+                json!({ "success": true })
+            }
+            Err(error) => {
+                tracing::warn!(target: SCOPE, "run save failed");
+                failure(error)
+            }
         },
     )
 }
@@ -112,8 +124,14 @@ async fn remove(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let dir = data_dir(&app);
     Ok(
         match db(&dir, move |s| remove_run(s.conn_mut(), &id)).await {
-            Ok(()) => json!({ "success": true }),
-            Err(error) => failure(error),
+            Ok(()) => {
+                tracing::info!(target: SCOPE, "run removed");
+                json!({ "success": true })
+            }
+            Err(error) => {
+                tracing::warn!(target: SCOPE, "run removal failed");
+                failure(error)
+            }
         },
     )
 }
@@ -129,6 +147,7 @@ async fn search_runs(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
         .get("limit")
         .and_then(Value::as_f64)
         .map_or(SEARCH_LIMIT, |n| n.max(0.0) as i64);
+    let run_id_scoped = run_id.is_some();
     let dir = data_dir(&app);
     Ok(
         match db(&dir, move |s| {
@@ -136,7 +155,10 @@ async fn search_runs(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
         })
         .await
         {
-            Ok(hits) => json!({ "success": true, "hits": hits }),
+            Ok(hits) => {
+                tracing::debug!(target: SCOPE, hits = hits.len(), scoped = run_id_scoped, "search");
+                json!({ "success": true, "hits": hits })
+            }
             Err(error) => failure(error),
         },
     )

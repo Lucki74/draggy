@@ -162,6 +162,8 @@ pub fn run() {
                 .unwrap_or_default();
             std::fs::create_dir_all(data_dir.join("logs"))?;
             let diag = Arc::new(open_log(&data_dir));
+            terminals::install_diagnostics(Arc::clone(&diag));
+            terminals::sandbox::sweep_specs(&data_dir);
             for note in &adopted {
                 diag.info("appData", note, None);
             }

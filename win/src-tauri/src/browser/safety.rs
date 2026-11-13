@@ -1,7 +1,9 @@
 //! What the agent may act on: fields that are the user's to fill, clicks that look like payments or
 //! sends, how fast it may act, and which sites it may act on. No site is approved until consent lands.
+//! Decisions are logged as categories and hosts only, never labels or values.
 
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{LazyLock, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
@@ -9,6 +11,7 @@ use regex::Regex;
 use serde_json::Value;
 use tauri::Url;
 
+const SCOPE: &str = "browser.safety";
 const CLICKABLE: &[&str] = &[
     "button", "link", "menuitem", "checkbox", "switch", "tab", "option",
 ];
@@ -32,27 +35,33 @@ static RISKY_CJK: LazyLock<Regex> = LazyLock::new(|| {
 /// Why a field is the user's to fill in, or None. `attrs` is what the page says about the field.
 pub fn sensitive_field(attrs: &Value) -> Option<&'static str> {
     let field = |key: &str| attrs.get(key).and_then(Value::as_str).unwrap_or_default();
-    if field("type").eq_ignore_ascii_case("password") {
-        return Some("a password field");
-    }
-    if SENSITIVE_AUTOCOMPLETE.is_match(field("autocomplete")) {
-        return Some("a card, password or one-time code field");
-    }
-    let named = ["name", "id", "placeholder", "label"]
+    let (rule, message) = if field("type").eq_ignore_ascii_case("password") {
+        ("password", "a password field")
+    } else if SENSITIVE_AUTOCOMPLETE.is_match(field("autocomplete")) {
+        ("autocomplete", "a card, password or one-time code field")
+    } else if ["name", "id", "placeholder", "label"]
         .iter()
-        .any(|key| SENSITIVE_NAME.is_match(field(key)));
-    named.then_some("a field for a card, ID, password or token")
+        .any(|key| SENSITIVE_NAME.is_match(field(key)))
+    {
+        ("attr-name", "a field for a card, ID, password or token")
+    } else {
+        return None;
+    };
+    tracing::debug!(target: SCOPE, rule, "field left to user");
+    Some(message)
 }
 
 /// Why a click or submit needs the user's word, or None for an ordinary one.
 pub fn risky_action(role: &str, name: &str, input_type: &str) -> Option<String> {
     if input_type == "submit" {
+        tracing::debug!(target: SCOPE, category = "form-submit", role, "click needs user word");
         return Some("submits a form".to_owned());
     }
     if !CLICKABLE.contains(&role) {
         return None;
     }
     if RISKY_LATIN.is_match(name) || RISKY_CJK.is_match(name) {
+        tracing::debug!(target: SCOPE, category = "pays-deletes-sends-posts", role, "click needs user word");
         let shown: String = name.chars().take(40).collect();
         return Some(format!(
             "looks like it pays, deletes, sends or posts (\"{shown}\")"
@@ -110,16 +119,20 @@ impl Grants {
 
     pub fn allow_session(&mut self, origin: &str) {
         push_unique(&mut self.session, origin.to_owned());
+        tracing::info!(target: SCOPE, host = %host_of(origin), "site allowed for session");
     }
 
     pub fn trust(&mut self, origin: &str) {
         push_unique(&mut self.trusted, origin.to_owned());
         self.session.retain(|o| o != origin);
+        tracing::info!(target: SCOPE, host = %host_of(origin), "site trusted");
     }
 
     pub fn revoke(&mut self, origin: &str) {
+        let was_trusted = self.trusted.iter().any(|o| o == origin);
         self.trusted.retain(|o| o != origin);
         self.session.retain(|o| o != origin);
+        tracing::info!(target: SCOPE, host = %host_of(origin), was_trusted, "site revoked");
     }
 
     pub fn list(&self) -> &[String] {
@@ -147,6 +160,7 @@ pub struct RateLimit {
     max: usize,
     window: Duration,
     taken: Mutex<VecDeque<Instant>>,
+    refusing: AtomicBool,
 }
 
 impl RateLimit {
@@ -155,6 +169,7 @@ impl RateLimit {
             max,
             window,
             taken: Mutex::new(VecDeque::new()),
+            refusing: AtomicBool::new(false),
         }
     }
 
@@ -169,8 +184,13 @@ impl RateLimit {
             taken.pop_front();
         }
         if taken.len() >= self.max {
+            // One WARN when the window fills, not one per refused action.
+            if !self.refusing.swap(true, Ordering::Relaxed) {
+                tracing::warn!(target: SCOPE, max = self.max, "rate limit reached");
+            }
             return false;
         }
+        self.refusing.store(false, Ordering::Relaxed);
         taken.push_back(now);
         true
     }

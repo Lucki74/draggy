@@ -410,6 +410,7 @@ impl FileTools {
             let options = ResolveOptions {
                 must_exist: false,
                 create_parents: true,
+                op: "write_document",
             };
             self.guard
                 .resolve_within(&roots, target, options)

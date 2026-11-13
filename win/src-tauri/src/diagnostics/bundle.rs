@@ -4,7 +4,7 @@
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
 
-use draggy_diagnostics::{scrub_paths, scrub_secrets};
+use draggy_diagnostics::{Diagnostics, ErrorInfo, Level, TimeOptions, scrub_paths, scrub_secrets};
 use serde_json::{Map, Value, json};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
@@ -12,6 +12,7 @@ use zip::{CompressionMethod, ZipWriter};
 const EVENTS_LIMIT_BYTES: usize = 20 * 1024 * 1024;
 const ROTATIONS: u32 = 3;
 const DUMP_LIMIT: usize = 3;
+const SCOPE: &str = "diagnostics.bundle";
 
 /// Settings that say nothing about the person. Anything not listed stays out until someone decides it is harmless.
 const SETTINGS_ALLOWLIST: &[&str] = &[
@@ -77,7 +78,7 @@ pub struct Saved {
 }
 
 /// Collects the entries without writing anything. The preview lists them and `save` zips them.
-pub fn build(sources: &Sources, choices: Choices) -> Vec<Entry> {
+pub fn build(sources: &Sources, choices: Choices, diag: Option<&Diagnostics>) -> Vec<Entry> {
     let mut entries = Vec::new();
     let home = sources.home_dir.as_str();
     let user = sources.user_name.as_str();
@@ -90,7 +91,7 @@ pub fn build(sources: &Sources, choices: Choices) -> Vec<Entry> {
     };
 
     for (file, label) in rotations_of(&sources.log_dir, "app.log") {
-        if let Some(raw) = read_text(&file) {
+        if let Some(raw) = read_text(&file, diag) {
             let body = if choices.include_debug {
                 raw
             } else {
@@ -101,20 +102,20 @@ pub fn build(sources: &Sources, choices: Choices) -> Vec<Entry> {
     }
     if choices.include_debug {
         for (file, label) in rotations_of(&sources.log_dir, "debug.log") {
-            if let Some(raw) = read_text(&file) {
+            if let Some(raw) = read_text(&file, diag) {
                 text(&label, &raw);
             }
         }
     }
     let events: String = rotations_of(&sources.log_dir, "events.jsonl")
         .iter()
-        .filter_map(|(file, _)| read_text(file))
+        .filter_map(|(file, _)| read_text(file, diag))
         .collect();
     if !events.is_empty() {
         let kept = if choices.include_debug {
             events
         } else {
-            without_debug_jsonl(&events)
+            without_debug_jsonl(&events, diag)
         };
         text("events.jsonl", &tail_lines(kept, EVENTS_LIMIT_BYTES));
     }
@@ -147,6 +148,18 @@ pub fn build(sources: &Sources, choices: Choices) -> Vec<Entry> {
         }
     }
     entries.extend(dumps);
+    if let Some(diag) = diag {
+        diag.debug(
+            SCOPE,
+            "bundle collected",
+            Some(json!({
+                "files": entries.len(),
+                "removedSettings": removed.len(),
+                "includeDebug": choices.include_debug,
+                "includeDumps": choices.include_dumps,
+            })),
+        );
+    }
 
     let names: Vec<String> = entries.iter().map(|entry| entry.name.clone()).collect();
     let body = readme(sources, choices, &names, removed.len());
@@ -161,8 +174,8 @@ pub fn build(sources: &Sources, choices: Choices) -> Vec<Entry> {
 }
 
 /// The name and size of each file the zip will hold, in zip order.
-pub fn preview(sources: &Sources, choices: Choices) -> Value {
-    let entries = build(sources, choices);
+pub fn preview(sources: &Sources, choices: Choices, diag: Option<&Diagnostics>) -> Value {
+    let entries = build(sources, choices, diag);
     Value::Array(
         entries
             .iter()
@@ -172,14 +185,60 @@ pub fn preview(sources: &Sources, choices: Choices) -> Value {
 }
 
 /// Writes the zip to the path the person picked.
-pub fn save(sources: &Sources, choices: Choices, target: &Path) -> Result<Saved, String> {
-    let entries = build(sources, choices);
-    let zip = zip_entries(&entries).map_err(|error| error.to_string())?;
-    std::fs::write(target, &zip).map_err(|error| error.to_string())?;
-    Ok(Saved {
-        bytes: zip.len(),
-        files: entries.len(),
-    })
+pub fn save(
+    sources: &Sources,
+    choices: Choices,
+    target: &Path,
+    diag: Option<&Diagnostics>,
+) -> Result<Saved, String> {
+    let mut timer = diag.map(|d| {
+        d.time(
+            SCOPE,
+            "bundle saved",
+            None,
+            TimeOptions {
+                warn_ms: None,
+                level: Level::Info,
+            },
+        )
+    });
+    let entries = build(sources, choices, diag);
+    let written = zip_entries(&entries)
+        .map_err(|error| error.to_string())
+        .and_then(|zip| {
+            std::fs::write(target, &zip)
+                .map(|()| zip.len())
+                .map_err(|error| error.to_string())
+        });
+    let target_name = target
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    match written {
+        Ok(bytes) => {
+            if let Some(timer) = timer.as_mut() {
+                timer.end(Some(json!({
+                    "bytes": bytes,
+                    "files": entries.len(),
+                    "includeDebug": choices.include_debug,
+                    "includeDumps": choices.include_dumps,
+                })));
+            }
+            Ok(Saved {
+                bytes,
+                files: entries.len(),
+            })
+        }
+        Err(error) => {
+            if let Some(timer) = timer.as_mut() {
+                timer.fail(
+                    &ErrorInfo::new("Error", error.clone()),
+                    Some(json!({ "target": target_name })),
+                );
+            }
+            Err(error)
+        }
+    }
 }
 
 /// `draggy-diagnostics-YYYY-MM-DD.zip`, from the bundle's creation stamp.
@@ -198,10 +257,29 @@ fn zip_entries(entries: &[Entry]) -> zip::result::ZipResult<Vec<u8>> {
     Ok(writer.finish()?.into_inner())
 }
 
-fn read_text(file: &Path) -> Option<String> {
-    std::fs::read(file)
-        .ok()
-        .map(|raw| String::from_utf8_lossy(&raw).into_owned())
+/// A bundle input that cannot be read is left out. A missing file is normal; anything else gets a WARN line.
+fn read_text(file: &Path, diag: Option<&Diagnostics>) -> Option<String> {
+    match std::fs::read(file) {
+        Ok(raw) => Some(String::from_utf8_lossy(&raw).into_owned()),
+        Err(error) => {
+            if let Some(diag) = diag {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    diag.swallow(SCOPE, None, "file not present");
+                } else {
+                    let name = file
+                        .file_name()
+                        .map(|name| name.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    diag.warn(
+                        SCOPE,
+                        "could not read a bundle input",
+                        Some(json!({ "code": format!("{:?}", error.kind()), "name": name })),
+                    );
+                }
+            }
+            None
+        }
+    }
 }
 
 /// The rotations of one log, oldest first: `name.3`, `name.2`, `name.1`, `name`. Only the ones that exist.
@@ -248,7 +326,7 @@ fn without_debug_text(text: &str) -> String {
 }
 
 /// A line that is not JSON stays in.
-fn without_debug_jsonl(text: &str) -> String {
+fn without_debug_jsonl(text: &str, diag: Option<&Diagnostics>) -> String {
     text.split('\n')
         .filter(|line| {
             if line.is_empty() {
@@ -256,7 +334,12 @@ fn without_debug_jsonl(text: &str) -> String {
             }
             match serde_json::from_str::<Value>(line) {
                 Ok(value) => value.get("level").and_then(Value::as_str) != Some("DEBUG"),
-                Err(_) => true,
+                Err(_) => {
+                    if let Some(diag) = diag {
+                        diag.swallow(SCOPE, None, "event line is not JSON, kept as is");
+                    }
+                    true
+                }
             }
         })
         .collect::<Vec<_>>()
@@ -470,14 +553,14 @@ mod tests {
     }
 
     fn save_for_test(sources: &Sources, choices: Choices, target: &Path) {
-        save(sources, choices, target).expect("saved");
+        save(sources, choices, target, None).expect("saved");
     }
 
     #[test]
     fn keeps_only_the_harmless_settings() {
         let dir = tempfile::tempdir().expect("temp dir");
         seed_logs(dir.path());
-        let entries = build(&sources(dir.path()), Choices::default());
+        let entries = build(&sources(dir.path()), Choices::default(), None);
         let names: Vec<(String, Vec<u8>)> = entries.into_iter().map(|e| (e.name, e.data)).collect();
         let settings: Value = serde_json::from_str(&named(&names, "settings.json")).expect("json");
         assert_eq!(settings, json!({"language": "fr", "theme": "dark"}));
@@ -489,7 +572,7 @@ mod tests {
     fn leaves_debug_lines_out_unless_asked() {
         let dir = tempfile::tempdir().expect("temp dir");
         seed_logs(dir.path());
-        let quiet = build(&sources(dir.path()), Choices::default());
+        let quiet = build(&sources(dir.path()), Choices::default(), None);
         let quiet: Vec<(String, Vec<u8>)> = quiet.into_iter().map(|e| (e.name, e.data)).collect();
         assert!(!named(&quiet, "events.jsonl").contains("only the verbose bundle keeps"));
         assert!(!named(&quiet, "app.log").contains("a debug line only"));
@@ -501,6 +584,7 @@ mod tests {
                 include_debug: true,
                 include_dumps: false,
             },
+            None,
         );
         let verbose: Vec<(String, Vec<u8>)> =
             verbose.into_iter().map(|e| (e.name, e.data)).collect();
@@ -522,8 +606,12 @@ mod tests {
             .collect();
         let mut src = sources(dir.path());
         src.crash_dumps = dumps;
-        let names =
-            |choices| -> Vec<String> { build(&src, choices).into_iter().map(|e| e.name).collect() };
+        let names = |choices| -> Vec<String> {
+            build(&src, choices, None)
+                .into_iter()
+                .map(|e| e.name)
+                .collect()
+        };
         assert!(
             !names(Choices::default())
                 .iter()
@@ -541,9 +629,9 @@ mod tests {
         let dir = tempfile::tempdir().expect("temp dir");
         seed_logs(dir.path());
         let src = sources(dir.path());
-        let preview = preview(&src, Choices::default());
+        let preview = preview(&src, Choices::default(), None);
         let target = dir.path().join("again.zip");
-        save(&src, Choices::default(), &target).expect("saved");
+        save(&src, Choices::default(), &target, None).expect("saved");
         let saved = unzip(&std::fs::read(&target).expect("zip"));
         let preview = preview.as_array().expect("array");
         assert_eq!(preview.len(), saved.len());
@@ -564,7 +652,7 @@ mod tests {
         let line = format!("{}\n", json!({"level": "INFO", "msg": "x".repeat(1000)}));
         std::fs::write(dir.path().join("events.jsonl.1"), line.repeat(12_000)).expect("rotation");
         std::fs::write(dir.path().join("events.jsonl"), line.repeat(12_000)).expect("events");
-        let entries = build(&sources(dir.path()), Choices::default());
+        let entries = build(&sources(dir.path()), Choices::default(), None);
         let events = entries
             .iter()
             .find(|e| e.name == "events.jsonl")
