@@ -47,6 +47,8 @@ function prepareScratch(prefix, { model = "", realAppData = process.env.APPDATA 
   const appData = path.join(scratch, "appdata");
   const dataDir = path.join(appData, "Draggy");
   fs.mkdirSync(dataDir, { recursive: true });
+  // WebView2 profiles follow LOCALAPPDATA in Tauri, so the scratch run gets its own.
+  fs.mkdirSync(path.join(scratch, "localappdata"), { recursive: true });
   const realDir = path.join(realAppData, "Draggy");
   if (fs.existsSync(path.join(realDir, "bin"))) fs.symlinkSync(path.join(realDir, "bin"), path.join(dataDir, "bin"), "junction");
   const realModel = path.join(realDir, "models", path.basename(model));
@@ -87,7 +89,13 @@ async function launch({ exe, port = 9222, scale = "1", lang = "en-US", extraArgs
     ...extraArgs,
   ];
   const child = spawn(target, [], {
-    env: { ...process.env, ...env, APPDATA: appData, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: switches.join(" ") },
+    env: {
+      ...process.env,
+      ...env,
+      APPDATA: appData,
+      LOCALAPPDATA: path.join(scratch, "localappdata"),
+      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: switches.join(" "),
+    },
     stdio: "ignore",
   });
   const endpoint = `http://127.0.0.1:${port}`;

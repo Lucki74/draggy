@@ -11,6 +11,8 @@ export default function BrowserPane({ t }: { t: (key: string) => string }) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState<BrowserState>(EMPTY_BROWSER_STATE);
   const hasPage = page.loading || (Boolean(page.url) && page.url !== "about:blank");
+  // A failed load has no page to show, so the native view steps aside for the error panel.
+  const showPage = hasPage && !page.error;
 
   useEffect(() => {
     const api = window.draggy?.browserPane;
@@ -27,7 +29,7 @@ export default function BrowserPane({ t }: { t: (key: string) => string }) {
         last = key;
         api.setBounds({ x: rect.left, y: rect.top, width: rect.width, height: rect.height });
       }
-      const next = hasPage && rect.width > 0 && rect.height > 0 && !overlapsOverlay(rect);
+      const next = showPage && rect.width > 0 && rect.height > 0 && !overlapsOverlay(rect);
       if (next !== shown) {
         shown = next;
         api.setVisible(next);
@@ -49,16 +51,36 @@ export default function BrowserPane({ t }: { t: (key: string) => string }) {
       unsubscribe();
       api.setVisible(false);
     };
-  }, [hasPage]);
+  }, [showPage]);
+
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
 
   return (
     <div className="flex h-full flex-col bg-surface-canvas">
       <BrowserBar t={t} embedded onState={setPage} />
+      {page.loading && (
+        <div role="progressbar" aria-label={t("browserLoading")} className="h-0.5 w-full animate-pulse bg-accent-ink" />
+      )}
       <div ref={bodyRef} className="relative min-h-0 flex-1" data-browser-body>
         {!hasPage && (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
             <Icon name="globe-simple" size={20} className="text-text-tertiary" />
             <p className="max-w-64 text-[13px] leading-5 text-text-secondary">{t("browserEmpty")}</p>
+          </div>
+        )}
+        {hasPage && page.error && (
+          <div role="alert" className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+            <Icon name="warning" size={20} className="text-text-tertiary" />
+            <p className="max-w-72 text-[13px] leading-5 text-text-secondary">
+              {offline ? t("browserOffline") : t("browserLoadFailed")}
+            </p>
+            <button
+              type="button"
+              onClick={() => window.draggy?.browserNavigate(page.url)}
+              className="h-7 rounded-pill bg-surface-raised px-3 text-[12px] font-medium text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] hover:bg-surface-base focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              {t("browserRetry")}
+            </button>
           </div>
         )}
       </div>

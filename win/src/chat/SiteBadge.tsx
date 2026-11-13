@@ -1,6 +1,7 @@
 import { draggyUrl } from "../appUrl";
 import { useState } from "react";
 import { hueFor, siteLabel } from "../utils";
+import { iconMissing, markIconMissing } from "../favicon";
 
 // Hostname-based icon or fallback letter to protect user privacy.
 export function SiteBadge({ hostname, small = false }: { hostname: string; small?: boolean }) {
@@ -11,14 +12,17 @@ export function SiteBadge({ hostname, small = false }: { hostname: string; small
   // Tracks host errors so reused rows retry instead of sticking to missing icons.
   const [failedFor, setFailedFor] = useState<string | null>(null);
 
-  if (hostname && failedFor !== hostname) {
+  if (hostname && failedFor !== hostname && !iconMissing(hostname)) {
     return (
       <img
         src={draggyUrl(`favicon/${encodeURIComponent(hostname)}`)}
         alt=""
         aria-hidden="true"
         loading="lazy"
-        onError={() => setFailedFor(hostname)}
+        onError={() => {
+          markIconMissing(hostname);
+          setFailedFor(hostname);
+        }}
         className={`${box} rounded-sm flex-shrink-0 object-contain select-none`}
       />
     );

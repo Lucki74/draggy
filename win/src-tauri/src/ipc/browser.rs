@@ -160,7 +160,16 @@ async fn navigate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let Some(webview) = front_webview(&app) else {
         return Ok(pages::failure("pane_unavailable", None));
     };
-    Ok(load(&webview, &url).await)
+    emit_load_state(&app, &webview, url.as_str(), true, None).await;
+    let reply = load(&webview, &url).await;
+    if reply.get("ok").and_then(Value::as_bool) == Some(false) {
+        let code = reply
+            .get("error")
+            .and_then(Value::as_str)
+            .unwrap_or("load_failed");
+        emit_load_state(&app, &webview, url.as_str(), false, Some(code)).await;
+    }
+    Ok(reply)
 }
 
 async fn tabs(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
@@ -1849,6 +1858,33 @@ async fn broadcast_state(app: &AppHandle, webview: &Webview) {
     state["canGoBack"] = json!(can_go_back(&cdp).await);
     state["canGoForward"] = json!(pages::can_go_forward(&cdp).await);
     state["adblock"] = json!(crate::browser::adblock::enabled());
+    emit_bar_state(app, webview, state);
+}
+
+/// Shows a navigation's loading or failed state before the page itself reports back.
+async fn emit_load_state(
+    app: &AppHandle,
+    webview: &Webview,
+    url: &str,
+    loading: bool,
+    error: Option<&str>,
+) {
+    let Some(cdp) = cdp_of(webview) else {
+        return;
+    };
+    let state = json!({
+        "url": url,
+        "title": "",
+        "loading": loading,
+        "error": error,
+        "canGoBack": can_go_back(&cdp).await,
+        "canGoForward": pages::can_go_forward(&cdp).await,
+        "adblock": crate::browser::adblock::enabled(),
+    });
+    emit_bar_state(app, webview, state);
+}
+
+fn emit_bar_state(app: &AppHandle, webview: &Webview, state: Value) {
     let target = popout_bar_of(webview.label()).unwrap_or_else(|| MAIN_WINDOW.to_owned());
     let _ = app.emit_to(EventTarget::webview(target), "browser-bar-state", state);
 }

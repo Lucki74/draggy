@@ -218,7 +218,8 @@ async fn favicon(app: &AppHandle, cache_dir: &Path, hostname: &str) -> Response<
                 );
             with_common(builder, bytes)
         }
-        None => text(404, "Not found"),
+        // 204 keeps a site without an icon out of the console as a failed request.
+        None => respond(204, "text/plain; charset=utf-8", Vec::new()),
     }
 }
 

@@ -606,7 +606,14 @@ async fn onboarding_reset(app: AppHandle, _args: Vec<Value>) -> Result<Value, Ip
     .await?;
     if reply["success"] == true {
         app.state::<AppState>().storage.set_show_setup(true);
-        // TODO: show the main window and reload it at index.html?onboarding=true.
+        // Reloads the open window at the setup URL, as Electron's onboarding:reset did.
+        if let Err(error) = crate::show_setup_window(&app) {
+            app.state::<AppState>().diag.warn(
+                "onboarding",
+                &format!("setup window failed: {error}"),
+                None,
+            );
+        }
     }
     Ok(reply)
 }

@@ -46,6 +46,7 @@ pub(crate) mod research;
 mod sd;
 mod shell;
 mod skills;
+mod staging;
 mod storage;
 mod terminals;
 mod tier;
@@ -186,8 +187,13 @@ pub async fn ipc_invoke(
     webview: tauri::Webview,
     channel: String,
     args: Vec<Value>,
+    staged_id: Option<String>,
 ) -> Result<Value, String> {
     let label = webview.label().to_owned();
+    let args = match staged_id {
+        Some(id) => staging::take(&id)?,
+        None => args,
+    };
     // A popout bar may only run bar channels, against the page it belongs to.
     if let Some(page) = browser::popout_page_of(&label) {
         if !browser::may_call(&label, &channel) {
@@ -202,6 +208,21 @@ pub async fn ipc_invoke(
         return Err("browser channels are only accepted from the main window".to_owned());
     }
     run(app, channel, args).await
+}
+
+/// One chunk of a large invoke's arguments; `ipc_invoke` with the same `id` assembles them.
+#[tauri::command]
+pub fn ipc_stage(
+    webview: tauri::Webview,
+    id: String,
+    index: usize,
+    total: usize,
+    chunk: String,
+) -> Result<(), String> {
+    if !is_main_window(webview.label()) {
+        return Err("ipc_stage is only accepted from the main window".to_owned());
+    }
+    staging::stage(&id, index, total, chunk)
 }
 
 /// Fire and forget from the renderer; a failure is logged there and in the file.

@@ -11,6 +11,7 @@ import { ExtensionList, ExtensionRow } from "../extensions/ExtensionRow";
 import { fill } from "../onboarding/text";
 import { ConfirmDialog, Toggle } from "./Controls";
 import { hostnameOf, hueFor, siteLabel } from "./../utils";
+import { iconMissing, markIconMissing } from "../favicon";
 import type {
   RegistryEntry,
   McpCatalogueEntry,
@@ -29,8 +30,8 @@ type Shown = "all" | "on" | "off";
 const MONO_HOSTS = new Set(["github.com"]);
 
 function ServerIcon({ entry }: { entry: McpCatalogueEntry }) {
-  const [failed, setFailed] = useState(false);
   const hostname = entry.site ? hostnameOf(entry.site) : "";
+  const [failed, setFailed] = useState(() => iconMissing(hostname));
 
   if (hostname && !failed) {
     const src = draggyUrl(`favicon/${encodeURIComponent(hostname)}`);
@@ -58,7 +59,10 @@ function ServerIcon({ entry }: { entry: McpCatalogueEntry }) {
         alt=""
         aria-hidden="true"
         loading="lazy"
-        onError={() => setFailed(true)}
+        onError={() => {
+          markIconMissing(hostname);
+          setFailed(true);
+        }}
         className="h-7 w-7 flex-shrink-0 select-none rounded-sm object-contain"
       />
     );

@@ -73,36 +73,106 @@ fn show_main_window(app: &tauri::App, data_dir: &Path) -> tauri::Result<()> {
     window.show()
 }
 
+/// The query that opens the renderer on first-run setup.
+const SETUP_QUERY: &str = "onboarding=true";
+/// Electron's MIN_WINDOW_WIDTH and MIN_WINDOW_HEIGHT; each is clamped to the work area.
+const MIN_WINDOW_WIDTH: f64 = 760.0;
+const MIN_WINDOW_HEIGHT: f64 = 480.0;
+
+/// The minimum size, clamped to the work area as Electron did with Math.min.
+fn window_minimum(area_width: f64, area_height: f64) -> (f64, f64) {
+    (
+        MIN_WINDOW_WIDTH.min(area_width),
+        MIN_WINDOW_HEIGHT.min(area_height),
+    )
+}
+
+/// The primary monitor's work area in logical pixels, or None when it cannot be read.
+#[cfg(windows)]
+fn work_area(scale: f64) -> Option<(f64, f64)> {
+    use windows::Win32::Foundation::RECT;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        SPI_GETWORKAREA, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, SystemParametersInfoW,
+    };
+    let mut rect = RECT::default();
+    // SAFETY: SPI_GETWORKAREA writes one RECT through the pointer, which lives for the call.
+    unsafe {
+        SystemParametersInfoW(
+            SPI_GETWORKAREA,
+            0,
+            Some(std::ptr::addr_of_mut!(rect).cast()),
+            SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+        )
+        .ok()?;
+    }
+    let width = f64::from(rect.right - rect.left) / scale;
+    let height = f64::from(rect.bottom - rect.top) / scale;
+    Some((width, height))
+}
+
+#[cfg(not(windows))]
+fn work_area(_scale: f64) -> Option<(f64, f64)> {
+    None
+}
+
+fn minimum_for_screen(app: &tauri::AppHandle) -> (f64, f64) {
+    let scale = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map_or(1.0, |monitor| monitor.scale_factor());
+    let (width, height) = work_area(scale).unwrap_or((f64::INFINITY, f64::INFINITY));
+    window_minimum(width, height)
+}
+
 /// The main window, built here rather than from config so its links can reach the browser pane. Its
 /// own pages stay in the window; any other top-level navigation or window.open goes to the pane instead.
-fn build_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+/// With `setup`, it opens on first-run setup, as Electron's createWindow({ onboarding: true }) did.
+fn build_main_window(app: &tauri::AppHandle, setup: bool) -> tauri::Result<()> {
     let navigating = app.clone();
     let opening = app.clone();
-    tauri::webview::WebviewWindowBuilder::new(
-        app,
-        "main",
-        tauri::WebviewUrl::App("index.html".into()),
-    )
-    .title("Draggy")
-    .inner_size(1200.0, 800.0)
-    .min_inner_size(760.0, 480.0)
-    // Undecorated: the renderer's TitleBar draws the caption buttons. Edge resize and snap stay on.
-    .decorations(false)
-    .shadow(true)
-    .visible(false)
-    .on_navigation(move |url| {
-        if is_app_page(url) || is_about_page(url) {
-            return true;
-        }
-        ipc::browser::open_from_main_window(&navigating, url.clone());
-        false
-    })
-    .on_new_window(move |url, _features| {
-        ipc::browser::open_from_main_window(&opening, url);
-        tauri::webview::NewWindowResponse::Deny
-    })
-    .build()
-    .map(|_| ())
+    let page = if setup {
+        format!("index.html?{SETUP_QUERY}")
+    } else {
+        "index.html".to_owned()
+    };
+    let (min_width, min_height) = minimum_for_screen(app);
+    // The WebView2 profile (localStorage, cookies) lives in the app's own data folder, not LOCALAPPDATA.
+    let profile = app.state::<AppState>().storage.data_dir().join("webview");
+    tauri::webview::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App(page.into()))
+        .title("Draggy")
+        .inner_size(1200.0, 800.0)
+        .min_inner_size(min_width, min_height)
+        .data_directory(profile)
+        // Undecorated: the renderer's TitleBar draws the caption buttons. Edge resize and snap stay on.
+        .decorations(false)
+        .shadow(true)
+        .visible(false)
+        .on_navigation(move |url| {
+            if is_app_page(url) || is_about_page(url) {
+                return true;
+            }
+            ipc::browser::open_from_main_window(&navigating, url.clone());
+            false
+        })
+        .on_new_window(move |url, _features| {
+            ipc::browser::open_from_main_window(&opening, url);
+            tauri::webview::NewWindowResponse::Deny
+        })
+        .build()
+        .map(|_| ())
+}
+
+/// Points the open main window at first-run setup: a reload with the setup query, then shown and focused.
+pub fn show_setup_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+    let Some(window) = app.get_webview_window("main") else {
+        return Ok(());
+    };
+    let mut url = window.url()?;
+    url.set_query(Some(SETUP_QUERY));
+    window.navigate(url)?;
+    focus_main_window(app);
+    Ok(())
 }
 
 /// The renderer's own pages: the asset host, and the dev server in debug builds.
@@ -117,7 +187,7 @@ fn is_about_page(url: &tauri::Url) -> bool {
     url.scheme() == "about"
 }
 
-fn focus_main_window(app: &tauri::AppHandle) {
+pub(crate) fn focus_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
@@ -153,6 +223,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             ipc::ipc_invoke,
             ipc::ipc_send,
+            ipc::ipc_stage,
             chat_gateway::gateway_info
         ])
         .setup(move |app| {
@@ -197,11 +268,12 @@ pub fn run() {
             ipc::providers::start_auto_refresh(app.handle());
             ipc::providers::attach_focus_refresh(app.handle());
             // The launch check and the filter lists wait for a finished setup; onboarding:complete starts them.
-            if !app.state::<AppState>().storage.show_setup() {
+            let show_setup = app.state::<AppState>().storage.show_setup();
+            if !show_setup {
                 ipc::updater::start(app.handle());
                 browser::adblock::start(app.handle());
             }
-            build_main_window(app.handle())?;
+            build_main_window(app.handle(), show_setup)?;
             show_main_window(app, &data_dir)?;
             Ok(())
         })
@@ -247,4 +319,25 @@ pub fn run() {
                 state.diag.end_session(true);
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_minimum_is_clamped_to_a_small_work_area() {
+        assert_eq!(window_minimum(1920.0, 1040.0), (760.0, 480.0));
+        assert_eq!(window_minimum(600.0, 400.0), (600.0, 400.0));
+    }
+
+    #[test]
+    fn the_setup_page_stays_an_app_page() {
+        let setup =
+            tauri::Url::parse("http://tauri.localhost/index.html?onboarding=true").expect("url");
+        assert!(is_app_page(&setup));
+        let other =
+            tauri::Url::parse("https://example.com/index.html?onboarding=true").expect("url");
+        assert!(!is_app_page(&other));
+    }
 }

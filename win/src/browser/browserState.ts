@@ -6,6 +6,8 @@ export interface BrowserState {
   canGoForward: boolean;
   loading: boolean;
   adblock: boolean;
+  /** Why the last load failed, or null while it loads or after it succeeds. */
+  error?: string | null;
 }
 
 export const EMPTY_BROWSER_STATE: BrowserState = {
@@ -15,4 +17,5 @@ export const EMPTY_BROWSER_STATE: BrowserState = {
   canGoForward: false,
   loading: false,
   adblock: true,
+  error: null,
 };

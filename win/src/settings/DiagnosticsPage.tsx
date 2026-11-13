@@ -48,13 +48,18 @@ function LoggingGroup({ t }: { t: Translate }) {
         label={t("diagVerbose")}
         description={until ? t("diagVerboseUntil").replace("{time}", until) : undefined}
       >
-        {verbose ? (
-          <Button onClick={() => apply({ level: "INFO", scopes: [], keep: false })}>{t("diagVerboseOff")}</Button>
-        ) : (
-          <Button tone="primary" disabled={!state} onClick={() => apply({ level: "DEBUG", scopes: scopeList, durationMs: VERBOSE_MS })}>
-            {t("diagVerboseOn")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <Badge strong={verbose} title={t("diagVerbose")}>
+            {verbose ? t("diagVerboseActive") : t("diagVerboseInactive")}
+          </Badge>
+          {verbose ? (
+            <Button onClick={() => apply({ level: "INFO", scopes: [], keep: false })}>{t("diagVerboseOff")}</Button>
+          ) : (
+            <Button disabled={!state} onClick={() => apply({ level: "DEBUG", scopes: scopeList, durationMs: VERBOSE_MS })}>
+              {t("diagVerboseEnable")}
+            </Button>
+          )}
+        </div>
       </Row>
       <Row label={t("diagScopes")}>
         <input

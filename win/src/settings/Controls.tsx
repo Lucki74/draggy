@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { createContext, useContext, useId, useRef, useState } from "react";
 import Logo from "../Logo";
 import { ProviderIcon } from "../providers/ProviderIcon";
 import { Button as UiButton } from "../ui/Button";
@@ -63,6 +63,9 @@ export function Group({
   );
 }
 
+/** Gives the control in a row the id its label points at, so clicking the label toggles it. */
+const RowLabelId = createContext<string | undefined>(undefined);
+
 /** One setting: what it is on the left, its control on the right. */
 export function Row({
   label,
@@ -73,14 +76,19 @@ export function Row({
   description?: React.ReactNode;
   children?: React.ReactNode;
 }) {
+  const labelId = useId();
   return (
-    <div className="flex flex-col gap-3 px-4 py-3 sm:min-h-14 sm:flex-row sm:items-center sm:gap-6">
-      <div className="min-w-0 flex-1">
-        <p className="text-[14px] leading-5 text-text-primary">{label}</p>
-        {description && <div className="mt-0.5 text-[13px] leading-5 text-text-secondary">{description}</div>}
+    <RowLabelId.Provider value={labelId}>
+      <div className="flex flex-col gap-3 px-4 py-3 sm:min-h-14 sm:flex-row sm:items-center sm:gap-6">
+        <div className="min-w-0 flex-1">
+          <label htmlFor={labelId} className="block cursor-pointer select-none text-[14px] leading-5 text-text-primary">
+            {label}
+          </label>
+          {description && <div className="mt-0.5 text-[13px] leading-5 text-text-secondary">{description}</div>}
+        </div>
+        {children !== undefined && <div className="flex-shrink-0 sm:max-w-[60%]">{children}</div>}
       </div>
-      {children !== undefined && <div className="flex-shrink-0 sm:max-w-[60%]">{children}</div>}
-    </div>
+    </RowLabelId.Provider>
   );
 }
 
@@ -100,9 +108,11 @@ export function Toggle({
   label?: string;
   disabled?: boolean;
 }) {
+  const labelId = useContext(RowLabelId);
   return (
     <button
       type="button"
+      id={labelId}
       onClick={() => onChange(!checked)}
       role="switch"
       aria-checked={checked}

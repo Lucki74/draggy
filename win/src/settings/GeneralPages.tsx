@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, ConfirmDialog, Group, Page, Row, Segmented, Select, Stat, Toggle } from "./Controls";
 import { AccentPicker } from "./AccentPicker";
-import { buildLabel } from "../app/buildLabel";
+import { versionLabel } from "../app/buildLabel";
 import ExtensionsPanel from "../extensions/ExtensionsPanel";
 import { languages } from "../translations";
 import { researchDepthOptions, researchKeepOptions, searchProviderOptions } from "./pages";
@@ -79,7 +79,7 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
         </Row>
         <Row label={t("currentVersion")}>
           <p className="text-[13px] font-medium tabular-nums text-text-primary">
-            {info ? buildLabel(info.version, t) : "…"}
+            {info ? versionLabel(info.version, t) : "…"}
             {info && !info.packaged && (
               <span className="ms-2 rounded-pill bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-text-secondary">
                 {t("development")}

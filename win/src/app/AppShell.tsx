@@ -189,7 +189,7 @@ export default function AppShell({
   const {
     setTreeOpen,
     rightPaneWidth,
-    isNarrow,
+    dockOverlay,
     observeWorkArea,
     startResizeRightPane,
   } = useShellLayout({ canvasPath });
@@ -1460,7 +1460,7 @@ export default function AppShell({
               onSendReviewComment={(prompt) =>
                 currentChatId && runs.send(currentChatId, prompt)
               }
-              isOverlay={isNarrow}
+              isOverlay={dockOverlay}
             />
           }
         />
