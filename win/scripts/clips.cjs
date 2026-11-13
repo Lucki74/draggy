@@ -578,7 +578,7 @@ async function record(session, name, project) {
     log("data folder", session.scratch);
     project.path = path.join(session.scratch, "weather-cli");
     app.writeDemoProject(project.path);
-    await app.sizeWindow(session.page, WIDTH, HEIGHT);
+    await app.sizeWindow(session.page, WIDTH, HEIGHT, session.child);
     await app.seedProfile(session.page, { project: project.path, model: MODEL });
     await app.waitFor(() => app.inPage(session.page, () => Boolean(document.querySelector("[data-region=composer] form"))), { label: "the chat screen" });
     await app.sleep(2000);

@@ -120,14 +120,56 @@ async function launch({ exe, port = 9222, scale = "1", lang = "en-US", extraArgs
   return { browser, page, child, scratch, appData, dataDir, close };
 }
 
-/** Sizes the app window in DIPs, falling back to viewport emulation where the window cannot be sized. */
-async function sizeWindow(page, width, height) {
+// Resizes the child's largest visible top-level window so its client area is width x height DIPs (physical = DIPs * dpr).
+// Falls back to viewport emulation only if the native resize does not land.
+const RESIZE_SCRIPT = `
+Add-Type -Namespace W -Name Native -MemberDefinition @'
+[DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr lp);
+[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+[DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+[DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+[DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h, out RECT r);
+[DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
+[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
+public delegate bool EnumProc(IntPtr h, IntPtr lp);
+public struct RECT { public int Left, Top, Right, Bottom; }
+'@
+$target = [uint32]$env:DRAGGY_PID
+$best = [IntPtr]::Zero; $bestArea = 0
+[W.Native]::EnumWindows({ param($h, $lp)
+  $pid2 = [uint32]0
+  [void][W.Native]::GetWindowThreadProcessId($h, [ref]$pid2)
+  if ($pid2 -eq $target -and [W.Native]::IsWindowVisible($h)) {
+    $r = New-Object W.Native+RECT
+    [void][W.Native]::GetWindowRect($h, [ref]$r)
+    $area = ($r.Right - $r.Left) * ($r.Bottom - $r.Top)
+    if ($area -gt $script:bestArea) { $script:bestArea = $area; $script:best = $h }
+  }
+  return $true
+}, [IntPtr]::Zero) | Out-Null
+if ($best -eq [IntPtr]::Zero) { Write-Output "nowindow"; exit 1 }
+[void][W.Native]::ShowWindow($best, 9)
+$wr = New-Object W.Native+RECT; $cr = New-Object W.Native+RECT
+[void][W.Native]::GetWindowRect($best, [ref]$wr)
+[void][W.Native]::GetClientRect($best, [ref]$cr)
+$frameW = ($wr.Right - $wr.Left) - ($cr.Right - $cr.Left)
+$frameH = ($wr.Bottom - $wr.Top) - ($cr.Bottom - $cr.Top)
+$ok = [W.Native]::SetWindowPos($best, [IntPtr]::Zero, 0, 0, [int]$env:DRAGGY_W + $frameW, [int]$env:DRAGGY_H + $frameH, 0x14)
+Write-Output ($(if ($ok) { "ok" } else { "failed" }))
+`;
+
+async function sizeWindow(page, width, height, child) {
   try {
-    const session = await page.context().newCDPSession(page);
-    const { windowId } = await session.send("Browser.getWindowForTarget");
-    await session.send("Browser.setWindowBounds", { windowId, bounds: { left: 0, top: 0, width, height, windowState: "normal" } });
+    if (!child?.pid) throw new Error("no child process");
+    const dpr = await inPage(page, () => window.devicePixelRatio);
+    const env = { ...process.env, DRAGGY_PID: String(child.pid), DRAGGY_W: String(Math.round(width * dpr)), DRAGGY_H: String(Math.round(height * dpr)) };
+    const encoded = Buffer.from(RESIZE_SCRIPT, "utf16le").toString("base64");
+    const out = execFileSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded], { env, encoding: "utf8" }).trim();
+    if (out !== "ok") throw new Error(`native resize ${out}`);
+    await waitFor(() => inPage(page, (w, h) => window.innerWidth === w && window.innerHeight === h, width, height), { timeout: 15_000, every: 200, label: "the window to reach its size" });
     return "window";
-  } catch {
+  } catch (error) {
+    console.warn(`[sizeWindow] native resize failed (${error.message}); using viewport emulation`);
     await page.setViewportSize({ width, height });
     return "viewport";
   }

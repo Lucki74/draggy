@@ -354,7 +354,7 @@ async function run(page) {
   });
   try {
     log("data folder", session.scratch);
-    await app.sizeWindow(session.page, WIDTH, HEIGHT);
+    await app.sizeWindow(session.page, WIDTH, HEIGHT, session.child);
     if (ONBOARDING) {
       await runOnboarding(session.page);
     } else {

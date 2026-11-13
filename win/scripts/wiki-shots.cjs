@@ -124,7 +124,7 @@ async function run(page) {
   });
   try {
     log("data folder", session.scratch);
-    await app.sizeWindow(session.page, WIDTH, HEIGHT);
+    await app.sizeWindow(session.page, WIDTH, HEIGHT, session.child);
     const project = path.join(session.scratch, "weather-cli");
     app.writeDemoProject(project);
     await app.seedProfile(session.page, { project, model: MODEL });
