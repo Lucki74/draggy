@@ -1,3 +1,4 @@
+import { draggyUrl } from "../appUrl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Chip, Icon, IconButton, Lightbox, Skeleton, Spark, Tooltip } from "../ui";
@@ -17,7 +18,7 @@ const DEFAULT_SIZE = 1024;
 
 function imageSource(info: ImageStepInfo): string | null {
   if (info.status !== "done" || !info.filename || info.location !== "created") return null;
-  return `draggy://images/${encodeURIComponent(info.filename)}`;
+  return draggyUrl(`images/${encodeURIComponent(info.filename)}`);
 }
 
 function useElapsed(startedAt: number | undefined, running: boolean): number {

@@ -1796,6 +1796,28 @@ async fn open_link(app: &AppHandle, url: Url) {
     broadcast_bar_state(app).await;
 }
 
+/// A link the main window asked to open (window.open or a navigation away from the app). It goes to the
+/// browser pane, as Electron's openLink did, and only http and https addresses that the policy allows.
+pub fn open_from_main_window(app: &AppHandle, url: Url) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move { open_main_link(&app, url).await });
+}
+
+async fn open_main_link(app: &AppHandle, url: Url) {
+    if !matches!(url.scheme(), "http" | "https") || policy::check_typed(url.as_str()).is_err() {
+        return;
+    }
+    let empty = app.state::<Panes>().lock().views().is_empty();
+    if empty && add_tab(app).is_err() {
+        return;
+    }
+    if let Some(webview) = front_webview(app) {
+        load(&webview, &url).await;
+    }
+    let _ = show(app).await;
+    broadcast_bar_state(app).await;
+}
+
 /// Opens the page's own web address in the system browser, and nothing else.
 async fn open_current(app: &AppHandle, webview: &Webview) {
     let Some(cdp) = cdp_of(webview) else {

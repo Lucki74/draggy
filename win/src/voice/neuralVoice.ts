@@ -1,3 +1,4 @@
+import { draggyUrl } from "../appUrl";
 import { SUPERTONIC_LANGUAGES, SUPERTONIC_VOICES } from "./supertonic";
 import { prepareFragment } from "./joins";
 import { levelGain } from "./loudness";
@@ -14,7 +15,7 @@ import { logRendererEvent, logSwallow } from "../logger";
  * timer-accurate. */
 
 const ORT_ASSET_DIR = "ort/";
-const CACHE_HOST = "draggy://models/";
+const CACHE_HOST = draggyUrl("models/");
 
 /** Gain ramps, short enough to feel instant and long enough not to click. */
 const DUCK_RAMP_S = 0.08;

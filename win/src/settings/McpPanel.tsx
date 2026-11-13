@@ -1,3 +1,4 @@
+import { draggyUrl } from "../appUrl";
 import { useEffect, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import { Button } from "../ui/Button";
@@ -32,7 +33,7 @@ function ServerIcon({ entry }: { entry: McpCatalogueEntry }) {
   const hostname = entry.site ? hostnameOf(entry.site) : "";
 
   if (hostname && !failed) {
-    const src = `draggy://favicon/${encodeURIComponent(hostname)}`;
+    const src = draggyUrl(`favicon/${encodeURIComponent(hostname)}`);
     if (MONO_HOSTS.has(hostname.replace(/^www\./, ""))) {
       return (
         <span

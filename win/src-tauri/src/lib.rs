@@ -3,6 +3,7 @@
 
 pub mod browser;
 pub mod chat_gateway;
+pub mod draggy_scheme;
 pub mod engines;
 pub mod ipc;
 pub mod mcp;
@@ -72,6 +73,48 @@ fn show_main_window(app: &tauri::App, data_dir: &Path) -> tauri::Result<()> {
     window.show()
 }
 
+/// The main window, built here rather than from config so its links can reach the browser pane. Its
+/// own pages stay in the window; any other top-level navigation or window.open goes to the pane instead.
+fn build_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+    let navigating = app.clone();
+    let opening = app.clone();
+    tauri::webview::WebviewWindowBuilder::new(
+        app,
+        "main",
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("Draggy")
+    .inner_size(1200.0, 800.0)
+    .min_inner_size(760.0, 480.0)
+    .decorations(true)
+    .visible(false)
+    .on_navigation(move |url| {
+        if is_app_page(url) || is_about_page(url) {
+            return true;
+        }
+        ipc::browser::open_from_main_window(&navigating, url.clone());
+        false
+    })
+    .on_new_window(move |url, _features| {
+        ipc::browser::open_from_main_window(&opening, url);
+        tauri::webview::NewWindowResponse::Deny
+    })
+    .build()
+    .map(|_| ())
+}
+
+/// The renderer's own pages: the asset host, and the dev server in debug builds.
+fn is_app_page(url: &tauri::Url) -> bool {
+    let dev =
+        cfg!(debug_assertions) && url.host_str() == Some("127.0.0.1") && url.port() == Some(5173);
+    dev || url.host_str() == Some("tauri.localhost")
+        || (url.scheme() == "tauri" && url.host_str() == Some("localhost"))
+}
+
+fn is_about_page(url: &tauri::Url) -> bool {
+    url.scheme() == "about"
+}
+
 fn focus_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
@@ -97,6 +140,13 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .register_uri_scheme_protocol("widget", |_ctx, request| {
             ipc::widgets::serve(&request.uri().to_string())
+        })
+        .register_asynchronous_uri_scheme_protocol("draggy", |ctx, request, responder| {
+            draggy_scheme::handle(
+                ctx.app_handle().clone(),
+                request.uri().to_string(),
+                responder,
+            )
         })
         .invoke_handler(tauri::generate_handler![
             ipc::ipc_invoke,
@@ -147,6 +197,7 @@ pub fn run() {
                 ipc::updater::start(app.handle());
                 browser::adblock::start(app.handle());
             }
+            build_main_window(app.handle())?;
             show_main_window(app, &data_dir)?;
             Ok(())
         })

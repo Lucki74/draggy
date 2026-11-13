@@ -1,3 +1,4 @@
+import { draggyUrl } from "../appUrl";
 import { registerTools } from "./registry";
 import type { ToolSpec } from "./registry";
 import { defaultProjectPath } from "../images/imageCommand";
@@ -161,7 +162,7 @@ async function pixelsOf(image: TrackedImage): Promise<string | null> {
     return read?.success && read.dataUrl ? strip(read.dataUrl) : null;
   }
   try {
-    const response = await fetch(`draggy://images/${encodeURIComponent(image.path.split(/[\\/]/).pop() ?? "")}`);
+    const response = await fetch(draggyUrl(`images/${encodeURIComponent(image.path.split(/[\\/]/).pop() ?? "")}`));
     if (!response.ok) return null;
     const bytes = new Uint8Array(await response.arrayBuffer());
     let binary = "";

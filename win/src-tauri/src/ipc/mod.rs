@@ -30,7 +30,7 @@ pub(crate) mod code_runner;
 mod colibri;
 mod commands;
 mod documents;
-mod files;
+pub(crate) mod files;
 mod gguf;
 mod git;
 mod hardware;

@@ -1,3 +1,4 @@
+import { draggyUrl } from "../appUrl";
 import { VAD_FRAME } from "./constants";
 
 /** Speech detection, neural where possible and energy-based otherwise: a conversation that will not
@@ -6,7 +7,7 @@ import { VAD_FRAME } from "./constants";
 const MODEL_PATH =
   "onnx-community/silero-vad/resolve/main/onnx/model.onnx";
 
-const CACHE_HOST = "draggy://models/";
+const CACHE_HOST = draggyUrl("models/");
 const REMOTE_HOST = "https://huggingface.co/";
 const ORT_ASSET_DIR = "ort/";
 

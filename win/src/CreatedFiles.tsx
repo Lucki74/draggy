@@ -1,3 +1,4 @@
+import { draggyUrl } from "./appUrl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Icon, IconButton, Lightbox, type IconName } from "./ui";
 import { translations } from "./translations";
@@ -247,7 +248,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
 
                     <Lightbox
                       open={zoomedPicture === file.path}
-                      src={`draggy://images/${encodeURIComponent(file.name)}`}
+                      src={draggyUrl(`images/${encodeURIComponent(file.name)}`)}
                       alt={file.name}
                       onClose={() => setZoomedPicture(null)}
                     />
@@ -258,7 +259,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
                             <p className="p-4 text-[13px] text-text-secondary">{t("previewUnavailable")}</p>
                           ) : (
                             <img
-                              src={`draggy://images/${encodeURIComponent(file.name)}`}
+                              src={draggyUrl(`images/${encodeURIComponent(file.name)}`)}
                               alt={file.name}
                               className="block max-w-full mx-auto cursor-zoom-in"
                               onClick={() => setZoomedPicture(file.path)}

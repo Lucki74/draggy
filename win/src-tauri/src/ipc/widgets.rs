@@ -23,7 +23,7 @@ img-src data: blob:; font-src data:; form-action 'none'; base-uri 'none'";
 /// The header adds frame-ancestors, which a meta tag cannot carry: only the app's own pages may frame a widget.
 /// The dev server's origin is allowed in debug builds only.
 fn widget_policy() -> String {
-    let mut policy = format!("{WIDGET_BODY_POLICY}; frame-ancestors http://draggy.localhost");
+    let mut policy = format!("{WIDGET_BODY_POLICY}; frame-ancestors http://tauri.localhost");
     if cfg!(debug_assertions) {
         policy.push_str(" http://127.0.0.1:5173");
     }

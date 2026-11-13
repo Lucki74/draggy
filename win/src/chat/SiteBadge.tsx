@@ -1,3 +1,4 @@
+import { draggyUrl } from "../appUrl";
 import { useState } from "react";
 import { hueFor, siteLabel } from "../utils";
 
@@ -13,7 +14,7 @@ export function SiteBadge({ hostname, small = false }: { hostname: string; small
   if (hostname && failedFor !== hostname) {
     return (
       <img
-        src={`draggy://favicon/${encodeURIComponent(hostname)}`}
+        src={draggyUrl(`favicon/${encodeURIComponent(hostname)}`)}
         alt=""
         aria-hidden="true"
         loading="lazy"
