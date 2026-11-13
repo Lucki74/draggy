@@ -87,10 +87,11 @@ describe("what a grant covers", () => {
 });
 
 describe("what always allow remembers", () => {
-  it("keeps the leading words up to the first flag, at most three", () => {
+  it("keeps the leading words up to the first flag, at most two (three for gh)", () => {
     expect(commandPrefix("git status --short")).toBe("git status");
     expect(commandPrefix("gh pr list --state open")).toBe("gh pr list");
-    expect(commandPrefix("npm run build")).toBe("npm run build");
+    expect(commandPrefix("npm run build")).toBe("npm run");
+    expect(commandPrefix("npm run electron:build")).toBe("npm run");
   });
 
   it("keeps the whole command when it starts with an interpreter", () => {

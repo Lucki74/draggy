@@ -232,7 +232,7 @@
       ]
     },
     {
-      "name": "prefix: keeps up to three words before the first flag",
+      "name": "prefix: gh keeps up to three words before the first flag",
       "input": {
         "op": "prefix",
         "segment": "gh pr list --state open"
@@ -240,12 +240,12 @@
       "expected": "gh pr list"
     },
     {
-      "name": "prefix: a plain three-word command",
+      "name": "prefix: npm run covers every script",
       "input": {
         "op": "prefix",
         "segment": "npm run build"
       },
-      "expected": "npm run build"
+      "expected": "npm run"
     },
     {
       "name": "prefix: stops at the first flag",
@@ -320,12 +320,12 @@
       "expected": "git status"
     },
     {
-      "name": "prefix: three words then more",
+      "name": "prefix: two words then more",
       "input": {
         "op": "prefix",
         "segment": "npm run build:all extra words"
       },
-      "expected": "npm run build:all"
+      "expected": "npm run"
     },
     {
       "name": "prefix: an empty segment",

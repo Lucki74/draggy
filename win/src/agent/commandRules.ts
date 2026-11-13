@@ -66,8 +66,10 @@ const INTERPRETERS = new Set([
 const GIT_VALUE_OPTIONS = new Set(["-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path"]);
 const GIT_FLAG_OPTIONS = new Set(["--no-pager", "-P", "--paginate", "-p", "--bare", "--no-optional-locks"]);
 
-/** The longest prefix kept, in words: "gh pr list" rather than "gh", which would allow merging. */
-const PREFIX_WORDS = 3;
+/** The longest prefix kept, in words: "npm run" covers every script. gh keeps three, "gh pr list" rather than "gh pr",
+ * which would allow merging. */
+const PREFIX_WORDS = 2;
+const LONG_PREFIX = new Set(["gh"]);
 
 const normalise = (text: string) => text.trim().replace(/\s+/g, " ");
 
@@ -223,7 +225,7 @@ export function commandPrefix(segment: string): string {
   for (const word of words.slice(start === 0 ? 1 : start)) {
     if (word.startsWith("-") || (word.startsWith("/") && kept.length > 0)) break;
     kept.push(word);
-    if (kept.length === PREFIX_WORDS) break;
+    if (kept.length === (LONG_PREFIX.has(words[0].toLowerCase()) ? 3 : PREFIX_WORDS)) break;
   }
   return kept.join(" ");
 }

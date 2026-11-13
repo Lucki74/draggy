@@ -272,7 +272,7 @@ function GrantRow({ grant, onRevoke, t }: { grant: WorkspaceGrant; onRevoke: () 
         size={16}
         className="flex-shrink-0 text-text-tertiary"
       />
-      <p className="min-w-0 flex-1 truncate text-[13px] text-text-primary">
+      <p className="min-w-0 flex-1 truncate text-[13px] text-text-primary" title={grant.target ?? grant.tool}>
         {grant.tool === "run_command" ? (
           <code className="font-mono text-[12px]">{grant.target}</code>
         ) : (

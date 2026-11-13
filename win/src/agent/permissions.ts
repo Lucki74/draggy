@@ -1,5 +1,11 @@
 import type { PermissionMode } from "../types";
-import { commandCovered, commandGrantTargets, commandSegments, dialectFor } from "./commandRules";
+import {
+  commandCovered,
+  commandGrantTargets,
+  commandPrefix,
+  commandSegments,
+  dialectFor,
+} from "./commandRules";
 
 /** Whether a tool call may run. One pure function for built-in and MCP tools, with flags mirroring
  * MCP's own annotations, so there is one answer everywhere. */
@@ -60,7 +66,10 @@ const PLAN_REFUSAL =
 /** Compares paths and addresses the way the file system does on this platform. */
 function sameOrInside(grantTarget: string, target: string): boolean {
   const normalise = (value: string) =>
-    value.replace(/[\\/]+$/, "").replace(/\\/g, "/").toLowerCase();
+    value
+      .replace(/[\\/]+$/, "")
+      .replace(/\\/g, "/")
+      .toLowerCase();
 
   const granted = normalise(grantTarget);
   const asked = normalise(target);
@@ -83,23 +92,89 @@ export function grantCovers(
   return sameOrInside(grant.target, target);
 }
 
+/** True when a command prefix such as "npm run" takes in a longer one such as "npm run build". Paths never match. */
+function prefixCovers(grant: Grant, existing: Grant): boolean {
+  if (
+    grant.tool !== existing.tool ||
+    !grant.target ||
+    !existing.target ||
+    /[\\/]/.test(grant.target)
+  )
+    return false;
+  const granted = grant.target.toLowerCase();
+  const kept = existing.target.toLowerCase();
+  return kept === granted || kept.startsWith(`${granted} `);
+}
+
 /** Adds a grant, dropping any it makes redundant. */
-export function addGrant(grants: Grant[], grant: Grant): Grant[] {
+export function addGrant<T extends Grant>(grants: T[], grant: T): T[] {
   const kept = grants.filter(
-    (existing) => !grantCovers(grant, existing.tool, existing.target),
+    (existing) =>
+      !grantCovers(grant, existing.tool, existing.target) &&
+      !prefixCovers(grant, existing),
   );
   return [...kept, grant];
+}
+
+/** Saved commands cut to the prefix "always allow" keeps now, so an old "npm run build" covers every script. */
+export function widenCommandGrants<T extends Grant>(grants: T[]): T[] {
+  return grants.reduce<T[]>(
+    (all, grant) =>
+      addGrant(
+        all,
+        grant.tool === "run_command" && grant.target
+          ? { ...grant, target: commandPrefix(grant.target) }
+          : grant,
+      ),
+    [],
+  );
 }
 
 /** Commands that only read. The sandbox mount does the real enforcing; this list only decides when
  * the question can be skipped. */
 const READ_ONLY_COMMANDS = new Set([
-  "dir", "type", "ls", "cat", "head", "tail", "pwd", "echo", "wc", "find", "grep", "rg", "tree",
-  "where", "which", "whoami", "hostname", "get-childitem", "get-content", "select-string",
-  "get-location", "findstr", "sort", "uniq", "stat", "file", "du", "more", "cd", "set-location",
+  "dir",
+  "type",
+  "ls",
+  "cat",
+  "head",
+  "tail",
+  "pwd",
+  "echo",
+  "wc",
+  "find",
+  "grep",
+  "rg",
+  "tree",
+  "where",
+  "which",
+  "whoami",
+  "hostname",
+  "get-childitem",
+  "get-content",
+  "select-string",
+  "get-location",
+  "findstr",
+  "sort",
+  "uniq",
+  "stat",
+  "file",
+  "du",
+  "more",
+  "cd",
+  "set-location",
 ]);
 const READ_ONLY_GIT = new Set([
-  "status", "log", "diff", "show", "branch", "blame", "ls-files", "rev-parse", "remote", "describe",
+  "status",
+  "log",
+  "diff",
+  "show",
+  "branch",
+  "blame",
+  "ls-files",
+  "rev-parse",
+  "remote",
+  "describe",
 ]);
 
 function readOnlySegment(segment: string): boolean {
@@ -109,18 +184,32 @@ function readOnlySegment(segment: string): boolean {
     const sub = words.slice(1).find((word) => !word.startsWith("-"));
     return !!sub && READ_ONLY_GIT.has(sub.toLowerCase());
   }
-  if (head === "find" && words.some((w) => /^-(delete|exec|execdir|ok)$/i.test(w))) return false;
+  if (
+    head === "find" &&
+    words.some((w) => /^-(delete|exec|execdir|ok)$/i.test(w))
+  )
+    return false;
   return READ_ONLY_COMMANDS.has(head);
 }
 
 /** True when every command in the line is on the read-only list. Opaque lines are not. */
-export function commandReadOnly(command: string | null | undefined, shell: string | null = null): boolean {
+export function commandReadOnly(
+  command: string | null | undefined,
+  shell: string | null = null,
+): boolean {
   const segments = commandSegments(command, dialectFor(shell));
   return !!segments && segments.length > 0 && segments.every(readOnlySegment);
 }
 
 export function decide(query: PermissionQuery): Verdict {
-  const { mode, tool, annotations = {}, target = null, grants = [], shell = null } = query;
+  const {
+    mode,
+    tool,
+    annotations = {},
+    target = null,
+    grants = [],
+    shell = null,
+  } = query;
   const isReadOnly = annotations.readOnlyHint ?? annotations.readOnly;
   const isDestructive = annotations.destructiveHint ?? annotations.destructive;
 
@@ -146,23 +235,33 @@ export function decide(query: PermissionQuery): Verdict {
   if (annotations.executes) {
     if (!annotations.outsideSandbox) {
       if (mode === "turbo") {
-        return { decision: "allow", reason: "Turbo runs commands inside the project sandbox." };
+        return {
+          decision: "allow",
+          reason: "Turbo runs commands inside the project sandbox.",
+        };
       }
       if (commandReadOnly(target, shell)) {
-        return { decision: "allow", reason: "This command only reads, inside the sandbox." };
+        return {
+          decision: "allow",
+          reason: "This command only reads, inside the sandbox.",
+        };
       }
     }
     const allowed = grants
       .filter((grant) => grant.tool === tool && grant.target)
-      .map((grant) => grant.target as string);
+      .map((grant) => commandPrefix(grant.target as string));
 
     if (commandCovered(allowed, target, dialectFor(shell))) {
-      return { decision: "allow", reason: "The user has already allowed this command." };
+      return {
+        decision: "allow",
+        reason: "The user has already allowed this command.",
+      };
     }
 
     return {
       decision: "ask",
-      reason: "This runs a command on the user's computer, so the user is asked first.",
+      reason:
+        "This runs a command on the user's computer, so the user is asked first.",
     };
   }
 
@@ -180,7 +279,10 @@ export function decide(query: PermissionQuery): Verdict {
   }
 
   if (mode === "turbo") {
-    return { decision: "allow", reason: "Turbo has no limits inside the project folder." };
+    return {
+      decision: "allow",
+      reason: "Turbo has no limits inside the project folder.",
+    };
   }
 
   if (mode === "acceptEdits" && !isDestructive) {
@@ -207,7 +309,10 @@ export function grantsFor(
   shell: string | null = null,
 ): Grant[] {
   if (annotations.executes) {
-    return commandGrantTargets(target, dialectFor(shell)).map((prefix) => ({ tool, target: prefix }));
+    return commandGrantTargets(target, dialectFor(shell)).map((prefix) => ({
+      tool,
+      target: prefix,
+    }));
   }
   return [{ tool, ...(target ? { target } : {}) }];
 }

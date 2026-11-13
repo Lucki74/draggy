@@ -22,8 +22,10 @@ pub fn dialect_for(shell: Option<&str>) -> Dialect {
     }
 }
 
-/// Words kept by "always allow", so "gh pr list" is remembered rather than "gh", which would allow merging.
-const PREFIX_WORDS: usize = 3;
+/// Words kept by "always allow": "npm run" covers every script. gh keeps three, "gh pr list" rather than "gh pr",
+/// which would allow merging.
+const PREFIX_WORDS: usize = 2;
+const LONG_PREFIX: &[&str] = &["gh"];
 
 static BASH_REDIRECTS: OnceLock<Option<JsRegex>> = OnceLock::new();
 static PWSH_REDIRECTS: OnceLock<Option<JsRegex>> = OnceLock::new();
@@ -300,13 +302,18 @@ pub fn command_prefix(segment: &str) -> String {
         }
     }
 
+    let limit = if LONG_PREFIX.contains(&words[0].to_lowercase().as_str()) {
+        3
+    } else {
+        PREFIX_WORDS
+    };
     let mut kept: Vec<&str> = vec![words[0]];
     for word in &words[if start == 0 { 1 } else { start }..] {
         if word.starts_with('-') || word.starts_with('/') {
             break;
         }
         kept.push(word);
-        if kept.len() == PREFIX_WORDS {
+        if kept.len() == limit {
             break;
         }
     }
