@@ -510,7 +510,7 @@ mod tests {
                 let mut file = archive.by_index(index).expect("entry");
                 let mut data = Vec::new();
                 file.read_to_end(&mut data).expect("read entry");
-                (file.name().to_owned(), data)
+                (file.name().expect("entry name").into_owned(), data)
             })
             .collect()
     }
