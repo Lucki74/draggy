@@ -590,6 +590,11 @@ where
     Fut: Future<Output = Value>,
 {
     let cid = launch.grant.as_ref().map(|grant| grant.cid.clone());
+    let asked = launch
+        .grant
+        .as_ref()
+        .and_then(|grant| grant.specs.parent())
+        .map(|dir| dir.join("admin-asked.txt"));
     ADMIN_STEP
         .get_or_init(|| async move {
             let mut unique: Vec<String> = Vec::new();
@@ -597,6 +602,14 @@ where
                 if !unique.contains(&folder) {
                     unique.push(folder);
                 }
+            }
+            // One prompt per machine: folders asked for before, granted or not, are not asked for again.
+            let before = asked.as_ref().and_then(|file| fs::read_to_string(file).ok()).unwrap_or_default();
+            if unique.iter().all(|folder| folder == "--read" || before.lines().any(|line| line == folder)) {
+                return;
+            }
+            if let Some(file) = &asked {
+                let _ = fs::write(file, format!("{before}{}\n", unique.join("\n")));
             }
             let count = unique.len();
             log_info(

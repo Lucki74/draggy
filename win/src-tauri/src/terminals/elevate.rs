@@ -23,7 +23,8 @@ pub fn batch_text(command: &str, cwd: &Path) -> String {
     format!("@echo off\r\ncd /d \"{}\"\r\n{command}\r\n", cwd.display())
 }
 
-/// The PowerShell line that starts the elevated shell and waits for it.
+/// The PowerShell line that starts the elevated shell and waits for it. The handle is taken first, or an elevated
+/// process reports no exit code and a failure reads as success.
 pub fn elevation_script(batch: &Path, out: &Path) -> String {
     let args = format!(
         "/d /c \"\"{}\" > \"{}\" 2>&1\"",
@@ -32,7 +33,7 @@ pub fn elevation_script(batch: &Path, out: &Path) -> String {
     );
     let quoted = args.replace('\'', "''");
     format!(
-        "$ErrorActionPreference='Stop'; try {{ $p = Start-Process -FilePath 'cmd.exe' -ArgumentList '{quoted}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode }} catch {{ exit {DECLINED} }}"
+        "$ErrorActionPreference='Stop'; try {{ $p = Start-Process -FilePath 'cmd.exe' -ArgumentList '{quoted}' -Verb RunAs -PassThru -WindowStyle Hidden; $null = $p.Handle; $p.WaitForExit(); exit $p.ExitCode }} catch {{ exit {DECLINED} }}"
     )
 }
 
@@ -191,7 +192,7 @@ mod tests {
     #[test]
     fn script_waits_for_the_elevated_shell() {
         let script = elevation_script(Path::new("C:\\w\\run.cmd"), Path::new("C:\\w\\out.txt"));
-        assert!(script.contains("-Verb RunAs -Wait"));
+        assert!(script.contains("$null = $p.Handle; $p.WaitForExit()"));
         assert!(script.contains(&format!("catch {{ exit {DECLINED} }}")));
     }
 }
