@@ -214,7 +214,9 @@ async function seedProfile(page, { project, model }) {
     await window.draggy.onboarding.complete("local");
     await window.draggy.workspaces.save(data.workspace);
     for (const session of data.sessions) await window.draggy.db.saveChat(session);
-    await window.draggy.db.set("draggy_settings", JSON.stringify({ modelName: data.model }));
+    // The renderer reads settings from localStorage at boot, so a model saved only in the db leaves the page blank.
+    const saved = JSON.parse(localStorage.getItem("draggy_settings") || "{}");
+    localStorage.setItem("draggy_settings", JSON.stringify({ ...saved, modelName: data.model }));
   }, { workspace, sessions, model });
   await page.reload();
 }

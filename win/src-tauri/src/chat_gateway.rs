@@ -36,7 +36,8 @@ const UNKNOWN_URL: &str = "draggy-ai://unknown";
 const CHAT_PATH: &str = "/chat";
 const MAX_BODY_BYTES: usize = 32 * 1024 * 1024;
 const QUEUE: usize = 32;
-const RENDERER_ORIGIN: &str = "http://draggy.localhost";
+// The main window is served from the asset scheme, so its origin is tauri.localhost, not draggy.localhost.
+const RENDERER_ORIGIN: &str = "http://tauri.localhost";
 const DEV_ORIGIN: &str = "http://127.0.0.1:5173";
 const DEFAULT_ENGINE_PORT: u16 = 11435;
 const DRAGGY_AI_SOURCES: [&str; 2] = ["draggy-ai:", "http://draggy-ai.localhost"];

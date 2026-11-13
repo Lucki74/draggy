@@ -213,8 +213,21 @@ async fn setup_engine(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcErr
 async fn start(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let state = app.state::<AppState>();
     let engines = Arc::clone(&state.engines);
-    let model_arg = text_arg(&args, 0);
-    let options = args.get(1).cloned().unwrap_or(Value::Null);
+    // The renderer sends one options object { modelPath, contextSize, ... }; the older positional form is kept.
+    let (model_arg, options) = match args.first() {
+        Some(object @ Value::Object(_)) => (
+            object
+                .get("modelPath")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned(),
+            object.clone(),
+        ),
+        _ => (
+            text_arg(&args, 0),
+            args.get(1).cloned().unwrap_or(Value::Null),
+        ),
+    };
     let context = options
         .get("contextSize")
         .and_then(Value::as_f64)

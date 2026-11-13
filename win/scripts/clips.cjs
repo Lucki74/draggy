@@ -23,7 +23,7 @@ const SPEED = 6; // while the model works, each captured frame is shown for 1/SP
 const FPS = 12;
 const TONES = (process.env.DRAGGY_CLIPS_TONES || "light,dark").split(",").filter(Boolean);
 const DUMP = process.env.DRAGGY_CLIPS_DUMP || "";
-const MODEL = path.basename(String(process.env.DRAGGY_SHOTS_MODEL || "Qwen3.5-9B-Q4_K_M.gguf"));
+const MODEL = path.basename(String(process.env.DRAGGY_SHOTS_MODEL || "Qwen3.8-27B-Uncensored-Q4_K_M.gguf"));
 const FFMPEG = process.env.DRAGGY_FFMPEG || "ffmpeg";
 const WEBM_LIMIT = 1_500_000;
 const POSTER_LIMIT = 60_000;
@@ -573,7 +573,7 @@ async function record(session, name, project) {
     port: Number(flag("--port", process.env.DRAGGY_CDP_PORT || 9222)),
     scale: "1",
     prefix: "draggy-clips-",
-    model: process.env.DRAGGY_SHOTS_MODEL || "Qwen3.5-9B-Q4_K_M.gguf",
+    model: process.env.DRAGGY_SHOTS_MODEL || "Qwen3.8-27B-Uncensored-Q4_K_M.gguf",
     extraArgs: [...voiceArgs, "--disable-features=CalculateNativeWinOcclusion"],
   });
   try {

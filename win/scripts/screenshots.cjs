@@ -18,7 +18,7 @@ const WIDTH = 1280;
 const HEIGHT = 800;
 const ONBOARDING = ONLY.includes("onboarding");
 const LANGUAGE = process.env.DRAGGY_SHOTS_LANG || "";
-const SHOTS_MODEL = process.env.DRAGGY_SHOTS_MODEL || "Qwen3.5-9B-Q4_K_M.gguf";
+const SHOTS_MODEL = process.env.DRAGGY_SHOTS_MODEL || "Qwen3.8-27B-Uncensored-Q4_K_M.gguf";
 const wanted = (scene) => ONLY.length === 0 || ONLY.includes(scene);
 const log = (...parts) => console.log("[shots]", ...parts);
 
@@ -341,7 +341,7 @@ async function run(page) {
   const port = Number(flag("--port", process.env.DRAGGY_CDP_PORT || 9222));
   const scratchProfile = {
     prefix: "draggy-shots-",
-    model: process.env.DRAGGY_SHOTS_MODEL || "Qwen3.5-9B-Q4_K_M.gguf",
+    model: process.env.DRAGGY_SHOTS_MODEL || "Qwen3.8-27B-Uncensored-Q4_K_M.gguf",
   };
   const session = await app.launch({
     exe,
