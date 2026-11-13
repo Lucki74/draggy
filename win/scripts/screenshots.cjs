@@ -18,7 +18,7 @@ const WIDTH = 1280;
 const HEIGHT = 800;
 const ONBOARDING = ONLY.includes("onboarding");
 const LANGUAGE = process.env.DRAGGY_SHOTS_LANG || "";
-const SHOTS_MODEL = process.env.DRAGGY_SHOTS_MODEL || "Qwen3.8-27B-Uncensored-Q4_K_M.gguf";
+const SHOTS_MODEL = process.env.DRAGGY_SHOTS_MODEL || "Qwen3.6-35B-A3B-Q8_0.gguf";
 const wanted = (scene) => ONLY.length === 0 || ONLY.includes(scene);
 const log = (...parts) => console.log("[shots]", ...parts);
 
@@ -268,7 +268,7 @@ async function run(page) {
 
   if (wanted("command")) await scene("command", async () => {
     await app.openWorkspace(page, "weather");
-    await app.submitText(page, "whats the latest commit message here? use git log --oneline");
+    await app.submitText(page, "Run the shell command `git log --oneline -1` using your run command tool, then tell me the commit message.");
     const outcome = await app.waitFor(() => app.inPage(page, () => {
       if (document.body.innerText.includes("Run a command")) return "approval";
       return document.querySelector("[data-stop='true']") ? null : "replied";
@@ -341,7 +341,7 @@ async function run(page) {
   const port = Number(flag("--port", process.env.DRAGGY_CDP_PORT || 9222));
   const scratchProfile = {
     prefix: "draggy-shots-",
-    model: process.env.DRAGGY_SHOTS_MODEL || "Qwen3.8-27B-Uncensored-Q4_K_M.gguf",
+    model: process.env.DRAGGY_SHOTS_MODEL || "Qwen3.6-35B-A3B-Q8_0.gguf",
   };
   const session = await app.launch({
     exe,

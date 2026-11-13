@@ -23,7 +23,7 @@ const SPEED = 6; // while the model works, each captured frame is shown for 1/SP
 const FPS = 12;
 const TONES = (process.env.DRAGGY_CLIPS_TONES || "light,dark").split(",").filter(Boolean);
 const DUMP = process.env.DRAGGY_CLIPS_DUMP || "";
-const MODEL = path.basename(String(process.env.DRAGGY_SHOTS_MODEL || "Qwen3.8-27B-Uncensored-Q4_K_M.gguf"));
+const MODEL = path.basename(String(process.env.DRAGGY_SHOTS_MODEL || "Qwen3.6-35B-A3B-Q8_0.gguf"));
 const FFMPEG = process.env.DRAGGY_FFMPEG || "ffmpeg";
 const WEBM_LIMIT = 1_500_000;
 const POSTER_LIMIT = 60_000;
@@ -374,11 +374,9 @@ const CLIPS = {
       await app.sleep(900);
       await dump(page, "research");
       // Open the steps, then the search results, then press one of the sources.
-      await rec.clickOn(() => [...document.querySelectorAll("[data-region=transcript] button[aria-expanded=false]")].find((n) => /^(Searched|Read|Opened)/.test(n.textContent.trim())));
+      await rec.clickOn(() => [...document.querySelectorAll("[data-region=transcript] button[aria-expanded=false]")].find((n) => /worked|searched|read/i.test(n.textContent)));
       await app.sleep(500);
-      await rec.clickOn(() => document.querySelector("[data-region=transcript] details summary"));
-      await app.sleep(500);
-      await rec.clickOn(() => document.querySelector("[data-region=transcript] details a[href^=http]"));
+      await rec.clickOn(() => document.querySelector("[data-region=transcript] a[href^=http]"));
       await app.sleep(1800);
     },
   },
@@ -573,7 +571,7 @@ async function record(session, name, project) {
     port: Number(flag("--port", process.env.DRAGGY_CDP_PORT || 9222)),
     scale: "1",
     prefix: "draggy-clips-",
-    model: process.env.DRAGGY_SHOTS_MODEL || "Qwen3.8-27B-Uncensored-Q4_K_M.gguf",
+    model: process.env.DRAGGY_SHOTS_MODEL || "Qwen3.6-35B-A3B-Q8_0.gguf",
     extraArgs: [...voiceArgs, "--disable-features=CalculateNativeWinOcclusion"],
   });
   try {

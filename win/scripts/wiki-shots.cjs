@@ -15,7 +15,7 @@ if (args.includes("--help")) {
 const OUT = path.resolve(process.env.DRAGGY_SHOTS_OUT || path.join(__dirname, "..", "..", "..", "draggy-website", "assets", "img"));
 const WIDTH = 1280;
 const HEIGHT = 800;
-const MODEL = process.env.DRAGGY_SHOTS_MODEL || "Qwen3.8-27B-Uncensored-Q4_K_M.gguf";
+const MODEL = process.env.DRAGGY_SHOTS_MODEL || "Qwen3.6-35B-A3B-Q8_0.gguf";
 const log = (...parts) => console.log("[wiki-shots]", ...parts);
 
 async function capture(page, name) {

@@ -273,7 +273,9 @@ async function clickText(page, match, { exact = false } = {}) {
 }
 
 // Types a message into the composer and submits it, without waiting for the reply.
+// The composer can re-mount on input, so the form is looked up again at submit time and found by its textarea.
 async function submitText(page, text) {
+  await waitFor(() => inPage(page, () => Boolean(document.querySelector("[data-region=composer] form textarea"))), { label: "the composer" });
   await inPage(page, (message) => {
     const box = document.querySelector("[data-region=composer] form textarea");
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
@@ -281,7 +283,12 @@ async function submitText(page, text) {
     box.dispatchEvent(new Event("input", { bubbles: true }));
   }, text);
   await sleep(300);
-  await inPage(page, () => document.querySelector("[data-region=composer] form").requestSubmit());
+  await waitFor(() => inPage(page, () => {
+    const form = document.querySelector("[data-region=composer] form textarea")?.closest("form");
+    if (!form) return false;
+    form.requestSubmit();
+    return true;
+  }), { label: "the composer form to submit", every: 300 });
 }
 
 // Presses Allow once on a waiting approval card. Returns what it allowed, or null.
