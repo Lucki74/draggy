@@ -227,8 +227,7 @@ describe("finishing", () => {
     await screen.findByRole("heading", { name: en("onbWelcomeTitle") });
     fireEvent.click(screen.getByRole("button", { name: en("onbSkip") }));
     const dialog = await screen.findByRole("dialog");
-    // The size arrives isolated, so an Arabic sentence cannot reorder "57.0 GB".
-    expect(within(dialog).getByText(/about ⁨57\.0 GB⁩/)).toBeTruthy();
+    expect(within(dialog).getByText(/about 57\.0 GB/)).toBeTruthy();
   });
 });
 

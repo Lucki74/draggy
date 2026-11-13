@@ -5,7 +5,7 @@ import RemoteFilesNotice from "../providers/RemoteFilesNotice";
 import { translations } from "../translations";
 
 const t = (key: string) => translations.en[key] || key;
-const text = (provider: string) => `Files this model reads will be sent to ⁨${provider}⁩.`;
+const text = (provider: string) => `Files this model reads will be sent to ${provider}.`;
 
 beforeEach(() => localStorage.clear());
 afterEach(cleanup);

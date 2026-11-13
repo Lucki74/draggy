@@ -225,6 +225,10 @@ async function seedProfile(page, { project, model }) {
     // The renderer reads settings from localStorage at boot, so a model saved only in the db leaves the page blank.
     const saved = JSON.parse(localStorage.getItem("draggy_settings") || "{}");
     localStorage.setItem("draggy_settings", JSON.stringify({ ...saved, modelName: data.model }));
+    // The window opened at ?onboarding=true and reload keeps the query, so drop it first.
+    const clean = new URL(location.href);
+    clean.search = "";
+    history.replaceState(null, "", clean.toString());
   }, { workspace, sessions, model });
   await page.reload();
 }

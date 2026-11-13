@@ -32,7 +32,7 @@ export function Choice({
       aria-disabled={disabled}
       disabled={disabled}
       onClick={onSelect}
-      className={`flex w-full items-start gap-3 rounded-md bg-surface-base text-start outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-canvas disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`flex w-full items-start gap-3 rounded-md bg-surface-base text-start outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-canvas group disabled:cursor-not-allowed ${
         large ? "px-5 py-4" : "px-4 py-3"
       } ${
         selected
@@ -42,7 +42,7 @@ export function Choice({
     >
       {icon && <span className="mt-0.5 flex-shrink-0 text-text-secondary">{icon}</span>}
       <span className="min-w-0 flex-1">
-        <span className={`flex items-center gap-2 font-medium text-text-primary ${large ? "text-[15px] leading-6" : "text-[14px] leading-5"}`}>
+        <span className={`flex items-center gap-2 font-medium text-text-primary group-disabled:text-text-secondary ${large ? "text-[15px] leading-6" : "text-[14px] leading-5"}`}>
           <span className="min-w-0 truncate">{title}</span>
           {marker && (
             <span className="flex-shrink-0 rounded-pill bg-surface-raised px-2 py-0.5 text-[11px] font-medium leading-4 text-text-secondary">

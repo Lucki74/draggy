@@ -242,8 +242,9 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   );
 
   const openSkip = useCallback(async () => {
-    await loadSurroundings().catch(swallowed("onboarding", "the main process already logged this call"));
-    setConfirmSkip(true);
+    // Without a known size the dialog would say "about ?", so Skip opens only once the download is sized.
+    const sized = await loadSurroundings().then(() => true, swallowed("onboarding", "the main process already logged this call", false));
+    if (sized) setConfirmSkip(true);
   }, [loadSurroundings]);
 
   const skip = useCallback(async () => {
