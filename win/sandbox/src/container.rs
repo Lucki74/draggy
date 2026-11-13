@@ -85,7 +85,8 @@ fn list_ancestors(folder: &str) {
     }
 }
 
-/// Run as administrator: lets every container list each folder given, and nothing below it.
+/// Run as administrator: lets every container list each folder given, and nothing below it. Folders after `--read`
+/// are toolchains the user cannot change, such as C:\Program Files\nodejs: containers may read and run files there.
 pub fn list_folders(folders: &[String]) -> i32 {
     let capability = match grant::Capability::derive(grant::LIST_CAPABILITY) {
         Ok(capability) => capability,
@@ -95,9 +96,19 @@ pub fn list_folders(folders: &[String]) -> i32 {
         }
     };
     let mut code = 0;
+    let mut read = false;
     for folder in folders {
-        if let Err(error) = grant::allow_list(folder, capability.sid()) {
-            eprintln!("sandbox: cannot let the container list {folder} (error {error})");
+        if folder == "--read" {
+            read = true;
+            continue;
+        }
+        let granted = if read {
+            grant::allow(folder, capability.sid(), grant::READ)
+        } else {
+            grant::allow_list(folder, capability.sid())
+        };
+        if let Err(error) = granted {
+            eprintln!("sandbox: cannot open {folder} to containers (error {error})");
             code = EXIT_GRANT;
         }
     }
@@ -141,6 +152,7 @@ fn prepare(spec: &Spec, setup: bool) -> Result<PSID, i32> {
             }
         }
     }
+    let listing = grant::Capability::derive(grant::LIST_CAPABILITY).ok();
     for (folders, mask) in [
         (&spec.read_only, grant::READ),
         (&spec.read_write, grant::MODIFY),
@@ -155,8 +167,12 @@ fn prepare(spec: &Spec, setup: bool) -> Result<PSID, i32> {
                     unsafe { FreeSid(sid) };
                     return Err(EXIT_GRANT);
                 }
-                if setup {
-                    eprintln!("sandbox: warning: no access granted to {folder} (error {code})");
+                if setup && !grant::containers_can_read(folder, listing.as_ref().map(|c| c.sid())) {
+                    if code == ERROR_ACCESS_DENIED {
+                        eprintln!("sandbox: needs-admin-read: {folder}");
+                    } else {
+                        eprintln!("sandbox: warning: no access granted to {folder} (error {code})");
+                    }
                 }
             }
             if project && setup {

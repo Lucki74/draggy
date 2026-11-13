@@ -28,6 +28,8 @@ pub const SHELL_MARK: &str = "dg-shell-ok";
 pub const SETUP_NOTE: &str = "Setting up the sandbox for this folder. The first time can take a few minutes on a big project, and Windows may ask once for administrator rights so commands can list the folders above it.\n";
 /// The launcher's report of a folder above the project that only an administrator can open to listing.
 const NEEDS_ADMIN: &str = "sandbox: needs-admin: ";
+/// The launcher's report of a toolchain folder, such as C:\Program Files\nodejs, that only an administrator can open.
+const NEEDS_ADMIN_READ: &str = "sandbox: needs-admin-read: ";
 
 /// What a sandboxed command may reach. `launcher` is the launcher binary when one was found.
 #[derive(Clone, Debug, Default)]
@@ -302,6 +304,22 @@ pub fn wrap(spawn: &Spawn<'_>, options: &Options) -> Result<Launch, String> {
     let home = std::env::var_os("USERPROFILE").map(PathBuf::from);
     let mut read_only = toolchain_folders(spawn.file, home.as_deref(), &system_root());
     read_only.extend(options.extras.read_only.iter().cloned());
+    // Tools such as node, npm and git live in PATH folders, which the container must be able to read.
+    let path = env
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("path"));
+    for dir in path.map_or_else(Vec::new, |(_, value)| {
+        std::env::split_paths(value).collect()
+    }) {
+        if !dir.is_dir() {
+            continue;
+        }
+        for folder in toolchain_folders(&dir.join("tool"), home.as_deref(), &system_root()) {
+            if !read_only.iter().any(|known| real(known) == real(&folder)) {
+                read_only.push(folder);
+            }
+        }
+    }
     let mut read_write = vec![scratch.clone()];
     if options.writable {
         read_write.insert(0, options.project.clone());
@@ -449,7 +467,8 @@ fn log_error(message: &str, data: Value) {
     }
 }
 
-/// Splits the launcher's stderr into the folders that need an administrator listing and the other lines.
+/// Splits the launcher's stderr into the folders that need an administrator and the other lines. Folders to open
+/// for reading follow a `--read` marker, as the launcher's `--list-folders` mode takes them.
 fn split_stderr(stderr: &str) -> (Vec<String>, Vec<String>) {
     let lines: Vec<String> = stderr
         .lines()
@@ -459,11 +478,19 @@ fn split_stderr(stderr: &str) -> (Vec<String>, Vec<String>) {
         .collect();
     let (admin, rest): (Vec<String>, Vec<String>) = lines
         .into_iter()
-        .partition(|line| line.starts_with(NEEDS_ADMIN));
-    let folders = admin
+        .partition(|line| line.starts_with(NEEDS_ADMIN) || line.starts_with(NEEDS_ADMIN_READ));
+    let mut folders: Vec<String> = admin
         .iter()
         .filter_map(|line| line.strip_prefix(NEEDS_ADMIN).map(str::to_owned))
         .collect();
+    let read: Vec<String> = admin
+        .iter()
+        .filter_map(|line| line.strip_prefix(NEEDS_ADMIN_READ).map(str::to_owned))
+        .collect();
+    if !read.is_empty() {
+        folders.push("--read".to_owned());
+        folders.extend(read);
+    }
     (folders, rest)
 }
 
@@ -831,9 +858,9 @@ mod tests {
 
     #[test]
     fn stderr_splits_admin_folders_from_warnings() {
-        let text = "sandbox: needs-admin: C:\\Users\nwarn one\nsandbox: needs-admin: C:\\\n";
+        let text = "sandbox: needs-admin-read: C:\\Node\nsandbox: needs-admin: C:\\Users\nwarn one\nsandbox: needs-admin: C:\\\n";
         let (folders, rest) = split_stderr(text);
-        assert_eq!(folders, vec!["C:\\Users".to_owned(), "C:\\".to_owned()]);
+        assert_eq!(folders, ["C:\\Users", "C:\\", "--read", "C:\\Node"]);
         assert_eq!(rest, vec!["warn one".to_owned()]);
     }
 
