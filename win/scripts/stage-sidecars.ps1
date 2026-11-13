@@ -16,3 +16,8 @@ $dir = Join-Path $PSScriptRoot '..\src-tauri\binaries'
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
 Copy-Item -LiteralPath $Source -Destination (Join-Path $dir 'node-x86_64-pc-windows-msvc.exe') -Force
 Write-Output "staged node $($pin.version)"
+# The sandbox launcher ships as a resource; every agent command runs through it.
+$sandbox = Join-Path $PSScriptRoot '..\sandbox\Cargo.toml'
+cargo build --release --quiet --manifest-path $sandbox
+if ($LASTEXITCODE -ne 0) { throw "sandbox launcher build failed ($LASTEXITCODE)" }
+Write-Output 'built draggy-sandbox.exe'

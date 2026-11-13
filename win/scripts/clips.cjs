@@ -584,7 +584,13 @@ async function record(session, name, project) {
     await app.sleep(2000);
     await warmUp(session.page);
     for (const name of Object.keys(CLIPS)) {
-      if (wanted(name)) await record(session, name, project.path);
+      if (!wanted(name)) continue;
+      try {
+        await record(session, name, project.path);
+      } catch (error) {
+        console.error(`[clips] ${name} failed, skipping:`, error.message);
+        process.exitCode = 1;
+      }
     }
   } catch (error) {
     console.error("[clips] failed:", error.message);

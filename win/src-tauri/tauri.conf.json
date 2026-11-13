@@ -38,6 +38,7 @@
       "../../shared/fixtures/web/config.json": "search-config.json",
       "../../LICENSE": "LICENSE",
       "../../NOTICE": "NOTICE",
+      "../sandbox/target/release/draggy-sandbox.exe": "sandbox/draggy-sandbox.exe",
       "../skills-library/**/*": "skills-library/"
     },
     "publisher": "The Draggy authors",
