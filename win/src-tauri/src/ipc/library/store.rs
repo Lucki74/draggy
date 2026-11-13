@@ -125,7 +125,16 @@ impl Store {
 
     fn init(conn: Connection) -> Result<Self> {
         conn.execute_batch(SCHEMA)?;
-        super::research::init(&conn)?;
+        let started = std::time::Instant::now();
+        if let Err(error) = super::research::init(&conn) {
+            tracing::error!(target: super::research::SCOPE, error = %error, "schema setup failed");
+            return Err(error);
+        }
+        tracing::debug!(
+            target: super::research::SCOPE,
+            dur_ms = started.elapsed().as_millis() as u64,
+            "schema ready"
+        );
         let store = Self { conn, matrix: None };
         store.conn.execute(
             "UPDATE library_sources SET workspace_id = ?1 WHERE workspace_id IS NULL",

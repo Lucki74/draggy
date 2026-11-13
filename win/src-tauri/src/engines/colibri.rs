@@ -118,10 +118,17 @@ pub fn parse_compute_capability(text: &str) -> f64 {
 
 pub async fn cuda_capable() -> bool {
     let args = ["--query-gpu=compute_cap", "--format=csv,noheader"];
-    match draggy_tools::spawn::hidden_command("nvidia-smi", &args, |_| {})
+    crate::proc_log::spawned("nvidia-smi", &args);
+    let started = std::time::Instant::now();
+    let result = draggy_tools::spawn::hidden_command("nvidia-smi", &args, |_| {})
         .output()
-        .await
-    {
+        .await;
+    crate::proc_log::exited(
+        "nvidia-smi",
+        result.as_ref().ok().and_then(|out| out.status.code()),
+        started,
+    );
+    match result {
         Ok(out) if out.status.success() => {
             parse_compute_capability(&String::from_utf8_lossy(&out.stdout)) >= 8.0
         }
@@ -884,8 +891,12 @@ impl ColibriServer {
         .spawn();
         let mut child = match child {
             Ok(child) => child,
-            Err(error) => return spawn_failure(&error, req.model),
+            Err(error) => {
+                crate::proc_log::exited("colibri", None, std::time::Instant::now());
+                return spawn_failure(&error, req.model);
+            }
         };
+        crate::proc_log::spawned("colibri", spawn.args.as_slice());
 
         let progress = Arc::new(Mutex::new(Progress::new()));
         if let Some(out) = child.stdout.take() {

@@ -149,10 +149,18 @@ pub(super) async fn sign_out(app: AppHandle, args: Vec<Value>) -> Result<Value, 
         });
     }
     if let (Some(binary), Ok(setup)) = (installed_binary(&root, &Disk), Setup::new(&root, &id)) {
+        crate::proc_log::spawned(&binary, &["auth", "logout"]);
+        let started = std::time::Instant::now();
         let run = draggy_tools::spawn::exec_hidden(&binary, &["auth", "logout"], |command| {
             command.current_dir(&setup.cwd).env_clear().envs(&setup.env);
         });
-        let _ = tokio::time::timeout(Duration::from_millis(UTILITY_MS), run).await;
+        let outcome = tokio::time::timeout(Duration::from_millis(UTILITY_MS), run).await;
+        let code = outcome
+            .as_ref()
+            .ok()
+            .and_then(|r| r.as_ref().ok())
+            .and_then(|o| o.status.code());
+        crate::proc_log::exited(&binary, code, started);
     }
     if let Ok(home) = private_home(&root, CLAUDE, &id) {
         match fs::remove_dir_all(&home) {
@@ -465,10 +473,19 @@ fn installed_or_previous(root: &str) -> Option<String> {
 
 /// Asks the runtime who is signed in. Anything unreadable counts as signed out, as the reference does.
 async fn auth_status(binary: &str, setup: &Setup) -> Value {
+    crate::proc_log::spawned(binary, &["auth", "status", "--json"]);
+    let started = std::time::Instant::now();
     let run = draggy_tools::spawn::exec_hidden(binary, &["auth", "status", "--json"], |command| {
         command.current_dir(&setup.cwd).env_clear().envs(&setup.env);
     });
-    match tokio::time::timeout(Duration::from_millis(UTILITY_MS), run).await {
+    let outcome = tokio::time::timeout(Duration::from_millis(UTILITY_MS), run).await;
+    let code = outcome
+        .as_ref()
+        .ok()
+        .and_then(|r| r.as_ref().ok())
+        .and_then(|o| o.status.code());
+    crate::proc_log::exited(binary, code, started);
+    match outcome {
         Ok(Ok(output)) => parse_auth(&String::from_utf8_lossy(&output.stdout)),
         _ => json!({ "loggedIn": false }),
     }

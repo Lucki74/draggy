@@ -10,6 +10,7 @@ pub mod mcp;
 pub mod models;
 pub mod paths;
 pub mod pricing;
+pub mod proc_log;
 pub mod quit;
 pub mod secrets;
 pub mod storage;

@@ -158,7 +158,11 @@ const HARMLESS: [&str; 28] = [
 fn settings_object(raw: &str) -> Map<String, Value> {
     match serde_json::from_str::<Value>(raw) {
         Ok(Value::Object(map)) => map,
-        _ => Map::new(),
+        Ok(_) => Map::new(),
+        Err(error) => {
+            tracing::debug!(target: "settings.log", error = %error, "swallowed: settings value is not an object, treated as empty");
+            Map::new()
+        }
     }
 }
 
@@ -235,6 +239,19 @@ async fn db_set(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     if is_settings {
         let changed = describe_change(&before, &value);
         if !changed.is_empty() {
+            let harmless = changed
+                .keys()
+                .filter(|key| HARMLESS.contains(&key.as_str()))
+                .count();
+            diag.debug(
+                "settings",
+                "settings changed",
+                Some(json!({
+                    "changed": changed.len(),
+                    "harmless": harmless,
+                    "named": changed.len() - harmless,
+                })),
+            );
             diag.info(
                 "settings",
                 "settings saved",

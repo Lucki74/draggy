@@ -225,7 +225,14 @@ async fn execute(
         },
     };
     let started = Instant::now();
-    let outcome = run(&program, &[script.to_string_lossy().into_owned()], options).await;
+    let script_arg = script.to_string_lossy().into_owned();
+    crate::proc_log::spawned(&program, &[script_arg.as_str()]);
+    let outcome = run(&program, &[script_arg], options).await;
+    crate::proc_log::exited(
+        &program,
+        outcome.as_ref().ok().and_then(|out| out.exit_code),
+        started,
+    );
     LIVE.lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .retain(|(known, _)| *known != id);

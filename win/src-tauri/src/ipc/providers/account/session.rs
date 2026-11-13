@@ -27,13 +27,17 @@ impl Session {
         env: &BTreeMap<String, String>,
         args: &[String],
     ) -> Result<Self, String> {
+        crate::proc_log::spawned(binary, args);
         let mut child = draggy_tools::spawn::hidden_command(binary, args, |command| {
             command.current_dir(cwd).env_clear().envs(env);
         })
         .stdin(Stdio::piped())
         .kill_on_drop(true)
         .spawn()
-        .map_err(|_| UNAVAILABLE.to_owned())?;
+        .map_err(|_| {
+            crate::proc_log::exited(binary, None, std::time::Instant::now());
+            UNAVAILABLE.to_owned()
+        })?;
         let stdin = child.stdin.take().ok_or_else(|| UNAVAILABLE.to_owned())?;
         let stdout = child.stdout.take().ok_or_else(|| UNAVAILABLE.to_owned())?;
         Ok(Self {

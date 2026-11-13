@@ -378,6 +378,7 @@ impl Client {
         cwd: &str,
         env: &BTreeMap<String, String>,
     ) -> Result<Self, String> {
+        crate::proc_log::spawned(binary, &ARGS);
         let mut child = draggy_tools::spawn::hidden_command(binary, &ARGS, |command| {
             command.current_dir(cwd).env_clear().envs(env);
         })
@@ -385,7 +386,10 @@ impl Client {
         .stdout(Stdio::piped())
         .kill_on_drop(true)
         .spawn()
-        .map_err(|_| START_FAILED.to_owned())?;
+        .map_err(|_| {
+            crate::proc_log::exited(binary, None, std::time::Instant::now());
+            START_FAILED.to_owned()
+        })?;
         let stdin = child.stdin.take().ok_or_else(|| START_FAILED.to_owned())?;
         let stdout = child.stdout.take().ok_or_else(|| START_FAILED.to_owned())?;
         let mut client = Self {

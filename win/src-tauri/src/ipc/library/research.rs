@@ -4,6 +4,10 @@
 use draggy_storage::{hash_text, to_match};
 use rusqlite::{Connection, OptionalExtension, Result, Row, Transaction, params};
 use serde_json::{Map, Value, json};
+use std::time::Instant;
+
+/// Tracing target for the research tables. Logs carry ids, counts and timings, never run text or queries.
+pub(crate) const SCOPE: &str = "research.library";
 
 /// Schema of the Electron-era library.db, kept verbatim so both builds read the same file.
 pub const SCHEMA: &str = "
@@ -110,6 +114,7 @@ pub fn get_run(conn: &Connection, id: &str) -> Result<Option<Value>> {
         .query_row(&format!("{SUMMARY_SQL} WHERE r.id = ?1"), [id], summary)
         .optional()?
     else {
+        tracing::debug!(target: SCOPE, run_id = %id, "run not found");
         return Ok(None);
     };
     let (plan_json, budget, hosts_json, report_ref): (String, f64, String, Option<String>) = conn
@@ -171,6 +176,26 @@ pub fn get_run(conn: &Connection, id: &str) -> Result<Option<Value>> {
 
 /// Writes a whole run in one transaction, replacing an earlier save of the same run.
 pub fn save_run(conn: &mut Connection, run: &Value) -> Result<()> {
+    let started = Instant::now();
+    let outcome = write_run(conn, run);
+    match &outcome {
+        Ok(()) => tracing::info!(
+            target: SCOPE,
+            run_id = %text(run, "id"),
+            status = %text(run, "status"),
+            sources = items(run.get("sources")).len(),
+            notes = items(run.get("notes")).len(),
+            dur_ms = started.elapsed().as_millis() as u64,
+            "run saved"
+        ),
+        Err(error) => {
+            tracing::error!(target: SCOPE, run_id = %text(run, "id"), error = %error, "run saved failed")
+        }
+    }
+    outcome
+}
+
+fn write_run(conn: &mut Connection, run: &Value) -> Result<()> {
     let tx = conn.transaction()?;
     remove_run_rows(&tx, &text(run, "id"))?;
     insert_run(&tx, run)?;
@@ -179,6 +204,17 @@ pub fn save_run(conn: &mut Connection, run: &Value) -> Result<()> {
 
 /// Removes a run and any snapshot nothing points at any more.
 pub fn remove_run(conn: &mut Connection, id: &str) -> Result<()> {
+    let outcome = write_removal(conn, id);
+    match &outcome {
+        Ok(()) => tracing::info!(target: SCOPE, run_id = %id, "run removed"),
+        Err(error) => {
+            tracing::error!(target: SCOPE, run_id = %id, error = %error, "run removal failed")
+        }
+    }
+    outcome
+}
+
+fn write_removal(conn: &mut Connection, id: &str) -> Result<()> {
     let tx = conn.transaction()?;
     remove_run_rows(&tx, id)?;
     prune_snapshots(&tx)?;
@@ -313,6 +349,7 @@ fn save_snapshot(tx: &Transaction<'_>, markdown: &str, metadata: &str) -> Result
         "INSERT OR IGNORE INTO research_snapshots (hash, markdown, metadata_json) VALUES (?1, ?2, ?3)",
         params![hash, markdown, metadata],
     )?;
+    tracing::debug!(target: SCOPE, chars = markdown.chars().count(), "snapshot saved");
     Ok(hash)
 }
 
@@ -356,6 +393,13 @@ pub fn search(
             }))
         })?
         .collect::<Result<Vec<_>>>()?;
+    tracing::debug!(
+        target: SCOPE,
+        hits = rows.len(),
+        query_len = query.chars().count(),
+        scoped = run_id.is_some(),
+        "search"
+    );
     Ok(rows)
 }
 
@@ -402,7 +446,10 @@ pub fn apply_retention(conn: &mut Connection, setting: &str, now: i64) -> Result
     let days = match setting {
         "30" => 30,
         "90" => 90,
-        _ => return Ok(0),
+        _ => {
+            tracing::debug!(target: SCOPE, setting = %setting, "retention skipped");
+            return Ok(0);
+        }
     };
     let cutoff = now - days * DAY_MS;
     let old: Vec<String> = {
@@ -413,6 +460,7 @@ pub fn apply_retention(conn: &mut Connection, setting: &str, now: i64) -> Result
     for id in &old {
         remove_run(conn, id)?;
     }
+    tracing::info!(target: SCOPE, setting = %setting, removed = old.len(), "retention applied");
     Ok(old.len())
 }
 

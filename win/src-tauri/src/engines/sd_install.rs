@@ -112,13 +112,23 @@ pub fn find_on_path(name: &str, path_value: &std::ffi::OsStr) -> Option<PathBuf>
 /// The free video memory of the first NVIDIA GPU in GB, from nvidia-smi. None when it cannot be asked.
 pub async fn free_vram_gb() -> Option<f64> {
     let args = ["--query-gpu=memory.free", "--format=csv,noheader,nounits"];
-    let output = tokio::time::timeout(
+    crate::proc_log::spawned("nvidia-smi", &args);
+    let started = std::time::Instant::now();
+    let outcome = tokio::time::timeout(
         Duration::from_secs(4),
         hidden_command("nvidia-smi", &args, |_| {}).output(),
     )
-    .await
-    .ok()?
-    .ok()?;
+    .await;
+    crate::proc_log::exited(
+        "nvidia-smi",
+        outcome
+            .as_ref()
+            .ok()
+            .and_then(|r| r.as_ref().ok())
+            .and_then(|out| out.status.code()),
+        started,
+    );
+    let output = outcome.ok()?.ok()?;
     if !output.status.success() {
         return None;
     }
@@ -177,7 +187,17 @@ pub async fn smoke(binary: &Path) -> Result<(), SmokeFailure> {
     let mut command = hidden_command(binary, &["--version"], |c| {
         c.current_dir(&dir);
     });
-    match tokio::time::timeout(SMOKE_TIMEOUT, command.output()).await {
+    let bin = binary.display().to_string();
+    crate::proc_log::spawned(&bin, &["--version"]);
+    let started = std::time::Instant::now();
+    let result = tokio::time::timeout(SMOKE_TIMEOUT, command.output()).await;
+    let code = result
+        .as_ref()
+        .ok()
+        .and_then(|r| r.as_ref().ok())
+        .and_then(|out| out.status.code());
+    crate::proc_log::exited(&bin, code, started);
+    match result {
         Err(_) => sd::classify_smoke(None, true, false, ""),
         Ok(Err(error)) => {
             sd::classify_smoke(None, false, error.kind() == io::ErrorKind::NotFound, "")

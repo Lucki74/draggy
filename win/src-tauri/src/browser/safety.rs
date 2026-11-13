@@ -72,16 +72,25 @@ pub fn risky_action(role: &str, name: &str, input_type: &str) -> Option<String> 
 
 /// The origin of an http or https address, as the page reports it, or None for anything else.
 pub fn origin_of(url: &str) -> Option<String> {
-    let parsed = Url::parse(url).ok()?;
+    let parsed = match Url::parse(url) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            tracing::debug!(target: SCOPE, error = %error, "swallowed: not a web address");
+            return None;
+        }
+    };
     matches!(parsed.scheme(), "http" | "https").then(|| parsed.origin().ascii_serialization())
 }
 
 /// The host of an address alone: what the logs may keep of it.
 pub fn host_of(url: &str) -> String {
-    Url::parse(url)
-        .ok()
-        .and_then(|parsed| parsed.host_str().map(str::to_owned))
-        .unwrap_or_default()
+    match Url::parse(url) {
+        Ok(parsed) => parsed.host_str().map(str::to_owned).unwrap_or_default(),
+        Err(error) => {
+            tracing::debug!(target: SCOPE, error = %error, "swallowed: not a web address, host left blank");
+            String::new()
+        }
+    }
 }
 
 /// What the user let the agent do on which sites. A trusted site is saved; a session grant is not.

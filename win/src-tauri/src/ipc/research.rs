@@ -94,10 +94,7 @@ async fn get(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let dir = data_dir(&app);
     Ok(match db(&dir, move |s| get_run(s.conn(), &id)).await {
         Ok(Some(run)) => json!({ "success": true, "run": run }),
-        Ok(None) => {
-            tracing::debug!(target: SCOPE, "run not found");
-            json!({ "success": true, "run": null })
-        }
+        Ok(None) => json!({ "success": true, "run": null }),
         Err(error) => failure(error),
     })
 }
@@ -107,10 +104,7 @@ async fn save(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let dir = data_dir(&app);
     Ok(
         match db(&dir, move |s| save_run(s.conn_mut(), &run)).await {
-            Ok(()) => {
-                tracing::info!(target: SCOPE, "run saved");
-                json!({ "success": true })
-            }
+            Ok(()) => json!({ "success": true }),
             Err(error) => {
                 tracing::warn!(target: SCOPE, "run save failed");
                 failure(error)
@@ -124,10 +118,7 @@ async fn remove(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let dir = data_dir(&app);
     Ok(
         match db(&dir, move |s| remove_run(s.conn_mut(), &id)).await {
-            Ok(()) => {
-                tracing::info!(target: SCOPE, "run removed");
-                json!({ "success": true })
-            }
+            Ok(()) => json!({ "success": true }),
             Err(error) => {
                 tracing::warn!(target: SCOPE, "run removal failed");
                 failure(error)
@@ -147,7 +138,6 @@ async fn search_runs(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
         .get("limit")
         .and_then(Value::as_f64)
         .map_or(SEARCH_LIMIT, |n| n.max(0.0) as i64);
-    let run_id_scoped = run_id.is_some();
     let dir = data_dir(&app);
     Ok(
         match db(&dir, move |s| {
@@ -155,10 +145,7 @@ async fn search_runs(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
         })
         .await
         {
-            Ok(hits) => {
-                tracing::debug!(target: SCOPE, hits = hits.len(), scoped = run_id_scoped, "search");
-                json!({ "success": true, "hits": hits })
-            }
+            Ok(hits) => json!({ "success": true, "hits": hits }),
             Err(error) => failure(error),
         },
     )

@@ -81,6 +81,15 @@ async fn export_chat(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
         .filter(|name| !name.is_empty())
         .unwrap_or(DEFAULT_CHAT_NAME);
     let name = safe_name(raw_name);
+    if name != raw_name
+        && let Some(state) = app.try_state::<AppState>()
+    {
+        state.diag.debug(
+            "browser.dialogs",
+            "download name sanitised",
+            Some(json!({ "changed": true, "len": name.chars().count() })),
+        );
+    }
     let default_file = if name.is_empty() {
         format!("{DEFAULT_CHAT_NAME}.{ext}")
     } else {

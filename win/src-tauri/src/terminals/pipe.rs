@@ -55,6 +55,7 @@ pub fn spawn(
         hidden_command(launch.file, launch.args, |_| {})
     };
     command.current_dir(launch.cwd).env_clear().envs(launch.env);
+    crate::proc_log::spawned(&launch.file.to_string_lossy(), launch.args);
     let mut child = command.spawn()?;
     let pid = child.id();
     let stop = CancelToken::new();
