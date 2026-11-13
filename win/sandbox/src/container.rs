@@ -77,6 +77,10 @@ fn list_ancestors(folder: &str) {
         }
     };
     for (parent, code) in grant::allow_ancestors(folder, capability.sid()) {
+        // Folders every container may already read, such as C:\Program Files, need nothing more.
+        if grant::containers_can_read(&parent, None) {
+            continue;
+        }
         if code == ERROR_ACCESS_DENIED {
             eprintln!("sandbox: needs-admin: {parent}");
         } else {
@@ -175,7 +179,8 @@ fn prepare(spec: &Spec, setup: bool) -> Result<PSID, i32> {
                     }
                 }
             }
-            if project && setup {
+            // Node resolves real paths, so it must also list each folder above a toolchain.
+            if setup {
                 list_ancestors(folder);
             }
         }
