@@ -3,7 +3,7 @@ name: Release
 # Run from the Actions tab on main. Builds Windows, macOS and Linux as 3.0.N, where N is one more than
 # the highest b-N tag, then publishes a release named build-N with the installers and the
 # latest*.yml files the in-app updater reads. The native macOS zip and the Linux .deb and .rpm
-# ride along in the same release. The macOS build is signed ad hoc until there is a Developer ID.
+# ride along in the same release.
 on:
   workflow_dispatch:
     inputs:
@@ -317,7 +317,7 @@ jobs:
           N: ${{ needs.prepare.outputs.n }}
           NOTES: ${{ inputs.notes }}
         run: |
-          body="$NOTES"$'\n\n'"The macOS app is signed ad hoc. On first launch, right-click it and choose Open."
+          body="$NOTES"
           if [ "$N" -gt 1 ]; then
             body="$body"$'\n\n'"**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/b-$((N-1))...b-$N"
           fi

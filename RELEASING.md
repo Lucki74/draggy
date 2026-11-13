@@ -1,6 +1,6 @@
 # Releasing Draggy
 
-Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds the Windows installer with Tauri, the macOS app and the Linux packages natively, then publishes a release with the packages, the `latest.yml` files and `SHA256SUMS.txt`, which the app reads or checks against. The macOS build is signed ad hoc until a Developer ID certificate exists.
+Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds the Windows installer with Tauri, the macOS app and the Linux packages natively, then publishes a release with the packages, the `latest.yml` files and `SHA256SUMS.txt`, which the app reads or checks against.
 
 ## Cutting a build
 
@@ -62,7 +62,7 @@ The Tauri updater verifies each update against a minisign public key. The releas
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
-The public key goes in `plugins.updater.pubkey` in `win/src-tauri/tauri.conf.json`. **That value is still the placeholder `PLACEHOLDER_UPDATER_PUBKEY`.** Until it is replaced with the public half of the signing key, the updater cannot verify a signature, so the in-app Windows updater must be treated as not working. Replace it before the first Tauri build is released, and keep the private key and its password in the repository secrets only.
+The public key is `plugins.updater.pubkey` in `win/src-tauri/tauri.conf.json`. The private key and its password exist only in the repository secrets. A new key pair breaks updates for every install that has the old public key, so rotate it only after a compromise, and ship the new public key in a build signed with the old key first.
 
 The Windows signature is the trust boundary for the Tauri feed. The macOS and Linux checksums come from the same release as the packages, so whoever can write to a release can still ship code to those platforms. That is why the workflow holds the only token that publishes, and why `SECURITY.md` says so.
 
@@ -73,17 +73,7 @@ The publish job puts two things on the Windows side:
 - The Tauri feed, `latest-windows.json`, and `draggy_setup.exe` go to the rolling `updater-windows` release. That release is created once, is never marked Latest, and is replaced on every Windows release. The app reads the feed URL set in `tauri.conf.json`.
 - The bridge `latest.yml` for the installer goes into the `b-N` release. Installs of the Electron build read that file, so they can update into the Tauri build.
 
-The bridge step calls `./scripts/bridge-latest-yml.ps1`. That script is not in the repository yet (see Known gaps).
-
 macOS and Linux share the Rust code in `core/crates/draggy-core/src/update.rs`, which picks the highest `b-N` release, selects the asset by file name and checks its SHA-256 against `SHA256SUMS.txt`.
-
-## Known gaps
-
-These are open items in the release path. Fix them before relying on a release run.
-
-- `win/src-tauri/tauri.conf.json` still has the placeholder updater public key (see above).
-- The Windows job runs `npm run fetch:python`, but `win/package.json` has no such script. The embeddable Python runtime is not fetched by that name.
-- The bridge step runs `./scripts/bridge-latest-yml.ps1`, which is not in the repository.
 
 ## Tags are permanent
 

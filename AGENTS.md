@@ -72,6 +72,8 @@ The renderer runs under the CSP in `win/src-tauri/tauri.conf.json` (`app.securit
 
 The browser pane has its own capability file, so its permissions stay separate from the main window's.
 
+Agent commands on Windows run through the sandbox launcher in `win/sandbox/`, an AppContainer that sees the project folder and the toolchains on PATH. Node tools (npm, npx, vitest and the like, listed in `needsHost` in `src/agent/commandRules.ts`) hang in it, because Windows refuses the pipes libuv names, so the agent loop turns them into an outside-the-sandbox request the user approves. The one admin step that opens folders such as `C:\Users` to listing is asked once per machine, recorded in `admin-asked.txt` next to the grant specs.
+
 ## Architectural invariants enforced by tests
 
 Every child process must be started through the hidden-spawn helpers in `core/crates/tools/src/spawn.rs` (`spawn_hidden`, `hidden_command`). A GUI build has no console, so a bare process spawn can flash a console window. `core/crates/tools/tests/spawn_guard.rs` fails when any other file names the process APIs. Never launch npm packages through `npx` at runtime.

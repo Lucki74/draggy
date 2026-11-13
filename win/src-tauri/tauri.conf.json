@@ -53,7 +53,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "PLACEHOLDER_UPDATER_PUBKEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVFRDY5MTFGRTgxNEEyRUIKUldUcm9oVG9INUhXN2xpamZ3NHRDQnVrZmtKMW1FeXViREZKelJEUXhmMGhmSnFFY2tjcFFsREkK",
       "endpoints": [
         "https://github.com/Lucki74/draggy/releases/download/updater-windows/latest-windows.json"
       ],

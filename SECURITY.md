@@ -40,6 +40,8 @@ extension's output) into actions nobody asked for. Specifically:
   for.
 - A command or an undo outliving its turn, running outside the project
   folder, or writing somewhere other than where it came from.
+- A command escaping the Windows sandbox (the AppContainer launcher in
+  `win/sandbox/`), or running outside it without the user approving that.
 - The local API answering anyone but a local, keyed client, or an extension
   widget reaching the window, the network, or a tool that is not read-only.
 - The code execution tool escaping its scratch directory or its timeout, or
@@ -47,14 +49,12 @@ extension's output) into actions nobody asked for. Specifically:
 - The updater accepting a build that did not come from this repository, or
   the embedded browser leaking a session between the app and a page.
 
-One known gap here, stated rather than hidden: builds are not code signed. The
-release workflow signs the Windows updater artifacts, but the minisign public key
-in `tauri.conf.json` is still a placeholder, so the updater cannot check that
-signature yet. The checksums in `latest.yml` and
-`SHA256SUMS.txt` come from the same release as the installer. They catch
-corruption, not tampering. Write access to this repository's
-releases is the trust boundary for every installed copy. Signing the Windows
-build would move it to a certificate.
+One known gap here, stated rather than hidden: builds are not code signed.
+The Windows updater checks each update against a minisign key whose private half
+lives only in this repository's secrets. On macOS and Linux the checksums in
+`SHA256SUMS.txt` come from the same release as the package, so they catch
+corruption, not tampering, and write access to the releases is the trust
+boundary there.
 
 - The `draggy-ai://` model gateway answering anything but Draggy's own window,
   or fetching anywhere but the address of a provider you added and switched on.
@@ -73,13 +73,13 @@ build would move it to a certificate.
 - A cloud voice receiving reply text without a grant for that provider, or its
   key reaching the renderer.
 
-One known gap, stated rather than hidden: colibri is not pinned to one release.
-Draggy installs the newest stable one and checks the archive against the
-`SHA256SUMS.txt` published beside it, so that check proves the download is
-intact, not that the upstream release is trustworthy. The Python runtime is
-pinned by hash on Windows and Linux.
+colibri is pinned to one release (`RELEASE` in
+`core/crates/engine/src/colibri_runtime.rs`), and each archive is checked
+against the `SHA256SUMS.txt` published beside it. That check proves the
+download is intact, not that the upstream release is trustworthy. The Python
+runtime is pinned by hash on Windows and Linux.
 
-Another: the colibri gateway runs without a key, like `sd-server` below, on a
+One known gap: the colibri gateway runs without a key, like `sd-server` below, on a
 free port of `127.0.0.1` for as long as a large model is loaded.
 
 One more known gap: `sd-server` listens on `127.0.0.1`
