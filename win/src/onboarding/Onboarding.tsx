@@ -282,7 +282,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
 
   if (skipping) {
     return (
-      <div className="flex h-screen w-screen overflow-hidden bg-surface-canvas text-text-primary">
+      <div className="flex h-full w-full overflow-hidden bg-surface-canvas text-text-primary">
         <StartupScreen
           modelName={settings.modelName}
           language={settings.language}
@@ -321,7 +321,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
 
   return (
     <div
-      className="flex h-screen w-screen flex-col overflow-hidden bg-surface-canvas text-text-primary outline-none"
+      className="flex h-full w-full flex-col overflow-hidden bg-surface-canvas text-text-primary outline-none"
       onKeyDown={onKeyDown}
       tabIndex={-1}
     >

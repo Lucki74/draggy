@@ -3,6 +3,7 @@ import { IconButton } from "../ui/IconButton";
 import { Icon } from "../ui/icons/Icon";
 import { Menu, type MenuEntry } from "../ui/Menu";
 import { Kbd } from "../ui/Kbd";
+import { WindowControls } from "./WindowControls";
 
 export type { TranscriptView as TranscriptViewMode } from "../chat/transcriptView";
 import type { TranscriptView as TranscriptViewMode } from "../chat/transcriptView";
@@ -82,11 +83,12 @@ export function TitleBar({
 
   return (
     <header
-      className={`drag-region h-10 w-full flex-shrink-0 flex items-center justify-between border-b border-rule bg-surface-canvas text-text-primary select-none ps-3 pe-[140px] ${className}`}
+      data-tauri-drag-region
+      className={`drag-region relative h-10 w-full flex-shrink-0 flex items-center justify-between border-b border-rule bg-surface-canvas text-text-primary select-none ps-3 pe-[140px] ${className}`}
     >
       {/* Left side: dragon mark, sidebar toggle and breadcrumbs */}
-      <div className="flex items-center min-w-0 gap-2">
-        <div className="w-4 h-4 shrink-0 flex items-center justify-center no-drag">
+      <div data-tauri-drag-region className="flex items-center min-w-0 gap-2">
+        <div data-tauri-drag-region className="w-4 h-4 shrink-0 flex items-center justify-center no-drag">
           <Logo className="w-4 h-4 text-text-primary shrink-0" />
         </div>
 
@@ -113,7 +115,7 @@ export function TitleBar({
       </div>
 
       {/* Spacer handles window dragging */}
-      <div className="flex-1 h-full min-w-4" />
+      <div data-tauri-drag-region className="flex-1 h-full min-w-4" />
 
       {/* Right side: diff indicator and views dropdown menu */}
       <div className="flex items-center gap-2 no-drag">
@@ -163,6 +165,11 @@ export function TitleBar({
             )}
           />
         )}
+      </div>
+
+      {/* Caption buttons sit in the 140px reserved at the right end */}
+      <div className="absolute inset-y-0 end-0 flex">
+        <WindowControls t={t} />
       </div>
     </header>
   );

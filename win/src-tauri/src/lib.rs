@@ -70,7 +70,6 @@ fn show_main_window(app: &tauri::App, data_dir: &Path) -> tauri::Result<()> {
     let system_dark = matches!(window.theme(), Ok(tauri::Theme::Dark));
     let [r, g, b] = theme::background_for(setting, system_dark);
     window.set_background_color(Some(Color(r, g, b, 255)))?;
-    // TODO: hidden title bar with a themed overlay.
     window.show()
 }
 
@@ -87,7 +86,9 @@ fn build_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     .title("Draggy")
     .inner_size(1200.0, 800.0)
     .min_inner_size(760.0, 480.0)
-    .decorations(true)
+    // Undecorated: the renderer's TitleBar draws the caption buttons. Edge resize and snap stay on.
+    .decorations(false)
+    .shadow(true)
     .visible(false)
     .on_navigation(move |url| {
         if is_app_page(url) || is_about_page(url) {

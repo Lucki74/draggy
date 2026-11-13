@@ -17,6 +17,7 @@ import { registerCommandTools } from "./tools/commands";
 import { registerImageTools } from "./tools/image";
 import type { AppSettings } from "./types";
 import { swallowed } from "./logger";
+import { WindowFrame } from "./app/WindowControls";
 
 registerBuiltinTools();
 registerFileTools();
@@ -137,28 +138,32 @@ export default function App() {
 
   if (onboarding) {
     return (
-      <Onboarding
-        settings={settings}
-        onUpdateSettings={updateSettings}
-        download={firstDownload}
-        onFinish={handleOnboardingFinish}
-      />
+      <WindowFrame language={settings.language}>
+        <Onboarding
+          settings={settings}
+          onUpdateSettings={updateSettings}
+          download={firstDownload}
+          onFinish={handleOnboardingFinish}
+        />
+      </WindowFrame>
     );
   }
 
   if (isSplashMode) {
     return (
-      <div
-        className="w-screen h-screen overflow-hidden flex"
-        style={{ backgroundColor: "var(--bg-base)" }}
-      >
-        <StartupScreen
-          modelName={settings.modelName}
-          language={settings.language}
-          onReady={handleSplashReady}
-          onUseProvider={handleUseProvider}
-        />
-      </div>
+      <WindowFrame language={settings.language}>
+        <div
+          className="w-full h-full overflow-hidden flex"
+          style={{ backgroundColor: "var(--bg-base)" }}
+        >
+          <StartupScreen
+            modelName={settings.modelName}
+            language={settings.language}
+            onReady={handleSplashReady}
+            onUseProvider={handleUseProvider}
+          />
+        </div>
+      </WindowFrame>
     );
   }
 
@@ -172,16 +177,18 @@ export default function App() {
     }
 
     return (
-      <div
-        className="w-screen h-screen overflow-hidden flex"
-        style={{ backgroundColor: "var(--bg-base)", color: "var(--text-main)" }}
-      >
-        <StartupScreen
-          modelName={settings.modelName}
-          language={settings.language}
-          onReady={handleModelReady}
-        />
-      </div>
+      <WindowFrame language={settings.language}>
+        <div
+          className="w-full h-full overflow-hidden flex"
+          style={{ backgroundColor: "var(--bg-base)", color: "var(--text-main)" }}
+        >
+          <StartupScreen
+            modelName={settings.modelName}
+            language={settings.language}
+            onReady={handleModelReady}
+          />
+        </div>
+      </WindowFrame>
     );
   }
 
