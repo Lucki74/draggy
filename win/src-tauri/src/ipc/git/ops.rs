@@ -2,14 +2,17 @@
 //! commit and switching branch, and never fetch or push. Every call carries the safe flags and disarms the
 //! repository's filter drivers, since repo config can run programs.
 
+use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Mutex;
 use std::time::Instant;
 
-use draggy_diagnostics::{Diagnostics, TimeOptions};
+use draggy_diagnostics::{Diagnostics, Level, TimeOptions};
 use draggy_tools::git::{
     self, GitRun, GitRunner, MAX_DIFF_CHARS, MAX_DIFF_FILES, SAFE_FLAGS, SpawnRunner,
 };
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use tokio::sync::OnceCell;
 
 const SCOPE: &str = "files.git";
@@ -26,6 +29,8 @@ const NOT_A_BRANCH: &str = "That is not a branch name.";
 pub struct Git<R = SpawnRunner> {
     runner: R,
     available: OnceCell<bool>,
+    /// The last status digest per project folder, so the poll logs only a change.
+    last_status: Mutex<HashMap<String, String>>,
 }
 
 /// What a diff call asks for, as the renderer named it. `relative` is already a checked pathspec.
@@ -56,6 +61,7 @@ impl<R: GitRunner> Git<R> {
         Self {
             runner,
             available: OnceCell::new(),
+            last_status: Mutex::new(HashMap::new()),
         }
     }
 
@@ -66,10 +72,10 @@ impl<R: GitRunner> Git<R> {
         self.spawn_logged(diag, root, argv).await
     }
 
-    /// Runs one process and writes the `proc.spawn` diagnostic lines.
+    /// Runs one process and writes the `proc.spawn` diagnostic lines. A clean run is DEBUG, since git is polled.
     async fn spawn_logged(&self, diag: &Diagnostics, root: &Path, argv: Vec<String>) -> GitRun {
         let cwd = root.display().to_string();
-        diag.info(
+        diag.debug(
             "proc.spawn",
             "spawned",
             Some(json!({ "bin": "git", "args": shown(&argv), "cwd": cwd })),
@@ -78,7 +84,7 @@ impl<R: GitRunner> Git<R> {
         let run = self.runner.run(&argv, root).await;
         let data = json!({ "bin": "git", "code": run.code, "durMs": started.elapsed().as_millis() as u64 });
         if run.code == 0 {
-            diag.info("proc.spawn", "git exited", Some(data));
+            diag.debug("proc.spawn", "git exited", Some(data));
         } else {
             diag.warn("proc.spawn", "git exited", Some(data));
         }
@@ -141,6 +147,13 @@ impl<R: GitRunner> Git<R> {
                 Some(json!({ "filters": names })),
             );
         }
+        if let Some(overrides) = flags.as_ref().filter(|o| !o.is_empty()) {
+            diag.debug(
+                SCOPE,
+                "filter disarmed",
+                Some(json!({ "filters": overrides.len() })),
+            );
+        }
         flags
     }
 
@@ -155,7 +168,16 @@ impl<R: GitRunner> Git<R> {
             return json!({ "success": false, "available": true, "isRepo": true, "error": REFUSED });
         };
 
-        let mut timer = diag.time(SCOPE, "status", None, TimeOptions::default());
+        // DEBUG: the poll runs every 30 s, so its timing stays out of the INFO log.
+        let mut timer = diag.time(
+            SCOPE,
+            "status",
+            None,
+            TimeOptions {
+                level: Level::Debug,
+                ..TimeOptions::default()
+            },
+        );
         let mut rest = disarmed;
         rest.extend(words(&[
             "status",
@@ -182,6 +204,7 @@ impl<R: GitRunner> Git<R> {
         timer.end(Some(
             json!({ "files": parsed.files.len(), "truncated": parsed.truncated }),
         ));
+        self.log_status_change(diag, root, &result.stdout, &parsed);
 
         let mut out = json!({ "success": true, "available": true, "isRepo": true });
         if let (Value::Object(base), Ok(Value::Object(fields))) =
@@ -193,6 +216,33 @@ impl<R: GitRunner> Git<R> {
             base.insert("counts".to_owned(), counts);
         }
         out
+    }
+
+    /// Logs a status only when its output changed. The digest keeps file names out of the log.
+    fn log_status_change(&self, diag: &Diagnostics, root: &Path, raw: &str, parsed: &git::Status) {
+        let digest: String = Sha256::digest(raw.as_bytes())
+            .iter()
+            .take(8)
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        let key = root.display().to_string();
+        let mut seen = self.last_status.lock().unwrap_or_else(|e| e.into_inner());
+        if seen.get(&key) == Some(&digest) {
+            return;
+        }
+        seen.insert(key, digest);
+        diag.info(
+            SCOPE,
+            "status changed",
+            Some(json!({
+                "branch": parsed.branch,
+                "detached": parsed.detached,
+                "ahead": parsed.ahead,
+                "behind": parsed.behind,
+                "files": parsed.files.len(),
+                "truncated": parsed.truncated,
+            })),
+        );
     }
 
     /// Working-tree or staged diff of `opts.relative`. `allow` drops guarded files by path so a tracked
@@ -565,8 +615,14 @@ impl<R: GitRunner> Git<R> {
         argv.extend(named.iter().cloned());
         let result = self.git(diag, root, argv).await;
         if result.code == 0 {
+            diag.info(SCOPE, "staged", Some(json!({ "files": named.len() })));
             json!({ "success": true, "files": named.len() })
         } else {
+            diag.warn(
+                SCOPE,
+                "stage failed",
+                Some(json!({ "files": named.len(), "code": result.code, "stderrTail": tail_lines(&result.stderr, 3) })),
+            );
             fail(first_line(&result.stderr))
         }
     }
@@ -594,8 +650,18 @@ impl<R: GitRunner> Git<R> {
         argv.extend(named.iter().cloned());
         let result = self.git(diag, root, argv).await;
         if result.code == 0 {
+            diag.info(
+                SCOPE,
+                "unstaged",
+                Some(json!({ "files": named.len(), "firstCommit": !has_head })),
+            );
             json!({ "success": true, "files": named.len() })
         } else {
+            diag.warn(
+                SCOPE,
+                "unstage failed",
+                Some(json!({ "files": named.len(), "code": result.code, "stderrTail": tail_lines(&result.stderr, 3) })),
+            );
             fail(first_line(&result.stderr))
         }
     }
@@ -640,6 +706,11 @@ impl<R: GitRunner> Git<R> {
             .git(diag, root, words(&["rev-parse", "--short", "HEAD"]))
             .await;
         let hash = (head.code == 0).then(|| head.stdout.trim().to_owned());
+        diag.info(
+            SCOPE,
+            "committed",
+            Some(json!({ "hash": hash, "messageLen": text.encode_utf16().count() })),
+        );
         json!({ "success": true, "hash": hash })
     }
 
@@ -662,8 +733,14 @@ impl<R: GitRunner> Git<R> {
             .git(diag, root, words(&["switch", "--no-guess", name]))
             .await;
         if result.code == 0 {
+            diag.info(SCOPE, "branch switched", Some(json!({ "hasName": true })));
             json!({ "success": true, "branch": name })
         } else {
+            diag.warn(
+                SCOPE,
+                "branch switch failed",
+                Some(json!({ "code": result.code, "stderrTail": tail_lines(&result.stderr, 3) })),
+            );
             fail(first_line(&result.stderr))
         }
     }
