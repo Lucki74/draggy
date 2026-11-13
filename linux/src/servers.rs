@@ -99,14 +99,27 @@ impl PlainValues {
             std::fs::create_dir_all(dir)?;
         }
         let text = serde_json::to_string_pretty(&saved).map_err(io::Error::other)?;
-        std::fs::write(&self.path, text)
+        std::fs::write(&self.path, text).inspect_err(|error| {
+            tracing::error!(target: "linux.servers", server, kind = ?error.kind(), "server settings could not be saved");
+        })?;
+        tracing::debug!(target: "linux.servers", server, "server settings saved");
+        Ok(())
     }
 
     fn read(&self) -> Saved {
-        std::fs::read_to_string(&self.path)
-            .ok()
-            .and_then(|text| serde_json::from_str(&text).ok())
-            .unwrap_or_default()
+        let text = match std::fs::read_to_string(&self.path) {
+            Ok(text) => text,
+            Err(error) => {
+                if error.kind() != io::ErrorKind::NotFound {
+                    tracing::warn!(target: "linux.servers", kind = ?error.kind(), "server settings could not be read");
+                }
+                return Saved::default();
+            }
+        };
+        serde_json::from_str(&text).unwrap_or_else(|error| {
+            tracing::warn!(target: "linux.servers", error = %error, "server settings could not be parsed, ignored");
+            Saved::default()
+        })
     }
 }
 

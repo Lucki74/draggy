@@ -259,6 +259,7 @@ fn find_engine(ui: &Ui) {
         && let Ok(installer) = EngineInstaller::new(dir.to_string_lossy().into_owned())
         && let Some(found) = installer.installed()
     {
+        tracing::debug!(target: "linux.models", "engine found from an earlier install");
         *ui.state.engine_binary.borrow_mut() = found.binary_path;
     }
     if let Some(engine) = ui.state.engine_if_started() {
@@ -301,11 +302,18 @@ fn install_engine(ui: &Rc<Ui>) {
         async move {
             match task.await {
                 Ok(Ok(done)) => {
+                    tracing::info!(target: "linux.models", "engine installed");
                     *ui.state.engine_binary.borrow_mut() = done.binary_path;
                     say(&ui, "The engine is installed.");
                 }
-                Ok(Err(error)) => say(&ui, &error.to_string()),
-                Err(_) => say(&ui, "The install was interrupted."),
+                Ok(Err(error)) => {
+                    tracing::error!(target: "linux.models", error = %error, "engine install failed");
+                    say(&ui, &error.to_string());
+                }
+                Err(error) => {
+                    tracing::error!(target: "linux.models", error = %error, "engine install task interrupted");
+                    say(&ui, "The install was interrupted.");
+                }
             }
             ui.installing.set(false);
             show_engine_state(&ui);
@@ -343,6 +351,7 @@ fn start_engine(ui: &Rc<Ui>) {
         async move {
             match task.await {
                 Ok(Ok(info)) => {
+                    tracing::info!(target: "linux.models", model = %info.model, projector_refused = info.projector_refused, "engine server started");
                     {
                         let mut settings = ui.state.settings.borrow_mut();
                         settings.server_url = info.base_url;
@@ -359,10 +368,14 @@ fn start_engine(ui: &Rc<Ui>) {
                     }
                 }
                 Ok(Err(error)) => {
+                    tracing::error!(target: "linux.models", error = %error, "engine server failed to start");
                     ui.status.set_subtitle(&escape(&error.to_string()));
                     say(&ui, &error.to_string());
                 }
-                Err(_) => say(&ui, "The start was interrupted."),
+                Err(error) => {
+                    tracing::error!(target: "linux.models", error = %error, "engine start task interrupted");
+                    say(&ui, "The start was interrupted.");
+                }
             }
             ui.starting.set(false);
             show_engine_state(&ui);
@@ -378,7 +391,10 @@ fn stop_engine(ui: &Rc<Ui>) {
     glib::spawn_future_local({
         let ui = ui.clone();
         async move {
-            drop(task.await);
+            if let Err(error) = task.await {
+                tracing::error!(target: "linux.models", error = %error, "engine stop task interrupted");
+            }
+            tracing::info!(target: "linux.models", "engine stopped");
             ui.running.set(false);
             ui.starting.set(false);
             ui.status.set_subtitle("Stopped");
@@ -549,9 +565,18 @@ fn download(ui: &Rc<Ui>, reference: &str) {
         let ui = ui.clone();
         async move {
             match task.await {
-                Ok(Ok(filename)) => say(&ui, &format!("{filename} is downloaded.")),
-                Ok(Err(error)) => say(&ui, &error.to_string()),
-                Err(_) => say(&ui, "The download was interrupted."),
+                Ok(Ok(filename)) => {
+                    tracing::info!(target: "linux.models", file = %filename, "model downloaded");
+                    say(&ui, &format!("{filename} is downloaded."));
+                }
+                Ok(Err(error)) => {
+                    tracing::error!(target: "linux.models", error = %error, "model download failed");
+                    say(&ui, &error.to_string());
+                }
+                Err(error) => {
+                    tracing::error!(target: "linux.models", error = %error, "model download task interrupted");
+                    say(&ui, "The download was interrupted.");
+                }
             }
             ui.download_row.set_visible(false);
             *ui.downloading.borrow_mut() = None;

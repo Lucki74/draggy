@@ -41,7 +41,10 @@ fn run<P: AsRef<Path>>(dir: P, args: &[&str]) -> (bool, String) {
             text.push_str(&String::from_utf8_lossy(&o.stderr));
             (o.status.success(), text)
         }
-        Err(_) => (false, String::new()),
+        Err(error) => {
+            tracing::warn!(target: "linux.app", kind = ?error.kind(), "git could not be run");
+            (false, String::new())
+        }
     }
 }
 

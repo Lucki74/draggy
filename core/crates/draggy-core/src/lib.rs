@@ -63,6 +63,38 @@ pub use web::{web_address_allowed, web_address_refusal};
 
 uniffi::setup_scaffolding!();
 
+static LOGGING: std::sync::OnceLock<std::sync::Arc<draggy_diagnostics::Diagnostics>> =
+    std::sync::OnceLock::new();
+
+/// Starts the core's log files (`app.log`, `debug.log`, `events.jsonl`) in `dir` and sends every `tracing` event
+/// there. Levels come from `LOG_LEVEL`, `APP_LOG_LEVEL` and `DEBUG_LOG_LEVEL`, as in the Windows app. Only the
+/// first call does anything, and it returns true when `tracing` events now reach the files.
+#[uniffi::export]
+pub fn init_logging(dir: String) -> bool {
+    use draggy_diagnostics::{Config, Diagnostics, SystemClock, TracingBridge};
+    use std::sync::Arc;
+    let mut fresh = false;
+    LOGGING.get_or_init(|| {
+        fresh = true;
+        let pid = draggy_tools::spawn::current_pid();
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|time| time.as_millis() as u32)
+            .unwrap_or_default();
+        let session = format!("{:08x}", stamp ^ pid.rotate_left(16));
+        let config = Config::from_env(|key| std::env::var(key).ok(), session, pid, true, None);
+        Arc::new(Diagnostics::open(
+            dir,
+            config,
+            Arc::new(SystemClock::default()),
+        ))
+    });
+    fresh
+        && LOGGING
+            .get()
+            .is_some_and(|diagnostics| TracingBridge::new(Arc::clone(diagnostics)).install())
+}
+
 /// The core's version, for the shell's About box and for support reports.
 #[uniffi::export]
 pub fn core_version() -> String {

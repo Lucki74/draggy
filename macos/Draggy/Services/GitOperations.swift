@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 public struct GitRef: Equatable, Sendable {
     public enum Kind: Sendable {
@@ -151,6 +152,7 @@ public final class GitOperations: Sendable {
             process.waitUntilExit()
             return (process.terminationStatus, String(data: data, encoding: .utf8) ?? "")
         } catch {
+            Logger.tools.error("Git command failed to run: \(error.localizedDescription, privacy: .public)")
             return (-1, "")
         }
     }

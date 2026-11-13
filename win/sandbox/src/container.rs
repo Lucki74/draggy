@@ -1,9 +1,12 @@
-//! Starts the command in the container. The container has no capabilities unless the spec turns the network on, so
+//! Starts the command in the container. Its only capabilities are the list capability, for the folders above the
+//! project, and the network ones when the spec turns the network on, so
 //! it cannot reach the network, the user profile or any folder it was not granted.
 
 use std::ptr::{null, null_mut};
 
-use windows_sys::Win32::Foundation::{GetLastError, LocalFree, HANDLE, WAIT_OBJECT_0};
+use windows_sys::Win32::Foundation::{
+    GetLastError, LocalFree, ERROR_ACCESS_DENIED, HANDLE, WAIT_OBJECT_0,
+};
 use windows_sys::Win32::Security::Authorization::ConvertStringSidToSidW;
 use windows_sys::Win32::Security::Isolation::{
     CreateAppContainerProfile, DeriveAppContainerSidFromAppContainerName,
@@ -40,7 +43,7 @@ const EXIT_JOB: i32 = 74;
 const NETWORK_CAPABILITIES: [&str; 3] = ["S-1-15-3-1", "S-1-15-3-2", "S-1-15-3-3"];
 
 pub fn run(spec: &Spec) -> i32 {
-    let sid = match prepare(spec) {
+    let sid = match prepare(spec, false) {
         Ok(sid) => sid,
         Err(code) => return code,
     };
@@ -52,7 +55,7 @@ pub fn run(spec: &Spec) -> i32 {
 
 /// Grants the spec's folders and starts nothing. A first grant on a big project can take minutes.
 pub fn grant_only(spec: &Spec) -> i32 {
-    match prepare(spec) {
+    match prepare(spec, true) {
         Ok(sid) => {
             // SAFETY: the SID came from the profile calls in `prepare`.
             unsafe { FreeSid(sid) };
@@ -62,7 +65,48 @@ pub fn grant_only(spec: &Spec) -> i32 {
     }
 }
 
-fn prepare(spec: &Spec) -> Result<PSID, i32> {
+/// `dir` and PowerShell look each folder of the project's path up in the one above it, up to the volume root, so
+/// containers may list those folders, through the list capability. A folder the user cannot change, such as
+/// C:\Users, is reported on stderr as `sandbox: needs-admin: <folder>`, for the app to grant once elevated.
+fn list_ancestors(folder: &str) {
+    let capability = match grant::Capability::derive(grant::LIST_CAPABILITY) {
+        Ok(capability) => capability,
+        Err(code) => {
+            eprintln!("sandbox: warning: no list capability (error {code})");
+            return;
+        }
+    };
+    for (parent, code) in grant::allow_ancestors(folder, capability.sid()) {
+        if code == ERROR_ACCESS_DENIED {
+            eprintln!("sandbox: needs-admin: {parent}");
+        } else {
+            eprintln!("sandbox: warning: cannot let the container list {parent} (error {code})");
+        }
+    }
+}
+
+/// Run as administrator: lets every container list each folder given, and nothing below it.
+pub fn list_folders(folders: &[String]) -> i32 {
+    let capability = match grant::Capability::derive(grant::LIST_CAPABILITY) {
+        Ok(capability) => capability,
+        Err(code) => {
+            eprintln!("sandbox: no list capability (error {code})");
+            return EXIT_GRANT;
+        }
+    };
+    let mut code = 0;
+    for folder in folders {
+        if let Err(error) = grant::allow_list(folder, capability.sid()) {
+            eprintln!("sandbox: cannot let the container list {folder} (error {error})");
+            code = EXIT_GRANT;
+        }
+    }
+    code
+}
+
+/// `setup` is the `--grant` run: it alone opens the folders above the project to listing and reports toolchain
+/// folders it could not grant, so a command's own output never carries those warnings.
+fn prepare(spec: &Spec, setup: bool) -> Result<PSID, i32> {
     for folder in spec
         .read_only
         .iter()
@@ -102,23 +146,46 @@ fn prepare(spec: &Spec) -> Result<PSID, i32> {
         (&spec.read_write, grant::MODIFY),
     ] {
         for folder in folders {
+            let project = holds(folder, &spec.cwd);
             if let Err(code) = grant::allow(folder, sid, mask) {
                 // A toolchain folder the user cannot change is left as is; the project itself must be granted.
-                if mask == grant::MODIFY {
+                if mask == grant::MODIFY || project {
                     eprintln!("sandbox: cannot grant access to {folder} (error {code})");
                     // SAFETY: the SID came from the profile calls above.
                     unsafe { FreeSid(sid) };
                     return Err(EXIT_GRANT);
                 }
-                eprintln!("sandbox: warning: no access granted to {folder} (error {code})");
+                if setup {
+                    eprintln!("sandbox: warning: no access granted to {folder} (error {code})");
+                }
+            }
+            if project && setup {
+                list_ancestors(folder);
             }
         }
     }
     Ok(sid)
 }
 
+/// True when `cwd` is `folder` or inside it, compared case-insensitively as Windows paths are.
+fn holds(folder: &str, cwd: &str) -> bool {
+    let folder = folder
+        .replace('/', "\\")
+        .trim_end_matches('\\')
+        .to_lowercase();
+    let cwd = cwd.replace('/', "\\").trim_end_matches('\\').to_lowercase();
+    cwd == folder || cwd.starts_with(&format!("{folder}\\"))
+}
+
 fn start(spec: &Spec, sid: PSID) -> i32 {
-    let mut capabilities: Vec<SID_AND_ATTRIBUTES> = Vec::new();
+    let listing = grant::Capability::derive(grant::LIST_CAPABILITY).ok();
+    let mut capabilities: Vec<SID_AND_ATTRIBUTES> = listing
+        .iter()
+        .map(|capability| SID_AND_ATTRIBUTES {
+            Sid: capability.sid(),
+            Attributes: GROUP_ENABLED,
+        })
+        .collect();
     if spec.network {
         for text in NETWORK_CAPABILITIES {
             let mut capability: PSID = null_mut();
@@ -204,7 +271,8 @@ fn start(spec: &Spec, sid: PSID) -> i32 {
         );
         let failure = GetLastError();
         DeleteProcThreadAttributeList(list);
-        for capability in &capabilities {
+        // The list capability's SID belongs to `listing`, which frees it.
+        for capability in capabilities.iter().skip(listing.iter().count()) {
             LocalFree(capability.Sid);
         }
         if created == 0 {
@@ -273,5 +341,20 @@ mod tests {
     #[test]
     fn an_empty_env_is_still_a_valid_block() {
         assert_eq!(env_block(&[]), vec![0, 0]);
+    }
+
+    #[test]
+    fn the_folder_that_holds_the_working_folder_is_the_project() {
+        assert!(holds(r"C:\Users\me\Documents", r"C:\Users\me\Documents"));
+        assert!(holds(
+            r"C:\Users\me\Documents\",
+            r"c:\users\me\documents\notes"
+        ));
+        assert!(holds("C:/Users/me/Documents", r"C:\Users\me\Documents\a"));
+        assert!(!holds(r"C:\Users\me\Doc", r"C:\Users\me\Documents"));
+        assert!(!holds(
+            r"C:\Program Files\Git\bin",
+            r"C:\Users\me\Documents"
+        ));
     }
 }

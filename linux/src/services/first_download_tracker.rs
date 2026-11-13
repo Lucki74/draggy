@@ -14,8 +14,14 @@ impl FirstDownloadTracker {
     pub fn mark_completed() {
         let p = Self::marker_path();
         if let Some(parent) = p.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            if let Err(error) = std::fs::create_dir_all(parent) {
+                tracing::warn!(target: "linux.app", kind = ?error.kind(), "first run folder could not be created");
+            }
         }
-        let _ = std::fs::write(p, "1");
+        if let Err(error) = std::fs::write(&p, "1") {
+            tracing::warn!(target: "linux.app", kind = ?error.kind(), "first run marker could not be written");
+        } else {
+            tracing::debug!(target: "linux.app", "first run marker written");
+        }
     }
 }

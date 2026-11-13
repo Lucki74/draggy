@@ -80,6 +80,7 @@ glib::wrapper! {
 impl DraggyWindow {
     pub fn new(app: &adw::Application) -> Self {
         let window: Self = glib::Object::builder().property("application", app).build();
+        tracing::info!(target: "linux.app", "window created");
         window.install_actions();
         window.attach_chat();
         window.attach_servers();
@@ -287,8 +288,15 @@ impl DraggyWindow {
             imp.history.remove(&child);
         }
         let summaries = Store::in_data_dir()
-            .and_then(|store| store.list().ok())
+            .and_then(|store| match store.list() {
+                Ok(list) => Some(list),
+                Err(error) => {
+                    tracing::warn!(target: "linux.chat", kind = ?error.kind(), "history could not be listed");
+                    None
+                }
+            })
             .unwrap_or_default();
+        tracing::debug!(target: "linux.chat", count = summaries.len(), "history refreshed");
         let current = imp.chat.current_id();
         for summary in &summaries {
             let row = self.history_row(summary);
@@ -381,16 +389,30 @@ impl DraggyWindow {
         let weak = self.downgrade();
         glib::spawn_future_local(async move {
             let check_and_download = || async {
-                let update = crate::services::app_updater::AppUpdater::check_for_updates(0)
+                let update = match crate::services::app_updater::AppUpdater::check_for_updates(0)
                     .await
-                    .ok()??;
+                {
+                    Ok(Some(update)) => update,
+                    Ok(None) => return None,
+                    Err(error) => {
+                        tracing::warn!(target: "linux.app", error = ?error, "update check failed");
+                        return None;
+                    }
+                };
                 let temp_dir = std::env::temp_dir().join(format!("draggy-update-{}", update.build));
-                let path = crate::services::app_updater::AppUpdater::download_update(
+                let path = match crate::services::app_updater::AppUpdater::download_update(
                     &update,
                     &temp_dir.to_string_lossy(),
                 )
                 .await
-                .ok()?;
+                {
+                    Ok(path) => path,
+                    Err(error) => {
+                        tracing::warn!(target: "linux.app", error = ?error, "update download failed");
+                        return None;
+                    }
+                };
+                tracing::info!(target: "linux.app", "update downloaded");
                 Some((update, path))
             };
 

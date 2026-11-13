@@ -282,6 +282,7 @@ impl FileTools {
 
         match outcome {
             Err(error) => {
+                tracing::warn!(target: "tools.shell", reason = %error, "run_command failed");
                 set(
                     ctx,
                     Some("error"),

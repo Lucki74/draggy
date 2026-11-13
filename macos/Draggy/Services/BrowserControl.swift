@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import WebKit
 
 @MainActor
@@ -9,7 +10,10 @@ public final class BrowserControl {
 
     public func navigate(view: WKWebView, to urlString: String) {
         if let url = URL(string: urlString), BrowserSafety.shared.isSafeUrl(url) {
+            Logger.browser.debug("Navigating browser view")
             view.load(URLRequest(url: url))
+        } else {
+            Logger.browser.debug("Navigation refused, URL invalid or unsafe")
         }
     }
 

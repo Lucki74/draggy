@@ -71,7 +71,10 @@ impl Store {
         let entries = match fs::read_dir(&self.dir) {
             Ok(entries) => entries,
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
-            Err(error) => return Err(error),
+            Err(error) => {
+                tracing::error!(target: "linux.chat", kind = ?error.kind(), "conversation folder could not be read");
+                return Err(error);
+            }
         };
         let mut summaries: Vec<Summary> = entries
             .filter_map(Result::ok)
@@ -80,8 +83,20 @@ impl Store {
                 path.extension()
                     .is_some_and(|extension| extension == "json")
             })
-            .filter_map(|path| fs::read_to_string(path).ok())
-            .filter_map(|text| serde_json::from_str::<Conversation>(&text).ok())
+            .filter_map(|path| match fs::read_to_string(&path) {
+                Ok(text) => Some((path, text)),
+                Err(error) => {
+                    tracing::warn!(target: "linux.chat", file = ?path.file_name(), kind = ?error.kind(), "conversation file could not be read, skipped");
+                    None
+                }
+            })
+            .filter_map(|(path, text)| match serde_json::from_str::<Conversation>(&text) {
+                Ok(conversation) => Some(conversation),
+                Err(error) => {
+                    tracing::warn!(target: "linux.chat", file = ?path.file_name(), error = %error, "conversation file could not be parsed, skipped");
+                    None
+                }
+            })
             .map(|conversation| Summary {
                 id: conversation.id,
                 title: conversation.title,

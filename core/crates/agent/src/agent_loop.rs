@@ -2248,6 +2248,7 @@ impl<'a> Turn<'a> {
     ) -> String {
         // Nobody to ask, or the user has already stopped the turn: the call is refused rather than run unasked.
         if !self.ports.host.can_ask() || self.ports.cancel.is_aborted() {
+            tracing::warn!(target: "agent.loop", tool = name, "no one to ask, call refused");
             return refusal_for(name, verdict);
         }
 
@@ -2287,6 +2288,7 @@ impl<'a> Turn<'a> {
             reason: verdict.reason.clone(),
         };
         let Some(answer) = self.ports.host.request_approval(&request) else {
+            tracing::warn!(target: "agent.loop", tool = name, "approval unavailable, call refused");
             return refusal_for(name, verdict);
         };
         self.patch_step(&id, "answer,isComplete", |step| {
@@ -2297,6 +2299,7 @@ impl<'a> Turn<'a> {
 
         // A stop that lands while the user is deciding wins over a late "yes".
         if answer == ApprovalAnswer::No || self.ports.cancel.is_aborted() {
+            tracing::info!(target: "agent.loop", tool = name, "tool call declined by user");
             return denied_by_user(name);
         }
         // "once" leaves nothing behind: the next call of the same tool asks again.

@@ -267,13 +267,16 @@ pub struct CommandOutput {
 pub async fn run_command(request: CommandRequest) -> Result<CommandOutput, ShellError> {
     let text = request.command.as_str();
     if text.trim().is_empty() {
+        tracing::warn!(target: "tools.shell", reason = "NoCommand", "command refused");
         return Err(ShellError::NoCommand);
     }
     let chars = text.chars().count();
     if chars > MAX_COMMAND_CHARS {
+        tracing::warn!(target: "tools.shell", reason = "TooLong", chars, limit = MAX_COMMAND_CHARS, "command refused");
         return Err(ShellError::TooLong);
     }
     if !request.cwd.exists() {
+        tracing::warn!(target: "tools.shell", reason = "NoFolder", "command refused");
         return Err(ShellError::NoFolder);
     }
 
@@ -300,7 +303,10 @@ pub async fn run_command(request: CommandRequest) -> Result<CommandOutput, Shell
             let mut command = vec![invocation.file.to_string_lossy().into_owned()];
             command.extend(invocation.args.iter().cloned());
             let (program, args) = crate::sandbox::host_wrap(boxed, &request.cwd, pairs, command)
-                .ok_or(ShellError::SandboxUnavailable)?;
+                .ok_or_else(|| {
+                    tracing::warn!(target: "tools.shell", reason = "SandboxUnavailable", shell = %invocation.shell, "command refused");
+                    ShellError::SandboxUnavailable
+                })?;
             (PathBuf::from(program), args)
         }
     };
@@ -319,6 +325,9 @@ pub async fn run_command(request: CommandRequest) -> Result<CommandOutput, Shell
     .await?;
 
     let success = output.success();
+    if output.exit_code.is_some_and(|code| code != 0) {
+        tracing::info!(target: "tools.shell", exit_code = ?output.exit_code, duration_ms = %output.duration.as_millis(), "command exited non-zero");
+    }
     if output.timed_out {
         tracing::warn!(target: "tools.shell", limit_ms = %limit.as_millis(), "command timed out");
     }

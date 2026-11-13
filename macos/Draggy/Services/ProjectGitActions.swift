@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 public final class ProjectGitActions: Sendable {
     public static let shared = ProjectGitActions()
@@ -29,8 +30,18 @@ public final class ProjectGitActions: Sendable {
         process.currentDirectoryURL = URL(fileURLWithPath: workingDir)
         process.standardOutput = pipe
         process.standardError = pipe
-        try? process.run()
+        let subcommand = args.first ?? "unknown"
+        var launched = true
+        do {
+            try process.run()
+        } catch {
+            launched = false
+            Logger.tools.error("git \(subcommand, privacy: .public) failed to launch: \(error.localizedDescription, privacy: .public)")
+        }
         process.waitUntilExit()
+        if launched {
+            Logger.tools.info("git \(subcommand, privacy: .public) exited with status \(process.terminationStatus, privacy: .public)")
+        }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         return String(data: data, encoding: .utf8) ?? ""
     }

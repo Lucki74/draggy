@@ -55,6 +55,11 @@ impl Default for CancelToken {
     }
 }
 
+/// The id of the running process, kept here so the process APIs stay in this file.
+pub fn current_pid() -> u32 {
+    std::process::id()
+}
+
 /// Builds a command that starts hidden. `setup` sets the caller's options first, then the helper pins stdio, kill on
 /// drop, the process group and the console flag, so `setup` cannot switch them off.
 pub fn hidden_command<S: AsRef<OsStr>>(
@@ -341,9 +346,12 @@ pub async fn run<S: AsRef<OsStr>>(
                 .envs(vars.iter().map(|(key, value)| (key, value)));
         }
     })
-    .map_err(|source| SpawnError::Start {
-        program: name.clone(),
-        source,
+    .map_err(|source| {
+        tracing::warn!(target: "tools.spawn", program = %name, error_kind = ?source.kind(), "process spawn failed");
+        SpawnError::Start {
+            program: name.clone(),
+            source,
+        }
     })?;
     let pid = child.id();
     tracing::debug!(target: "tools.spawn", program = %name, "process started");

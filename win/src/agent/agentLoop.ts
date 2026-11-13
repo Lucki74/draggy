@@ -903,6 +903,7 @@ async function runTurn(
       typing && isHarmlessInput(args)
         ? ({ decision: "allow", reason: "An answer to a prompt." } as const)
         : decide({ mode, tool: name, annotations, target, grants, shell });
+    logRendererEvent("agent.permissions", "DEBUG", "verdict", { tool: name, mode, decision: verdict.decision }, correlationId);
     const kind = annotations.executes ? ("command" as const) : undefined;
     // What "always" would remember, shown on the card so the user knows before choosing.
     const remembered = typing ? [] : grantsFor(name, target, annotations, shell);
@@ -964,12 +965,21 @@ async function runTurn(
       },
     });
 
+    logRendererEvent("agent", "INFO", "approval asked", { tool: name, mode }, correlationId);
+    const askedAt = performance.now();
     const answer = await host.requestApproval({
       id: stepId,
       tool: name,
       target,
       reason: verdict.reason,
     });
+    logRendererEvent(
+      "agent",
+      "INFO",
+      "approval answered",
+      { tool: name, answer, waitMs: Math.round(performance.now() - askedAt) },
+      correlationId,
+    );
 
     patchStep(stepId, { answer, isComplete: true });
     syncSteps();

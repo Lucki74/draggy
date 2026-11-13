@@ -66,7 +66,10 @@ impl ShellSession {
                             let s = String::from_utf8_lossy(&buf[..n]).to_string();
                             on_out(s);
                         }
-                        Err(_) => break,
+                        Err(error) => {
+                            tracing::debug!(target: "linux.chat", kind = ?error.kind(), "shell output stream ended");
+                            break;
+                        }
                     }
                 }
                 *running.lock().unwrap() = false;
@@ -106,7 +109,9 @@ impl ShellSession {
         *self.is_running.lock().unwrap() = false;
         let mut child_guard = self.child.lock().unwrap();
         if let Some(ref mut child) = *child_guard {
-            let _ = child.kill();
+            if let Err(error) = child.kill() {
+                tracing::debug!(target: "linux.chat", kind = ?error.kind(), "shell process could not be stopped");
+            }
         }
         *child_guard = None;
     }

@@ -1,4 +1,5 @@
 import DraggyCore
+import OSLog
 import SwiftUI
 
 struct McpView: View {
@@ -115,6 +116,7 @@ struct McpSettingsSheet: View {
             try mcp.save(values, server: server.id, inputs: server.inputs)
             dismiss()
         } catch {
+            Logger.mcp.error("MCP settings save failed: \(error.localizedDescription, privacy: .public)")
             self.error = String(localized: "Settings of \(server.name) were not saved: \(error.localizedDescription)")
         }
     }

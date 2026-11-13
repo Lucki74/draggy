@@ -58,6 +58,14 @@ pub fn host_wrap(
         env: scrub_env(env),
         command,
     };
+    tracing::debug!(
+        target: "tools.sandbox",
+        platform = std::env::consts::OS,
+        network = spec.network,
+        read_only = spec.read_only.len(),
+        read_write = spec.read_write.len(),
+        "sandbox policy applied"
+    );
     if cfg!(target_os = "linux") {
         Some(("bwrap".into(), bubblewrap_args(&spec)))
     } else if cfg!(target_os = "macos") {
@@ -65,6 +73,7 @@ pub fn host_wrap(
         args.extend(spec.command);
         Some(("/usr/bin/sandbox-exec".into(), args))
     } else {
+        tracing::warn!(target: "tools.sandbox", platform = std::env::consts::OS, "sandbox unavailable on this platform");
         None
     }
 }

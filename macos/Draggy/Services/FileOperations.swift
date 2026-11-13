@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import Foundation
 
 public final class FileOperations: Sendable {
@@ -19,6 +20,7 @@ public final class FileOperations: Sendable {
             guard let values = try? fileUrl.resourceValues(forKeys: Set(keys)),
                   let name = values.name,
                   let isDir = values.isDirectory else {
+                      Logger.storage.debug("Skipped unreadable file entry")
                 return nil
             }
             let size = Int64(values.fileSize ?? 0)

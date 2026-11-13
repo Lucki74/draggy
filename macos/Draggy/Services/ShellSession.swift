@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 @MainActor
 @Observable
@@ -38,6 +39,7 @@ public final class ShellSession: Identifiable {
         var launch: (executable: String, arguments: [String]) = (shell.path, ["-l"])
         if let sandbox {
             guard SandboxPolicy.isAvailable() else {
+                Logger.shell.error("Shell not started, sandbox unavailable")
                 output.append("The sandbox is not available, so the shell was not started.\n")
                 return
             }
@@ -66,7 +68,9 @@ public final class ShellSession: Identifiable {
             }
         }
 
-        process.terminationHandler = { [weak self] _ in
+        process.terminationHandler = { [weak self] proc in
+            let status = proc.terminationStatus
+            Logger.shell.info("Shell exited with status \(status, privacy: .public)")
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.isRunning = false
@@ -80,7 +84,9 @@ public final class ShellSession: Identifiable {
             self.inputPipe = inPipe
             self.outputPipe = outPipe
             self.isRunning = true
+            Logger.shell.info("Shell started, sandboxed \(self.sandbox != nil, privacy: .public)")
         } catch {
+            Logger.shell.error("Failed to start shell: \(error.localizedDescription, privacy: .public)")
             self.output.append("Failed to start shell: \(error.localizedDescription)\n")
             self.isRunning = false
         }
@@ -94,6 +100,7 @@ public final class ShellSession: Identifiable {
     public func terminate() {
         guard isRunning else { return }
         process?.terminate()
+        Logger.shell.info("Shell terminated by request")
         isRunning = false
     }
 }

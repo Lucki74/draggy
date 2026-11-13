@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 /// One message as it is kept on disk.
 struct SavedMessage: Codable, Equatable, Sendable {
@@ -34,6 +35,7 @@ struct ConversationStore: Sendable {
                 at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try JSONEncoder().encode(messages).write(to: url, options: .atomic)
         } catch {
+            Logger.storage.error("Conversation save failed: \(error.localizedDescription, privacy: .public)")
             // The conversation stays on screen; only the next launch loses it.
         }
     }

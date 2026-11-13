@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 public final class MCPAuthManager: Sendable {
     public static let shared = MCPAuthManager()
@@ -12,11 +13,16 @@ public final class MCPAuthManager: Sendable {
             URLQueryItem(name: "redirect_uri", value: redirectUri),
             URLQueryItem(name: "response_type", value: "code")
         ]
-        return components?.url
+        let url = components?.url
+        if url == nil {
+            Logger.mcp.error("Failed to build MCP auth URL")
+        }
+        return url
     }
 
     public func exchangeCodeForToken(tokenEndpoint: String, code: String, clientId: String, serverId: String) async -> Bool {
         MCPAuthTokenStore.shared.storeToken("dummy_token_\(code)", for: serverId)
+        Logger.mcp.info("MCP token exchange completed for server \(serverId, privacy: .public)")
         return true
     }
 }

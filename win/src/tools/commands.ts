@@ -225,8 +225,10 @@ async function runInBox(
     const outsideNote = result.outside
       ? `\nIt ended in ${result.outside}, outside the project, so the next command starts in the project folder.`
       : "";
+    const shellNote = result.notice ? `
+${result.notice}` : "";
 
-    return `TOOL RESULT (run_command): ${status}${result.truncated ? " The middle of the output was cut." : ""}${outsideNote}\n\n${output || "(no output)"}`;
+    return `TOOL RESULT (run_command): ${status}${result.truncated ? " The middle of the output was cut." : ""}${shellNote}${outsideNote}\n\n${output || "(no output)"}`;
   }
 }
 
