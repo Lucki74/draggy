@@ -6,6 +6,7 @@ pub mod chat_gateway;
 pub mod draggy_scheme;
 pub mod engines;
 pub mod ipc;
+pub mod legacy_local_storage;
 pub mod mcp;
 pub mod models;
 pub mod paths;
@@ -138,29 +139,37 @@ fn build_main_window(app: &tauri::AppHandle, setup: bool) -> tauri::Result<()> {
     };
     let (min_width, min_height) = minimum_for_screen(app);
     // The WebView2 profile (localStorage, cookies) lives in the app's own data folder, not LOCALAPPDATA.
-    let profile = app.state::<AppState>().storage.data_dir().join("webview");
-    tauri::webview::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App(page.into()))
-        .title("Draggy")
-        .inner_size(1200.0, 800.0)
-        .min_inner_size(min_width, min_height)
-        .data_directory(profile)
-        // Undecorated: the renderer's TitleBar draws the caption buttons. Edge resize and snap stay on.
-        .decorations(false)
-        .shadow(true)
-        .visible(false)
-        .on_navigation(move |url| {
-            if is_app_page(url) || is_about_page(url) {
-                return true;
-            }
-            ipc::browser::open_from_main_window(&navigating, url.clone());
-            false
-        })
-        .on_new_window(move |url, _features| {
-            ipc::browser::open_from_main_window(&opening, url);
-            tauri::webview::NewWindowResponse::Deny
-        })
-        .build()
-        .map(|_| ())
+    let state = app.state::<AppState>();
+    let profile = state.storage.data_dir().join("webview");
+    // Electron's localStorage, copied in once before the first page script runs.
+    let import = state.storage.handle().and_then(|db| {
+        legacy_local_storage::import_script(state.storage.data_dir(), &db, &state.diag)
+    });
+    let mut window =
+        tauri::webview::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App(page.into()))
+            .title("Draggy")
+            .inner_size(1200.0, 800.0)
+            .min_inner_size(min_width, min_height)
+            .data_directory(profile)
+            // Undecorated: the renderer's TitleBar draws the caption buttons. Edge resize and snap stay on.
+            .decorations(false)
+            .shadow(true)
+            .visible(false)
+            .on_navigation(move |url| {
+                if is_app_page(url) || is_about_page(url) {
+                    return true;
+                }
+                ipc::browser::open_from_main_window(&navigating, url.clone());
+                false
+            })
+            .on_new_window(move |url, _features| {
+                ipc::browser::open_from_main_window(&opening, url);
+                tauri::webview::NewWindowResponse::Deny
+            });
+    if let Some(script) = &import {
+        window = window.initialization_script(script);
+    }
+    window.build().map(|_| ())
 }
 
 /// Points the open main window at first-run setup: a reload with the setup query, then shown and focused.
