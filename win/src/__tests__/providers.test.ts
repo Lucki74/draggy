@@ -113,7 +113,7 @@ describe("the models the menus offer", () => {
   function stub(listing: { success: boolean; models?: unknown[] }) {
     const models = vi.fn(async () => listing);
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         providers: {
           list: async () => [
             { id: "openai", label: "OpenAI", kind: "cloud", enabled: true, pinnedModels: ["gpt-5.5", "gone"] },

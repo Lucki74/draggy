@@ -2,7 +2,7 @@
 /**
  * Renders the bench fragments with the Supertonic worker inside a running Draggy.
  *
- *   npx electron . --remote-debugging-port=9222      (with the dev server up)
+ *   WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222 npm run tauri:dev   (with the dev server up)
  *   node scripts/voice-bench/render-in-app.cjs <wavDir> [--voice F1] [--langs en,fr] [--seed 1]
  *
  * Needs scratch/voice-bench/fragments.json (run scripts/voice-bench.mjs first). Writes

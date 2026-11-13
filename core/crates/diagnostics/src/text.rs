@@ -1,4 +1,4 @@
-//! String helpers that follow JavaScript's rules, so the Rust lines match the Electron ones byte for byte.
+//! String helpers that follow JavaScript's rules. Electron-era builds wrote log lines with them, so the output matches byte for byte.
 
 use sha2::{Digest, Sha256};
 

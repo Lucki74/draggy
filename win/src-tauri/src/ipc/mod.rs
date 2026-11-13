@@ -1,0 +1,274 @@
+//! One dispatcher behind two Tauri commands. The renderer's channel names stay the Electron ones; a
+//! channel is served by a handler in the registry, or is refused as an unknown channel.
+
+use std::collections::{HashMap, HashSet};
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Instant;
+
+use serde_json::Value;
+use tauri::{AppHandle, Emitter, Manager};
+
+use crate::AppState;
+
+/// Adds a handler to a registry. This is the only way to register one, so the guard test sees all.
+macro_rules! register {
+    ($registry:expr, $channel:literal => $handler:path) => {
+        $registry.insert(
+            $channel,
+            Box::new(|app, args| Box::pin($handler(app, args))),
+        )
+    };
+}
+
+pub(crate) mod api_server;
+mod app;
+pub(crate) mod browser;
+mod call_log;
+pub(crate) mod code_runner;
+mod colibri;
+mod commands;
+mod documents;
+pub(crate) mod files;
+mod gguf;
+mod git;
+mod hardware;
+mod library;
+mod logs;
+pub(crate) mod mcp;
+mod models;
+mod pdf_writer;
+pub mod pending;
+mod pricing;
+pub(crate) mod providers;
+pub(crate) mod research;
+mod sd;
+mod shell;
+mod skills;
+mod staging;
+mod storage;
+mod terminals;
+mod tier;
+mod tts;
+pub mod updater;
+pub(crate) mod web;
+pub(crate) mod widgets;
+
+pub use call_log::{arg_bytes, correlation_id, is_silent, scope_for};
+
+#[derive(Debug)]
+pub enum IpcError {
+    NotImplemented(String),
+    Failed(String),
+}
+
+impl std::fmt::Display for IpcError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotImplemented(channel) => write!(f, "unknown channel: {channel}"),
+            Self::Failed(message) => f.write_str(message),
+        }
+    }
+}
+
+pub type HandlerFuture = Pin<Box<dyn Future<Output = Result<Value, IpcError>> + Send>>;
+pub type Handler = Box<dyn Fn(AppHandle, Vec<Value>) -> HandlerFuture + Send + Sync>;
+
+/// Renderer-chosen names must not grow the warn-once set without bound.
+const MAX_WARNED: usize = 256;
+
+pub struct Registry {
+    handlers: HashMap<&'static str, Handler>,
+    warned: Mutex<HashSet<String>>,
+}
+
+impl Registry {
+    /// The registry with every ported handler. Built once at startup.
+    pub fn build() -> Self {
+        let mut registry = Self {
+            handlers: HashMap::new(),
+            warned: Mutex::new(HashSet::new()),
+        };
+        app::register_all(&mut registry);
+        browser::register_all(&mut registry);
+        api_server::register_all(&mut registry);
+        mcp::register_all(&mut registry);
+        code_runner::register_all(&mut registry);
+        files::register_all(&mut registry);
+        git::register_all(&mut registry);
+        web::register_all(&mut registry);
+        logs::register_all(&mut registry);
+        shell::register_all(&mut registry);
+        storage::register_all(&mut registry);
+        colibri::register_all(&mut registry);
+        gguf::register_all(&mut registry);
+        hardware::register_all(&mut registry);
+        models::register_all(&mut registry);
+        sd::register_all(&mut registry);
+        tier::register_all(&mut registry);
+        tts::register_all(&mut registry);
+        updater::register_all(&mut registry);
+        terminals::register_all(&mut registry);
+        pricing::register_all(&mut registry);
+        providers::register_all(&mut registry);
+        widgets::register_all(&mut registry);
+        skills::register_all(&mut registry);
+        library::register_all(&mut registry);
+        research::register_all(&mut registry);
+        documents::register_all(&mut registry);
+        commands::register_all(&mut registry);
+        registry
+    }
+
+    /// Call through `register!`. A duplicate channel is a programming error.
+    pub(crate) fn insert(&mut self, channel: &'static str, handler: Handler) {
+        let previous = self.handlers.insert(channel, handler);
+        assert!(previous.is_none(), "channel registered twice: {channel}");
+    }
+
+    pub fn channels(&self) -> Vec<&'static str> {
+        let mut names: Vec<_> = self.handlers.keys().copied().collect();
+        names.sort_unstable();
+        names
+    }
+
+    /// True the first time a channel is seen.
+    fn first_miss(&self, channel: &str) -> bool {
+        let mut warned = self.warned.lock().unwrap_or_else(PoisonError::into_inner);
+        warned.len() < MAX_WARNED && warned.insert(channel.to_owned())
+    }
+
+    async fn dispatch(
+        &self,
+        app: AppHandle,
+        diag: &draggy_diagnostics::Diagnostics,
+        channel: &str,
+        args: Vec<Value>,
+    ) -> Result<Value, IpcError> {
+        let Some(handler) = self.handlers.get(channel) else {
+            if self.first_miss(channel) {
+                let shown: String = channel.chars().take(64).collect();
+                diag.warn(
+                    "ipc",
+                    "unknown channel",
+                    Some(serde_json::json!({ "channel": shown })),
+                );
+            }
+            return Err(IpcError::NotImplemented(channel.to_owned()));
+        };
+        if is_silent(channel) {
+            return handler(app, args).await;
+        }
+        let stats = call_log::ArgStats::of(&args);
+        let started = Instant::now();
+        let result = handler(app, args).await;
+        let dur_ms = started.elapsed().as_millis() as u64;
+        let message = result.as_ref().err().map(ToString::to_string);
+        call_log::finish(diag, channel, dur_ms, &stats, message.as_deref());
+        result
+    }
+}
+
+async fn run(app: AppHandle, channel: String, args: Vec<Value>) -> Result<Value, String> {
+    let (registry, diag): (Arc<Registry>, Arc<_>) = {
+        let state = app.state::<AppState>();
+        (Arc::clone(&state.registry), Arc::clone(&state.diag))
+    };
+    registry
+        .dispatch(app, &diag, &channel, args)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn ipc_invoke(
+    app: AppHandle,
+    webview: tauri::Webview,
+    channel: String,
+    args: Vec<Value>,
+    staged_id: Option<String>,
+) -> Result<Value, String> {
+    let label = webview.label().to_owned();
+    let args = match staged_id {
+        Some(id) => staging::take(&id)?,
+        None => args,
+    };
+    // A popout bar may only run bar channels, against the page it belongs to.
+    if let Some(page) = browser::popout_page_of(&label) {
+        if !browser::may_call(&label, &channel) {
+            return Err("a popout bar may only call browser-bar channels".to_owned());
+        }
+        return browser::popout_bar_call(&app, &page, &channel, args)
+            .await
+            .map_err(|error| error.to_string());
+    }
+    // Browser channels drive the pane's pages, so only the main window may call them.
+    if channel.starts_with("browser-") && !is_main_window(&label) {
+        return Err("browser channels are only accepted from the main window".to_owned());
+    }
+    run(app, channel, args).await
+}
+
+/// One chunk of a large invoke's arguments; `ipc_invoke` with the same `id` assembles them.
+#[tauri::command]
+pub fn ipc_stage(
+    webview: tauri::Webview,
+    id: String,
+    index: usize,
+    total: usize,
+    chunk: String,
+) -> Result<(), String> {
+    if !is_main_window(webview.label()) {
+        return Err("ipc_stage is only accepted from the main window".to_owned());
+    }
+    staging::stage(&id, index, total, chunk)
+}
+
+/// Fire and forget from the renderer; a failure is logged there and in the file.
+#[tauri::command]
+pub async fn ipc_send(
+    app: AppHandle,
+    webview: tauri::Webview,
+    channel: String,
+    args: Vec<Value>,
+) -> Result<(), String> {
+    if !is_main_window(webview.label()) {
+        return Err("ipc_send is only accepted from the main window".to_owned());
+    }
+    run(app, channel, args).await.map(|_| ())
+}
+
+/// Only the main window may send; the api-server reply channels rely on this.
+fn is_main_window(label: &str) -> bool {
+    label == "main"
+}
+
+/// Pushes an event to the window, as `webContents.send` did. A closed window is not an error.
+pub fn emit(app: &AppHandle, channel: &str, value: Value) -> bool {
+    match app.emit(channel, value) {
+        Ok(()) => true,
+        Err(error) => {
+            if let Some(state) = app.try_state::<AppState>() {
+                state.diag.debug(
+                    "ipc.send",
+                    &format!("{channel} failed"),
+                    Some(serde_json::json!({ "channel": channel, "error": error.to_string() })),
+                );
+            }
+            false
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_main_window;
+
+    #[test]
+    fn only_the_main_window_may_send() {
+        assert!(is_main_window("main"));
+        assert!(!is_main_window("settings"));
+        assert!(!is_main_window(""));
+    }
+}

@@ -39,7 +39,7 @@ impl Clock for SystemClock {
 
 const MS_PER_DAY: i64 = 86_400_000;
 
-/// The text `Date.prototype.toISOString` gives, so the Rust lines carry the same stamps as the Electron ones.
+/// The text `Date.prototype.toISOString` gives. Electron-era builds wrote log stamps this way, and these match them.
 pub(crate) fn iso_ms(unix_ms: i64) -> String {
     let (year, month, day) = civil_from_days(unix_ms.div_euclid(MS_PER_DAY));
     let within_day = unix_ms.rem_euclid(MS_PER_DAY);

@@ -1,0 +1,74 @@
+[package]
+name = "draggy-win"
+version = "3.0.5"
+description = "Draggy for Windows: Tauri shell around the React renderer"
+license = "Apache-2.0"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+# Standalone on purpose: core/ keeps its own workspace and lockfile.
+[workspace]
+
+[lib]
+name = "draggy_win"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "draggy-win"
+path = "src/main.rs"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+adblock = { version = "0.13.5", default-features = false, features = ["embedded-domain-resolver", "full-regex-handling"] }
+aes-gcm = "0.10"
+axum = "0.8"
+base64 = "0.22"
+notify = "8"
+unicode-normalization = "0.1.26"
+draggy-api = { path = "../../core/crates/api" }
+draggy-diagnostics = { path = "../../core/crates/diagnostics" }
+tracing = "0.1"
+draggy-documents = { path = "../../core/crates/documents" }
+draggy-engine = { path = "../../core/crates/engine" }
+draggy-mcp = { path = "../../core/crates/mcp" }
+draggy-models = { path = "../../core/crates/models" }
+draggy-providers = { path = "../../core/crates/providers" }
+draggy-web = { path = "../../core/crates/web" }
+draggy-storage = { path = "../../core/crates/storage" }
+futures-util = "0.3"
+getrandom = "0.3"
+sha1 = "0.10"
+sha2 = "0.10"
+draggy-tools = { path = "../../core/crates/tools" }
+rusqlite = { version = "0.41", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tauri = { version = "2", features = ["unstable"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+portable-pty = "0.9"
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt", "sync", "time"] }
+tokio-util = "0.7"
+windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem", "Win32_System_SystemInformation"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security_Cryptography", "Win32_UI_WindowsAndMessaging"] }
+zeroize = "1"
+zip = { version = "8", default-features = false, features = ["deflate"] }
+trash = "5"
+tauri-plugin-updater = "2"
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39.1"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }

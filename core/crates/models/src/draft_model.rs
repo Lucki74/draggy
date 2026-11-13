@@ -1,4 +1,4 @@
-//! Draft models that sit beside a main model and speed it up. Port of electron/draftModel.cjs.
+//! Draft models that sit beside a main model and speed it up.
 //! As with projectors, the reference's module state is a `Drafts` value the caller owns.
 
 use std::path::{Path, PathBuf};

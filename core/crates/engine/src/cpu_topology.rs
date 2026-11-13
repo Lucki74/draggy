@@ -1,5 +1,4 @@
 //! How many cores the engine should use: performance cores for generation, every physical core for prompts.
-//! Port of electron/cpuTopology.cjs.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;

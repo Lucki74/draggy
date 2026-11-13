@@ -35,7 +35,7 @@ export async function useSkillCase(input: Json): Promise<unknown> {
     reads.push({ workspace: workspaceId, id, enabledOnly: options.enabledOnly, file: options.file ?? null });
     return asJson(input.read);
   });
-  vi.stubGlobal("window", { electronAPI: input.bridge === false ? {} : { skills: { read } } });
+  vi.stubGlobal("window", { draggy: input.bridge === false ? {} : { skills: { read } } });
 
   resetRegistry();
   registerSkillTools();
@@ -79,7 +79,7 @@ export async function prepareTurnCase(input: Json): Promise<unknown> {
 
   let reads: string[][] = [];
   vi.stubGlobal("window", {
-    electronAPI: {
+    draggy: {
       gguf: {
         listModels: async () => [
           { filename: model, contextLength: 32768, capabilities: (base.capabilities ?? []) as string[] },

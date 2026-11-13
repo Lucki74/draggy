@@ -63,7 +63,7 @@ function ProjectFiles({
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
-    const api = window.electronAPI?.files;
+    const api = window.draggy?.files;
     if (!api) return;
 
     const stop = api.onChanged?.((change: { workspaceId?: string }) => {
@@ -83,7 +83,7 @@ function ProjectFiles({
 
   const rename = useCallback(
     async (name: string) => {
-      const api = window.electronAPI?.files;
+      const api = window.draggy?.files;
       if (!api || !selected || !name.trim() || name === selected.name) {
         return;
       }
@@ -104,7 +104,7 @@ function ProjectFiles({
   );
 
   const remove = useCallback(async () => {
-    const api = window.electronAPI?.files;
+    const api = window.draggy?.files;
     if (!api || !selected) return;
 
     const result = await api.remove(workspaceId, selected.path);

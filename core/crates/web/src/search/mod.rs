@@ -1,4 +1,4 @@
-//! Provider chain, pacing, cache and request building. Port of electron/search.cjs.
+//! Provider chain, pacing, cache and request building.
 //! Scrapers parse the page as received, so a page that needs JavaScript to fill in results parses empty.
 
 mod dom;
@@ -399,9 +399,14 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
         config: &SearchConfig,
     ) -> Result<Vec<SearchResult>, ProviderError> {
         let request = build_request(provider, term, config);
-        let page_url = request.url.clone();
         let response = self.http.send(request).await?;
-        parse_response(provider, &page_url, response.status, &response.body)
+        // Scraped links resolve against the address that answered, which a redirect may have moved.
+        parse_response(
+            provider,
+            &response.final_url,
+            response.status,
+            &response.body,
+        )
     }
 
     /// A hit refreshes nothing. An entry older than the TTL is dropped and counts as a miss.
@@ -455,4 +460,59 @@ fn redact_query(message: &str, term: &str) -> String {
         text = text.replace(form, "[query]");
     }
     text
+}
+
+#[cfg(test)]
+mod tests {
+    use std::future::{Future, ready};
+
+    use super::*;
+    use crate::http::{HttpError, HttpResponse};
+
+    /// Answers every request with one page, as if the address had redirected to `final_url`.
+    struct Canned {
+        final_url: &'static str,
+        body: &'static str,
+    }
+
+    impl HttpClient for Canned {
+        fn send(
+            &self,
+            _request: HttpRequest,
+        ) -> impl Future<Output = Result<HttpResponse, HttpError>> + Send {
+            ready(Ok(HttpResponse {
+                status: 200,
+                body: self.body.to_owned(),
+                final_url: self.final_url.to_owned(),
+            }))
+        }
+    }
+
+    const ONE_RESULT: &str =
+        r#"<div class="result"><a class="result__a" href="/item/1">Item</a></div>"#;
+
+    #[test]
+    fn relative_links_resolve_against_the_final_url() {
+        let search = Search::new(
+            Canned {
+                final_url: "https://final.example.net/dir/page",
+                body: ONE_RESULT,
+            },
+            SystemClock,
+        );
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        let rows = runtime
+            .block_on(search.fetch(Provider::DuckDuckGo, "term", &SearchConfig::default()))
+            .unwrap();
+        assert_eq!(rows[0].url, "https://final.example.net/item/1");
+    }
+
+    #[test]
+    fn page_providers_request_redirects_so_the_policy_checks_each_hop() {
+        let request = build_request(Provider::DuckDuckGo, "term", &SearchConfig::default());
+        assert!(request.follow_redirects);
+        assert!(request.page);
+    }
 }

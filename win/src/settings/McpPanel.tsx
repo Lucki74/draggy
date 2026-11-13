@@ -1,3 +1,4 @@
+import { draggyUrl } from "../appUrl";
 import { useEffect, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import { Button } from "../ui/Button";
@@ -10,6 +11,7 @@ import { ExtensionList, ExtensionRow } from "../extensions/ExtensionRow";
 import { fill } from "../onboarding/text";
 import { ConfirmDialog, Toggle } from "./Controls";
 import { hostnameOf, hueFor, siteLabel } from "./../utils";
+import { iconMissing, markIconMissing } from "../favicon";
 import type {
   RegistryEntry,
   McpCatalogueEntry,
@@ -28,11 +30,11 @@ type Shown = "all" | "on" | "off";
 const MONO_HOSTS = new Set(["github.com"]);
 
 function ServerIcon({ entry }: { entry: McpCatalogueEntry }) {
-  const [failed, setFailed] = useState(false);
   const hostname = entry.site ? hostnameOf(entry.site) : "";
+  const [failed, setFailed] = useState(() => iconMissing(hostname));
 
   if (hostname && !failed) {
-    const src = `draggy://favicon/${encodeURIComponent(hostname)}`;
+    const src = draggyUrl(`favicon/${encodeURIComponent(hostname)}`);
     if (MONO_HOSTS.has(hostname.replace(/^www\./, ""))) {
       return (
         <span
@@ -57,7 +59,10 @@ function ServerIcon({ entry }: { entry: McpCatalogueEntry }) {
         alt=""
         aria-hidden="true"
         loading="lazy"
-        onError={() => setFailed(true)}
+        onError={() => {
+          markIconMissing(hostname);
+          setFailed(true);
+        }}
         className="h-7 w-7 flex-shrink-0 select-none rounded-sm object-contain"
       />
     );
@@ -112,7 +117,7 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
   const [searching, setSearching] = useState(false);
   const [registryError, setRegistryError] = useState<string | null>(null);
 
-  const api = window.electronAPI?.mcp;
+  const api = window.draggy?.mcp;
 
   useEffect(() => {
     if (!api) return;

@@ -54,7 +54,7 @@ export default function StatsPanel({ t, chatId, referenceModel }: StatsPanelProp
   const [confirming, setConfirming] = useState(false);
   const [revision, setRevision] = useState(0);
 
-  const api = window.electronAPI?.metrics;
+  const api = window.draggy?.metrics;
   const key = `${range}:${chatId ?? ""}`;
 
   useEffect(() => {
@@ -91,14 +91,14 @@ export default function StatsPanel({ t, chatId, referenceModel }: StatsPanelProp
     let current = true;
     const load = () =>
       Promise.all([
-        window.electronAPI?.pricing?.table().catch(swallowed("stats", "old rows show without an estimate", null)),
-        window.electronAPI?.providers?.list?.().catch(() => []),
+        window.draggy?.pricing?.table().catch(swallowed("stats", "old rows show without an estimate", null)),
+        window.draggy?.providers?.list?.().catch(() => []),
       ]).then(([answer, instances]) => {
         if (current) setPrices({ table: answer?.success ? (answer.table ?? null) : null, instances: instances ?? [] });
       });
     void load();
     // New prices re-price the old rows that were estimated from the model name.
-    const stop = window.electronAPI?.pricing?.onUpdated?.(() => void load());
+    const stop = window.draggy?.pricing?.onUpdated?.(() => void load());
     return () => {
       current = false;
       if (typeof stop === "function") stop();

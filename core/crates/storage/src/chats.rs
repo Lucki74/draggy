@@ -17,7 +17,7 @@ use crate::js::{
 use crate::workspaces::DEFAULT_WORKSPACE_ID;
 use crate::{Storage, StorageError};
 
-/// How much of a message's text is indexed. Counted in UTF-16 units, like the Electron build counts them.
+/// How much of a message's text is indexed. Counted in UTF-16 units, as JavaScript counts string length.
 const SEARCH_BODY_UNITS: usize = 20_000;
 const SEARCH_LIMIT: i64 = 50;
 

@@ -30,7 +30,7 @@ export interface CloudVoiceOptions extends EngineOptions {
 }
 
 export async function createCloudVoice(context: AudioContext, options: CloudVoiceOptions): Promise<VoiceEngine> {
-  const api = window.electronAPI?.tts;
+  const api = window.draggy?.tts;
   if (!api) throw new Error("Cloud voices need the desktop app.");
   logRendererEvent("renderer.voice", "INFO", "cloud voice starting", { provider: options.provider });
 

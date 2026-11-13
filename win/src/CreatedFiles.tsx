@@ -1,3 +1,4 @@
+import { draggyUrl } from "./appUrl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Icon, IconButton, Lightbox, type IconName } from "./ui";
 import { translations } from "./translations";
@@ -55,7 +56,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
 
   const load = useCallback(async () => {
     try {
-      const outcome = await window.electronAPI?.listCreatedFiles();
+      const outcome = await window.draggy?.listCreatedFiles();
       setFiles(outcome?.files ?? []);
       setError(outcome?.success === false ? (outcome.error ?? "") : "");
     } catch (failure) {
@@ -72,7 +73,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
     let cancelled = false;
 
     void (async () => {
-      const outcome = await window.electronAPI?.listCreatedFiles().catch(swallowed("app", "the main process already logged this call", null));
+      const outcome = await window.draggy?.listCreatedFiles().catch(swallowed("app", "the main process already logged this call", null));
       if (cancelled) return;
       setFiles(outcome?.files ?? []);
       setListedAt(Date.now());
@@ -109,7 +110,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
     setWordFailed(false);
     if (PICTURE_EXTENSIONS.has(file.extension)) return;
 
-    const outcome = await window.electronAPI?.readCreatedFile(file.path);
+    const outcome = await window.draggy?.readCreatedFile(file.path);
     if (!outcome?.success) {
       setPreview({ text: outcome?.error ?? "", truncated: false, binary: true });
       return;
@@ -124,7 +125,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
   };
 
   const remove = async (file: CreatedFile) => {
-    const outcome = await window.electronAPI?.deleteCreatedFile(file.path);
+    const outcome = await window.draggy?.deleteCreatedFile(file.path);
 
     if (!outcome?.success) {
       if (outcome?.error) setError(outcome.error);
@@ -150,7 +151,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
               className={loading ? "[&_svg]:animate-spin" : ""}
               onClick={refresh}
             />
-            <Button variant="secondary" size="dense" icon={<Icon name="folder-open" size={16} />} onClick={() => window.electronAPI?.openCreatedFiles()}>
+            <Button variant="secondary" size="dense" icon={<Icon name="folder-open" size={16} />} onClick={() => window.draggy?.openCreatedFiles()}>
               {t("openFolder")}
             </Button>
           </div>
@@ -227,13 +228,13 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
                           name="arrow-square-out"
                           size="dense"
                           label={t("openFile")}
-                          onClick={() => window.electronAPI?.openFile(file.path)}
+                          onClick={() => window.draggy?.openFile(file.path)}
                         />
                         <IconButton
                           name="folder-open"
                           size="dense"
                           label={t("showInFolder")}
-                          onClick={() => window.electronAPI?.revealCreatedFile(file.path)}
+                          onClick={() => window.draggy?.revealCreatedFile(file.path)}
                         />
                         <IconButton
                           name="trash"
@@ -247,7 +248,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
 
                     <Lightbox
                       open={zoomedPicture === file.path}
-                      src={`draggy://images/${encodeURIComponent(file.name)}`}
+                      src={draggyUrl(`images/${encodeURIComponent(file.name)}`)}
                       alt={file.name}
                       onClose={() => setZoomedPicture(null)}
                     />
@@ -258,7 +259,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
                             <p className="p-4 text-[13px] text-text-secondary">{t("previewUnavailable")}</p>
                           ) : (
                             <img
-                              src={`draggy://images/${encodeURIComponent(file.name)}`}
+                              src={draggyUrl(`images/${encodeURIComponent(file.name)}`)}
                               alt={file.name}
                               className="block max-w-full mx-auto cursor-zoom-in"
                               onClick={() => setZoomedPicture(file.path)}

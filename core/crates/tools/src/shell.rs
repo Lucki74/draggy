@@ -1,5 +1,5 @@
 //! Shell commands for the model: a real shell in the project folder, stoppable, with output cut to a size the model can
-//! read. Ports electron/commands.cjs on macOS and Linux; the Windows Git Bash and WSL lookups stay in Electron.
+//! read.
 
 use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
@@ -216,7 +216,7 @@ pub fn merge_path(current: &str) -> String {
     folders.join(":")
 }
 
-/// The environment a command runs in: the base with PATH widened and the non-interactive settings. Electron's own
+/// The environment a command runs in: the base with PATH widened and the non-interactive settings. The `ELECTRON_RUN_AS_NODE`
 /// marker is removed, so a command never inherits it.
 pub fn command_env(
     base: impl IntoIterator<Item = (OsString, OsString)>,

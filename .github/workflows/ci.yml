@@ -1,6 +1,6 @@
 name: CI
 
-# Typecheck, lint and the full test suite on Windows, the only OS this app ships for.
+# Typecheck, lint, the full test suite and the Rust checks for the Tauri app on Windows, the only OS this app ships for.
 on:
   push:
     branches: [main]
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   check:
-    name: Typecheck, lint and test (${{ matrix.os }})
+    name: Typecheck, lint, test and Rust checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -40,11 +40,46 @@ jobs:
           cache: npm
           cache-dependency-path: win/package-lock.json
 
+      - name: Install Rust with rustfmt and clippy
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: win/src-tauri
+
       - run: npm ci
 
       - name: Test and build the sandbox launcher
         working-directory: win/sandbox
         run: cargo test -q && cargo build --release
 
+      # vendor/ is git-ignored, so the pinned node.exe sidecar is fetched and checked against win/scripts/node-pin.json.
+      - name: Fetch the pinned node.exe sidecar
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pin = Get-Content -Raw scripts/node-pin.json | ConvertFrom-Json
+          New-Item -ItemType Directory -Force -Path vendor/node | Out-Null
+          $dest = Join-Path $PWD 'vendor/node/node.exe'
+          Invoke-WebRequest -Uri "https://nodejs.org/dist/$($pin.version)/win-x64/node.exe" -OutFile $dest
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $dest).Hash.ToLowerInvariant()
+          if ($hash -ne $pin.sha256) { throw "node.exe sha256 $hash does not match pin $($pin.version)" }
+
+      - run: npm run stage:sidecars
 
       - run: npm run check
+
+      # Tauri's frontendDist must exist before cargo builds the crate.
+      - run: npm run build
+
+      - name: Rust format
+        working-directory: win/src-tauri
+        run: cargo fmt --check
+
+      - name: Rust clippy
+        working-directory: win/src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Rust tests
+        working-directory: win/src-tauri
+        run: cargo test -q

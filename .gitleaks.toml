@@ -4,9 +4,5 @@ useDefault = true
 [allowlist]
 description = "Known test fixtures"
 paths = [
-  '''electron/providers/rpc\.test\.js''',
-  '''electron/searchKey\.test\.js''',
-  '''electron/diagnosticsBundle\.test\.js''',
-  '''electron/logger.test.js''',
   '''src/__tests__/agentLoop.test.ts''',
 ]

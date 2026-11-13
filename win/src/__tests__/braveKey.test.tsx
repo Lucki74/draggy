@@ -16,14 +16,14 @@ function stubKeyStore(initial: { hasKey: boolean; keyHint?: string; keystore?: b
   });
   const setSearchConfig = vi.fn(async () => ({ success: true }));
   const updater = { configure: vi.fn(async () => undefined) };
-  (window as unknown as { electronAPI: unknown }).electronAPI = { setBraveKey, braveKeyStatus: vi.fn(async () => status), setSearchConfig, updater };
+  (window as unknown as { draggy: unknown }).draggy = { setBraveKey, braveKeyStatus: vi.fn(async () => status), setSearchConfig, updater };
   return { setBraveKey, setSearchConfig };
 }
 
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("the Brave key field", () => {

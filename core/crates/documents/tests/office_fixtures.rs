@@ -1,6 +1,5 @@
-//! Runs the office golden fixtures (`shared/fixtures/documents/documents-office-*.json`) through the port. The vitest
-//! runner in `src/__tests__/fixtures/documents-office.test.ts` calls electron/documents.cjs with the same inputs.
-//! Writers are compared by the structure of the file they produce, reduced the same way the TS side reduces it.
+//! Runs the office golden fixtures (`shared/fixtures/documents/documents-office-*.json`) against this crate.
+//! Writers are compared by the structure of the file they produce, reduced the same way on both sides.
 
 use std::collections::HashSet;
 use std::io::{Cursor, Read};

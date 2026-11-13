@@ -35,7 +35,7 @@ function installSd(): FakeSd {
     },
   };
   vi.stubGlobal("window", {
-    electronAPI: {
+    draggy: {
       sd: {
         generate: (request: ImageRequest) => {
           fake.requests.push(request);

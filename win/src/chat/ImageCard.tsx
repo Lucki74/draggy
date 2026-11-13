@@ -1,3 +1,4 @@
+import { draggyUrl } from "../appUrl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Chip, Icon, IconButton, Lightbox, Skeleton, Spark, Tooltip } from "../ui";
@@ -17,7 +18,7 @@ const DEFAULT_SIZE = 1024;
 
 function imageSource(info: ImageStepInfo): string | null {
   if (info.status !== "done" || !info.filename || info.location !== "created") return null;
-  return `draggy://images/${encodeURIComponent(info.filename)}`;
+  return draggyUrl(`images/${encodeURIComponent(info.filename)}`);
 }
 
 function useElapsed(startedAt: number | undefined, running: boolean): number {
@@ -36,7 +37,7 @@ function useProjectImage(info: ImageStepInfo): string | null {
   useEffect(() => {
     if (info.status !== "done" || info.location !== "project" || !info.path) return;
     let cancelled = false;
-    window.electronAPI?.files
+    window.draggy?.files
       .read(info.workspaceId || "default", info.path)
       .then((result) => {
         if (!cancelled && result?.success && result.dataUrl) setDataUrl(result.dataUrl);
@@ -193,7 +194,7 @@ export default function ImageCard({ step, t, previewSrc }: ImageCardProps) {
         <div className="flex shrink-0 items-center gap-0.5">
           {running && info.requestId && (
             <Tooltip label={t("imageStop")} align="end">
-              <IconButton name="stop" size="dense" label={t("imageStop")} onClick={() => void window.electronAPI?.sd?.cancel(info.requestId as string)} />
+              <IconButton name="stop" size="dense" label={t("imageStop")} onClick={() => void window.draggy?.sd?.cancel(info.requestId as string)} />
             </Tooltip>
           )}
           {doneWithPicture && (
@@ -209,10 +210,10 @@ export default function ImageCard({ step, t, previewSrc }: ImageCardProps) {
               {info.path && (
                 <>
                   <Tooltip label={t("openFile")}>
-                    <IconButton name="arrow-square-out" size="dense" label={t("openFile")} onClick={() => void window.electronAPI?.openFile(info.path as string)} />
+                    <IconButton name="arrow-square-out" size="dense" label={t("openFile")} onClick={() => void window.draggy?.openFile(info.path as string)} />
                   </Tooltip>
                   <Tooltip label={t("showInFolder")} align="end">
-                    <IconButton name="folder-open" size="dense" label={t("showInFolder")} onClick={() => void window.electronAPI?.revealCreatedFile(info.path as string)} />
+                    <IconButton name="folder-open" size="dense" label={t("showInFolder")} onClick={() => void window.draggy?.revealCreatedFile(info.path as string)} />
                   </Tooltip>
                 </>
               )}

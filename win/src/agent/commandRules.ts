@@ -66,8 +66,10 @@ const INTERPRETERS = new Set([
 const GIT_VALUE_OPTIONS = new Set(["-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path"]);
 const GIT_FLAG_OPTIONS = new Set(["--no-pager", "-P", "--paginate", "-p", "--bare", "--no-optional-locks"]);
 
-/** The longest prefix kept, in words: "gh pr list" rather than "gh", which would allow merging. */
-const PREFIX_WORDS = 3;
+/** The longest prefix kept, in words: "npm run" covers every script. gh keeps three, "gh pr list" rather than "gh pr",
+ * which would allow merging. */
+const PREFIX_WORDS = 2;
+const LONG_PREFIX = new Set(["gh"]);
 
 const normalise = (text: string) => text.trim().replace(/\s+/g, " ");
 
@@ -223,7 +225,7 @@ export function commandPrefix(segment: string): string {
   for (const word of words.slice(start === 0 ? 1 : start)) {
     if (word.startsWith("-") || (word.startsWith("/") && kept.length > 0)) break;
     kept.push(word);
-    if (kept.length === PREFIX_WORDS) break;
+    if (kept.length === (LONG_PREFIX.has(words[0].toLowerCase()) ? 3 : PREFIX_WORDS)) break;
   }
   return kept.join(" ");
 }
@@ -255,4 +257,22 @@ export function commandCovered(
   };
 
   return segments.every((segment) => prefixes.some((prefix) => matches(segment, prefix)));
+}
+
+/** Node tools that start node children over pipes. Windows refuses the pipes libuv names inside the
+ * sandbox and libuv retries forever, so these hang there instead of failing. */
+const HOST_ONLY = new Set([
+  ...["npm", "npx", "pnpm", "pnpx", "yarn", "bun", "bunx", "vitest", "vite", "jest", "tsx", "ts-node"],
+  ...["next", "nuxt", "astro", "webpack", "rollup", "playwright", "electron", "turbo", "nx", "lerna"],
+]);
+
+/** Whether a command line starts one of those tools, read loosely so an opaque line still counts. */
+export function needsHost(command: string | null | undefined, dialect: ShellDialect = "bash"): boolean {
+  const segments = commandSegments(command, dialect) ?? String(command ?? "").split(/[;&|\n]+/);
+  return segments.some((segment) => {
+    const text = normalise(segment).replace(/^(?:&\s*|\w+=\S*\s+)+/, "");
+    const head = /^"([^"]*)"|^'([^']*)'|^(\S+)/.exec(text)?.slice(1).find(Boolean) ?? "";
+    const name = head.split(/[\\/]/).pop() ?? "";
+    return HOST_ONLY.has(name.toLowerCase().replace(/\.(cmd|exe|ps1|bat)$/, ""));
+  });
 }

@@ -163,7 +163,7 @@ const searchNotes: ToolSpec = {
     });
     const lines = hits.slice(0, 20).map((note) => `${note.id} (${note.sourceId}): ${note.claim}\n  "${note.quote}"`);
     if (saved) {
-      const pages = await globalThis.window?.electronAPI?.research
+      const pages = await globalThis.window?.draggy?.research
         ?.search(query, { runId: saved.id, limit: 5 })
         .catch(swallowed("research", "only the notes are searched", null));
       for (const hit of (pages?.hits ?? []).filter((entry) => entry.kind === "source").slice(0, 3)) {

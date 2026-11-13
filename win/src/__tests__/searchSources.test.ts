@@ -31,7 +31,7 @@ beforeEach(() => {
   registerBuiltinTools();
   searchSource = vi.fn(async () => ({ results: [paper], status: "ok", tried: ["openalex"], provider: "papers" }));
   searchWebDetailed = vi.fn(async () => ({ results: [], status: "empty", tried: [], provider: null }));
-  vi.stubGlobal("window", { electronAPI: { searchSource, searchWebDetailed } });
+  vi.stubGlobal("window", { draggy: { searchSource, searchWebDetailed } });
 });
 
 afterEach(() => vi.unstubAllGlobals());

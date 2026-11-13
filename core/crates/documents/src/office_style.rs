@@ -1,4 +1,4 @@
-//! Typeface, colour and spacing defaults for generated Office files. Ports electron/officeStyle.cjs, the data the
+//! Typeface, colour and spacing defaults for generated Office files, the data the
 //! docx and xlsx writers read. Units follow the formats: half points for runs, twentieths of a point for spacing.
 
 use serde::Serialize;

@@ -80,6 +80,8 @@ export function useShellLayout({
     // Window width only: the dock itself shrinks the work area, so using that would flip the dock to an overlay mid-drag.
     const isNarrow = typeof window !== "undefined" && window.innerWidth < 1100;
     const treeFits = workAreaWidth >= TREE_WIDTH + CHAT_WIDTH_BESIDE_TREE + (!isNarrow && canvasPath ? MIN_SIDE_WIDTH : 0);
+    // A docked pane that would leave the chat under its minimum floats over it instead, so the chat keeps its width.
+    const dockOverlay = isNarrow || workAreaWidth - rightPaneWidth < CHAT_MIN_WIDTH;
 
     return {
         treeOpen,
@@ -87,7 +89,7 @@ export function useShellLayout({
         treeFits,
         treeWidth,
         rightPaneWidth,
-        isNarrow,
+        dockOverlay,
         observeWorkArea,
         startResizeTree,
         startResizeRightPane,

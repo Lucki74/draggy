@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, ConfirmDialog, Group, Page, Row, Segmented, Select, Stat, Toggle } from "./Controls";
 import { AccentPicker } from "./AccentPicker";
-import { buildLabel } from "../app/buildLabel";
+import { versionLabel } from "../app/buildLabel";
 import ExtensionsPanel from "../extensions/ExtensionsPanel";
 import { languages } from "../translations";
 import { researchDepthOptions, researchKeepOptions, searchProviderOptions } from "./pages";
@@ -23,7 +23,7 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
   const [info, setInfo] = useState<{ version: string; packaged: boolean } | null>(null);
 
   useEffect(() => {
-    window.electronAPI
+    window.draggy
       ?.appInfo()
       .then((result) => setInfo({ version: result.version, packaged: result.packaged }))
       .catch(swallowed("settings", "the main process already logged this call"));
@@ -79,7 +79,7 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
         </Row>
         <Row label={t("currentVersion")}>
           <p className="text-[13px] font-medium tabular-nums text-text-primary">
-            {info ? buildLabel(info.version, t) : "…"}
+            {info ? versionLabel(info.version, t) : "…"}
             {info && !info.packaged && (
               <span className="ms-2 rounded-pill bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-text-secondary">
                 {t("development")}
@@ -104,7 +104,7 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
           tone="primary"
           onConfirm={() => {
             setConfirmSetup(false);
-            void window.electronAPI?.onboarding?.reset();
+            void window.draggy?.onboarding?.reset();
           }}
           onCancel={() => setConfirmSetup(false)}
         />
@@ -199,7 +199,7 @@ export function DataPage({ t, onClearChats, onClearSessions }: DataPageProps) {
 
   useEffect(() => {
     let current = true;
-    window.electronAPI?.db
+    window.draggy?.db
       .stats()
       .then((result) => {
         if (current) setStats(result?.stats ?? null);
@@ -260,7 +260,7 @@ export function DataPage({ t, onClearChats, onClearSessions }: DataPageProps) {
   );
 }
 
-type BraveKeyStatus = Awaited<ReturnType<NonNullable<Window["electronAPI"]>["braveKeyStatus"]>>;
+type BraveKeyStatus = Awaited<ReturnType<NonNullable<Window["draggy"]>["braveKeyStatus"]>>;
 
 /** Write-only, like a provider's key: what is typed goes to the keystore, and only its last four come back. */
 function BraveKeyRow({ t }: { t: Translate }) {
@@ -268,11 +268,11 @@ function BraveKeyRow({ t }: { t: Translate }) {
   const [draft, setDraft] = useState("");
 
   useEffect(() => {
-    window.electronAPI?.braveKeyStatus?.().then(setStatus).catch(swallowed("settings", "the main process already logged this call"));
+    window.draggy?.braveKeyStatus?.().then(setStatus).catch(swallowed("settings", "the main process already logged this call"));
   }, []);
 
   const save = async (value: string) => {
-    const api = window.electronAPI;
+    const api = window.draggy;
     if (!api?.setBraveKey) return;
     await api.setBraveKey(value).catch(swallowed("settings", "the main process already logged this call"));
     setDraft("");
@@ -305,11 +305,11 @@ export function ServiceKeyRow({ id, label, t }: { id: "openalex" | "github"; lab
   const [draft, setDraft] = useState("");
 
   useEffect(() => {
-    window.electronAPI?.serviceKeyStatus?.(id).then(setStatus).catch(swallowed("settings", "the main process already logged this call"));
+    window.draggy?.serviceKeyStatus?.(id).then(setStatus).catch(swallowed("settings", "the main process already logged this call"));
   }, [id]);
 
   const save = async (value: string) => {
-    const api = window.electronAPI;
+    const api = window.draggy;
     if (!api?.setServiceKey) return;
     await api.setServiceKey(id, value).catch(swallowed("settings", "the main process already logged this call"));
     setDraft("");

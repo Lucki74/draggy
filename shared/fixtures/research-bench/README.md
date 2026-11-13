@@ -45,7 +45,7 @@ When you add or change a page, update `index.json` and any `evidence` quotes tha
 In replay mode `search_web` and `read_url` are served from the corpus and nothing touches the network.
 
 - `win/scripts/research-bench/replay.mjs` holds the search and read code. Search scores keyword, title and body matches, weights rare words higher and breaks ties by URL, so a query always returns the same list.
-- `replayApi()` has the shape of `window.electronAPI.searchWebDetailed` and `readUrl`. A test can assign it to `window.electronAPI` and run the real tools.
+- `replayApi()` has the shape of the `searchWebDetailed` and `readUrl` methods on the `window.draggy` bridge (`win/src/types.d.ts`). A test can assign it to `window.draggy` and run the real tools.
 - `node scripts/research-bench.mjs --endpoint <url>/v1 --model <name>` from `win/` runs the multi-hop questions against any OpenAI-compatible chat endpoint. It is run by hand and no test or CI job calls it.
 
 The script reports accuracy, citation precision, citation recall, sources per report, gold pages read, tool calls and wall time. Precision counts a citation as supported when its quote appears in the cited corpus page. Recall is approximate: it is the share of answer sentences that carry a `[n]` marker. Repeated query rate, peak context and the blocked search rate need the app or live mode, so the script leaves them out.

@@ -1,5 +1,5 @@
 //! Which small model drafts for which family, and when a model should get no automatic draft at all.
-//! Port of electron/draftPairing.cjs. The background download is left for the download wave.
+//! The background download is not here yet.
 
 use std::fs::{self, File};
 use std::path::Path;

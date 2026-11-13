@@ -62,7 +62,7 @@ pub struct ModelInfo {
 }
 
 /// Answers for an account's models, from its own runtime, which the app wires up.
-pub trait AccountRuntime {
+pub trait AccountRuntime: Send {
     fn models(&self, instance_id: &str) -> Result<Vec<ListedModel>, ListError>;
 }
 

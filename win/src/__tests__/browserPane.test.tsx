@@ -35,7 +35,7 @@ beforeEach(() => {
     return 0;
   });
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(800, 80, 400, 600));
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     browserBar: {
       action: vi.fn(async () => ({ success: true })),
       setMenuOpen: vi.fn(async () => ({ success: true })),
@@ -63,7 +63,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("BrowserPane", () => {

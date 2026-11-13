@@ -1,5 +1,5 @@
 //! JavaScript string semantics the reference relies on: `\s` and `trim()` for whitespace, and `.length` and `slice()`
-//! counting UTF-16 units. Rust counts characters, so the limits and trims go through here to match Electron.
+//! counting UTF-16 units. Rust counts characters, so the limits and trims go through here to count as JavaScript does.
 
 /// Whitespace and line terminators as ECMAScript defines them. Unlike `char::is_whitespace`, this includes U+FEFF and
 /// leaves out U+0085.

@@ -1,5 +1,5 @@
 //! How well each model's draft has guessed, kept across runs in `draft-stats.json`. A draft that is mostly rejected
-//! costs more than it saves, so the draft settings follow what was measured. Port of electron/draftStats.cjs.
+//! costs more than it saves, so the draft settings follow what was measured.
 
 use std::fs;
 use std::path::Path;

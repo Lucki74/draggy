@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useModelManager } from "../settings/useModelManager";
-import { clearFakeElectronApi, installFakeElectronApi } from "./helpers/electronApi";
+import { clearFakeDraggyApi, installFakeDraggyApi } from "./helpers/draggyApi";
 import type { ImageProgress } from "../types";
 
 /** An image model picked from the model list waits in the same queue, and shows in it, as a chat model. */
@@ -13,7 +13,7 @@ let cancelDownload: ReturnType<typeof vi.fn>;
 let downloadRepo: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  installFakeElectronApi();
+  installFakeDraggyApi();
   const handlers = new Set<(progress: ImageProgress) => void>();
   emit = (progress) => handlers.forEach((handler) => handler(progress));
   downloadRepo = vi.fn(() => new Promise((resolve) => (finish = resolve)));
@@ -21,7 +21,7 @@ beforeEach(() => {
     finish({ success: false, cancelled: true });
     return { success: true };
   });
-  Object.assign((window.electronAPI as unknown as { sd: Record<string, unknown> }).sd, {
+  Object.assign((window.draggy as unknown as { sd: Record<string, unknown> }).sd, {
     downloadRepo,
     cancelDownload,
     onProgress: (handler: (progress: ImageProgress) => void) => {
@@ -31,7 +31,7 @@ beforeEach(() => {
   });
 });
 
-afterEach(clearFakeElectronApi);
+afterEach(clearFakeDraggyApi);
 
 const REFERENCE = "acme/Qwen-Image-GGUF:Q4_K_M";
 

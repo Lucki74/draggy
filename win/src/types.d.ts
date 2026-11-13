@@ -71,7 +71,7 @@ export interface SystemSpecs {
   ram: number;
   vram: number;
   unifiedMemory?: boolean;
-  /** The graphics card's name, when Electron's GPU report gives one. */
+  /** The graphics card's name, when the OS GPU report gives one. */
   gpu?: string | null;
   platform?: string;
   arch?: string;
@@ -136,7 +136,7 @@ export interface DownloadProgressEvent {
   total: number;
 }
 
-/** One line the renderer logger batches to the main process. Mirrors electron/logger.cjs's shape. */
+/** One line the renderer logger batches to the main process. Mirrors the main process logger's shape. */
 export interface LogEntry {
   level: "DEBUG" | "INFO" | "WARN" | "ERROR";
   context: string;
@@ -313,7 +313,6 @@ export interface BrowserBarState {
 
 export interface AppInfo {
   version: string;
-  electron: string;
   node: string;
   chrome: string;
   platform: string;
@@ -1352,7 +1351,7 @@ export interface AppSettings {
 
 declare global {
   interface Window {
-    electronAPI?: {
+    draggy?: {
       notifyDone: (title: string, body: string) => Promise<{ shown: boolean }>;
       tier: {
         catalog: (contextTokens?: number) => Promise<{ hardware: HardwareReport; models: CatalogModel[] }>;

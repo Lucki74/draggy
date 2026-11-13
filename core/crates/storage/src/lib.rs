@@ -1,4 +1,4 @@
-//! draggy-storage: chats, blobs, workspaces, checkpoints, statistics and settings in the Electron build's SQLite file.
+//! draggy-storage: chats, blobs, workspaces, checkpoints, statistics and settings in the SQLite file Electron-era builds wrote.
 //! Schema changes are additive, so the last Electron release can still open a database this crate wrote.
 
 mod blobs;
@@ -31,7 +31,7 @@ pub use research::{
 pub use schema::SCHEMA_VERSION;
 pub use workspaces::{DEFAULT_WORKSPACE_ID, Workspace, WorkspaceKind};
 
-/// A failed call. The messages of the two refusals are the ones the Electron build returns.
+/// A failed call. The two refusals keep their exact messages.
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("database error: {0}")]
@@ -57,7 +57,7 @@ pub enum StorageError {
     Closed,
 }
 
-/// An open database. Methods take `&self`; calls are serialised on one connection, as in the Electron build.
+/// An open database. Methods take `&self`; calls are serialised on one connection.
 pub struct Storage {
     conn: Mutex<Connection>,
     blob_dir: PathBuf,

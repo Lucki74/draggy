@@ -27,14 +27,14 @@ export function ResearchPage({ sessions, onFollowUp, t }: Props) {
   const [open, setOpen] = useState<SavedRun | null>(null);
 
   useEffect(() => {
-    window.electronAPI?.research?.list().then((result) => setRuns(result?.runs ?? [])).catch(swallowedCall);
+    window.draggy?.research?.list().then((result) => setRuns(result?.runs ?? [])).catch(swallowedCall);
   }, []);
 
   useEffect(() => {
     if (!query.trim()) return;
     let live = true;
     const timer = setTimeout(() => {
-      window.electronAPI?.research
+      window.draggy?.research
         ?.search(query)
         .then((result) => live && setHits(result?.hits ?? []))
         .catch(swallowedCall);
@@ -49,7 +49,7 @@ export function ResearchPage({ sessions, onFollowUp, t }: Props) {
   const snippetOf = (id: string) => (query.trim() ? hits : null)?.find((hit) => hit.runId === id)?.snippet;
 
   const show = (id: string) => {
-    window.electronAPI?.research?.get(id).then((result) => result?.run && setOpen(result.run)).catch(swallowedCall);
+    window.draggy?.research?.get(id).then((result) => result?.run && setOpen(result.run)).catch(swallowedCall);
   };
 
   if (open) return <RunDetail run={open} sessions={sessions} onBack={() => setOpen(null)} onFollowUp={onFollowUp} t={t} />;

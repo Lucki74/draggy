@@ -4,10 +4,10 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const http = require("node:http");
-const platform = require(path.join(__dirname, "..", "electron", "platform.cjs"));
+const { spawn } = require("node:child_process");
 
 const binary = path.resolve(process.argv[2] || "");
-if (!fs.existsSync(binary)) {
+if (!fs.existsSync(binary) || !fs.statSync(binary).isFile()) {
   console.error("usage: node scripts/claude-probe.cjs <path to the claude binary>");
   process.exit(2);
 }
@@ -54,7 +54,7 @@ function sse(res, model, block, stopReason) {
     "--no-session-persistence", "--permission-prompt-tool", "stdio", "--system-prompt", PROMPT,
     "--mcp-config", JSON.stringify({ mcpServers: { draggy: { type: "sdk", name: "draggy" } } }),
   ];
-  const child = platform.spawnHidden(binary, args, {
+  const child = spawn(binary, args, { windowsHide: true, shell: false,
     cwd: home,
     env: {
       PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, TMP: process.env.TMP,

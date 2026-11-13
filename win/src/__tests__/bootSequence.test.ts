@@ -95,12 +95,12 @@ function machine(overrides: Partial<{ hasBinary: boolean; installs: boolean; mod
       deleteModel: async () => true,
     },
   };
-  (window as unknown as { electronAPI: unknown }).electronAPI = api;
+  (window as unknown as { draggy: unknown }).draggy = api;
   return { api: api as unknown as BootBridge, downloadModel, raw: api };
 }
 
 afterEach(() => {
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("the splash's sequence", () => {

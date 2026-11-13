@@ -68,7 +68,7 @@ afterEach(() => {
 describe("the file tools", () => {
   const stub = (files: Record<string, unknown>) =>
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         files: Object.fromEntries(
           Object.entries(files).map(([name, value]) => [name, async () => value]),
         ),
@@ -99,7 +99,7 @@ describe("the file tools", () => {
 describe("the web and browser tools", () => {
   it("search the web", async () => {
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         searchWebDetailed: async () => ({
           results: [{ title: "A", url: "https://a.example", snippet: "a" }],
           status: "ok",
@@ -117,7 +117,7 @@ describe("the web and browser tools", () => {
 
   it("open a page", async () => {
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         readUrl: async () => ({ title: "A", text: "line one\nline two" }),
       },
     });
@@ -131,7 +131,7 @@ describe("the web and browser tools", () => {
 
   it("says why a page could not be read", async () => {
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         readUrl: async () => ({ title: "", text: "", blocked: "unreachable", reason: "The site address could not be found." }),
       },
     });
@@ -144,7 +144,7 @@ describe("the web and browser tools", () => {
 
   it("navigate", async () => {
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         browserNavigate: async () => ({ ok: true, title: "A", url: "https://a.example" }),
       },
     });
@@ -159,7 +159,7 @@ describe("the web and browser tools", () => {
 
   it("mark a navigation that failed as failed rather than done", async () => {
     vi.stubGlobal("window", {
-      electronAPI: { browserNavigate: async () => ({ ok: false, error: { code: "navigation_failed", message: "Nope", hint: "Retry." } }) },
+      draggy: { browserNavigate: async () => ({ ok: false, error: { code: "navigation_failed", message: "Nope", hint: "Retry." } }) },
     });
     const { context, steps } = harness();
 
@@ -171,7 +171,7 @@ describe("the web and browser tools", () => {
 
   it("type into a page", async () => {
     vi.stubGlobal("window", {
-      electronAPI: { browserType: async () => ({ ok: true }) },
+      draggy: { browserType: async () => ({ ok: true }) },
     });
     const { context, lifecycle } = harness();
 
@@ -183,7 +183,7 @@ describe("the web and browser tools", () => {
 
   it("read a page", async () => {
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         browserGetText: async () => ({ ok: true, title: "A", url: "https://a.example", text: "hi" }),
       },
     });
@@ -199,7 +199,7 @@ describe("the web and browser tools", () => {
 describe("skills and extensions", () => {
   it("use a skill", async () => {
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         skills: {
           read: async () => ({
             success: true,

@@ -19,7 +19,7 @@ export default function BrowserConsentCard({ t }: { t: (key: string) => string }
   const firstChoice = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const api = window.electronAPI?.browserAgent;
+    const api = window.draggy?.browserAgent;
     if (!api?.onConsent) return;
     return api.onConsent((next: BrowserConsentAsk | null) => {
       setAsk(next);
@@ -40,7 +40,7 @@ export default function BrowserConsentCard({ t }: { t: (key: string) => string }
   const answer = async (choice: Choice) => {
     setSending(true);
     try {
-      await window.electronAPI?.browserAgent.answerConsent(ask.id, choice);
+      await window.draggy?.browserAgent.answerConsent(ask.id, choice);
     } finally {
       setAsk(null);
     }

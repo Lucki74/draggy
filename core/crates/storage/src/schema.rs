@@ -1,7 +1,7 @@
-//! The schema, copied from electron/storage.cjs so both apps create and read the same file.
+//! The schema Electron-era builds created, so both read the same file.
 //! Changes here must be additive: the last Electron release has to keep opening the database.
 
-/// The version the kv row `schema_version` records. The Electron build reads that row, not `PRAGMA user_version`.
+/// The version the kv row `schema_version` records. Electron-era builds read that row, not `PRAGMA user_version`.
 pub const SCHEMA_VERSION: i64 = 4;
 
 /// Idempotent: every statement is `IF NOT EXISTS`, so running it on an open database changes nothing.

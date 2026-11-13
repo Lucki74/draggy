@@ -8,7 +8,7 @@ import type { AppSettings } from "../../types";
 
 const noop = () => {};
 
-/** Settings at a desktop size, on fake data, so the shell and rows can be checked outside Electron. */
+/** Settings at a desktop size, on fake data, so the shell and rows can be checked outside the desktop app. */
 export function SettingsPreview() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   return (

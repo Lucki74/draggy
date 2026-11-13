@@ -29,7 +29,7 @@ function AttachedTask({ task, t, onBack }: { task: BackgroundTask; t: (key: stri
 
   useEffect(() => {
     const host = hostRef.current;
-    const api = window.electronAPI?.tasks;
+    const api = window.draggy?.tasks;
     if (!host || !api) return;
     let view: TerminalView | null = null;
     let disposed = false;
@@ -134,7 +134,7 @@ export default function TasksView({ t }: TasksViewProps) {
                       <span>{t("attachTask")}</span>
                     </button>
                   ) : null}
-                  <button type="button" className="terminal-tasks-action" onClick={() => void window.electronAPI?.tasks?.stop(task.chatId, task.id)}>
+                  <button type="button" className="terminal-tasks-action" onClick={() => void window.draggy?.tasks?.stop(task.chatId, task.id)}>
                     <Icon name="stop" size={14} />
                     <span>{t("stopTask")}</span>
                   </button>

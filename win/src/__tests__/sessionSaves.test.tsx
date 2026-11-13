@@ -16,7 +16,7 @@ const bridge = vi.hoisted(() => {
     quitHandlers: new Set<() => unknown>(),
   };
 
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     db: {
       saveChat: async (session: ChatSession) => {
         if (state.hold) await state.hold;

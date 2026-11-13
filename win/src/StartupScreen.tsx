@@ -14,7 +14,7 @@ import { swallowed } from "./logger";
 function RecentLog({ label }: { label: string }) {
   const [lines, setLines] = useState<string[]>([]);
   useEffect(() => {
-    Promise.resolve(window.electronAPI?.readLogs?.("app", 16 * 1024) ?? "")
+    Promise.resolve(window.draggy?.readLogs?.("app", 16 * 1024) ?? "")
       .then((text) => setLines(text.split("\n").filter(Boolean).slice(-30)))
       .catch(swallowed("boot", "the log tail is optional on the failure screen"));
   }, []);
@@ -64,8 +64,8 @@ export default function StartupScreen({ modelName, language, onReady, onUseProvi
         label: p.label || prev?.label || "GGUF",
       }));
     };
-    const stopGguf = window.electronAPI?.gguf?.onProgress?.(update);
-    const stopDownload = window.electronAPI?.onDownloadProgress?.(update);
+    const stopGguf = window.draggy?.gguf?.onProgress?.(update);
+    const stopDownload = window.draggy?.onDownloadProgress?.(update);
     return () => {
       stopGguf?.();
       stopDownload?.();
@@ -76,12 +76,12 @@ export default function StartupScreen({ modelName, language, onReady, onUseProvi
     if (bootedRef.current) return;
     bootedRef.current = true;
 
-    if (!window.electronAPI) {
-      setError({ message: tRef.current("outsideElectron"), disk: false });
+    if (!window.draggy) {
+      setError({ message: tRef.current("outsideDesktop"), disk: false });
       return;
     }
 
-    autoSetup(window.electronAPI, modelName, setStep, setProgress)
+    autoSetup(window.draggy, modelName, setStep, setProgress)
       .then(onReady)
       .catch((err: unknown) => {
         setError({
@@ -116,12 +116,12 @@ export default function StartupScreen({ modelName, language, onReady, onUseProvi
               <Button variant="primary" onClick={() => window.location.reload()}>
                 {t("retry")}
               </Button>
-              <Button variant="secondary" onClick={() => window.electronAPI?.quitApp()}>
+              <Button variant="secondary" onClick={() => window.draggy?.quitApp()}>
                 {t("quit")}
               </Button>
             </div>
-            {window.electronAPI && (
-              <Button variant="ghost" size="dense" onClick={() => void window.electronAPI?.openLogs()}>
+            {window.draggy && (
+              <Button variant="ghost" size="dense" onClick={() => void window.draggy?.openLogs()}>
                 {t("openLogFolder")}
               </Button>
             )}

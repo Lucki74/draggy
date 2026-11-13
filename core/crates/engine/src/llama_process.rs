@@ -1,5 +1,5 @@
 //! Starts, watches and stops the llama-server process, with the launch order and the fallbacks for a refused projector or draft.
-//! Process starts go through `draggy_tools::spawn`; health and time are injected. Port of electron/llamaProcess.cjs.
+//! Process starts go through `draggy_tools::spawn`; health and time are injected.
 
 use std::collections::{BTreeMap, VecDeque};
 use std::fs::{self, File};

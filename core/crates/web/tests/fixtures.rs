@@ -1,6 +1,4 @@
-//! Runs the golden fixtures in `shared/fixtures/web` through the port. The vitest runner in
-//! `src/__tests__/fixtures/web.test.ts` runs the same inputs through electron/urlPolicy.cjs, search.cjs and
-//! connectivity.cjs, with canned HTTP and a virtual clock, so both must agree.
+//! Runs the golden fixtures in `shared/fixtures/web` against this crate.
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -662,6 +660,7 @@ impl Web {
         Ok(HttpResponse {
             status: reply.status,
             body: reply.body,
+            final_url: url.to_owned(),
         })
     }
 }
@@ -773,6 +772,7 @@ impl HttpClient for Probe {
             Ok(status) => Ok(HttpResponse {
                 status,
                 body: String::new(),
+                final_url: request.url,
             }),
             Err(error) => Err(error),
         })

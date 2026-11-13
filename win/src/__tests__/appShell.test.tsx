@@ -4,8 +4,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import App from "../App";
 import { SETTINGS_KEY } from "../storage";
 import { allTools } from "../tools/registry";
-import { clearFakeElectronApi, installFakeElectronApi } from "./helpers/electronApi";
-import type { FakeApi } from "./helpers/electronApi";
+import { clearFakeDraggyApi, installFakeDraggyApi } from "./helpers/draggyApi";
+import type { FakeApi } from "./helpers/draggyApi";
 
 /** The shell around every screen: the settings overlay that has to stay mounted and opaque, and the
  * dialog offering an update that finished downloading. */
@@ -18,12 +18,12 @@ describe("the app shell", () => {
       SETTINGS_KEY,
       JSON.stringify({ modelName: "qwen3:8b", language: "en" }),
     );
-    api = installFakeElectronApi();
+    api = installFakeDraggyApi();
   });
 
   afterEach(() => {
     cleanup();
-    clearFakeElectronApi();
+    clearFakeDraggyApi();
     localStorage.clear();
   });
 
@@ -180,12 +180,12 @@ describe("the chat and code switch", () => {
       SETTINGS_KEY,
       JSON.stringify({ modelName: "qwen3:8b", language: "en" }),
     );
-    installFakeElectronApi();
+    installFakeDraggyApi();
   });
 
   afterEach(() => {
     cleanup();
-    clearFakeElectronApi();
+    clearFakeDraggyApi();
     localStorage.clear();
   });
 
@@ -254,7 +254,7 @@ describe("the chat and code switch", () => {
   });
 
   it("gives the Code composer the project's permissions, with no switch for running code", async () => {
-    const api = installFakeElectronApi();
+    const api = installFakeDraggyApi();
     const picker = await openProject(api);
 
     expect(picker).toBeTruthy();
@@ -270,7 +270,7 @@ describe("the chat and code switch", () => {
   });
 
   it("writes a Code composer toggle to Code's settings and leaves Chat's alone", async () => {
-    const api = installFakeElectronApi();
+    const api = installFakeDraggyApi();
     await openProject(api);
 
     const thinking = screen.getByRole("button", { name: /medium/i });

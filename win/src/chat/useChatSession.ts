@@ -316,7 +316,7 @@ export function useChatSession({
     };
 
     const visionSupported = modelInfo === null || modelInfo.capabilities.includes("vision");
-    const documentsSupported = Boolean(window.electronAPI);
+    const documentsSupported = Boolean(window.draggy);
 
     const acceptAttribute = ACCEPTED_EXTENSIONS.filter(
         (extension) => documentsSupported || !DOCUMENT_EXTENSIONS.includes(extension),
@@ -354,7 +354,7 @@ export function useChatSession({
 
                 if (plan.kind === "document") {
                     const bytes = new Uint8Array(await file.arrayBuffer());
-                    const parsed = await window.electronAPI?.readDocument(file.name, bytes);
+                    const parsed = await window.draggy?.readDocument(file.name, bytes);
 
                     if (!parsed?.success || !parsed.text) {
                         rejected.push(`${file.name} - ${parsed?.error || t("unsupportedFile")}`);

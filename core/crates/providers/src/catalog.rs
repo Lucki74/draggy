@@ -1,5 +1,5 @@
-//! The providers Draggy knows how to reach. The bundled list is generated from `electron/providers/catalog.cjs`; a
-//! local server's address is its default and may be changed per instance.
+//! The providers Draggy knows how to reach.
+//! A local server's address is its default and may be changed per instance.
 
 use fancy_regex::Regex;
 use serde::{Deserialize, Serialize};

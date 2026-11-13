@@ -1,4 +1,4 @@
-//! Writes Markdown as a .docx with docx-rs. Ports markdownDocx in electron/documents.cjs: one paragraph per line,
+//! Writes Markdown as a .docx with docx-rs.: one paragraph per line,
 //! heading styles, real list numbering, rules as bordered paragraphs and emoji in their own font.
 
 use std::io::{Cursor, Read, Write};

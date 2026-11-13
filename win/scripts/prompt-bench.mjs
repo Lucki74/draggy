@@ -4,7 +4,8 @@
  *
  *   node scripts/prompt-bench.mjs --model path/to/model.gguf [--tier compact|full] [--variant name]
  *        [--lang en,fr,es,ru] [--runs 3] [--seed 1000] [--out scratch/prompt-bench/<name>]
- *        [--user-data <Draggy userData>] [--ctx 8192] [--max-tokens 1024] [--group a,b]
+ *        [--exe draggy-win.exe] [--ctx 8192] [--max-tokens 1024] [--group a,b]
+ *        (--model names a GGUF in %APPDATA%\Draggy\models; the Tauri app is launched on it)
  *   node scripts/prompt-bench.mjs --endpoint http://host/v1 --api-key KEY --name label [--caps tools,thinking]
  *   node scripts/prompt-bench.mjs --sizes            prompt token sizes only, no model
  *   node scripts/prompt-bench.mjs --report dirA dirB combine results.json files into a markdown table
@@ -15,14 +16,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createServer } from "vite";
 import { runCheck, mentionsClock, clockShare } from "./prompt-bench/checks.mjs";
 import { loadHarness } from "./prompt-bench/harness.mjs";
 import { pct, summarize } from "./prompt-bench/summary.mjs";
+import { launch } from "./tauri-app.cjs";
+import { enableApi } from "./bench-api.cjs";
 
-const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const benchDir = path.join(root, "scripts", "prompt-bench");
 const LANGS = ["en", "fr", "es", "ru"];
@@ -47,7 +48,7 @@ function parseArgs(argv) {
       case "--max-tokens": o.maxTokens = Number(next()) || 400; break;
       case "--port": o.port = Number(next()) || 11499; break;
       case "--out": o.out = path.resolve(next()); break;
-      case "--user-data": o.userData = path.resolve(next()); break;
+      case "--exe": o.exe = path.resolve(next()); break;
       case "--sizes": o.sizes = true; break;
       case "--report": o.reportMode = true; break;
       default:
@@ -102,7 +103,7 @@ async function main() {
   if (o.reportMode) return report(o.report);
 
   const server = await createServer({ root, logLevel: "error", server: { middlewareMode: true }, appType: "custom", optimizeDeps: { noDiscovery: true, include: [] } });
-  let llama = null;
+  let app = null;
   try {
     const harness = await loadHarness(server);
     if (o.sizes) return await printSizes(harness);
@@ -112,23 +113,15 @@ async function main() {
 
     let base, headers = { "Content-Type": "application/json" }, caps, name;
     if (o.model) {
-      const ggufParser = require("../electron/ggufParser.cjs");
-      const llamaProcess = require("../electron/llamaProcess.cjs");
-      const binaryManager = require("../electron/binaryManager.cjs");
-      const platform = require("../electron/platform.cjs");
-      caps = o.caps ?? ggufParser.capabilitiesFromTemplate(ggufParser.readChatTemplate(o.model));
+      // The engine now runs inside the Tauri app: launch it on this model and use its API server.
+      caps = o.caps ?? ["tools"];
       name = o.name ?? path.basename(o.model, ".gguf");
-      const userData = o.userData ?? path.join(process.env.APPDATA ?? os.homedir(), "Draggy");
-      const binaryPath = binaryManager.findLlamaBinary(userData);
-      if (!binaryPath) throw new Error("No llama-server found: pass --user-data");
-      const quiet = { debug() {}, info() {}, warn: console.warn, error: console.error };
-      const start = await llamaProcess.startServer({
-        binaryPath, userDataDir: userData, vramGB: await platform.detectVideoMemoryGB(), modelPath: o.model,
-        contextSize: o.ctx, port: o.port, speculative: false, skipDraft: true, log: quiet,
-      });
-      if (!start.success) throw new Error(`${name} did not load: ${start.error}`);
-      llama = llamaProcess;
-      base = `http://127.0.0.1:${o.port}/v1`;
+      const realModel = path.join(process.env.APPDATA ?? os.homedir(), "Draggy", "models", path.basename(o.model));
+      if (!fs.existsSync(realModel)) throw new Error(`${path.basename(o.model)} is not in %APPDATA%\\Draggy\\models`);
+      app = await launch({ exe: o.exe, model: o.model, port: 9222, prefix: "draggy-bench-" });
+      const endpoint = await enableApi(app.page, o.port);
+      base = endpoint.baseUrl;
+      headers.Authorization = `Bearer ${endpoint.key}`;
     } else if (o.endpoint) {
       base = o.endpoint;
       name = o.name ?? o.endpoint;
@@ -193,7 +186,7 @@ async function main() {
     fs.writeFileSync(path.join(out, "summary.md"), summary);
     console.log(`\n${summary}\nWritten to ${out}`);
   } finally {
-    llama?.stopServerSync();
+    await app?.close();
     await server.close();
   }
 }

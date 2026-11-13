@@ -6,7 +6,7 @@ import { swallowed } from "../logger";
  * since most projects have none. */
 export function projectFileReader(workspaceId: string) {
   return async (path: string): Promise<string | null> => {
-    const result = await window.electronAPI?.files
+    const result = await window.draggy?.files
       ?.read(workspaceId, path)
       .catch(swallowed("project", "the main process already logged this call"));
 
@@ -19,6 +19,6 @@ export function loadProjectMemory(
   root: string,
   target?: string,
 ): Promise<ProjectMemory | null> {
-  if (!root || !window.electronAPI?.files) return Promise.resolve(null);
+  if (!root || !window.draggy?.files) return Promise.resolve(null);
   return findMemory(projectFileReader(workspaceId), root, target);
 }

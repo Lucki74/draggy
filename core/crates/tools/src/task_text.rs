@@ -1,6 +1,6 @@
 //! The text rules for background tasks: what the model reads from a task's output, and how a command's final
 //! folder and environment are carried to the next one. Pure functions, pinned by
-//! `shared/fixtures/tools/task-*.json`, which the Electron reference (`win/electron/taskText.cjs`) also passes.
+//! `shared/fixtures/tools/task-*.json`.
 //! Offsets and lengths count characters, as the reference counts UTF-16 units; they only differ for text
 //! outside the basic plane.
 

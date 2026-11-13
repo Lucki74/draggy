@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "browser-popout-bar",
+  "description": "The popout window's bar webviews (browser-popout-bar-N). Bar channels and bar event listeners only.",
+  "webviews": ["browser-popout-bar-*"],
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten", "allow-ipc-invoke"]
+}

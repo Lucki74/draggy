@@ -323,7 +323,7 @@ describe("engine-chosen windows", () => {
 
   it("counts a bigger loaded window as loaded", async () => {
     const status = { running: true, model: MODEL, contextSize: 32768 };
-    (globalThis as { window?: unknown }).window = { electronAPI: { gguf: { status: async () => status } } };
+    (globalThis as { window?: unknown }).window = { draggy: { gguf: { status: async () => status } } };
     expect(await isLoadedAt(MODEL, 8192)).toBe(true);
     expect(await isLoadedAt(MODEL, 32768)).toBe(true);
     expect(await isLoadedAt(MODEL, 65536)).toBe(false);
@@ -335,7 +335,7 @@ describe("a provider's model, which the engine never holds", () => {
 
   it("never starts, stops or asks the engine about it", async () => {
     const gguf = { start: vi.fn(), stop: vi.fn(), status: vi.fn(), listModels: vi.fn() };
-    vi.stubGlobal("window", { electronAPI: { gguf } });
+    vi.stubGlobal("window", { draggy: { gguf } });
     const model = "@anthropic/claude-x";
 
     await warmModel(model, "5m", 1000);
@@ -352,7 +352,7 @@ describe("a provider's model, which the engine never holds", () => {
   it("is described by its provider's listing instead, even when its instance cannot be looked up", async () => {
     const gguf = { listModels: vi.fn() };
     const providers = { models: vi.fn(async () => ({ success: true, models: [{ id: "gpt-x", contextLength: 400000, capabilities: ["completion", "tools", "vision"], cloud: true }] })) };
-    vi.stubGlobal("window", { electronAPI: { gguf, providers } });
+    vi.stubGlobal("window", { draggy: { gguf, providers } });
     expect(await getModelInfo("@openai/gpt-x")).toEqual({ contextLength: 400000, capabilities: ["completion", "tools", "vision"], parameterCount: null, quantization: null, promptProfile: "compact", cloud: true });
     expect(providers.models).toHaveBeenCalledWith("openai");
     expect(gguf.listModels).not.toHaveBeenCalled();
@@ -367,7 +367,7 @@ describe("a provider's model, which the engine never holds", () => {
 
   it("still unloads the built-in engine for a built-in model", async () => {
     const gguf = { stop: vi.fn(async () => ({ success: true })) };
-    vi.stubGlobal("window", { electronAPI: { gguf } });
+    vi.stubGlobal("window", { draggy: { gguf } });
     await unloadModel("Qwen3.5-9B-Q4_K_M.gguf");
     expect(gguf.stop).toHaveBeenCalledTimes(1);
   });

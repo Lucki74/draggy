@@ -47,7 +47,7 @@ const useSkill: ToolSpec = {
       isComplete: false,
     });
 
-    const result = await window.electronAPI?.skills?.read(ctx.workspaceId || "default", id, {
+    const result = await window.draggy?.skills?.read(ctx.workspaceId || "default", id, {
       enabledOnly: true,
       file,
     });

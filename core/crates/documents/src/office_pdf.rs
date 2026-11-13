@@ -1,4 +1,4 @@
-//! Reads the text of a PDF with lopdf, one section per page, as readPdf in electron/documents.cjs does.
+//! Reads the text of a PDF with lopdf, one section per page.
 //! Lines break where the text moves vertically, which lopdf's own extraction does not do.
 
 use std::collections::BTreeMap;

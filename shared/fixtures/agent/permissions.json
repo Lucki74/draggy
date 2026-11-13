@@ -755,6 +755,36 @@
       "expected": true
     },
     {
+      "name": "a command prefix replaces a longer command",
+      "input": {
+        "op": "addGrant",
+        "grants": [
+          {
+            "tool": "run_command",
+            "target": "npm run electron:build"
+          },
+          {
+            "tool": "write_file",
+            "target": "C:\\npm run x"
+          }
+        ],
+        "grant": {
+          "tool": "run_command",
+          "target": "npm run"
+        }
+      },
+      "expected": [
+        {
+          "tool": "write_file",
+          "target": "C:\\npm run x"
+        },
+        {
+          "tool": "run_command",
+          "target": "npm run"
+        }
+      ]
+    },
+    {
       "name": "a broader grant replaces a narrower one",
       "input": {
         "op": "addGrant",

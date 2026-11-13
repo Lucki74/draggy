@@ -9,7 +9,7 @@ export function CrashNotice({ t, onExport }: { t: Translate; onExport: () => voi
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    window.electronAPI?.diagnostics
+    window.draggy?.diagnostics
       ?.crashNotice()
       .then((result) => setVisible(Boolean(result?.show)))
       .catch(swallowed("lifecycle", "the notice is optional"));

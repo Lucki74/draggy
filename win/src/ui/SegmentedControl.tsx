@@ -74,7 +74,7 @@ export function SegmentedControl<T extends string | number>({
                         onKeyDown={(e) => handleKeyDown(e, idx)}
                         className={`${fill ? "flex-1" : ""} inline-flex items-center justify-center font-medium rounded-pill transition-all duration-120 select-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-primary ${itemClasses} ${
                             isSelected
-                                ? "bg-surface-base text-text-primary shadow-xs"
+                                ? "bg-surface-base text-text-primary shadow-xs ring-1 ring-inset ring-rule-control"
                                 : "bg-transparent text-text-secondary hover:text-text-primary"
                         }`}
                     >

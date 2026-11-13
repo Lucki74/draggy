@@ -227,7 +227,7 @@ pub(crate) fn ensure_default(conn: &Connection) -> Result<(), StorageError> {
     Ok(())
 }
 
-/// Reads a row the way the Electron build does: unreadable JSON falls back to nothing, not to an error.
+/// Reads a row the way Electron-era builds did: unreadable JSON falls back to nothing, not to an error.
 fn workspace_from_row(row: &Row<'_>) -> rusqlite::Result<Workspace> {
     let kind: String = row.get("kind")?;
     let settings = parse_json(row.get::<_, Option<String>>("settings")?.as_deref())

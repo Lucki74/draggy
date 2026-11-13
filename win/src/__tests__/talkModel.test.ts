@@ -153,7 +153,7 @@ describe("planning what Talk will run", () => {
 function bridge(onDisk: string[], download: () => Promise<unknown> = async () => ({ success: true })) {
   let progressCallback: (progress: { phase: "downloading" | "done"; completed: number; total: number; percent: number }) => void = () => {};
   vi.stubGlobal("window", {
-    electronAPI: {
+    draggy: {
       resolveModelUrl: async () => ({ url: "https://host/m.gguf", filename: "m.gguf" }),
       gguf: {
         onProgress: (cb: typeof progressCallback) => {

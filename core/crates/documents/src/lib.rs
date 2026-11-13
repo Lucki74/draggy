@@ -1,7 +1,5 @@
-//! draggy-documents: document export and extraction. Ports electron/markdownHtml.cjs, the pure part of
-//! electron/htmlDocument.cjs and electron/officeStyle.cjs, and electron/documents.cjs: the docx, xlsx and pptx
-//! writers from Markdown, text extraction from Office files and PDFs, and the file routing around them.
-//! The Chromium PDF step is not ported here.
+//! draggy-documents: document export and extraction. Writes docx, xlsx and pptx from Markdown or HTML, and extracts text from Office files and PDFs.
+//! The Chromium PDF step is not in this crate.
 
 pub mod html;
 pub mod markdown_html;

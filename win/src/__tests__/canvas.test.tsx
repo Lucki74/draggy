@@ -28,7 +28,7 @@ beforeEach(() => {
   read.mockClear();
   write.mockClear();
 
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     files: {
       read,
       write,
@@ -44,7 +44,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 const open = async (props: Partial<Parameters<typeof Canvas>[0]> = {}) => {

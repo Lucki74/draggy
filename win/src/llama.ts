@@ -134,7 +134,7 @@ async function fetchModelInfo(model: string): Promise<ModelInfo | null> {
   if (typeof window === "undefined") return null;
 
   try {
-    const models = await window.electronAPI?.gguf?.listModels();
+    const models = await window.draggy?.gguf?.listModels();
     if (!Array.isArray(models)) return null;
 
     const target = bareModelName(model);
@@ -166,7 +166,7 @@ async function capabilityRecord(): Promise<Record<string, string[]>> {
 
   // A stub bridge in a test has a `db` with nothing in it, so the function
   // itself is what has to be checked, not just the object holding it.
-  const get = window.electronAPI?.db?.get;
+  const get = window.draggy?.db?.get;
 
   const stored =
     typeof get === "function"
@@ -189,7 +189,7 @@ async function rememberCapabilities(model: string, capabilities: string[]) {
   record[model] = capabilities;
   if (typeof window === "undefined") return;
 
-  const set = window.electronAPI?.db?.set;
+  const set = window.draggy?.db?.set;
   if (typeof set !== "function") return;
 
   await set(CAPABILITY_KEY, JSON.stringify(record)).catch(swallowed("app", "the capability cache is optional"));
@@ -396,7 +396,7 @@ export function forgetContextSize(model: string) {
   loadedContextSizes.delete(model);
 }
 
-type GgufListing = Awaited<ReturnType<NonNullable<NonNullable<Window["electronAPI"]>["gguf"]>["listModels"]>>;
+type GgufListing = Awaited<ReturnType<NonNullable<NonNullable<Window["draggy"]>["gguf"]>["listModels"]>>;
 
 /** The engine's listing in the shape the rest of the app reads; empty for anything but a list. */
 export function describeInstalled(models: GgufListing | null | undefined): InstalledModel[] {
@@ -415,7 +415,7 @@ export async function listInstalledModels(): Promise<InstalledModel[]> {
   if (typeof window === "undefined") return [];
 
   try {
-    return describeInstalled(await window.electronAPI?.gguf?.listModels());
+    return describeInstalled(await window.draggy?.gguf?.listModels());
   } catch {
     return [];
   }
@@ -427,7 +427,7 @@ export async function describeLoadedModels(): Promise<LoadedModel[]> {
   if (typeof window === "undefined") return [];
 
   try {
-    const status = await window.electronAPI?.gguf?.status();
+    const status = await window.draggy?.gguf?.status();
     if (!status?.running || !status.model) return [];
     return [{ name: servedFileName(status.model), size: 0, sizeVram: 0, gpuPercent: 0 }];
   } catch {
@@ -447,7 +447,7 @@ export async function gpuShareFor(model: string): Promise<number | null> {
  * it, and stopping the engine for one would take the local model away instead. */
 export async function unloadModel(model: string): Promise<void> {
   if (typeof window === "undefined" || isRemote(model)) return;
-  await window.electronAPI?.gguf?.stop();
+  await window.draggy?.gguf?.stop();
 }
 
 /** Whether the model is already loaded at this window. Null when the engine could not say. */
@@ -460,7 +460,7 @@ export async function isLoadedAt(
   if (typeof window === "undefined") return null;
 
   try {
-    const status = await window.electronAPI?.gguf?.status();
+    const status = await window.draggy?.gguf?.status();
     if (!status) return null;
     if (!status.running || !status.model) return false;
 
@@ -479,7 +479,7 @@ export async function isLoadedAt(
 export async function isExtendingContext(model: string, contextSize: number): Promise<boolean> {
   if (isRemote(model) || typeof window === "undefined") return false;
   try {
-    const status = await window.electronAPI?.gguf?.status();
+    const status = await window.draggy?.gguf?.status();
     if (!status?.running || !status.model) return false;
     const target = bareModelName(model);
     const same = status.model === target || status.model === model || servedFileName(status.model) === target;
@@ -580,7 +580,7 @@ export async function warmModel(
     fixedContext,
   );
 
-  const started = await window.electronAPI?.gguf?.start({
+  const started = await window.draggy?.gguf?.start({
     modelPath: bareModelName(name),
     contextSize: numCtx,
     exactContext: typeof fixedContext === "number",
@@ -591,7 +591,7 @@ export async function warmModel(
 export async function deleteModel(name: string): Promise<void> {
   if (typeof window === "undefined") throw new Error(`Could not remove ${name}`);
 
-  const removed = await window.electronAPI?.gguf?.deleteModel(bareModelName(name));
+  const removed = await window.draggy?.gguf?.deleteModel(bareModelName(name));
   if (!removed) throw new Error(`Could not remove ${name}`);
 
   forgetModelInfo(name);
@@ -635,7 +635,7 @@ export async function pullModel(
   onProgress: (progress: PullProgress) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  if (typeof window === "undefined" || !window.electronAPI?.gguf) {
+  if (typeof window === "undefined" || !window.draggy?.gguf) {
     throw new Error("Downloading a model requires the desktop app.");
   }
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -643,7 +643,7 @@ export async function pullModel(
   let parts: DownloadPart[] = [{ url: reference, filename: reference.split("/").pop() || "model.gguf" }];
 
   if (!reference.startsWith("http://") && !reference.startsWith("https://")) {
-    const resolved = await window.electronAPI.resolveModelUrl?.(reference, { includeDraft: true });
+    const resolved = await window.draggy.resolveModelUrl?.(reference, { includeDraft: true });
     // A bare name is not a URL: sent on as one, the downloader refuses it with a message about policy.
     if (!resolved?.url) throw new Error(`Could not find ${reference} on Hugging Face.`);
     parts = resolved.parts?.length ? resolved.parts : [{ url: resolved.url, filename: resolved.filename }];
@@ -658,7 +658,7 @@ export async function pullModel(
   let current = parts[0];
   let firstSample: { at: number; completed: number } | null = null;
 
-  const unsubscribe = window.electronAPI.gguf.onProgress((progress) => {
+  const unsubscribe = window.draggy.gguf.onProgress((progress) => {
     // Downloads run side by side on one channel, and the engine setup reports here too.
     if (progress.label && progress.label !== current.filename) return;
     if (!combined) {
@@ -699,7 +699,7 @@ export async function pullModel(
     for (const [index, part] of parts.entries()) {
       current = part;
       finishedParts = index;
-      const download = window.electronAPI.gguf.downloadModel({ url: part.url, filename: part.filename, cid: newCorrelationId() });
+      const download = window.draggy.gguf.downloadModel({ url: part.url, filename: part.filename, cid: newCorrelationId() });
       const result = signal
         ? await Promise.race([
             download,
@@ -707,7 +707,7 @@ export async function pullModel(
               signal.addEventListener(
                 "abort",
                 () => {
-                  window.electronAPI?.gguf?.cancelDownload?.(part.filename)?.catch(swallowed("app", "the main process already logged this call"));
+                  window.draggy?.gguf?.cancelDownload?.(part.filename)?.catch(swallowed("app", "the main process already logged this call"));
                   reject(new DOMException("Aborted", "AbortError"));
                 },
                 { once: true },
@@ -721,7 +721,7 @@ export async function pullModel(
     }
   } catch (error) {
     // Parts already on disk are useless without the rest, and would show up as a model that cannot load.
-    if (parts.length > 1) await window.electronAPI?.gguf?.deleteModel?.(parts[0].filename)?.catch(swallowed("app", "the main process already logged this call"));
+    if (parts.length > 1) await window.draggy?.gguf?.deleteModel?.(parts[0].filename)?.catch(swallowed("app", "the main process already logged this call"));
     throw error;
   } finally {
     unsubscribe?.();

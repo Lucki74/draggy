@@ -1,5 +1,4 @@
-//! Runs the golden fixtures in `shared/fixtures/tools/task-*.json` through the Rust port. The vitest runner in
-//! `src/__tests__/fixtures/toolsTasks.test.ts` calls the Electron reference on the same files, so both must agree.
+//! Runs the golden fixtures in `shared/fixtures/tools/task-*.json` against the Rust code.
 
 use std::collections::BTreeMap;
 

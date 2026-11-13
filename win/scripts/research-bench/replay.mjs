@@ -1,5 +1,5 @@
 // Replay web tools for the research bench: search and read served from the fixed corpus, no network.
-// api() has the shape of window.electronAPI.searchWebDetailed and readUrl, so a test can install it as is.
+// api() has the shape of window.draggy.searchWebDetailed and readUrl, so a test can install it as is.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -77,7 +77,7 @@ export function readPage(corpus, url, page = 1) {
   };
 }
 
-/** The slice of window.electronAPI the web tools use, served from the corpus. */
+/** The slice of window.draggy the web tools use, served from the corpus. */
 export function replayApi(corpus, log = []) {
   const answer = (query) => {
     const results = search(corpus, query);

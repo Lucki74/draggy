@@ -1,4 +1,4 @@
-//! The local OpenAI-compatible API, ported from electron/apiServer.cjs.
+//! The local OpenAI-compatible API.
 //!
 //! `router` answers the requests the reference answers. The reply comes from a `Backend`, and the key, the clock and
 //! the random bytes from an `Env`, so tests drive the router in process with fakes.

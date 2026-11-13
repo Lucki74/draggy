@@ -29,7 +29,7 @@ const fieldClass =
 function LoggingGroup({ t }: { t: Translate }) {
   const [state, setState] = useState<LogLevelState | null>(null);
   const [scopes, setScopes] = useState("");
-  const api = window.electronAPI;
+  const api = window.draggy;
 
   useEffect(() => {
     api?.getLogLevel().then(setState).catch(swallowed("settings", "the main process already logged this call"));
@@ -48,13 +48,18 @@ function LoggingGroup({ t }: { t: Translate }) {
         label={t("diagVerbose")}
         description={until ? t("diagVerboseUntil").replace("{time}", until) : undefined}
       >
-        {verbose ? (
-          <Button onClick={() => apply({ level: "INFO", scopes: [], keep: false })}>{t("diagVerboseOff")}</Button>
-        ) : (
-          <Button tone="primary" disabled={!state} onClick={() => apply({ level: "DEBUG", scopes: scopeList, durationMs: VERBOSE_MS })}>
-            {t("diagVerboseOn")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <Badge strong={verbose} title={t("diagVerbose")}>
+            {verbose ? t("diagVerboseActive") : t("diagVerboseInactive")}
+          </Badge>
+          {verbose ? (
+            <Button onClick={() => apply({ level: "INFO", scopes: [], keep: false })}>{t("diagVerboseOff")}</Button>
+          ) : (
+            <Button disabled={!state} onClick={() => apply({ level: "DEBUG", scopes: scopeList, durationMs: VERBOSE_MS })}>
+              {t("diagVerboseEnable")}
+            </Button>
+          )}
+        </div>
       </Row>
       <Row label={t("diagScopes")}>
         <input
@@ -99,7 +104,7 @@ function LogViewer({ t }: { t: Translate }) {
   const pinned = useRef(true);
 
   const load = useCallback(() => {
-    const api = window.electronAPI;
+    const api = window.draggy;
     if (!api) return;
     api
       .readLogs("events", TAIL_BYTES)
@@ -254,7 +259,7 @@ function ExportGroup({ t }: { t: Translate }) {
   const [result, setResult] = useState<{ key: string; files: { name: string; size: number }[] | null } | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saved, setSaved] = useState("");
-  const api = window.electronAPI;
+  const api = window.draggy;
   const key = `${includeDebug}|${includeDumps}|${attempt}`;
 
   useEffect(() => {

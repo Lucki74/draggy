@@ -1,5 +1,4 @@
-//! Runs the golden fixtures in `shared/fixtures/tools/{files,git,skills}-*.json` through the Rust port. The vitest runner
-//! in `src/__tests__/fixtures/toolsFiles.test.ts` calls the Electron reference on the same files, so both must agree.
+//! Runs the golden fixtures in `shared/fixtures/tools/{files,git,skills}-*.json` against the Rust code.
 #![cfg(unix)]
 
 use std::cell::RefCell;
@@ -248,6 +247,7 @@ fn guard_case(input: &Value, base: &Path) -> Value {
     let options = ResolveOptions {
         must_exist: flag(&input["options"], "mustExist"),
         create_parents: flag(&input["options"], "createParents"),
+        op: "fixture",
     };
     match guard_with(&input["protected"]).resolve_within(
         &roots,
@@ -262,7 +262,7 @@ fn guard_case(input: &Value, base: &Path) -> Value {
 fn read_text_case(input: &Value, base: &Path) -> Value {
     make_tree(base, &input["tree"]);
     let limit = input["limit"].as_u64().unwrap_or(MAX_READ_BYTES);
-    match fs_guard::read_text(Path::new(str_at(input, "file")), limit) {
+    match fs_guard::read_text(Path::new(str_at(input, "file")), limit, "read") {
         Ok(file) => json!({ "ok": true, "text": file.text, "bytes": file.bytes }),
         Err(ReadError::Refused(refusal)) => json!({ "ok": false, "error": refusal.0 }),
         Err(ReadError::Io(error)) => json!({ "ok": false, "error": error.to_string() }),
@@ -969,9 +969,7 @@ async fn diff_case(input: &Value) -> Value {
 /// The skills the shipped library lists, as the app lists them. Folder paths are left out: they differ per machine.
 fn library_case() -> Value {
     let roots = Roots {
-        library: Some(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../win/electron/skills-library"),
-        ),
+        library: Some(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../win/skills-library")),
         user: None,
         project: None,
     };

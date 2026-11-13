@@ -50,7 +50,7 @@ describe("browser tool failures", () => {
   };
 
   function stubBrowser(methods: Record<string, unknown>) {
-    vi.stubGlobal("window", { electronAPI: methods });
+    vi.stubGlobal("window", { draggy: methods });
   }
 
   it("gives the model the reason and the hint when a click fails", async () => {
@@ -90,7 +90,7 @@ describe("browser tool failures", () => {
 
 describe("browser snapshot and screenshot tools", () => {
   function stubBrowser(methods: Record<string, unknown>) {
-    vi.stubGlobal("window", { electronAPI: methods });
+    vi.stubGlobal("window", { draggy: methods });
   }
 
   it("hands the model the snapshot text", async () => {
@@ -199,7 +199,7 @@ describe("browser snapshot and screenshot tools", () => {
 
 describe("browser input tools", () => {
   const ACTIONS_ON: ToolEnvironment = { ...ALL_ON, browserActions: true };
-  const stub = (methods: Record<string, unknown>) => vi.stubGlobal("window", { electronAPI: methods });
+  const stub = (methods: Record<string, unknown>) => vi.stubGlobal("window", { draggy: methods });
   const allowed = () => {
     const { context } = harness();
     return { ...context, settings: { browserActions: true } as never };
@@ -346,7 +346,7 @@ describe("browser input tools", () => {
 describe("create_file in a chat with a folder", () => {
   it("saves into that chat's folder", async () => {
     const createFile = vi.fn().mockResolvedValue({ success: true, filepath: "C:/chats/chat-1/primes.py" });
-    vi.stubGlobal("window", { electronAPI: { createFile } });
+    vi.stubGlobal("window", { draggy: { createFile } });
 
     const environment: ToolEnvironment = { ...ALL_ON, chatFolder: true };
     const { context } = harness();
@@ -359,7 +359,7 @@ describe("create_file in a chat with a folder", () => {
 
   it("keeps the plain call when the chat has no folder", async () => {
     const createFile = vi.fn().mockResolvedValue({ success: true, filepath: "C:/out/a.md" });
-    vi.stubGlobal("window", { electronAPI: { createFile } });
+    vi.stubGlobal("window", { draggy: { createFile } });
 
     const { context } = harness();
     context.chatId = "chat-1";

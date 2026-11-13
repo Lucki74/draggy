@@ -40,7 +40,7 @@ beforeEach(() => {
   resetRegistry();
   registerBuiltinTools();
   vi.stubGlobal("window", {
-    electronAPI: {
+    draggy: {
       searchWebDetailed: vi.fn(async () => ({ results: [hit], status: "ok", tried: ["duckduckgo"], provider: "duckduckgo" })),
       readUrl: vi.fn(async () => ({ title: "Page A", text: "The answer is forty two." })),
     },
@@ -67,7 +67,7 @@ describe("web tools during a research run", () => {
     await runTool("search_web", { query: "speed of X" }, ctx, WEB);
     const again = await runTool("search_web", { query: "X speed" }, ctx, WEB);
     expect(again).toMatch(/already ran a search like/);
-    expect(window.electronAPI!.searchWebDetailed).toHaveBeenCalledTimes(1);
+    expect(window.draggy!.searchWebDetailed).toHaveBeenCalledTimes(1);
   });
 
   it("stop gathering once the budget is spent", async () => {
@@ -75,7 +75,7 @@ describe("web tools during a research run", () => {
     activeRun(ctx)!.toolCalls = 1_000;
     const result = await runTool("read_url", { url: hit.url }, ctx, WEB);
     expect(result).toMatch(/budget is spent/);
-    expect(window.electronAPI!.readUrl).not.toHaveBeenCalled();
+    expect(window.draggy!.readUrl).not.toHaveBeenCalled();
   });
 
   it("still read pages after a burst of searches with no note yet", async () => {
@@ -98,7 +98,7 @@ describe("web tools during a research run", () => {
 
   it("mark a page that failed as a failed source", async () => {
     const ctx = researching();
-    vi.mocked(window.electronAPI!.readUrl).mockRejectedValueOnce(new Error("boom"));
+    vi.mocked(window.draggy!.readUrl).mockRejectedValueOnce(new Error("boom"));
     await runTool("read_url", { url: hit.url }, ctx, WEB);
     expect(activeRun(ctx)!.sources[0].status).toBe("failed");
   });

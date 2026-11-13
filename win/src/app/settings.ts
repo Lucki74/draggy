@@ -175,7 +175,7 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
   }, [settings, isSplashMode]);
 
   useEffect(() => {
-    window.electronAPI
+    window.draggy
       ?.setSearchConfig({
         searchProvider: settings.searchProvider,
         searxngUrl: settings.searxngUrl,
@@ -186,7 +186,7 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
   useEffect(() => {
     const key = legacyBraveKey;
     legacyBraveKey = "";
-    const api = window.electronAPI;
+    const api = window.draggy;
     if (!key || !api?.braveKeyStatus) return;
     // Main has usually moved it already, from its own copy; a key set since then is never replaced.
     void api
@@ -199,7 +199,7 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
   // reaches the network for costs, so it waits for the first-run choice too.
   useEffect(() => {
     if (isSplashMode || holdUpdates) return;
-    window.electronAPI?.pricing
+    window.draggy?.pricing
       ?.configure({ automatic: settings.priceRefresh !== false })
       .catch(swallowed("app", "the main process already logged this call"));
   }, [settings.priceRefresh, isSplashMode, holdUpdates]);
@@ -207,7 +207,7 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
   // Costs are stored in dollars. The display currency and its rate are applied where they are shown.
   const displayCurrency = settings.displayCurrency;
   useEffect(() => {
-    const pricing = window.electronAPI?.pricing;
+    const pricing = window.draggy?.pricing;
     if (!pricing) return;
     let live = true;
     const load = () =>
@@ -232,7 +232,7 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
   // The image engine runs in the main process, which keeps no settings of its own.
   useEffect(() => {
     if (isSplashMode) return;
-    window.electronAPI?.sd
+    window.draggy?.sd
       ?.configure({ model: settings.imageModel, resolution: settings.imageResolution })
       .catch(swallowed("app", "the main process already logged this call"));
   }, [settings.imageModel, settings.imageResolution, isSplashMode]);

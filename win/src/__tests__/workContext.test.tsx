@@ -90,7 +90,7 @@ describe("a file the reply touched", () => {
   it("opens in the canvas inside a project", () => {
     const openInCanvas = vi.fn();
     const openFile = vi.fn();
-    vi.stubGlobal("electronAPI", { openFile });
+    vi.stubGlobal("draggy", { openFile });
     render(<OpenFileContext.Provider value={openInCanvas}>{reply()}</OpenFileContext.Provider>);
 
     fireEvent.click(screen.getByRole("button", { name: "Viewer.tsx" }));
@@ -101,7 +101,7 @@ describe("a file the reply touched", () => {
 
   it("opens in its own app outside one", () => {
     const openFile = vi.fn();
-    vi.stubGlobal("electronAPI", { openFile });
+    vi.stubGlobal("draggy", { openFile });
     render(reply());
 
     fireEvent.click(screen.getByRole("button", { name: "Viewer.tsx" }));

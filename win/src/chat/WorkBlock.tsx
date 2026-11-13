@@ -50,7 +50,7 @@ function LibraryHits({
       {hits.map((hit, index) => (
         <button
           key={index}
-          onClick={() => window.electronAPI?.openFile?.(hit.path)}
+          onClick={() => window.draggy?.openFile?.(hit.path)}
           title={hit.path}
           className="flex items-center gap-2 h-8 px-2 rounded-xs hover:bg-surface-raised text-start"
         >
@@ -271,7 +271,7 @@ function FileCard({
             </button>
           )}
           {step.filepath && !writing && (
-            <button type="button" onClick={() => window.electronAPI?.openFile?.(step.filepath!)} className={actionClass}>
+            <button type="button" onClick={() => window.draggy?.openFile?.(step.filepath!)} className={actionClass}>
               {t("openFile")}
             </button>
           )}
@@ -313,7 +313,7 @@ function LoadingStep({ step, t }: { step: SearchStep; t: (key: string) => string
   // The engine's own log says which part of the wait it is in.
   useEffect(() => {
     if (!step.model) return;
-    return window.electronAPI?.gguf?.onStage?.(setStage);
+    return window.draggy?.gguf?.onStage?.(setStage);
   }, [step.model]);
 
   useEffect(() => {
@@ -476,7 +476,7 @@ export function WorkBlock({
   const openable = !isActive && step.filepath && step.type === "reading" && step.filename;
   const view = stepView(step, t);
   const openStep = () =>
-    openInCanvas ? openInCanvas(step.filepath!) : window.electronAPI?.openFile?.(step.filepath!);
+    openInCanvas ? openInCanvas(step.filepath!) : window.draggy?.openFile?.(step.filepath!);
 
   const payload =
     step.type === "library" && step.libraryHits?.length ? (
@@ -541,7 +541,7 @@ export function WorkBlock({
       {isActive && step.type === "command" && step.runId && (
         <button
           type="button"
-          onClick={() => void window.electronAPI?.commands?.detach(step.runId as string)}
+          onClick={() => void window.draggy?.commands?.detach(step.runId as string)}
           title={`${t("sendToBackground")} (Ctrl+Alt+B)`}
           className={linkClass}
         >

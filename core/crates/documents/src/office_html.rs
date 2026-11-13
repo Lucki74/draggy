@@ -1,6 +1,5 @@
-//! Writes HTML as a .docx, .xlsx or .pptx. Ports the three writers in electron/htmlDocument.cjs: the walk over the
-//! parsed HTML that decides which paragraphs, runs, tables, sheets and slides a document gets. Parsing and the CSS
-//! readers are in html.rs.
+//! Writes HTML as a .docx, .xlsx or .pptx: the walk over the parsed HTML that decides which
+//! paragraphs, runs, tables, sheets and slides a document gets. Parsing and the CSS readers are in html.rs.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Cursor;

@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const { measure } = createRequire(import.meta.url)(path.resolve(here, "../../../electron/skills-library/human/metrics.cjs"));
+const { measure } = createRequire(import.meta.url)(path.resolve(here, "../../../skills-library/human/metrics.cjs"));
 const KEYS = ["lenCV", "shareNearMean", "ttr100", "repeatedOpeners", "paraShapes", "tellHitsPer1000"];
 
 function load(dir) {

@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 
-use crate::command_rules::{command_covered, command_grant_targets, dialect_for};
+use crate::command_rules::{command_covered, command_grant_targets, command_prefix, dialect_for};
 use crate::js::trim_js;
 
 const PLAN_REFUSAL: &str = "This conversation is in plan mode, which cannot change anything or run commands. Describe what you would do instead, and the user will decide.";
@@ -99,7 +99,8 @@ fn decide_verdict(query: &PermissionQuery<'_>) -> Verdict {
             .grants
             .iter()
             .filter(|grant| grant.tool == query.tool)
-            .filter_map(|grant| grant.target.clone().filter(|target| !target.is_empty()))
+            .filter_map(|grant| grant.target.as_deref().filter(|target| !target.is_empty()))
+            .map(command_prefix)
             .collect();
         if command_covered(&allowed, query.target, dialect_for(query.shell)) {
             return verdict(
@@ -189,11 +190,26 @@ pub fn grant_covers(grant: &Grant, tool: &str, target: Option<&str>) -> bool {
     same_or_inside(granted, target)
 }
 
+/// True when a command prefix such as "npm run" takes in a longer one such as "npm run build". Paths never match.
+fn prefix_covers(grant: &Grant, existing: &Grant) -> bool {
+    let (Some(granted), Some(kept)) = (grant.target.as_deref(), existing.target.as_deref()) else {
+        return false;
+    };
+    if grant.tool != existing.tool || granted.is_empty() || granted.contains(['\\', '/']) {
+        return false;
+    }
+    let (granted, kept) = (granted.to_lowercase(), kept.to_lowercase());
+    kept == granted || kept.starts_with(&format!("{granted} "))
+}
+
 /// Adds a grant, dropping any it makes redundant.
 pub fn add_grant(grants: &[Grant], grant: Grant) -> Vec<Grant> {
     let mut kept: Vec<Grant> = grants
         .iter()
-        .filter(|existing| !grant_covers(&grant, &existing.tool, existing.target.as_deref()))
+        .filter(|existing| {
+            !grant_covers(&grant, &existing.tool, existing.target.as_deref())
+                && !prefix_covers(&grant, existing)
+        })
         .cloned()
         .collect();
     kept.push(grant);

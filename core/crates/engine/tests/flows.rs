@@ -1,6 +1,5 @@
 //! Stateful and asynchronous behaviour of the engine, run against fakes: the network, the archive extractor and the
-//! helper programs. Mirrors the parts of electron/binaryManager.test.js, engineUpdater.test.js and hardwareProbe.test.js
-//! that need a file system, a clock or a process, without touching the network or starting a real program.
+//! helper programs. Covers the parts that need a file system, a clock or a process, without touching the network or starting a real program.
 
 use std::collections::HashMap;
 use std::fs;

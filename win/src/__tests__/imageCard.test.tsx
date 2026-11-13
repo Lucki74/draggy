@@ -5,7 +5,7 @@ import ImageCard from "../chat/ImageCard";
 import { ImageModelRow } from "../settings/ImageModelsSection";
 import { useImageEngine } from "../images/useImageEngine";
 import { translations } from "../translations";
-import { clearFakeElectronApi, installFakeElectronApi } from "./helpers/electronApi";
+import { clearFakeDraggyApi, installFakeDraggyApi } from "./helpers/draggyApi";
 import type { ImageEngineStatus, ImageModelEntry, ImageStepInfo, SearchStep } from "../types";
 
 /** The card and the engine group wired to the bridge, which is where image generation can break
@@ -18,17 +18,17 @@ function step(image: ImageStepInfo): SearchStep {
 }
 
 beforeEach(() => {
-  installFakeElectronApi();
+  installFakeDraggyApi();
 });
 
 afterEach(() => {
   cleanup();
-  clearFakeElectronApi();
+  clearFakeDraggyApi();
   vi.restoreAllMocks();
 });
 
 const bridge = () =>
-  window.electronAPI as unknown as { sd: Record<string, unknown>; files: Record<string, unknown> } & Record<string, unknown>;
+  window.draggy as unknown as { sd: Record<string, unknown>; files: Record<string, unknown> } & Record<string, unknown>;
 
 describe("the image card", () => {
   it("shows a message, not a broken image, when the picture cannot load", () => {

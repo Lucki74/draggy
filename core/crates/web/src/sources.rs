@@ -1,4 +1,4 @@
-//! Parses paper, wiki and code search bodies and merges papers by DOI. Port of the parsers in electron/sources.cjs.
+//! Parses paper, wiki and code search bodies and merges papers by DOI.
 //! Each parser takes the response body as text. No HTTP happens here, and the arXiv feed is read without an XML crate.
 
 use std::collections::{BTreeMap, HashMap};

@@ -1,5 +1,5 @@
 //! The file tools past the guard: list, read, write, edit, move, delete, search and undo, with every change kept as a
-//! checkpoint. Ports electron/fileOps.cjs and the checkpoint bookkeeping of electron/checkpoints.cjs. Persistence goes
+//! checkpoint. Persistence goes
 //! through `CheckpointStore`, which the storage crate implements, so this crate does not depend on it.
 
 use std::cmp::Ordering;
@@ -80,11 +80,18 @@ const IMAGE_MIME: [(&str, &str); 14] = [
 const MUST_EXIST: ResolveOptions = ResolveOptions {
     must_exist: true,
     create_parents: false,
+    op: "",
 };
 const MAY_CREATE: ResolveOptions = ResolveOptions {
     must_exist: false,
     create_parents: true,
+    op: "",
 };
+
+/// The shared resolve options, tagged with the operation the log names.
+const fn with_op(options: ResolveOptions, op: &'static str) -> ResolveOptions {
+    ResolveOptions { op, ..options }
+}
 
 /// Why a file operation did not happen. A refusal is for the model to read; the rest are failures of the disk or store.
 #[derive(Debug, thiserror::Error)]
@@ -643,7 +650,7 @@ where
         if requested.is_empty() {
             return None;
         }
-        match self.resolve(workspace, requested, MAY_CREATE) {
+        match self.resolve(workspace, requested, with_op(MAY_CREATE, "related")) {
             Ok(resolved) => Some(self.shown_path(workspace, &resolved)),
             Err(_) => Some(basename(requested)),
         }
@@ -652,7 +659,7 @@ where
     /// Lists a folder: folders first, then by name. An empty request means the folder itself.
     fn list_now(&self, workspace: &str, requested: &str) -> Result<Listing, FileError> {
         let requested = if requested.is_empty() { "." } else { requested };
-        let resolved = self.resolve(workspace, requested, MUST_EXIST)?;
+        let resolved = self.resolve(workspace, requested, with_op(MUST_EXIST, "list"))?;
         if !fs::metadata(&resolved)?.is_dir() {
             return Err(refused("That is a file, not a folder."));
         }
@@ -690,11 +697,11 @@ where
 
     /// Reads a file: text under the read limit, or an image or media file as a data URL.
     fn read_now(&self, workspace: &str, requested: &str) -> Result<Opened, FileError> {
-        let resolved = self.resolve(workspace, requested, MUST_EXIST)?;
+        let resolved = self.resolve(workspace, requested, with_op(MUST_EXIST, "read"))?;
         let ext = extension_of(&resolved);
 
         let Some(mime) = lookup(&IMAGE_MIME, &ext).or_else(|| lookup(&MEDIA_MIME, &ext)) else {
-            let text = fs_guard::read_text(&resolved, MAX_READ_BYTES)?;
+            let text = fs_guard::read_text(&resolved, MAX_READ_BYTES, "read")?;
             return Ok(Opened {
                 path: resolved,
                 kind: ContentKind::Text,
@@ -746,7 +753,7 @@ where
         contents: &str,
         chat: Option<&str>,
     ) -> Result<Written, FileError> {
-        let resolved = self.resolve(workspace, requested, MAY_CREATE)?;
+        let resolved = self.resolve(workspace, requested, with_op(MAY_CREATE, "write"))?;
         let data = match data_url_payload(contents) {
             Some(payload) => node_base64(payload),
             None => contents.as_bytes().to_vec(),
@@ -788,8 +795,8 @@ where
         expected: i64,
         chat: Option<&str>,
     ) -> Result<Edited, FileError> {
-        let resolved = self.resolve(workspace, requested, MUST_EXIST)?;
-        let current = fs_guard::read_text(&resolved, MAX_READ_BYTES)?;
+        let resolved = self.resolve(workspace, requested, with_op(MUST_EXIST, "edit"))?;
+        let current = fs_guard::read_text(&resolved, MAX_READ_BYTES, "edit")?;
         let applied = apply_edit(&current.text, find, replace, expected)?;
 
         let before_hash = self.store.keep(current.text.as_bytes())?;
@@ -827,8 +834,8 @@ where
         to: &str,
         chat: Option<&str>,
     ) -> Result<Moved, FileError> {
-        let source = self.resolve(workspace, from, MUST_EXIST)?;
-        let target = self.resolve(workspace, to, MAY_CREATE)?;
+        let source = self.resolve(workspace, from, with_op(MUST_EXIST, "move"))?;
+        let target = self.resolve(workspace, to, with_op(MAY_CREATE, "move"))?;
         if target.exists() {
             return Err(refused("Something is already there."));
         }
@@ -863,7 +870,7 @@ where
         requested: &str,
         chat: Option<&str>,
     ) -> Result<Removed, FileError> {
-        let resolved = self.resolve(workspace, requested, MUST_EXIST)?;
+        let resolved = self.resolve(workspace, requested, with_op(MUST_EXIST, "remove"))?;
         if fs::metadata(&resolved)?.is_dir() {
             return Err(refused(
                 "Draggy does not delete folders. Name the files instead.",
@@ -936,11 +943,11 @@ where
         let path_text = entry.path.to_string_lossy().into_owned();
 
         if entry.action == Action::Move {
-            let current = self.resolve(&workspace, &path_text, MUST_EXIST)?;
+            let current = self.resolve(&workspace, &path_text, with_op(MUST_EXIST, "revert"))?;
             let back = self.resolve(
                 &workspace,
                 entry.detail.as_deref().unwrap_or(""),
-                MAY_CREATE,
+                with_op(MAY_CREATE, "revert"),
             )?;
             make_parent(&back)?;
             fs::rename(&current, &back)?;
@@ -952,7 +959,7 @@ where
             });
         }
 
-        let resolved = self.resolve(&workspace, &path_text, MAY_CREATE)?;
+        let resolved = self.resolve(&workspace, &path_text, with_op(MAY_CREATE, "revert"))?;
         match entry.before_hash.as_deref().filter(|hash| !hash.is_empty()) {
             Some(hash) => {
                 let previous = self
@@ -976,7 +983,7 @@ where
 
     /// The full path of an existing file or folder, for handing to the system shell.
     fn locate_now(&self, workspace: &str, requested: &str) -> Result<PathBuf, FileError> {
-        self.resolve(workspace, requested, MUST_EXIST)
+        self.resolve(workspace, requested, with_op(MUST_EXIST, "locate"))
     }
 }
 
@@ -1045,7 +1052,7 @@ impl Walk<'_> {
                 continue;
             }
 
-            let Ok(contents) = fs_guard::read_text(&full, MAX_SEARCHED_BYTES) else {
+            let Ok(contents) = fs_guard::read_text(&full, MAX_SEARCHED_BYTES, "search") else {
                 continue;
             };
             for (index, line) in contents.text.split('\n').enumerate() {

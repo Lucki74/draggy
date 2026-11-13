@@ -1,4 +1,4 @@
-//! The draggy://models/ cache: Hugging Face files kept on disk after their first download. Port of electron/modelCache.cjs.
+//! The draggy://models/ cache: Hugging Face files kept on disk after their first download.
 //! A file is written beside its final name and takes that name only when complete, so a cancelled download never reads as cached.
 
 use std::collections::BTreeMap;

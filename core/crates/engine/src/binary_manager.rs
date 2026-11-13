@@ -1,5 +1,5 @@
 //! Installs and locates the llama.cpp engine: release asset choice, GPU runner, download, adoption and the folder swap.
-//! Network, unpacking and process calls go through traits. Port of electron/binaryManager.cjs.
+//! Network, unpacking and process calls go through traits.
 
 use std::fs;
 use std::future::Future;

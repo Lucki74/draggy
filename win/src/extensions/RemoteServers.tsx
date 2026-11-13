@@ -40,7 +40,7 @@ export default function RemoteServers({
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const api = window.electronAPI?.mcp;
+  const api = window.draggy?.mcp;
 
   const remotes = Object.entries(config).filter(([, entry]) => Boolean(entry.url));
 

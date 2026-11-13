@@ -1,3 +1,4 @@
+import { draggyUrl } from "./appUrl";
 export const SPEECH_MODEL = "onnx-community/whisper-base";
 
 /** Moonshine was trained for live speech rather than 30-second broadcast clips: it encodes only the
@@ -11,7 +12,7 @@ export function speechModelFor(language?: string | null): string {
   return language === "en" ? LIVE_SPEECH_MODEL : SPEECH_MODEL;
 }
 
-const CACHE_HOST = "draggy://models/";
+const CACHE_HOST = draggyUrl("models/");
 const ORT_ASSET_DIR = "ort/";
 const SAMPLE_RATE = 16000;
 const MIN_SAMPLES = SAMPLE_RATE / 4;
@@ -124,7 +125,7 @@ export function prepareSpeech(
         type: "init",
         id,
         model,
-        cacheHost: window.electronAPI ? CACHE_HOST : null,
+        cacheHost: window.draggy ? CACHE_HOST : null,
         wasmPath: new URL(ORT_ASSET_DIR, document.baseURI).href,
       });
     }).catch((error) => {

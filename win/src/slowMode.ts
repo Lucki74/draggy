@@ -13,7 +13,7 @@ export const NOTIFY_AFTER_MS = 30_000;
 export async function colibriEngine(model: string): Promise<{ colibri: boolean; slow: boolean }> {
   const none = { colibri: false, slow: false };
   const instanceId = providerOf(model);
-  const api = typeof window === "undefined" ? undefined : window.electronAPI;
+  const api = typeof window === "undefined" ? undefined : window.draggy;
   if (!instanceId || !api?.colibri || !api.providers) return none;
   try {
     const [instances, status] = await Promise.all([api.providers.list(), api.colibri.status()]);

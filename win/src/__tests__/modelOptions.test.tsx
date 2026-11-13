@@ -15,7 +15,7 @@ const engine = [
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("the preferences' model options", () => {
@@ -37,7 +37,7 @@ describe("the preferences' model options", () => {
   });
 
   it("come from the enabled providers' ticked models", async () => {
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
+    (window as unknown as { draggy: unknown }).draggy = {
       providers: {
         list: async () => [
           { id: "openai", label: "OpenAI", kind: "cloud", enabled: true, pinnedModels: ["gpt-x"] },

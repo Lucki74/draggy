@@ -89,7 +89,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
     onGrant: (grant) => input.onGrant(grant),
     onFinished: (chatId) => input.onFinished(chatId),
     onIdle: () => {
-      void window.electronAPI?.browserAgent?.release().catch(swallowed("app", "the main process already logged this call"));
+      void window.draggy?.browserAgent?.release().catch(swallowed("app", "the main process already logged this call"));
     },
     oneTurnAtATime: true,
     getSession: input.getSession,
@@ -97,7 +97,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
     updateSession: input.updateSession,
     patchActiveMessage: input.patchActiveMessage,
     recordMetrics: (row) => {
-      void window.electronAPI?.metrics?.record(row).catch(swallowed("app", "the main process already logged this call"));
+      void window.draggy?.metrics?.record(row).catch(swallowed("app", "the main process already logged this call"));
     },
     priceTurn: (model, metrics) => turnPricer.price(model, metrics),
     checkBudget: (model) => budgetStop(model, input.settings.budgets),

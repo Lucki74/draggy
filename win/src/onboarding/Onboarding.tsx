@@ -74,7 +74,7 @@ const CODES = languages.map((language) => language.code);
  * and Skip, on every screen, runs the splash's own automatic setup instead. */
 export default function Onboarding({ settings, onUpdateSettings, download, onFinish }: OnboardingProps) {
   const t = useTranslator(settings.language);
-  const api = window.electronAPI;
+  const api = window.draggy;
   const [path, setPath] = useState<SetupPath>("local");
   const steps = useMemo(() => stepsFor(path), [path]);
   const providers = useProviders({ scanOnOpen: false });
@@ -242,8 +242,9 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   );
 
   const openSkip = useCallback(async () => {
-    await loadSurroundings().catch(swallowed("onboarding", "the main process already logged this call"));
-    setConfirmSkip(true);
+    // Without a known size the dialog would say "about ?", so Skip opens only once the download is sized.
+    const sized = await loadSurroundings().then(() => true, swallowed("onboarding", "the main process already logged this call", false));
+    if (sized) setConfirmSkip(true);
   }, [loadSurroundings]);
 
   const skip = useCallback(async () => {
@@ -282,7 +283,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
 
   if (skipping) {
     return (
-      <div className="flex h-screen w-screen overflow-hidden bg-surface-canvas text-text-primary">
+      <div className="flex h-full w-full overflow-hidden bg-surface-canvas text-text-primary">
         <StartupScreen
           modelName={settings.modelName}
           language={settings.language}
@@ -321,7 +322,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
 
   return (
     <div
-      className="flex h-screen w-screen flex-col overflow-hidden bg-surface-canvas text-text-primary outline-none"
+      className="flex h-full w-full flex-col overflow-hidden bg-surface-canvas text-text-primary outline-none"
       onKeyDown={onKeyDown}
       tabIndex={-1}
     >

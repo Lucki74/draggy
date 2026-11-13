@@ -1,4 +1,4 @@
-// Lints win/electron/skills-library against the draggy skill contract (docs/skills-remake-plan.md).
+// Lints win/skills-library against the draggy skill contract (docs/skills-remake-plan.md).
 // Usage: node scripts/skills/lint.mjs [--strict] [--json] [skill-id ...]
 // Errors fail the run. Warnings fail it only with --strict.
 import fs from "node:fs";
@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const LIBRARY = path.resolve(here, "../../electron/skills-library");
+const LIBRARY = path.resolve(here, "../../skills-library");
 
 export const TOOLS = new Set([
   "ask_user", "create_file", "delete_file", "edit_file", "explore", "generate_image", "git_diff", "git_status",

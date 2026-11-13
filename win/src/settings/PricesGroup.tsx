@@ -28,7 +28,7 @@ const day = (iso: string | null) => (iso ? iso.slice(0, 10) : "–");
 /** Where the rate card comes from and how it stays current, the currency costs are shown in, and the model
  * "saved" is measured against. The refresh is the one thing in costs that reaches the network. */
 export default function PricesGroup({ settings, onUpdate, t }: PricesGroupProps) {
-  const pricing = window.electronAPI?.pricing;
+  const pricing = window.draggy?.pricing;
   const [status, setStatus] = useState<PricingStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);

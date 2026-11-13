@@ -47,12 +47,12 @@ describe("Toast", () => {
     afterEach(() => {
       sent.length = 0;
       written.length = 0;
-      delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+      delete (window as unknown as { draggy?: unknown }).draggy;
     });
 
     function bridge() {
       Object.assign(window, {
-        electronAPI: {
+        draggy: {
           logBatch: (entries: typeof sent) => sent.push(...entries),
           appInfo: async () => ({ version: "9.9.9" }),
           readLogs: async () => "",

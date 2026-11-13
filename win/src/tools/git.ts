@@ -6,7 +6,7 @@ import type { GitChange, GitStatus } from "../types";
  * branch change the repository, so they are executes-class and wait for the user's approval. Nothing
  * here fetches or pushes. */
 
-const api = () => window.electronAPI?.git;
+const api = () => window.draggy?.git;
 
 const NO_BRIDGE = "Git is not available in this build.";
 

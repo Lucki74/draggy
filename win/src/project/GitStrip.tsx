@@ -34,7 +34,7 @@ export default function GitStrip({ status, workspaceId, root, t, onOpenFile }: G
     setLoading(true);
 
     try {
-      const result = await window.electronAPI?.git?.diff(
+      const result = await window.draggy?.git?.diff(
         workspaceId,
         change.path,
         change.staged && !change.unstaged,

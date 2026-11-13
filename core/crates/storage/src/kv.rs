@@ -1,4 +1,4 @@
-//! Key-value settings. Values are text; the Electron build stores JSON in them and so does this crate.
+//! Key-value settings. Values are text; Electron-era builds stored JSON in them, and so does this crate.
 
 use rusqlite::{OptionalExtension, params};
 

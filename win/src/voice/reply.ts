@@ -116,8 +116,8 @@ export async function streamVoiceChat(options: StreamOptions): Promise<void> {
 }
 
 async function streamVoice(options: StreamOptions): Promise<void> {
-  if (typeof window !== "undefined" && window.electronAPI?.gguf && !isRemote(options.model)) {
-    const started = await window.electronAPI.gguf.start({ modelPath: ggufModelName(options.model) });
+  if (typeof window !== "undefined" && window.draggy?.gguf && !isRemote(options.model)) {
+    const started = await window.draggy.gguf.start({ modelPath: ggufModelName(options.model) });
     if (!started?.success && !started?.alreadyRunning) {
       throw new Error(engineFailure(started));
     }
@@ -161,7 +161,7 @@ export interface ReplyRequest {
   searchEnabled: boolean;
   signal: AbortSignal;
   /** Runs a web search and returns something the model can read. Injected so this module never
-   * reaches for the Electron bridge itself. */
+   * reaches for the bridge itself. */
   search: (query: string) => Promise<string>;
 }
 

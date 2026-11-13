@@ -104,7 +104,7 @@ export function DiffPane({ workspaceId, rootPath, initialFile, gitStatus: initia
 
   const [commit, setCommit] = useState<GitCommit | null>(null);
   const [rawDiff, setRawDiff] = useState("");
-  const [loading, setLoading] = useState(() => Boolean(window.electronAPI?.git));
+  const [loading, setLoading] = useState(() => Boolean(window.draggy?.git));
   const [error, setError] = useState<string | null>(null);
   const [reloads, setReloads] = useState(0);
 
@@ -127,7 +127,7 @@ export function DiffPane({ workspaceId, rootPath, initialFile, gitStatus: initia
   }, []);
 
   useEffect(() => {
-    const git = window.electronAPI?.git;
+    const git = window.draggy?.git;
     if (!git) return;
     let live = true;
     const request: Promise<GitDiff> = commit
@@ -154,7 +154,7 @@ export function DiffPane({ workspaceId, rootPath, initialFile, gitStatus: initia
   }, [workspaceId, commit, hideWhitespace, reloads, t]);
 
   useEffect(() => {
-    const git = window.electronAPI?.git;
+    const git = window.draggy?.git;
     if (!git || reloads === 0) return;
     let live = true;
     git.status(workspaceId).then(
@@ -201,7 +201,7 @@ export function DiffPane({ workspaceId, rootPath, initialFile, gitStatus: initia
   };
 
   const loadBranches = () => {
-    window.electronAPI?.git.branches(workspaceId).then(
+    window.draggy?.git.branches(workspaceId).then(
       (res) => res?.success && setBranches(res.branches ?? []),
       (err) => logSwallow("diff", err, "the branch menu stays empty"),
     );
@@ -209,7 +209,7 @@ export function DiffPane({ workspaceId, rootPath, initialFile, gitStatus: initia
 
   const checkout = async (name: string) => {
     try {
-      const res = await window.electronAPI?.git.checkout(workspaceId, name);
+      const res = await window.draggy?.git.checkout(workspaceId, name);
       if (!res?.success) {
         setError(res?.error || t("gitSwitchFailed"));
         return;

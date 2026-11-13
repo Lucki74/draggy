@@ -42,13 +42,13 @@ function install(extra: Record<string, unknown> = {}) {
     })),
     search: vi.fn(async () => ({ success: true, hits: [{ runId: "r2", kind: "run", ref: "r2", snippet: "Zig snippet" }] })),
   };
-  (window as unknown as { electronAPI: unknown }).electronAPI = { research, ...extra };
+  (window as unknown as { draggy: unknown }).draggy = { research, ...extra };
   return research;
 }
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("research library helpers", () => {

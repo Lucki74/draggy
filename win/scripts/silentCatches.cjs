@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const ROOTS = ["electron", "src"];
+const ROOTS = ["src"];
 const SKIP_DIRS = new Set(["node_modules", "__tests__", "dist", "fixtures"]);
 
 const BLOCK = /catch\s*(?:\([^)]*\))?\s*\{(?:\s|\/\/[^\n]*(?:\n|$)|\/\*(?:[^*]|\*(?!\/))*\*\/)*\}/g;
@@ -22,7 +22,7 @@ function sourceFiles(dir) {
   });
 }
 
-/** `{ "electron/main.cjs": 12, ... }`, only files with at least one. */
+/** `{ "src/app/App.tsx": 12, ... }`, only files with at least one. */
 function countSilentCatches(root = ROOT) {
   const counts = {};
   for (const base of ROOTS) {

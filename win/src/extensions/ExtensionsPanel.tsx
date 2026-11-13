@@ -21,7 +21,7 @@ export default function ExtensionsPanel({ t }: ExtensionsPanelProps) {
   const [revision, setRevision] = useState(0);
   const panelId = useId();
 
-  const api = window.electronAPI?.mcp;
+  const api = window.draggy?.mcp;
 
   useEffect(() => {
     if (!api) return;

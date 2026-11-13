@@ -425,7 +425,7 @@ export function Composer({
                       id: "chat-folder",
                       label: t("openChatFolder"),
                       icon: <Icon name="folder-open" size={16} />,
-                      onSelect: () => void window.electronAPI?.chats?.folder(chat.id, true),
+                      onSelect: () => void window.draggy?.chats?.folder(chat.id, true),
                   } satisfies MenuEntry,
               ]),
         {

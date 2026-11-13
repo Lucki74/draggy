@@ -31,7 +31,7 @@ from Hugging Face. There is no account and no telemetry. The app only touches
 the network for things you ask for or switch on: model and engine downloads,
 update checks, ad-block lists, and the price refresh behind the cost counters.
 The price refresh can be turned off in Settings. Updates are always on in packaged builds.
-Available as an Electron application on Windows, a native SwiftUI app on macOS, and a native GTK 4 app on Linux.
+Available as a Tauri 2 application on Windows, a native SwiftUI app on macOS, and a native GTK 4 app on Linux.
 
 Compared with LM Studio, Jan or Ollama, the difference is the coding agent: it
 reads, edits and runs commands in a project folder, shows every change as a diff
@@ -79,7 +79,8 @@ If Draggy is useful to you, a star on this repository helps other people find it
 
 [![Build](https://img.shields.io/github/actions/workflow/status/Lucki74/draggy/ci.yml?style=flat&label=build&logo=githubactions&logoColor=white)](https://github.com/Lucki74/draggy/actions/workflows/ci.yml)
 
-![Electron](https://img.shields.io/badge/Electron-47848F?style=flat&logo=electron&logoColor=white)
+![Tauri](https://img.shields.io/badge/Tauri-24C8DB?style=flat&logo=tauri&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
@@ -91,10 +92,10 @@ If Draggy is useful to you, a star on this repository helps other people find it
 ```bash
 cd win
 npm install
-npm run electron:dev
+npm run tauri:dev
 ```
 
-This starts Vite and Electron with hot reload on Windows.
+This starts Vite and the Tauri window with hot reload on Windows. The first run needs the Rust toolchain and the pinned `node.exe` sidecar; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### macOS (SwiftUI)
 ```bash

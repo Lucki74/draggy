@@ -1,5 +1,5 @@
 //! Keeps the llama.cpp engine current: stage a faster or newer build, swap it in at launch, and roll back a build
-//! whose first load crashes. Port of electron/engineUpdater.cjs; the background timers belong to the shell.
+//! whose first load crashes. The background timers belong to the shell.
 
 use std::collections::HashSet;
 use std::fs;

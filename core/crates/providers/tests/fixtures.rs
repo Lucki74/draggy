@@ -1,7 +1,5 @@
-//! Runs the golden fixtures in `shared/fixtures/providers/*.json` through the port, as
-//! `src/__tests__/fixtures/providers.test.ts` runs them through the Electron reference. Both sides canonicalise the
-//! output the same way: whole numbers compare as integers, and a tool call's `arguments` string compares as the JSON
-//! it holds, since key order is not meaningful.
+//! Runs the golden fixtures in `shared/fixtures/providers/*.json` against this crate.
+//! Output is compared canonically: whole numbers as integers, and a tool call's `arguments` as the JSON it holds, since key order is not meaningful.
 
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;

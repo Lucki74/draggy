@@ -1,5 +1,5 @@
 //! The numbers and flags a llama-server launch is built from: cache type, window, batches, threads, speculation and streams.
-//! Pure, so each rule is a fixture. Port of the argument-building parts of electron/llamaProcess.cjs.
+//! Pure, so each rule is a fixture.
 
 use std::sync::LazyLock;
 

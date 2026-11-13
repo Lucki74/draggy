@@ -26,13 +26,13 @@ function stub(ggufs: string[], instances: ProviderInstance[]) {
     scan: vi.fn(async () => ({ success: true, servers: [] })),
   };
   const gguf = { listModels: vi.fn(async () => ggufs.map((filename) => ({ filename, size: 1 }))) };
-  (window as unknown as { electronAPI: unknown }).electronAPI = { providers, gguf };
+  (window as unknown as { draggy: unknown }).draggy = { providers, gguf };
   return providers;
 }
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 const menu = (onPick = vi.fn()) => render(<ModelChoices open model="a.gguf" onPick={onPick} t={en} />);

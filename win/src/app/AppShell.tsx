@@ -189,7 +189,7 @@ export default function AppShell({
   const {
     setTreeOpen,
     rightPaneWidth,
-    isNarrow,
+    dockOverlay,
     observeWorkArea,
     startResizeRightPane,
   } = useShellLayout({ canvasPath });
@@ -198,7 +198,7 @@ export default function AppShell({
   const [, setFileRevision] = useState(0);
 
   useEffect(() => {
-    const stop = window.electronAPI?.files?.onChanged?.((change: { workspaceId?: string }) => {
+    const stop = window.draggy?.files?.onChanged?.((change: { workspaceId?: string }) => {
       if (change.workspaceId && active && change.workspaceId !== active.id && !change.workspaceId.startsWith("chat:")) return;
       setFileRevision((r) => r + 1);
     });
@@ -279,9 +279,9 @@ export default function AppShell({
   );
 
   useEffect(() => {
-    if (!window.electronAPI?.mcp) return;
+    if (!window.draggy?.mcp) return;
 
-    const api = window.electronAPI.mcp;
+    const api = window.draggy.mcp;
 
     const call = (
       serverId: string,
@@ -306,7 +306,7 @@ export default function AppShell({
   }, []);
 
   const refreshLibraryReadiness = useCallback(() => {
-    const library = window.electronAPI?.library;
+    const library = window.draggy?.library;
     if (!library) return;
 
     library
@@ -320,7 +320,7 @@ export default function AppShell({
   useEffect(refreshLibraryReadiness, [refreshLibraryReadiness, viewMode]);
 
   useEffect(() => {
-    const api = window.electronAPI?.skills;
+    const api = window.draggy?.skills;
     if (!api) return;
 
     let cancelled = false;
@@ -341,11 +341,11 @@ export default function AppShell({
     webMode: effectiveSettings.webMode,
     browserActions: effectiveSettings.browserActions !== false,
     codeExecution: false,
-    canRunCommands: mode === "code" && Boolean(window.electronAPI?.commands),
+    canRunCommands: mode === "code" && Boolean(window.draggy?.commands),
     canElevate:
-      mode === "code" && active.permissionMode === "auto" && Boolean(window.electronAPI?.commands) && /Windows/i.test(navigator.userAgent),
+      mode === "code" && active.permissionMode === "auto" && Boolean(window.draggy?.commands) && /Windows/i.test(navigator.userAgent),
     libraryReady: mode === "chat" && libraryReady && effectiveSettings.libraryEnabled,
-    chatFolder: mode === "chat" && !active.rootPath && Boolean(window.electronAPI?.commands),
+    chatFolder: mode === "chat" && !active.rootPath && Boolean(window.draggy?.commands),
     hasFolder: Boolean(active.rootPath),
     projectRoot: active.rootPath ?? undefined,
     hasSkills: skills.length > 0,
@@ -436,7 +436,7 @@ export default function AppShell({
     async (text: string) => {
       if (!memoryDraft) return false;
 
-      const result = await window.electronAPI?.files?.write(
+      const result = await window.draggy?.files?.write(
         memoryDraft.workspaceId,
         memoryDraft.path,
         text,
@@ -452,7 +452,7 @@ export default function AppShell({
 
   const handleRevert = useCallback(
     async (checkpointId: number) => {
-      const result = await window.electronAPI?.files?.revert(checkpointId);
+      const result = await window.draggy?.files?.revert(checkpointId);
       if (result?.success) return true;
 
       store.setStorageWarning(result?.error || t("undoFailed"));
@@ -860,8 +860,8 @@ export default function AppShell({
       updateDockLayout(openPane(currentDockLayout, "files"));
       return;
     }
-    if (mode === "chat" && currentChatId && window.electronAPI?.chats?.folder) {
-      const folder = await window.electronAPI.chats.folder(currentChatId, false);
+    if (mode === "chat" && currentChatId && window.draggy?.chats?.folder) {
+      const folder = await window.draggy.chats.folder(currentChatId, false);
       if (folder?.success && folder.path) {
         setChatFiles({ chatId: currentChatId, path: folder.path });
         updateDockLayout(openPane(currentDockLayout, "files"));
@@ -900,7 +900,7 @@ export default function AppShell({
   useEffect(() => {
     openBrowserRef.current = handleOpenBrowser;
   });
-  useEffect(() => window.electronAPI?.browserPane?.onOpen(() => openBrowserRef.current()), []);
+  useEffect(() => window.draggy?.browserPane?.onOpen(() => openBrowserRef.current()), []);
 
   useEffect(() => {
     const handleShortcuts = (e: KeyboardEvent) => {
@@ -952,7 +952,7 @@ export default function AppShell({
       const runId = latestForeground();
       if (!runId) return;
       e.preventDefault();
-      void window.electronAPI?.commands?.detach(runId);
+      void window.draggy?.commands?.detach(runId);
     };
     window.addEventListener("keydown", handleBackground);
     return () => window.removeEventListener("keydown", handleBackground);
@@ -1252,7 +1252,7 @@ export default function AppShell({
 
               <div className="mt-5 flex gap-2">
                 <button
-                  onClick={() => window.electronAPI?.updater.install()}
+                  onClick={() => window.draggy?.updater.install()}
                   className="flex-1 rounded-xl bg-[var(--bg-inverted)] px-4 py-2.5 text-xs font-medium text-action-fg transition-opacity hover:opacity-90"
                 >
                   {t("updateInstallNow")}
@@ -1356,7 +1356,7 @@ export default function AppShell({
             if (!session) return;
             const now = new Date();
             const content = format === "html" ? chatToHtml(session, { now }) : chatToMarkdown(session, { now });
-            window.electronAPI
+            window.draggy
               ?.exportChat({ defaultName: transcriptFilename(session, format, now), content, ext: format })
               ?.catch((error: unknown) => logSwallow("chat", error, "the export was not saved"));
           }}
@@ -1460,7 +1460,7 @@ export default function AppShell({
               onSendReviewComment={(prompt) =>
                 currentChatId && runs.send(currentChatId, prompt)
               }
-              isOverlay={isNarrow}
+              isOverlay={dockOverlay}
             />
           }
         />

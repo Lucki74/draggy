@@ -5,7 +5,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::js::number_from_str;
 use crate::{SCHEMA_VERSION, StorageError};
 
-/// The version on disk, read the way the Electron build reads it. None when the row is missing.
+/// The version on disk, read the way Electron-era builds read it. None when the row is missing.
 pub(crate) fn schema_version(conn: &Connection) -> Result<Option<f64>, StorageError> {
     let stored: Option<String> = conn
         .query_row(

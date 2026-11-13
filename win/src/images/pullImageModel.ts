@@ -7,7 +7,7 @@ export async function pullImageModel(
   onProgress: (progress: PullProgress) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const api = typeof window === "undefined" ? undefined : window.electronAPI?.sd;
+  const api = typeof window === "undefined" ? undefined : window.draggy?.sd;
   if (!api) throw new Error("Downloading a model requires the desktop app.");
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 

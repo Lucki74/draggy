@@ -1,5 +1,5 @@
 //! What this computer can offer a model larger than its memory: RAM, VRAM, drives and how fast each one reads.
-//! The benchmark writes a temporary file, and only when the user starts it. Port of electron/hardwareProbe.cjs.
+//! The benchmark writes a temporary file, and only when the user starts it.
 
 use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom, Write};

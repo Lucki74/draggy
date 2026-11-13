@@ -1,5 +1,5 @@
 //! The models folder: which GGUF files are on disk, what each says about itself, and deleting a model with its companions.
-//! Port of electron/modelStorage.cjs (listGgufModels and deleteGgufModel). Downloads are in download.rs.
+//! Downloads are in download.rs.
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};

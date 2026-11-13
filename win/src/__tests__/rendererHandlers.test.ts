@@ -6,7 +6,7 @@ const sent: unknown[] = [];
 beforeEach(() => {
   sent.length = 0;
   vi.resetModules();
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     logBatch: (entries: unknown[]) => sent.push(...entries),
   };
 });

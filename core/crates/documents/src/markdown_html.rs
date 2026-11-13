@@ -1,4 +1,4 @@
-//! Markdown or HTML to a complete printable page. Ports electron/markdownHtml.cjs. The Markdown reader stays a line
+//! Markdown or HTML to a complete printable page. The Markdown reader is a line
 //! walker: the fixtures pin its output byte for byte, and a CommonMark parser would not reproduce it.
 
 use std::sync::LazyLock;

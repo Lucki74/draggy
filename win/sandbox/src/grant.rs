@@ -6,8 +6,8 @@ use std::ptr::{null, null_mut};
 
 use windows_sys::Win32::Foundation::{GetLastError, LocalFree, ERROR_INVALID_SID, ERROR_SUCCESS};
 use windows_sys::Win32::Security::Authorization::{
-    GetNamedSecurityInfoW, SetEntriesInAclW, SetNamedSecurityInfoW, EXPLICIT_ACCESS_W,
-    GRANT_ACCESS, SE_FILE_OBJECT, TRUSTEE_IS_SID, TRUSTEE_IS_UNKNOWN,
+    ConvertStringSidToSidW, GetNamedSecurityInfoW, SetEntriesInAclW, SetNamedSecurityInfoW,
+    EXPLICIT_ACCESS_W, GRANT_ACCESS, SE_FILE_OBJECT, TRUSTEE_IS_SID, TRUSTEE_IS_UNKNOWN,
 };
 use windows_sys::Win32::Security::{
     DeriveCapabilitySidsFromName, EqualSid, GetAce, GetSecurityDescriptorControl,
@@ -133,6 +133,26 @@ fn already_granted(dacl: &Dacl, sid: PSID, mask: u32, inherited: bool) -> bool {
         }
     }
     false
+}
+
+/// True when containers may already read and run files in the folder, through ALL APPLICATION PACKAGES or `extra`.
+pub fn containers_can_read(path: &str, extra: Option<PSID>) -> bool {
+    let Ok(current) = Dacl::read(path) else {
+        return false;
+    };
+    if extra.is_some_and(|sid| already_granted(&current, sid, READ, false)) {
+        return true;
+    }
+    let text = wide("S-1-15-2-1");
+    let mut any_package: PSID = null_mut();
+    // SAFETY: the string is NUL terminated; the SID is freed with LocalFree below.
+    if unsafe { ConvertStringSidToSidW(text.as_ptr(), &mut any_package) } == 0 {
+        return false;
+    }
+    let readable = already_granted(&current, any_package, READ, false);
+    // SAFETY: the SID came from ConvertStringSidToSidW.
+    unsafe { LocalFree(any_package) };
+    readable
 }
 
 /// Gives `sid` the rights on the folder and everything under it. Returns the Win32 error code on failure.

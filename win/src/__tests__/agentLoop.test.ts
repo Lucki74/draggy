@@ -186,7 +186,7 @@ function installFetch(
   let turnIndex = 0;
 
   vi.stubGlobal("window", {
-    electronAPI: {
+    draggy: {
       gguf: {
         status: async () => {
           const first = loaded[0];
@@ -2743,7 +2743,7 @@ describe("live streaming file creation", () => {
       ["tools"],
     );
 
-    (window.electronAPI as Record<string, unknown>).createFile = vi.fn().mockResolvedValue({
+    (window.draggy as Record<string, unknown>).createFile = vi.fn().mockResolvedValue({
       success: true,
       filepath: "C:/out/report.docx",
     });
@@ -2793,7 +2793,7 @@ describe("live streaming file creation", () => {
       ],
       ["tools"],
     );
-    (window.electronAPI as Record<string, unknown>).createFile = createFile;
+    (window.draggy as Record<string, unknown>).createFile = createFile;
 
     const resumed = await runAgentTurn(
       {
@@ -2830,7 +2830,7 @@ describe("live streaming file creation", () => {
       [],
     );
 
-    (window.electronAPI as Record<string, unknown>).createFile = vi.fn().mockResolvedValue({
+    (window.draggy as Record<string, unknown>).createFile = vi.fn().mockResolvedValue({
       success: true,
       filepath: "C:/out/streamed.txt",
     });
@@ -2867,7 +2867,7 @@ describe("what the turn writes to the log", () => {
   async function logged() {
     const { flushLogs } = await import("../logger");
     // installFetch builds its own window, so the capture goes on after it.
-    (window.electronAPI as Record<string, unknown>).logBatch = (entries: unknown[]) => sent.push(entries);
+    (window.draggy as Record<string, unknown>).logBatch = (entries: unknown[]) => sent.push(entries);
     flushLogs();
     return JSON.stringify(sent);
   }
@@ -2959,7 +2959,7 @@ describe("a research run when the turn does not end cleanly", () => {
     const stop = new AbortController();
     registerTool(openRun(() => stop.abort()));
     installFetch([opening, { content: ["done"] }], ["tools"]);
-    (window as unknown as { electronAPI: Record<string, unknown> }).electronAPI.research = { save };
+    (window as unknown as { draggy: Record<string, unknown> }).draggy.research = { save };
 
     const result = await run([userMessage("go")], stop.signal).promise;
 
@@ -2976,7 +2976,7 @@ describe("a research run when the turn does not end cleanly", () => {
     const save = vi.fn(async () => ({ success: true }));
     registerTool(openRun());
     const { requests } = installFetch([opening], ["tools"]);
-    (window as unknown as { electronAPI: Record<string, unknown> }).electronAPI.research = { save };
+    (window as unknown as { draggy: Record<string, unknown> }).draggy.research = { save };
     const inner = globalThis.fetch;
     vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
       if (url === "draggy-ai://chat" && requests.length >= 1) throw new Error("engine fell over");

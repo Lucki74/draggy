@@ -164,8 +164,8 @@ async function main() {
   const artwork = await readArtwork();
 
   const ico = await buildIco(artwork);
-  // The running app loads its window icon from beside the main process, and the installer reuses it.
-  await writeFile(path.join(ROOT, "electron", "icon.ico"), ico);
+  // The Tauri build reads its window and installer icon from this file.
+  await writeFile(path.join(ROOT, "src-tauri", "icons", "icon.ico"), ico);
 
   // The mark the interface draws, without the tile: inside the app it takes
   // its colour from the text around it, so only the shape is needed.

@@ -43,7 +43,7 @@ export async function loadSkills(
   surface: SkillSurface,
 ): Promise<InstalledSkill[]> {
   const startedAt = performance.now();
-  const result = await window.electronAPI?.skills
+  const result = await window.draggy?.skills
     ?.list(workspaceId)
     .catch(swallowed("skills", "the main process already logged this call"));
 
@@ -61,7 +61,7 @@ export async function loadSingleSkill(
   workspaceId: string,
   skillId: string,
 ): Promise<{ success: boolean; skill?: LoadedSkill } | undefined> {
-  const result = await window.electronAPI?.skills?.read(workspaceId, skillId, { enabledOnly: true });
+  const result = await window.draggy?.skills?.read(workspaceId, skillId, { enabledOnly: true });
   return result;
 }
 

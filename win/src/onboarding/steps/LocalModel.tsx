@@ -144,7 +144,7 @@ export default function LocalModel({
           onClick={() => setSearching((open) => !open)}
           aria-expanded={searching}
           disabled={offline}
-          className="-mx-1 inline-flex items-center gap-1 rounded-xs px-1 text-[13px] text-text-secondary outline-none hover:text-text-primary focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50"
+          className="-mx-1 inline-flex items-center gap-1 rounded-xs px-1 text-[13px] text-text-secondary outline-none hover:text-text-primary focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:text-text-secondary"
         >
           {t("onbSearchOther")}
           <Icon name="caret-right" size={14} className={`transition-transform ${searching ? "rotate-90" : ""}`} />

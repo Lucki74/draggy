@@ -106,7 +106,7 @@ describe("when the tools are offered", () => {
 describe("git_status", () => {
   it("asks about the conversation's workspace and describes what it found", async () => {
     const status = vi.fn(async () => STATUS);
-    vi.stubGlobal("window", { electronAPI: { git: { status } } });
+    vi.stubGlobal("window", { draggy: { git: { status } } });
     const { context, steps } = harness();
 
     const result = await runTool("git_status", {}, context, REPO);
@@ -121,7 +121,7 @@ describe("git_status", () => {
 
   it("says plainly when the folder is not a repository", async () => {
     vi.stubGlobal("window", {
-      electronAPI: { git: { status: async () => ({ success: true, available: true, isRepo: false }) } },
+      draggy: { git: { status: async () => ({ success: true, available: true, isRepo: false }) } },
     });
     const { context, steps } = harness();
 
@@ -135,7 +135,7 @@ describe("git_status", () => {
 describe("git_diff", () => {
   it("passes the path and whether to look at staged changes", async () => {
     const diff = vi.fn(async () => ({ success: true, diff: "@@ -1 +1 @@\n-a\n+b\n", files: 1, skipped: 0 }));
-    vi.stubGlobal("window", { electronAPI: { git: { diff } } });
+    vi.stubGlobal("window", { draggy: { git: { diff } } });
     const { context, steps } = harness();
 
     const result = await runTool("git_diff", { path: "src/app.ts", staged: true }, context, REPO);
@@ -147,7 +147,7 @@ describe("git_diff", () => {
 
   it("tells the model a credentials file was left out, and not to go around it", async () => {
     vi.stubGlobal("window", {
-      electronAPI: { git: { diff: async () => ({ success: true, diff: "+x\n", skipped: 1 }) } },
+      draggy: { git: { diff: async () => ({ success: true, diff: "+x\n", skipped: 1 }) } },
     });
     const { context } = harness();
 
@@ -158,7 +158,7 @@ describe("git_diff", () => {
 
   it("says there is nothing to show when nothing changed", async () => {
     vi.stubGlobal("window", {
-      electronAPI: { git: { diff: async () => ({ success: true, diff: "", skipped: 0 }) } },
+      draggy: { git: { diff: async () => ({ success: true, diff: "", skipped: 0 }) } },
     });
     const { context } = harness();
 
@@ -167,7 +167,7 @@ describe("git_diff", () => {
 
   it("passes a refusal from the guard straight back", async () => {
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         git: { diff: async () => ({ success: false, error: "That path is outside the folder this conversation can reach." }) },
       },
     });

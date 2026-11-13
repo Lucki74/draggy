@@ -6,7 +6,7 @@ export async function runImageJob(
   request: ImageRequest,
   options: { signal?: AbortSignal; onProgress?: (progress: ImageProgress) => void } = {},
 ): Promise<ImageResult> {
-  const api = window.electronAPI?.sd;
+  const api = window.draggy?.sd;
   if (!api) return { success: false, code: "E_ENGINE_MISSING", error: "The image engine is not available in this build." };
   if (options.signal?.aborted) return { success: false, code: "E_CANCELLED", error: "Cancelled" };
 

@@ -1,5 +1,5 @@
 //! The neutral types every adapter speaks: the chat request the agent builds, the events a stream turns into, and the
-//! failure a provider reports. The request follows the renderer's body, so the field names match the Electron side.
+//! failure a provider reports. The request follows the renderer's body, so the field names match the front end.
 
 use std::fmt;
 

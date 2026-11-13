@@ -1,5 +1,4 @@
 //! Asks the local llama-server whether it answers and what model it holds, and waits for it. Network and time sit behind traits.
-//! Port of pingHealth, servedModel and waitForReady in electron/llamaProcess.cjs.
 
 use std::future::Future;
 use std::time::{Duration, Instant};

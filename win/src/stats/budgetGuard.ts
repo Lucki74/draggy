@@ -14,8 +14,8 @@ export interface BudgetSources {
 }
 
 const appSources: BudgetSources = {
-  rows: async (since) => (await window.electronAPI?.metrics?.list(since))?.rows ?? [],
-  instances: async () => (await window.electronAPI?.providers?.list?.()) ?? [],
+  rows: async (since) => (await window.draggy?.metrics?.list(since))?.rows ?? [],
+  instances: async () => (await window.draggy?.providers?.list?.()) ?? [],
   now: () => Date.now(),
 };
 

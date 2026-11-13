@@ -8,7 +8,7 @@ import { describeFit, describeMemoryLoad, type ModelFit } from "../vram";
 /** The start of a new install, shared by the splash, the setup's Skip and its Ready screen. Each
  * step takes the bridge, so it runs the same wherever it is called from. */
 
-type Api = NonNullable<Window["electronAPI"]>;
+type Api = NonNullable<Window["draggy"]>;
 
 export type BootBridge = Partial<
   Pick<Api, "getSystemSpecs" | "checkInternet" | "checkDiskSpace" | "resolveModelUrl">

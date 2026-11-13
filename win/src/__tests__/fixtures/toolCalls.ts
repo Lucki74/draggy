@@ -66,8 +66,8 @@ export const TOOL_CALL_FIXTURES: ToolCallFixture[] = [
   },
   {
     label: "bare JSON with no wrapper",
-    raw: '{"name": "search_web", "args": {"query": "electron 42 release notes"}}',
-    expect: { name: "search_web", args: { query: "electron 42 release notes" } },
+    raw: '{"name": "search_web", "args": {"query": "node 22 release notes"}}',
+    expect: { name: "search_web", args: { query: "node 22 release notes" } },
   },
   {
     label: "bare JSON using arguments instead of args",

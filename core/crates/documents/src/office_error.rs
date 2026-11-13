@@ -1,4 +1,4 @@
-//! Errors from reading and writing Office files. The read messages are the ones the Electron app shows the user.
+//! Errors from reading and writing Office files. The read messages are the ones the app shows the user.
 
 use thiserror::Error;
 

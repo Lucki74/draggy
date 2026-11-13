@@ -1,4 +1,4 @@
-//! JavaScript behaviours the Electron store relies on, so values read and written match byte for byte.
+//! JavaScript behaviours that Electron-era builds relied on, so values read and written match byte for byte.
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

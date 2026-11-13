@@ -29,8 +29,9 @@ want it. No bug bounty.
 Anything that turns content Draggy reads (a web page, a document, an
 extension's output) into actions nobody asked for. Specifically:
 
-- The renderer reaching Node or the filesystem around
-  `electron/preload.cjs`, the sandbox's only bridge.
+- The webview reaching the filesystem or a command through the Tauri IPC
+  bridge. Only the `main` webview is granted IPC (`win/src-tauri/capabilities/main.json`).
+  Browser pane webviews are granted nothing (`browser-pane.json`).
 - Reading or writing outside the folders Draggy is supposed to touch, a
   credentials file (`.env`, `.ssh`) the file tools should refuse, or a repo
   that runs a program just by being looked at.
@@ -46,8 +47,10 @@ extension's output) into actions nobody asked for. Specifically:
 - The updater accepting a build that did not come from this repository, or
   the embedded browser leaking a session between the app and a page.
 
-One known gap here, stated rather than hidden: builds are not code signed, so
-the updater does not verify a signature, and the checksums in `latest.yml` and
+One known gap here, stated rather than hidden: builds are not code signed. The
+release workflow signs the Windows updater artifacts, but the minisign public key
+in `tauri.conf.json` is still a placeholder, so the updater cannot check that
+signature yet. The checksums in `latest.yml` and
 `SHA256SUMS.txt` come from the same release as the installer. They catch
 corruption, not tampering. Write access to this repository's
 releases is the trust boundary for every installed copy. Signing the Windows
@@ -74,7 +77,7 @@ One known gap, stated rather than hidden: colibri is not pinned to one release.
 Draggy installs the newest stable one and checks the archive against the
 `SHA256SUMS.txt` published beside it, so that check proves the download is
 intact, not that the upstream release is trustworthy. The Python runtime is
-pinned by hash. That runtime exists on Windows only; on macOS and Linux colibri runs on the `python3` already installed, which Draggy does not verify.
+pinned by hash on Windows and Linux.
 
 Another: the colibri gateway runs without a key, like `sd-server` below, on a
 free port of `127.0.0.1` for as long as a large model is loaded.

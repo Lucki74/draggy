@@ -2,7 +2,7 @@
 //! tasks, named t1, t2 and so on, at most [`MAX_RUNNING`] running at once. Output is merged, kept in memory
 //! (the end of it) and written whole to a log file, so the model can read it later with `task_output`.
 //!
-//! This is the piped mode of the Electron task manager (`win/electron/tasks.cjs`): there is no pseudo-terminal,
+//! This is piped mode: there is no pseudo-terminal,
 //! so a program that insists on a terminal sees a pipe. Input still reaches a task through its stdin.
 
 use std::collections::HashMap;

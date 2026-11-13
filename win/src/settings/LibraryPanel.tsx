@@ -28,7 +28,7 @@ export default function LibraryPanel({ workspaceId, manager, embedModel, onChang
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
 
-  const api = window.electronAPI?.library;
+  const api = window.draggy?.library;
 
   useEffect(() => {
     if (!api) return;
@@ -63,7 +63,7 @@ export default function LibraryPanel({ workspaceId, manager, embedModel, onChang
     if (!(await manager.startPull(plan.download.reference, { immediate: true }))) return null;
 
     // The file keeps the name the repository gave it, so it is looked up again once it has landed.
-    const files = (await window.electronAPI?.gguf?.listModels()) ?? [];
+    const files = (await window.draggy?.gguf?.listModels()) ?? [];
     return installedMatch(plan.download.model, files.map((file) => file.filename));
   };
 

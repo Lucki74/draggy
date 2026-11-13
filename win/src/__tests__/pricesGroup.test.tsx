@@ -26,7 +26,7 @@ let refresh: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   refresh = vi.fn(async () => ({ success: true, prices: { ok: true }, rates: { ok: true }, status }));
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     pricing: { status: async () => ({ success: true, status }), refresh, onUpdated: () => () => {} },
   };
 });
@@ -34,7 +34,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   setDisplayMoney(US_DOLLARS);
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 describe("the prices settings", () => {

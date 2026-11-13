@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const libPath = path.resolve(here, "../../electron/skills-library/library.json");
+const libPath = path.resolve(here, "../../skills-library/library.json");
 const specPath = path.resolve(process.argv[2] ?? "");
 const spec = JSON.parse(fs.readFileSync(specPath, "utf8"));
 const raw = fs.readFileSync(libPath, "utf8");

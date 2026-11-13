@@ -1,5 +1,4 @@
 //! Split-model file names, `model-00001-of-00004.gguf`, which llama.cpp loads from its first part.
-//! Port of electron/shards.cjs.
 
 use tracing::debug;
 

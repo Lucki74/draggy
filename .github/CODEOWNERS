@@ -3,7 +3,5 @@
 *                       @Lucki74
 
 /.github/               @Lucki74
-/win/electron/preload.cjs   @Lucki74
-/win/electron/main.cjs      @Lucki74
 /win/package.json           @Lucki74
 /win/package-lock.json      @Lucki74

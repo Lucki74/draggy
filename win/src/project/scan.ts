@@ -10,7 +10,7 @@ export async function scanProject(
   root: string,
   name: string,
 ): Promise<ProjectScan> {
-  const api = window.electronAPI?.files;
+  const api = window.draggy?.files;
   const startedAt = performance.now();
 
   const listing = await api?.list(workspaceId, ".").catch(swallowed("project", "the main process already logged this call"));

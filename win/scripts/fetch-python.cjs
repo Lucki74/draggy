@@ -1,5 +1,5 @@
 // Downloads the embeddable Python the chat workspace runs scripts with, into win/vendor/python.
-// Plain standard library, about 10 MB. Run by hand or before electron-builder.
+// Plain standard library, about 10 MB. Run by hand or before the Tauri build.
 const crypto = require("crypto");
 const fs = require("fs");
 const https = require("https");

@@ -64,7 +64,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
     settings.embedModel || manager.installed.find((entry) => isEmbeddingModel(entry.capabilities))?.name || "";
 
   const removeImageModel = async (id: string) => {
-    await window.electronAPI?.sd?.deleteModel(id).catch(swallowed("settings", "the main process already logged this call"));
+    await window.draggy?.sd?.deleteModel(id).catch(swallowed("settings", "the main process already logged this call"));
     if (settings.imageModel === id) onUpdate({ imageModel: "" });
     imageEngine.refresh();
   };

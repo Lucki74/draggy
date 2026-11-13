@@ -1,0 +1,65 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Draggy",
+  "version": "../package.json",
+  "identifier": "com.draggy.app",
+  "build": {
+    "devUrl": "http://127.0.0.1:5173",
+    "frontendDist": "../dist",
+    "beforeDevCommand": "npm run stage:sidecars && npm run dev",
+    "beforeBuildCommand": "npm run stage:sidecars && npm run build"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self' draggy: http://draggy.localhost; script-src 'self' draggy: http://draggy.localhost 'wasm-unsafe-eval'; style-src 'self' draggy: http://draggy.localhost 'unsafe-inline'; font-src 'self' draggy: http://draggy.localhost data:; img-src 'self' draggy: http://draggy.localhost data: blob: https:; media-src 'self' draggy: http://draggy.localhost data: blob:; connect-src 'self' ipc: http://ipc.localhost draggy: http://draggy.localhost draggy-ai: http://draggy-ai.localhost blob: data:; worker-src 'self' draggy: http://draggy.localhost blob:; object-src 'none'; frame-src widget: http://widget.localhost; base-uri 'self'; form-action 'none'",
+      "devCsp": "default-src 'self' draggy: http://draggy.localhost; script-src 'self' draggy: http://draggy.localhost 'wasm-unsafe-eval' 'unsafe-inline' 'unsafe-eval' http://127.0.0.1:5173; style-src 'self' draggy: http://draggy.localhost 'unsafe-inline'; font-src 'self' draggy: http://draggy.localhost data:; img-src 'self' draggy: http://draggy.localhost data: blob: https:; media-src 'self' draggy: http://draggy.localhost data: blob:; connect-src 'self' ipc: http://ipc.localhost draggy: http://draggy.localhost draggy-ai: http://draggy-ai.localhost blob: data: ws://127.0.0.1:5173 http://127.0.0.1:5173; worker-src 'self' draggy: http://draggy.localhost blob:; object-src 'none'; frame-src widget: http://widget.localhost; base-uri 'self'; form-action 'none'",
+      "freezePrototype": false,
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "credentialless"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/node"
+    ],
+    "resources": {
+      "../../shared/pricing/prices.json": "prices.json",
+      "../../shared/fixtures/web/config.json": "search-config.json",
+      "../../LICENSE": "LICENSE",
+      "../../NOTICE": "NOTICE",
+      "../sandbox/target/release/draggy-sandbox.exe": "sandbox/draggy-sandbox.exe",
+      "../skills-library/**/*": "skills-library/"
+    },
+    "publisher": "The Draggy authors",
+    "copyright": "Copyright © 2026 The Draggy authors",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "nsis/hooks.nsi"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "PLACEHOLDER_UPDATER_PUBKEY",
+      "endpoints": [
+        "https://github.com/Lucki74/draggy/releases/download/updater-windows/latest-windows.json"
+      ],
+      "windows": {
+        "installMode": "quiet"
+      }
+    }
+  }
+}

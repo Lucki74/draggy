@@ -21,7 +21,7 @@ export function useImageEngine(refreshKey?: unknown): ImageEngineStatus & { refr
   const [status, setStatus] = useState<ImageEngineStatus>(EMPTY);
 
   const refresh = useCallback(() => {
-    const api = window.electronAPI?.sd;
+    const api = window.draggy?.sd;
     if (!api) return;
     api
       .status()
@@ -40,7 +40,7 @@ export function useImageEngine(refreshKey?: unknown): ImageEngineStatus & { refr
     status.models.some((entry) => entry.installed) &&
     (!status.installed || (status.source === "app" && Boolean(status.defaultRunner) && status.runner !== status.defaultRunner));
   useEffect(() => {
-    const api = window.electronAPI?.sd;
+    const api = window.draggy?.sd;
     if (!wantsEngine || !api || setupStarted) return;
     setupStarted = true;
     void api
@@ -50,7 +50,7 @@ export function useImageEngine(refreshKey?: unknown): ImageEngineStatus & { refr
   }, [wantsEngine, refresh]);
 
   useEffect(() => {
-    const api = window.electronAPI?.sd;
+    const api = window.draggy?.sd;
     if (!api) return;
     return api.onProgress((progress) => {
       if (progress.status === "model-done" || progress.status === "done") refresh();

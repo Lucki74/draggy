@@ -1,4 +1,4 @@
-//! Writes CSV as a one-sheet .xlsx with rust_xlsxwriter. Ports markdownXlsx in electron/documents.cjs: the first row
+//! Writes CSV as a one-sheet .xlsx with rust_xlsxwriter: the first row
 //! is bold, numeric-looking cells become numbers, and every cell is set in the sheet font.
 
 use std::path::Path;

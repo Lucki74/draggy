@@ -99,7 +99,7 @@ export default function FileTree({
   };
 
   const moveInto = async (source: string, folder: string) => {
-    const api = window.electronAPI?.files;
+    const api = window.draggy?.files;
     if (!api || sameOrInside(folder, source) || parentOf(source) === folder.replace(/[\\/]+$/, "")) return;
     const result = await api.move(workspaceId, source, joinPath(folder, baseName(source)));
     if (result?.success) {
@@ -108,7 +108,7 @@ export default function FileTree({
   };
 
   const removeEntry = async (entry: DirectoryEntry) => {
-    const api = window.electronAPI?.files;
+    const api = window.draggy?.files;
     if (!api) return;
     const message = `${t("deleteFileTitle").replace("{name}", entry.name)}\n${t("deleteFileBody")}`;
     if (!window.confirm(message)) return;
@@ -142,13 +142,13 @@ export default function FileTree({
       id: "editor",
       label: t("openInEditor"),
       icon: <Icon name="arrow-square-out" size={14} />,
-      onSelect: () => void window.electronAPI?.files?.open?.(workspaceId, path),
+      onSelect: () => void window.draggy?.files?.open?.(workspaceId, path),
     },
     {
       id: "reveal",
       label: t("revealInFileManager"),
       icon: <Icon name="folder-simple" size={14} />,
-      onSelect: () => void window.electronAPI?.files?.reveal?.(workspaceId, path),
+      onSelect: () => void window.draggy?.files?.reveal?.(workspaceId, path),
     },
     {
       id: "copy",
@@ -167,7 +167,7 @@ export default function FileTree({
 
   const load = useCallback(
     async (folder: string) => {
-      const api = window.electronAPI?.files;
+      const api = window.draggy?.files;
       if (!api) return;
 
       const result = await api.list(workspaceId, folder).catch(swallowed("files", "the main process already logged this call"));
@@ -206,7 +206,7 @@ export default function FileTree({
 
   // Listens directly to file changes so the tree updates in real time.
   useEffect(() => {
-    const api = window.electronAPI?.files;
+    const api = window.draggy?.files;
     if (!api) return;
 
     const stop = api.onChanged?.((change: { workspaceId?: string }) => {

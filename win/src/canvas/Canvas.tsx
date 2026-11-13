@@ -97,7 +97,7 @@ export default function Canvas({
   const mirrorRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const api = window.electronAPI?.files;
+  const api = window.draggy?.files;
 
   // Opening, and following the file when something else changes it.
   useEffect(() => {
@@ -253,7 +253,7 @@ export default function Canvas({
             icon: <Icon name="globe-simple" size={16} />,
             onSelect: () => {
               if (onOpenBrowser) onOpenBrowser(path);
-              else void window.electronAPI?.files?.open?.(workspaceId, path);
+              else void window.draggy?.files?.open?.(workspaceId, path);
             },
           } as MenuEntry,
         ]
@@ -264,7 +264,7 @@ export default function Canvas({
             id: "open",
             label: t("openFile"),
             icon: <Icon name="arrow-square-out" size={16} />,
-            onSelect: () => void window.electronAPI?.openFile?.(path),
+            onSelect: () => void window.draggy?.openFile?.(path),
           } as MenuEntry,
         ]
       : []),
@@ -382,7 +382,7 @@ export default function Canvas({
           <span className="text-xs">{baseName(path)}</span>
           <button
             type="button"
-            onClick={() => void window.electronAPI?.files?.open?.(workspaceId, path)}
+            onClick={() => void window.draggy?.files?.open?.(workspaceId, path)}
             className="rounded-sm border border-rule-control px-3 h-7 text-xs text-text-primary hover:bg-surface-raised cursor-pointer"
           >
             {t("openInEditor")}

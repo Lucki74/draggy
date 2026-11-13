@@ -82,7 +82,7 @@ export function describeEnded(items: TaskInboxItem[]): string {
 const missing = (tool: string, message: string) => `TOOL RESULT (${tool}): ${message}`;
 
 function api() {
-  return typeof window === "undefined" ? undefined : window.electronAPI?.tasks;
+  return typeof window === "undefined" ? undefined : window.draggy?.tasks;
 }
 
 const taskId = { type: "string" as const, description: 'The task id from run_command or task_list, like "t1".' };

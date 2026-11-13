@@ -32,14 +32,14 @@ const release = vi.fn(async () => ({ success: true }));
 beforeEach(() => {
   stage.mockClear();
   release.mockClear();
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     widgets: { stage, release },
   };
 });
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 /** Renders and lets the staging promise settle. */

@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 const STORE: &str = "secrets.bin";
 const SECRET: &str = "fixture-secret-0001";
 
-/// Stands in for the keystore, as electron/secrets.test.js does: base64 both ways. A failed check reads as
+/// Stands in for the keystore with base64 both ways. A failed check reads as
 /// unavailable, and a failed backend call as no backend, which is how the shells map the trait.
 #[derive(Clone)]
 struct FakeVault {
@@ -428,7 +428,7 @@ fn adopted_records_come_back_in_javascript_key_order() {
 
     let adopted = store.adopt(&records, |_, _| false);
 
-    // The bytes JSON.stringify gives for the reference's adopt on the same records (electron/secrets.cjs).
+    // The bytes JSON.stringify gives for adopt on the same records.
     assert_eq!(
         serde_json::to_string(&adopted.records).expect("json"),
         r#"{"2":{"enabled":false},"10":{"env":{"Z":"x","A":"y"}},"b":{"enabled":true,"env":{"2":"3","10":"2","B":"1"}}}"#
@@ -656,7 +656,7 @@ fn the_fake_vault_reads_base64_the_way_node_does() {
 
 #[test]
 fn the_scrubber_minimum_counts_utf16_units_not_bytes_or_characters() {
-    // electron/logScrub.cjs registers a value when `.length >= 6`, and JavaScript's length counts UTF-16 units.
+    // A value is registered when `.length >= 6`, and JavaScript's length counts UTF-16 units.
     // Five e-acute are 10 bytes, and two emoji are 4 units but 2 characters: each boundary is pinned on its own side.
     let dir = tempfile::tempdir().expect("temp dir");
     let (mut store, seen) = watched_store(dir.path(), &FakeVault::working());

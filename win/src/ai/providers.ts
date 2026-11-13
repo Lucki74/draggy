@@ -8,6 +8,7 @@ export type ModelRef =
 import type { Message, ProviderInstance, ProviderModel } from "../types";
 import type { PromptProfile } from "../prompts";
 import { swallowed } from "../logger";
+import { invoke } from "@tauri-apps/api/core";
 
 /** What a provider hands back to be sent again later, tagged with the instance it belongs to. */
 export interface ProviderState {
@@ -48,7 +49,7 @@ export async function remoteModelInfo(model: string): Promise<(ProviderModel & {
   const ref = parseRef(model);
   if (ref.kind !== "remote" || !ref.valid || typeof window === "undefined") return null;
   try {
-    const api = window.electronAPI?.providers;
+    const api = window.draggy?.providers;
     // The instance only picks the prompt; a failed lookup costs the full prompt, never the model's info.
     const [answer, instances] = await Promise.all([api?.models(ref.instanceId), api?.list?.().catch(() => [])]);
     const found = answer?.success ? answer.models.find((m) => m.id === ref.modelId) : undefined;
@@ -88,7 +89,7 @@ export interface ModelGroup {
 /** Every enabled provider's ticked models, under its label; the engine's own come from `listInstalledModels`.
  * A ticked model its listing lacks still shows, knowing nothing, so an offline provider keeps its place. */
 export async function listAllModels(): Promise<ModelGroup[]> {
-  const api = typeof window === "undefined" ? undefined : window.electronAPI?.providers;
+  const api = typeof window === "undefined" ? undefined : window.draggy?.providers;
   if (!api) return [];
   const instances = (await api.list().catch(() => [])).filter((instance) => instance.enabled);
   return Promise.all(
@@ -145,3 +146,40 @@ export async function draggyRef(message: Message): Promise<DraggyRef> {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   return { id: message.id, hash: Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("") };
 }
+
+/** Where the chat gateway listens and the token it wants on every request. */
+export interface GatewayInfo {
+  url: string;
+  token: string;
+}
+
+/** Points a chat-gateway request at the gateway with its bearer token. Other URLs pass through untouched. */
+export function gatewayRequest(
+  input: string,
+  init: RequestInit | undefined,
+  info: GatewayInfo,
+): [string, RequestInit] {
+  if (!input.startsWith(CHAT_ENDPOINT)) return [input, init ?? {}];
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${info.token}`);
+  return [`${info.url}/chat${input.slice(CHAT_ENDPOINT.length)}`, { ...init, headers }];
+}
+
+let gatewayInstalled = false;
+
+/** In the Tauri shell, fetches the gateway's address once and routes chat requests through it. */
+export function installChatGateway(): void {
+  if (gatewayInstalled || typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return;
+  gatewayInstalled = true;
+  const original = window.fetch.bind(window);
+  const info = invoke<GatewayInfo>("gateway_info");
+  info.catch(swallowed("gateway", "chat gateway address unavailable", null));
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const text = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!text.startsWith(CHAT_ENDPOINT)) return original(input, init);
+    const [url, rest] = gatewayRequest(text, init, await info);
+    return original(url, rest);
+  };
+}
+
+installChatGateway();

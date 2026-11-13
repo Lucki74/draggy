@@ -4,11 +4,43 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const http = require("node:http");
-const platform = require(path.join(__dirname, "..", "electron", "platform.cjs"));
-const { configToml: codexConfig } = require(path.join(__dirname, "..", "electron", "providers", "codex", "process.cjs"));
+const { spawn } = require("node:child_process");
+
+// Mirrors config_toml and FEATURES_OFF in core/crates/providers/src/codex/process.rs; keep them in step.
+const FEATURES_OFF = [
+  "code_mode", "code_mode_only", "context_management", "current_time_reminder", "deferred_executor",
+  "image_generation", "memories", "multi_agent", "multi_agent_v2", "plugins", "request_permissions_tool",
+  "shell_snapshot", "shell_tool", "standalone_web_search", "token_budget", "tool_suggest", "unified_exec",
+  "view_image", "goals", "apps", "browser_use", "computer_use", "in_app_browser", "skill_search",
+  "sleep_tool", "hooks",
+];
+function codexConfig(catalogPath, { topLevel = [], tables = [] } = {}) {
+  return [
+    `model_catalog_json = ${JSON.stringify(catalogPath)}`,
+    ...topLevel,
+    'web_search = "disabled"',
+    'forced_login_method = "chatgpt"',
+    'cli_auth_credentials_store = "file"',
+    "check_for_update_on_startup = false",
+    "include_permissions_instructions = false",
+    "include_environment_context = false",
+    "include_apps_instructions = false",
+    "include_collaboration_mode_instructions = false",
+    "project_doc_max_bytes = 0",
+    "[analytics]", "enabled = false",
+    "[feedback]", "enabled = false",
+    "[features]", ...FEATURES_OFF.map((name) => `${name} = false`),
+    "[skills]", "include_instructions = false",
+    "[cloud.skills]", "enabled = false",
+    "[tools.experimental_request_user_input]", "enabled = false",
+    "[tools.update_plan]", "enabled = false",
+    ...tables,
+    "",
+  ].join("\n");
+}
 
 const binary = path.resolve(process.argv[2] || "");
-if (!fs.existsSync(binary)) {
+if (!fs.existsSync(binary) || !fs.statSync(binary).isFile()) {
   console.error("usage: node scripts/codex-probe.cjs <path to codex-app-server or codex>");
   process.exit(2);
 }
@@ -93,7 +125,9 @@ async function probeModel(model, home, catalogPath) {
   fs.mkdirSync(codexHome, { recursive: true });
   fs.writeFileSync(path.join(codexHome, "config.toml"), configToml(catalogPath, server.address().port));
 
-  const child = platform.spawnHidden(binary, [...leadArgs, "--strict-config", "--session-source", "draggy"], {
+  const child = spawn(binary, [...leadArgs, "--strict-config", "--session-source", "draggy"], {
+    windowsHide: true,
+    shell: false,
     cwd: codexHome,
     env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, TMP: process.env.TMP, CODEX_HOME: codexHome, USERPROFILE: codexHome, HOME: codexHome },
     stdio: ["pipe", "pipe", "pipe"],

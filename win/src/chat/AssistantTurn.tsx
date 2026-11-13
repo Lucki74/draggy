@@ -141,7 +141,7 @@ export function AssistantTurn({
   // In a project the file opens in the canvas; elsewhere it lives in the output folder.
   const openInCanvas = useContext(OpenFileContext);
   const openTouched = (path: string) =>
-    openInCanvas ? openInCanvas(path) : window.electronAPI?.openFile?.(path);
+    openInCanvas ? openInCanvas(path) : window.draggy?.openFile?.(path);
 
   const revert = async (checkpointId: number) => {
     if (!onRevert || reverted.has(checkpointId)) return;

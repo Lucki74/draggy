@@ -37,14 +37,14 @@ beforeEach(() => {
   status.mockClear();
   configure.mockClear();
   regenerateKey.mockClear();
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
+  (window as unknown as { draggy: unknown }).draggy = {
     apiServer: { status, configure, regenerateKey },
   };
 });
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  delete (window as unknown as { draggy?: unknown }).draggy;
 });
 
 const show = async () => {

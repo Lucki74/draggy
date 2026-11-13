@@ -36,7 +36,7 @@ const notify = () => {
 };
 
 const byId = (id: string) => sessions.find((session) => session.id === id);
-const api = () => window.electronAPI?.shell;
+const api = () => window.draggy?.shell;
 
 export const terminalAvailable = (): boolean => Boolean(api());
 

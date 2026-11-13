@@ -4,7 +4,10 @@ import {
   createProject,
   fallbackWorkspace,
 } from "../workspaces";
-import { addGrant as withGrant } from "../agent/permissions";
+import {
+  addGrant as withGrant,
+  widenCommandGrants,
+} from "../agent/permissions";
 import type { Grant } from "../agent/permissions";
 import { writeLocalStorage } from "../utils";
 import type { PermissionMode, Workspace } from "../types";
@@ -32,13 +35,15 @@ export interface WorkspaceStore {
 /** The known workspaces and the one in front. The list is in the database; the last open one is a
  * local preference, read synchronously to reopen there. */
 export function useWorkspaces(): WorkspaceStore {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([fallbackWorkspace()]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([
+    fallbackWorkspace(),
+  ]);
   const [activeId, setActiveId] = useState<string>(
     () => localStorage.getItem(ACTIVE_WORKSPACE_KEY) || DEFAULT_WORKSPACE_ID,
   );
 
   useEffect(() => {
-    const api = window.electronAPI?.workspaces;
+    const api = window.draggy?.workspaces;
     if (!api) return;
 
     let cancelled = false;
@@ -47,7 +52,12 @@ export function useWorkspaces(): WorkspaceStore {
       .list()
       .then((result) => {
         if (cancelled || !result?.success || !result.workspaces?.length) return;
-        setWorkspaces(result.workspaces);
+        setWorkspaces(
+          result.workspaces.map((one) => ({
+            ...one,
+            grants: widenCommandGrants(one.grants),
+          })),
+        );
       })
       .catch(swallowed("app", "the main process already logged this call"));
 
@@ -61,45 +71,45 @@ export function useWorkspaces(): WorkspaceStore {
     writeLocalStorage(ACTIVE_WORKSPACE_KEY, id);
   }, []);
 
-  const addProject = useCallback(async (permissionMode?: PermissionMode) => {
-    const api = window.electronAPI?.workspaces;
-    if (!api) return null;
+  const addProject = useCallback(
+    async (permissionMode?: PermissionMode) => {
+      const api = window.draggy?.workspaces;
+      if (!api) return null;
 
-    const picked = await api.pickFolder();
-    if (!picked?.success || !picked.path) return null;
+      const picked = await api.pickFolder();
+      if (!picked?.success || !picked.path) return null;
 
-    const project = createProject("", picked.path);
-    if (permissionMode) project.permissionMode = permissionMode;
+      const project = createProject("", picked.path);
+      if (permissionMode) project.permissionMode = permissionMode;
 
-    const saved = await api.save(project);
-    if (!saved?.success || !saved.workspace) return null;
+      const saved = await api.save(project);
+      if (!saved?.success || !saved.workspace) return null;
 
-    const workspace = saved.workspace;
-    setWorkspaces((prev) => [...prev, workspace]);
-    select(workspace.id);
+      const workspace = saved.workspace;
+      setWorkspaces((prev) => [...prev, workspace]);
+      select(workspace.id);
 
-    return workspace;
-  }, [select]);
-
-  const remove = useCallback(
-    async (id: string) => {
-      const api = window.electronAPI?.workspaces;
-      if (!api || id === DEFAULT_WORKSPACE_ID) return { removed: false };
-
-      const result = await api.remove(id);
-      if (!result?.success) return { removed: false };
-
-      setWorkspaces((prev) => prev.filter((one) => one.id !== id));
-      setActiveId((current) => {
-        if (current !== id) return current;
-        writeLocalStorage(ACTIVE_WORKSPACE_KEY, DEFAULT_WORKSPACE_ID);
-        return DEFAULT_WORKSPACE_ID;
-      });
-
-      return { removed: true };
+      return workspace;
     },
-    [],
+    [select],
   );
+
+  const remove = useCallback(async (id: string) => {
+    const api = window.draggy?.workspaces;
+    if (!api || id === DEFAULT_WORKSPACE_ID) return { removed: false };
+
+    const result = await api.remove(id);
+    if (!result?.success) return { removed: false };
+
+    setWorkspaces((prev) => prev.filter((one) => one.id !== id));
+    setActiveId((current) => {
+      if (current !== id) return current;
+      writeLocalStorage(ACTIVE_WORKSPACE_KEY, DEFAULT_WORKSPACE_ID);
+      return DEFAULT_WORKSPACE_ID;
+    });
+
+    return { removed: true };
+  }, []);
 
   // Built from the list on screen, not inside a state updater: React may run an updater later, and
   // the save would then send nothing.
@@ -108,10 +118,18 @@ export function useWorkspaces(): WorkspaceStore {
       const current = workspaces.find((one) => one.id === id);
       if (!current) return;
 
-      const updated: Workspace = { ...current, ...patch, updatedAt: Date.now() };
-      setWorkspaces((prev) => prev.map((one) => (one.id === id ? updated : one)));
+      const updated: Workspace = {
+        ...current,
+        ...patch,
+        updatedAt: Date.now(),
+      };
+      setWorkspaces((prev) =>
+        prev.map((one) => (one.id === id ? updated : one)),
+      );
 
-      await window.electronAPI?.workspaces?.save(updated).catch(swallowed("app", "the main process already logged this call"));
+      await window.draggy?.workspaces
+        ?.save(updated)
+        .catch(swallowed("app", "the main process already logged this call"));
     },
     [workspaces],
   );
@@ -122,7 +140,8 @@ export function useWorkspaces(): WorkspaceStore {
   );
 
   const setPermissionMode = useCallback(
-    (id: string, mode: PermissionMode) => void change(id, { permissionMode: mode }),
+    (id: string, mode: PermissionMode) =>
+      void change(id, { permissionMode: mode }),
     [change],
   );
 
@@ -132,7 +151,11 @@ export function useWorkspaces(): WorkspaceStore {
       if (!current) return;
 
       const grants = current.grants.filter(
-        (one) => !(one.tool === grant.tool && (one.target ?? "") === (grant.target ?? "")),
+        (one) =>
+          !(
+            one.tool === grant.tool &&
+            (one.target ?? "") === (grant.target ?? "")
+          ),
       );
       void change(id, { grants });
     },
@@ -155,7 +178,9 @@ export function useWorkspaces(): WorkspaceStore {
         prev.map((one) => (one.id === next.id ? next : one)),
       );
 
-      void window.electronAPI?.workspaces?.save(next).catch(swallowed("app", "the main process already logged this call"));
+      void window.draggy?.workspaces
+        ?.save(next)
+        .catch(swallowed("app", "the main process already logged this call"));
     },
     [active],
   );

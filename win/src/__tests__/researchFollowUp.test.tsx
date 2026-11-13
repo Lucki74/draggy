@@ -63,7 +63,7 @@ describe("follow-ups", () => {
       notes: [{ id: "n1", sourceId: "s1", claim: "Alpha is fast", quote: "Alpha is fast today", subQuestion: 1, confidence: "confirmed" }],
     };
     vi.stubGlobal("window", {
-      electronAPI: {
+      draggy: {
         research: {
           list: vi.fn(async () => ({ success: true, runs: [{ id: "r1", chatId: "c1", status: "done", endedAt: 9 }] })),
           get: vi.fn(async () => ({ success: true, run: saved })),
@@ -82,7 +82,7 @@ describe("follow-ups", () => {
 describe("settleRun", () => {
   it("verifies notes and saves a run the model never finished", async () => {
     const save = vi.fn(async () => ({ success: true }));
-    vi.stubGlobal("window", { electronAPI: { research: { save } } });
+    vi.stubGlobal("window", { draggy: { research: { save } } });
     const run = runWithNote();
     const ctx = { memo: new Map<string, unknown>([["research:run", run], ["research:pages", new Map([["s1", "Alpha is fast today."]])]]), chatId: "c1" } as unknown as ToolContext;
     expect(await settleRun(ctx)).toEqual({ dropped: 0 });
@@ -92,7 +92,7 @@ describe("settleRun", () => {
   });
 
   it("marks a page still reading as skipped and a stop as cancelled", async () => {
-    vi.stubGlobal("window", { electronAPI: { research: { save: vi.fn(async () => ({ success: true })) } } });
+    vi.stubGlobal("window", { draggy: { research: { save: vi.fn(async () => ({ success: true })) } } });
     const run = runWithNote();
     addSource(run, { url: "https://c.example/z", status: "reading" });
     const ctx = { memo: new Map<string, unknown>([["research:run", run]]) } as unknown as ToolContext;
@@ -106,7 +106,7 @@ describe("settleRun", () => {
 
 describe("finish_research", () => {
   it("says where a long report goes", async () => {
-    vi.stubGlobal("window", { electronAPI: { research: { save: vi.fn(async () => ({ success: true })) } } });
+    vi.stubGlobal("window", { draggy: { research: { save: vi.fn(async () => ({ success: true })) } } });
     const ctx = { memo: new Map([["research:run", runWithNote()]]) } as unknown as ToolContext;
     const result = await RESEARCH_TOOLS.find((spec) => spec.name === "finish_research")!.run({}, ctx);
     expect(result).toMatch(/create_file/);

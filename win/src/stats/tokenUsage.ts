@@ -1,6 +1,6 @@
 /** What one request used, in buckets a price can be applied to one by one. The input buckets are disjoint
  * (cache hits are not inside `input`), and `reasoning` is not inside `output`, so the sum of the five is the
- * whole bill with no double counting. Built by the providers in electron/providers/usage.cjs. */
+ * whole bill with no double counting. Built by the providers' usage code. */
 
 export type UsageSource = "reported" | "derived" | "estimated";
 

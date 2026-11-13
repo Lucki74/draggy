@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "resources": {
+      "../vendor/python/**/*": "python/",
+      "../sandbox/target/release/draggy-sandbox.exe": "sandbox/draggy-sandbox.exe"
+    },
+    "createUpdaterArtifacts": true
+  }
+}
