@@ -966,7 +966,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d045de693cb712d0b22c6a64be5b953f67b3ce00ab5ad3dd5d8b441886ab8e1a"
 dependencies = [
  "quote",
- "syn 3.0.10",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -1423,7 +1423,7 @@ dependencies = [
  "windows",
  "windows-sys 0.61.2",
  "zeroize",
- "zip 8.6.0",
+ "zip 9.5.1",
 ]
 
 [[package]]
@@ -7204,6 +7204,7 @@ dependencies = [
  "typed-path 0.13.0",
  "windows-sys 0.61.2",
  "zeroize",
+ "zopfli",
 ]
 
 [[package]]
