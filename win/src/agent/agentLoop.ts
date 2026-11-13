@@ -91,6 +91,7 @@ import {
   targetFromArgs,
 } from "./permissions";
 import type { Grant } from "./permissions";
+import { dialectFor, needsHost } from "./commandRules";
 import { describeEdit, describePlan, samePlan } from "../plan/plan";
 import type { PlanItem } from "../plan/plan";
 import {
@@ -891,6 +892,11 @@ async function runTurn(
     args: Record<string, unknown>,
   ): Promise<string> {
     if (signal.aborted) return CANCELLED_RESULT;
+    // Node runners hang in the sandbox, so they go straight to the outside request and its approval.
+    if (name === "run_command" && mode !== "auto" && needsHost(String(args.command ?? ""), dialectFor(typeof args.shell === "string" ? args.shell : null))) {
+      name = "request_outside_sandbox";
+      args = { ...args, reason: "Node tools cannot start their helper processes inside the sandbox." };
+    }
     toolCalls[name] = (toolCalls[name] ?? 0) + 1;
 
     // Typing into a task is a command in all but name: the user is asked about the text itself, and

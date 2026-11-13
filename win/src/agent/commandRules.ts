@@ -258,3 +258,21 @@ export function commandCovered(
 
   return segments.every((segment) => prefixes.some((prefix) => matches(segment, prefix)));
 }
+
+/** Node tools that start node children over pipes. Windows refuses the pipes libuv names inside the
+ * sandbox and libuv retries forever, so these hang there instead of failing. */
+const HOST_ONLY = new Set([
+  ...["npm", "npx", "pnpm", "pnpx", "yarn", "bun", "bunx", "vitest", "vite", "jest", "tsx", "ts-node"],
+  ...["next", "nuxt", "astro", "webpack", "rollup", "playwright", "electron", "turbo", "nx", "lerna"],
+]);
+
+/** Whether a command line starts one of those tools, read loosely so an opaque line still counts. */
+export function needsHost(command: string | null | undefined, dialect: ShellDialect = "bash"): boolean {
+  const segments = commandSegments(command, dialect) ?? String(command ?? "").split(/[;&|\n]+/);
+  return segments.some((segment) => {
+    const text = normalise(segment).replace(/^(?:&\s*|\w+=\S*\s+)+/, "");
+    const head = /^"([^"]*)"|^'([^']*)'|^(\S+)/.exec(text)?.slice(1).find(Boolean) ?? "";
+    const name = head.split(/[\\/]/).pop() ?? "";
+    return HOST_ONLY.has(name.toLowerCase().replace(/\.(cmd|exe|ps1|bat)$/, ""));
+  });
+}

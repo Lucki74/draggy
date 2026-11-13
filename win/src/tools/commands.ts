@@ -19,7 +19,7 @@ const runCommand: ToolSpec = {
   name: "run_command",
   group: "shell",
   description:
-    "Run a command in a sandbox that can reach the project folder and nothing else on this computer, the way a developer types it in a terminal: git, gh, npm, pnpm, cargo, python, tests, builds and linters. Returns what it printed and its exit code. The folder and environment variables it ends with carry over to the next command. A command that outlasts its time limit keeps running as a background task instead of being stopped. Pass flags that avoid prompts. In a chat with no project the sandbox has no network, so pip and npm installs fail there: write code that needs only the standard library, or ask with request_outside_sandbox for the install.",
+    "Run a command in a sandbox that can reach the project folder and nothing else on this computer, the way a developer types it in a terminal: git, gh, npm, pnpm, cargo, python, tests, builds and linters. Returns what it printed and its exit code. The folder and environment variables it ends with carry over to the next command. A command that outlasts its time limit keeps running as a background task instead of being stopped. Pass flags that avoid prompts. Node tools such as npm, npx, vitest and vite hang in the sandbox, so they always run outside it once the user approves. In a chat with no project the sandbox has no network, so pip and npm installs fail there: write code that needs only the standard library, or ask with request_outside_sandbox for the install.",
   parameters: {
     command: { type: "string", description: "The command line to run, as it would be typed." },
     shell: {
@@ -190,8 +190,11 @@ async function runInBox(
       const first = result.detached
         ? `The command is still running: it passed its ${seconds} second limit or the user sent it away. It keeps running as background task ${taskId}.`
         : `Started in the background as task ${taskId}.`;
+      const hint = outside
+        ? ""
+        : " If it should have finished by now, it may be stuck in the sandbox: run it once with request_outside_sandbox rather than trying variants.";
       const seen = result.output ? `\n\nOutput so far:\n${result.output}` : "";
-      return `TOOL RESULT (run_command): ${first} Read it with task_output, wait for it with task_wait, end it with task_stop. You are told when it ends.${seen}`;
+      return `TOOL RESULT (run_command): ${first} Read it with task_output, wait for it with task_wait, end it with task_stop. You are told when it ends.${result.detached ? hint : ""}${seen}`;
     }
 
     const output = result.output ?? "";
@@ -220,7 +223,7 @@ async function runInBox(
     if (result.cancelled) return "TOOL RESULT (run_command): The user stopped the command.";
 
     const status = result.timedOut
-      ? `The command was still running after ${seconds} seconds and was stopped.`
+      ? `The command was still running after ${seconds} seconds and was stopped.${outside ? "" : " If it hung in the sandbox, run it once with request_outside_sandbox rather than trying variants."}`
       : `Exit code ${result.exitCode}.`;
     const outsideNote = result.outside
       ? `\nIt ended in ${result.outside}, outside the project, so the next command starts in the project folder.`

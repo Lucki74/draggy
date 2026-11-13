@@ -214,6 +214,35 @@ fn random_name() -> Result<String, String> {
     Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
+/// Variables that name a CA bundle. Antivirus software often keeps it where the sandbox cannot read.
+const CA_VARS: [&str; 5] = [
+    "NODE_EXTRA_CA_CERTS",
+    "SSL_CERT_FILE",
+    "REQUESTS_CA_BUNDLE",
+    "CURL_CA_BUNDLE",
+    "GIT_SSL_CAINFO",
+];
+
+/// Copies each named CA bundle into the sandbox's cache and points its variable at the copy.
+fn copy_ca_bundles(env: &mut BTreeMap<String, String>, dir: &Path) {
+    for (index, name) in CA_VARS.iter().enumerate() {
+        let Some(source) = env
+            .get(*name)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+        else {
+            continue;
+        };
+        let copy = dir.join(format!("{index}.pem"));
+        let copied = make_dirs(dir).is_ok() && std::fs::copy(&source, &copy).is_ok();
+        if copied {
+            env.insert((*name).to_owned(), copy.display().to_string());
+        } else {
+            env.remove(*name);
+        }
+    }
+}
+
 fn system_root() -> PathBuf {
     std::env::var_os("SystemRoot").map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from)
 }
@@ -300,6 +329,7 @@ pub fn wrap(spawn: &Spawn<'_>, options: &Options) -> Result<Launch, String> {
         None => NODE_FLAGS.into(),
     };
     env.insert("NODE_OPTIONS".into(), node_options);
+    copy_ca_bundles(&mut env, &cache.join("certs"));
 
     let home = std::env::var_os("USERPROFILE").map(PathBuf::from);
     let mut read_only = toolchain_folders(spawn.file, home.as_deref(), &system_root());
@@ -907,6 +937,30 @@ mod tests {
         }
         assert_eq!(calls.load(Ordering::SeqCst), 1);
         assert!(proven_shells().contains(&"shell-test-a".to_owned()));
+    }
+
+    #[test]
+    fn ca_bundles_are_copied_or_dropped() {
+        let dir = std::env::temp_dir().join(format!("draggy-ca-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("source.pem");
+        std::fs::write(&source, "cert").unwrap();
+        let mut env = BTreeMap::from([
+            (
+                "NODE_EXTRA_CA_CERTS".to_owned(),
+                source.display().to_string(),
+            ),
+            (
+                "SSL_CERT_FILE".to_owned(),
+                dir.join("missing.pem").display().to_string(),
+            ),
+        ]);
+        copy_ca_bundles(&mut env, &dir.join("certs"));
+        let copy = env.get("NODE_EXTRA_CA_CERTS").unwrap();
+        assert!(copy.starts_with(&dir.join("certs").display().to_string()));
+        assert_eq!(std::fs::read_to_string(copy).unwrap(), "cert");
+        assert!(!env.contains_key("SSL_CERT_FILE"));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

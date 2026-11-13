@@ -4,6 +4,7 @@ import {
   commandGrantTargets,
   commandPrefix,
   commandSegments,
+  needsHost,
 } from "../agent/commandRules";
 import { decide, grantsFor, targetFromArgs } from "../agent/permissions";
 import type { ToolAnnotations } from "../agent/permissions";
@@ -144,5 +145,20 @@ describe("commands inside the sandbox", () => {
     expect(run("turbo", "git status", true)).toBe("ask");
     expect(run("ask", "git status", true)).toBe("ask");
     expect(run("auto", "git status", true)).toBe("allow");
+  });
+});
+
+describe("node runners", () => {
+  it("are sent outside the sandbox", () => {
+    expect(needsHost("npx vitest run")).toBe(true);
+    expect(needsHost("cd app && npm.cmd test", "cmd")).toBe(true);
+    expect(needsHost(String.raw`& "C:\Program Files\nodejs\npm.cmd" run build`, "pwsh")).toBe(true);
+    expect(needsHost("FOO=1 vitest", "bash")).toBe(true);
+  });
+
+  it("leave other commands in the sandbox", () => {
+    expect(needsHost("git status")).toBe(false);
+    expect(needsHost("node script.js")).toBe(false);
+    expect(needsHost("cargo test")).toBe(false);
   });
 });
