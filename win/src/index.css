@@ -1244,7 +1244,6 @@ kbd {
 .thought {
   font-size: 13px;
   line-height: 20px;
-  font-style: italic;
   color: var(--text-secondary);
 }
 /* A thought while it streams: the newest three lines, the older ones fading out at the top. */
