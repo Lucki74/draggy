@@ -64,13 +64,16 @@ const startResearch: ToolSpec = {
     "Start a research run for a question that needs several sources. Draft the sub-questions that together answer it; the user approves the plan before any search runs. Then search, read pages and record what you learn with add_note.",
   parameters: {
     question: { type: "string", description: "The question to research, in the user's words." },
-    sub_questions: { type: "string", description: "The sub-questions, one per line." },
+    sub_questions: {
+      type: "string",
+      description: 'The sub-questions, one per line, each as "Topic | question" where the topic is one or two words, like "Pricing | What does it cost per month?".',
+    },
     depth: { type: "string", description: `How deep to go: ${DEPTH_IDS.join(", ")}.` },
     sources: { type: "string", description: "Where to look, comma separated: web, papers, wiki, code. Pass the same word as search_web's source parameter to search each one." },
   },
   required: ["question", "sub_questions"],
   usage:
-    '{"question": "...", "sub_questions": "First\\nSecond", "depth": "standard", "sources": "web"} → the approved plan',
+    '{"question": "...", "sub_questions": "Speed | How fast is it?\\nCost | What does it cost?", "depth": "standard", "sources": "web"} → the approved plan',
   annotations: READ_ONLY,
   available: mayStartResearch,
   run: async (args, ctx) => {

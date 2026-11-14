@@ -51,7 +51,9 @@ export default function ResearchPlanCard({ step, t }: { step: SearchStep; t: (ke
   const cleaned = questions.map((one) => one.trim()).filter(Boolean);
   const max = DEPTHS[depth].maxQuestions;
   const approve = () => {
-    const plan: ResearchPlan = { question: drafted.question, subQuestions: cleaned, depth, sources };
+    // An edited question loses its drafted label and gets one drawn from its words.
+    const topics = cleaned.map((text) => drafted.topics?.[drafted.subQuestions.indexOf(text)] ?? "");
+    const plan: ResearchPlan = { question: drafted.question, subQuestions: cleaned, topics, depth, sources };
     answer?.(id, { choices: [PLAN_APPROVE], text: JSON.stringify(plan) });
   };
   const toggleSource = (kind: SourceKind) =>

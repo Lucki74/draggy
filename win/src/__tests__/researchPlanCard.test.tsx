@@ -40,7 +40,7 @@ describe("ResearchPlanCard", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "researchSourcePapers" }));
     fireEvent.click(screen.getByRole("button", { name: "researchApprove" }));
     expect(answer.mock.calls[0][1].choices).toEqual(["approve"]);
-    expect(sent(answer)).toEqual({ question: "How fast is X?", subQuestions: ["Speed", "Price"], depth: "deep", sources: ["web", "papers"] });
+    expect(sent(answer)).toEqual({ question: "How fast is X?", subQuestions: ["Speed", "Price"], topics: ["", ""], depth: "deep", sources: ["web", "papers"] });
   });
 
   it("removes and adds sub-questions and drops blank ones", () => {

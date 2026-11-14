@@ -44,6 +44,8 @@ export const DRY_AFTER = 0.5;
 export interface ResearchPlan {
   question: string;
   subQuestions: string[];
+  /** A one or two word label per sub-question, for the coverage row. */
+  topics?: string[];
   depth: Depth;
   sources: SourceKind[];
 }
@@ -96,10 +98,23 @@ export function isDepth(value: unknown): value is Depth {
   return typeof value === "string" && value in DEPTHS;
 }
 
+const FILLER = new Set(
+  "what which how why when where who whom whose is are was were does do did can could should would will the a an of for to in on and or its their there".split(" "),
+);
+
+/** A two word label drawn from a question, for plans drafted without one. */
+export function topicOf(text: string): string {
+  const words = text.replace(/[?.!,;:()"]/g, " ").split(/\s+/).filter(Boolean);
+  const kept = words.filter((word) => !FILLER.has(word.toLowerCase())).slice(0, 2);
+  const label = (kept.length > 0 ? kept : words.slice(0, 2)).join(" ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 /** Trims the plan to what the depth allows, so a model that drafts twelve questions still fits the budget. */
 export function readPlan(raw: {
   question?: unknown;
   subQuestions?: unknown;
+  topics?: unknown;
   depth?: unknown;
   sources?: unknown;
 }): ResearchPlan | null {
@@ -107,14 +122,24 @@ export function readPlan(raw: {
   if (!question) return null;
   const depth: Depth = isDepth(raw.depth) ? raw.depth : "standard";
   const lines = Array.isArray(raw.subQuestions) ? raw.subQuestions.map(String) : String(raw.subQuestions ?? "").split("\n");
-  const subQuestions = [
-    ...new Set(lines.map((line) => line.replace(/^\s*(?:[-*]|\d+[.)])\s*/, "").trim()).filter(Boolean)),
-  ].slice(0, DEPTHS[depth].maxQuestions);
+  const given = Array.isArray(raw.topics) ? raw.topics : [];
+  const pairs = new Map<string, string>();
+  lines.forEach((line, index) => {
+    const bare = line.replace(/^\s*(?:[-*]|\d+[.)])\s*/, "").trim();
+    // "Topic | question" puts a short label before the question.
+    const split = bare.match(/^([^|]{1,40}?)\s*\|\s*(.+)$/);
+    const text = (split ? split[2] : bare).trim();
+    const label = typeof given[index] === "string" && given[index].trim() ? given[index].trim() : split?.[1].trim();
+    if (text && !pairs.has(text)) pairs.set(text, label || topicOf(text));
+  });
+  const kept = [...pairs].slice(0, DEPTHS[depth].maxQuestions);
+  const subQuestions = kept.map(([text]) => text);
   const kinds = Array.isArray(raw.sources) ? raw.sources.map(String) : String(raw.sources ?? "").split(/[\s,]+/);
   const sources = SOURCE_KINDS.filter((kind) => kinds.includes(kind));
   return {
     question,
     subQuestions: subQuestions.length > 0 ? subQuestions : [question],
+    topics: kept.length > 0 ? kept.map(([, label]) => label) : [topicOf(question)],
     depth,
     sources: sources.length > 0 ? sources : ["web"],
   };
@@ -295,11 +320,11 @@ function supportingNotes(run: ResearchRun, subQuestion: number): number {
   ).length;
 }
 
-export function coverage(run: ResearchRun): { subQuestion: number; text: string; notes: number; enough: boolean }[] {
+export function coverage(run: ResearchRun): { subQuestion: number; text: string; topic: string; notes: number; enough: boolean }[] {
   const need = DEPTHS[run.plan.depth].notesPerQuestion;
   return run.plan.subQuestions.map((text, index) => {
     const notes = supportingNotes(run, index + 1);
-    return { subQuestion: index + 1, text, notes, enough: notes >= need };
+    return { subQuestion: index + 1, text, topic: run.plan.topics?.[index] || topicOf(text), notes, enough: notes >= need };
   });
 }
 

@@ -36,9 +36,15 @@ describe("readPlan", () => {
     expect(plan?.depth).toBe("quick");
   });
 
+  it("reads a short topic before each question and draws one when missing", () => {
+    const plan = readPlan({ question: "Q", subQuestions: "1. Pricing | What does it cost?\nWhat are the main use cases of LLMs?" });
+    expect(plan?.subQuestions).toEqual(["What does it cost?", "What are the main use cases of LLMs?"]);
+    expect(plan?.topics).toEqual(["Pricing", "Main use"]);
+  });
+
   it("falls back to standard depth, web source and the question itself", () => {
     const plan = readPlan({ question: "Q", subQuestions: [], depth: "huge", sources: "nope" });
-    expect(plan).toEqual({ question: "Q", subQuestions: ["Q"], depth: "standard", sources: ["web"] });
+    expect(plan).toEqual({ question: "Q", subQuestions: ["Q"], topics: ["Q"], depth: "standard", sources: ["web"] });
   });
 
   it("rejects an empty question", () => {

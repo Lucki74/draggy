@@ -40,7 +40,7 @@ describe("start_research", () => {
     const edited = { subQuestions: ["Speed only"], depth: "deep", sources: ["web", "papers"] };
     const ctx = context({ askUser: vi.fn(async () => ({ choices: ["approve"], text: JSON.stringify(edited) })) });
     await tool("start_research").run(PLAN, ctx);
-    expect(activeRun(ctx)?.plan).toEqual({ question: "How fast is X?", ...edited });
+    expect(activeRun(ctx)?.plan).toEqual({ question: "How fast is X?", topics: ["Speed only"], ...edited });
     expect(ctx.pushStep).toHaveBeenCalledWith(expect.objectContaining({ type: "research_plan" }));
   });
 

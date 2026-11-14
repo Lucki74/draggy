@@ -143,7 +143,7 @@ function Coverage({ run }: { run: ResearchRunView }) {
     <div role="list" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-6 gap-y-1 pt-1 pb-0.5">
       {run.questions.map((question, index) => (
         <div role="listitem" key={index} title={question.text} className="flex min-w-0 items-center gap-2 text-[12.5px] text-text-secondary">
-          <span className="min-w-0 truncate">{question.text}</span>
+          <span className="min-w-0 truncate">{question.topic ?? question.text}</span>
           <span aria-hidden="true" className="flex flex-none gap-[3px]">
             {Array.from({ length: TICKS }, (_, tick) => (
               <i key={tick} className={`cov-tick${tick < question.notes ? " on" : ""}`} />
