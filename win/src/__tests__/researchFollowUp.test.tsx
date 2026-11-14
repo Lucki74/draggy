@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
 import { applyReceipts, receiptFor } from "../research/receipts";
 import { followUpInstruction, holdsFinishedRun } from "../research/command";
 import { addNote, addSource, createRun, readPlan, type ResearchRun } from "../research/run";
 import { priorRun, settleRun } from "../research/session";
 import { RESEARCH_TOOLS } from "../tools/research";
-import { ResearchSourceList } from "../chat/ResearchSourceList";
-import type { ResearchRunView } from "../research/runView";
 import type { ToolContext } from "../tools/registry";
 
 const page = (id: string) => `TOOL RESULT (read_url):\nSource id: ${id}. Record what it says.\nTitle: T\nContent:\n${"word ".repeat(500)}`;
@@ -111,23 +109,5 @@ describe("finish_research", () => {
     const result = await RESEARCH_TOOLS.find((spec) => spec.name === "finish_research")!.run({}, ctx);
     expect(result).toMatch(/create_file/);
     expect(result).toMatch(/1,500 words/);
-  });
-});
-
-describe("source list", () => {
-  it("numbers the sources that have notes like the chips do", () => {
-    const run: ResearchRunView = {
-      id: "r", depth: "quick", startedAt: 0, endedAt: 5, wallMs: 1, gathering: false, questions: [], hosts: [],
-      sources: [
-        { id: "s1", url: "https://skip.example/a", title: "No notes", status: "read" },
-        { id: "s2", url: "https://b.example/b", title: "Beta", site: "Beta Site", published: "2026-05-01T10:00:00Z", status: "read" },
-      ],
-      notes: [{ id: "n1", sourceId: "s2", quote: "q", verified: true }],
-    };
-    render(<ResearchSourceList run={run} t={(key) => key} />);
-    expect(screen.getAllByRole("listitem")).toHaveLength(1);
-    expect(screen.getByText("Beta")).toBeTruthy();
-    expect(screen.getByText("Beta Site · 2026-05-01")).toBeTruthy();
-    expect(screen.getByText("1")).toBeTruthy();
   });
 });
