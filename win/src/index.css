@@ -1076,6 +1076,10 @@ kbd {
 .rail {
   padding-block: 8px 6px;
 }
+/* A rail that ends its block leaves the gap to whatever holds it, so margins do not stack. */
+.rail:last-child {
+  margin-bottom: 0;
+}
 .rail-item {
   --rail-x: 7.5px;
   --rail-y: 12px;
