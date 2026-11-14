@@ -5,12 +5,16 @@ import {
   beginLlamaWork,
   contextSizeFor,
   getModelInfo,
+  growContext,
+  limitContextSize,
   nextContextSize,
+  REPLY_HEADROOM_TOKENS,
   gpuShareFor,
   hasCapability,
   isExtendingContext,
   isLoadedAt,
   mergeMetrics,
+  tokenRate,
   needsTextModeTools,
   noteEngineStart,
   llamaIsBusy,
@@ -108,7 +112,8 @@ import { raceAbort } from "./abortRace";
 import { describeEnded, inputFor, isHarmlessInput } from "../tools/tasks";
 import { activeRun, settleRun } from "../research/session";
 import { followUpInstruction, holdsFinishedRun } from "../research/command";
-import { applyReceipts } from "../research/receipts";
+import { applyReceipts, dropStaleFooters, withoutFooter } from "../research/receipts";
+import { ContextOverflowError, charsPerToken, fitWire, keepToolResults, readOverflow } from "./contextFit";
 import { loopLimitFor } from "../research/run";
 import type {
   AppSettings,
@@ -171,6 +176,9 @@ export function resetTailNotesForTests() {
   userTailNotes.clear();
 }
 
+/** Heads the tool output a past reply worked from, carried so a later turn can still use it. */
+const TOOL_RESULTS_HEADING = "[Tool results this reply used]";
+
 /** Characters of earlier tool work kept per reply; the same text each turn keeps the cache prefix. */
 const HISTORY_WORK_BUDGET = 800;
 
@@ -229,6 +237,8 @@ export function toWireMessage(
 
 ${WORK_RECAP_HEADING}
 ${work}`;
+    const results = message.toolResults ?? [];
+    if (results.length > 0) content += `\n\n${TOOL_RESULTS_HEADING}\n${results.join("\n\n")}`;
   }
 
   const thinking =
@@ -261,10 +271,15 @@ export function estimateChars(messages: WireMessage[], toolChars = 0): number {
   );
 }
 
+/** Times a pass cut off by the window is grown or fitted and asked again before the turn gives up. */
+const MAX_FIT_RETRIES = 4;
+
 export interface AgentSeed {
   content: string;
   textContent: string;
   steps: SearchStep[];
+  /** The tool output the cut-off reply had gathered, sent back whole rather than as a summary. */
+  toolResults?: string[];
 }
 
 export interface AgentRequest {
@@ -347,6 +362,8 @@ export interface AgentResult {
   toolCalls: Record<string, number>;
   /** The last state the provider handed back, stored on the reply for its next turn. */
   providerState?: ProviderState;
+  /** This turn's tool output, cut to fit, for the reply to carry into later turns. */
+  toolResults?: string[];
 }
 
 const EXHAUSTED_MESSAGE =
@@ -582,7 +599,9 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     // Tool results only ever existed inside the turn that was cut off, so what
     // was actually done has to be rebuilt from the steps that survived.
     const resume = buildResumeMessage(request.seed?.steps ?? []);
-    if (resume) wire.push({ role: "user", content: resume });
+    const seedResults = request.seed?.toolResults ?? [];
+    const gathered = seedResults.length > 0 ? `\n\n${TOOL_RESULTS_HEADING}\n${seedResults.join("\n\n")}` : "";
+    if (resume || gathered) wire.push({ role: "user", content: `${resume ?? ""}${gathered}`.trim() });
 
     wire.push({
       role: "user",
@@ -1074,6 +1093,14 @@ async function runTurn(
   const turnStartedAt = Date.now();
 
   const toolChars = nativeTools ? JSON.stringify(definitions).length : 0;
+  // With the window on automatic the prompt is held inside it: grown when it can be, else shrunk.
+  const autoWindow = settings.fixedContextSize == null && !isRemote(model);
+  // Wire entries from here on are this turn's own work; the one before is the user's request.
+  let turnStart = wire.length;
+  // What the tools returned, kept on the reply so later turns see it and not only a recap.
+  const turnResults: string[] = [];
+  let fitRetries = 0;
+  let fitScale = 1;
 
   // A slash command's skill shows where it loaded, as one the model asked for does.
   for (const invokedSkill of invokedSkills) {
@@ -1174,6 +1201,7 @@ async function runTurn(
         exhausted: false,
         aborted: true,
         toolCalls,
+        toolResults: keepToolResults(turnResults),
       };
     }
 
@@ -1210,6 +1238,7 @@ async function runTurn(
     // not in the system prompt, so the cached prefix survives the run.
     const researchRun = activeRun(toolContext);
     if (researchRun) applyReceipts(wire, researchRun);
+    dropStaleFooters(wire);
 
     const loopController = new AbortController();
     const abortHandler = () => loopController.abort();
@@ -1229,6 +1258,8 @@ async function runTurn(
     /** Prose from this pass, shown as a step among the tool activity. On the last pass the step is
      * removed and the text becomes the reply. */
     let textStepId: string | null = null;
+    /** The file being written this pass, shown while its content streams. */
+    let fileStepId: string | null = null;
 
     // A continued reply is shown whole while it streams: the new words sit in the timeline above
     // the old body, so on their own they would read before the text they carry on from (B2).
@@ -1247,12 +1278,21 @@ async function runTurn(
 
     // Recomputed each pass as tool results arrive, and asked of the shared
     // tally: a disagreement with the warm-up costs a full reload.
+    // Sized from the engine's last real count: four characters a token ran short and overflowed.
+    const ratio = charsPerToken(contextCheckpoint);
+    const priorCtx = autoWindow ? peekContextSize(model, 0, info?.contextLength ?? null, null) : 0;
     numCtx = contextSizeFor(
       model,
-      estimateChars(wire, nativeTools ? JSON.stringify(definitions).length : 0),
+      (estimateChars(wire, toolChars) * CHARS_PER_TOKEN) / ratio,
       info?.contextLength ?? null,
       settings.fixedContextSize ?? null,
     );
+    if (autoWindow) {
+      const budget = Math.floor((numCtx - REPLY_HEADROOM_TOKENS) * ratio * fitScale);
+      const fitted = fitWire(wire, budget, toolChars, turnStart);
+      turnStart -= fitted.dropped;
+      if (fitted.changed) logAgentStep("context_fit", { numCtx, budget, dropped: fitted.dropped, fits: fitted.fits }, correlationId);
+    }
     // The meter has a figure from the start of each pass, not only once tokens arrive.
     emitLive(0, null);
 
@@ -1313,9 +1353,19 @@ async function runTurn(
           exactContext: typeof settings.fixedContextSize === "number",
         });
         if (!started?.success && !started?.alreadyRunning) {
+          // A bigger window that will not start falls back to the one that did, and the prompt is fitted to it.
+          if (autoWindow && numCtx > priorCtx) {
+            limitContextSize(model, priorCtx);
+            throw new ContextOverflowError(engineFailure(started, { markdown: true }), null, true);
+          }
           throw new Error(engineFailure(started, { markdown: true }));
         }
         noteEngineStart(model, started);
+        // An engine left running from before keeps its own window; the prompt is fitted to that one.
+        if (autoWindow && started?.contextSize && started.contextSize < numCtx) {
+          limitContextSize(model, started.contextSize);
+          throw new ContextOverflowError(`The engine serves a ${started.contextSize}-token window.`, null, true);
+        }
       }
 
       const thinkingBudget = localBudget(effort.sent, numCtx);
@@ -1374,7 +1424,10 @@ async function runTurn(
           }
 
           if (!attempt.ok) {
-            const message = engineFailure(readFailure(await attempt.text(), attempt.statusText), { markdown: true });
+            const failure = await attempt.text();
+            const message = engineFailure(readFailure(failure, attempt.statusText), { markdown: true });
+            const overflow = autoWindow ? readOverflow(failure) : null;
+            if (overflow !== null) throw new ContextOverflowError(message, overflow || null);
             if (isTransientStatus(attempt.status)) throw new TransientError(message, attempt.status);
             throw new Error(message);
           }
@@ -1395,7 +1448,7 @@ async function runTurn(
       let textContent = "";
       let toolMatch: string | null = null;
       let maybeToolCall = false;
-      let fileStepId: string | null = null;
+      fileStepId = null;
       // One live row and one scanner per call index, so each chunk scans only the new text.
       const liveCalls = new Map<number, { stepId: string; scanner: PartialArgsScanner }>();
       const showLive = (index: number, tool: string | undefined, argsText: string) => {
@@ -1541,7 +1594,7 @@ async function runTurn(
           if (streamingCallStr) {
             const { filename: sFn, content: sContent } = extractFileStreamingArgs(streamingCallStr);
             if (sFn || sContent !== undefined) {
-              const displayFn = sFn || "";
+              const displayFn = sFn || host.t("untitledFile");
               if (fileStepId === null) {
                 // The model is writing the file again after a cut, so the cut card gives way to it.
                 for (const old of steps.filter((entry) => entry.cut)) dropStep(old.id);
@@ -1673,7 +1726,7 @@ async function runTurn(
         const passWritten = Math.round(passChunks * tokensPerChunk);
         finishedTokens += passWritten;
         const passDurationMs = firstTokenAt !== null ? performance.now() - firstTokenAt : 0;
-        const passRate = passDurationMs > 0 ? (passWritten / passDurationMs) * 1000 : 0;
+        const passRate = tokenRate(passWritten, passDurationMs);
         if (passRate > 0) liveRate = passRate;
         const currentWireChars = estimateChars(wire, toolChars) + rawChunk.length + thinkingText.length;
         if (contextCheckpoint) {
@@ -1705,6 +1758,12 @@ async function runTurn(
       }
 
 
+      // A pass the window cut off is done again in a bigger or a fitted window, not ended for the turn.
+      if (outOfContext && autoWindow && fitRetries < MAX_FIT_RETRIES && !signal.aborted) {
+        throw new ContextOverflowError("The reply ran out of context.");
+      }
+      fitRetries = 0;
+
       currentThought = nativeThinking
         ? thinkingText
         : (extractThought(rawChunk) ?? currentThought);
@@ -1733,7 +1792,9 @@ async function runTurn(
         }
       }
 
-      const pendingCalls = nativeTools ? nativeCalls : [];
+      // A call the context cut off mid-way arrives with its arguments lost. Run as it stands, create_file
+      // reported "missing filename, content" and the model rewrote the whole file into the same wall.
+      const pendingCalls = nativeTools && !outOfContext ? nativeCalls : [];
       const hasToolCall = nativeTools ? pendingCalls.length > 0 : toolMatch !== null;
 
       if (signal.aborted) {
@@ -1754,6 +1815,7 @@ async function runTurn(
           exhausted: false,
           aborted: true,
           toolCalls,
+          toolResults: keepToolResults(turnResults),
         };
       }
 
@@ -1797,7 +1859,7 @@ async function runTurn(
           const partial = steps.find((entry) => entry.id === fileStepId);
           // A file cut mid-way is kept, so a resume can say what was lost instead of losing it silently.
           if (outOfContext && partial?.fileContent) {
-            patchStep(fileStepId, { isComplete: true, cut: true, content: `${host.t("fileCutOff")} **${partial.filename ?? ""}**` });
+            patchStep(fileStepId, { isComplete: true, cut: true, content: `${host.t("fileCutOff")} **${partial.filename || host.t("untitledFile")}**` });
           } else {
             dropStep(fileStepId);
           }
@@ -1886,6 +1948,7 @@ async function runTurn(
           if (signal.aborted || result === undefined) break;
           toolsRan = true;
           lastToolResult = result;
+          turnResults.push(withoutFooter(result));
           wire.push({
             role: "tool",
             content: result,
@@ -1912,6 +1975,7 @@ async function runTurn(
           const result = await runGuardedTool(name || "", args || {});
           toolsRan = true;
           lastToolResult = result;
+          turnResults.push(withoutFooter(result));
           wire.push({ role: "user", content: result });
           flushImages();
         }
@@ -1933,11 +1997,33 @@ async function runTurn(
           exhausted: false,
           aborted: true,
           toolCalls,
+          toolResults: keepToolResults(turnResults),
         };
       }
 
       // Tool results went in after the last count, so until the next pass ends this is an estimate.
       emitLive(0, null);
+    } catch (error) {
+      if (!(error instanceof ContextOverflowError) || !autoWindow || fitRetries >= MAX_FIT_RETRIES || signal.aborted) {
+        // A failed turn keeps the tool output it gathered, so Retry carries on from it instead of starting over.
+        if (error instanceof Error) Object.assign(error, { toolResults: keepToolResults(turnResults) });
+        throw error;
+      }
+      fitRetries += 1;
+      // The engine's count of the refused prompt calibrates the next estimate.
+      if (error.promptTokens) contextCheckpoint = { tokens: error.promptTokens, chars: estimateChars(wire, toolChars) };
+      const grown = error.memory ? null : growContext(model, info?.contextLength ?? null, numCtx);
+      if (grown === null && !error.memory) fitScale = Math.max(0.3, fitScale * 0.7);
+      logAgentStep("context_overflow", { numCtx, grown, fitScale, attempt: fitRetries, memory: error.memory }, correlationId);
+      // The cut-off pass is thrown away and asked again; it does not count as a loop.
+      dropStep(thinkStepId);
+      if (textStepId !== null) dropStep(textStepId);
+      if (fileStepId !== null) dropStep(fileStepId);
+      dropLive();
+      outOfContext = false;
+      loopCount -= 1;
+      syncSteps();
+      continue;
     } finally {
       doneLoading();
       signal.removeEventListener("abort", abortHandler);
@@ -1992,6 +2078,7 @@ async function runTurn(
       exhausted,
       aborted: signal.aborted,
       toolCalls,
+      toolResults: keepToolResults(turnResults),
       totalTokens: metrics ? metrics.promptTokens + metrics.responseTokens : 0,
     },
     correlationId,
@@ -2007,6 +2094,7 @@ async function runTurn(
     exhausted,
     aborted: signal.aborted,
     toolCalls,
+    toolResults: keepToolResults(turnResults),
     ...(turnState ? { providerState: turnState } : {}),
   };
 }

@@ -3,7 +3,8 @@
 import type { ToolSpec } from "./registry";
 import { registerTools } from "./registry";
 import { swallowed } from "../logger";
-import { activeRun, openRunBlock, priorRun, runFooter, setRun, settleRun, spendCall, syncRun } from "../research/session";
+import { judgeCitation } from "../research/citations";
+import { activeRun, openRunBlock, pageTexts, priorRun, runFooter, setRun, settleRun, spendCall, syncRun } from "../research/session";
 import {
   addNote,
   coverage,
@@ -137,6 +138,14 @@ const addNoteTool: ToolSpec = {
       confidence: args.confidence,
     });
     if (typeof note === "string") return `TOOL RESULT (add_note): ${note}`;
+    // Checked here, not only at finish: a paraphrased quote used to be dropped there, too late to fix.
+    const page = pageTexts(ctx).get(note.sourceId);
+    const verdict = page === undefined ? "unverified" : judgeCitation(note.quote, page);
+    if (verdict !== "verified") {
+      run.notes.pop();
+      const hint = verdict === "near" ? "It is close but not word for word." : "It does not appear on that page.";
+      return `TOOL RESULT (add_note): Not saved. The quote was not found on ${note.sourceId}. ${hint} Copy one sentence exactly as the page has it, with at least three words, or read the page again.`;
+    }
     syncRun(ctx);
     return `TOOL RESULT (add_note): Saved as ${note.id}.${runFooter(ctx)}`;
   },
@@ -192,6 +201,17 @@ const finishResearch: ToolSpec = {
   run: async (_args, ctx) => {
     const run = activeRun(ctx);
     if (!run) return "TOOL RESULT (finish_research): There is no research run.";
+    // Searches alone give a report with nothing to cite, so the first early finish is turned back once.
+    const refusedKey = `finish-refused:${run.id}`;
+    const found = [...new Set(run.queries.flatMap((entry) => entry.urls))];
+    if (run.status === "gathering" && run.notes.length === 0 && found.length > 0 && !ctx.memo.has(refusedKey)) {
+      ctx.memo.set(refusedKey, true);
+      return [
+        "TOOL RESULT (finish_research): Not finished. No notes are kept, so the report would have no sources.",
+        `Read the best search results with read_url, for example:\n${found.slice(0, 3).join("\n")}`,
+        "After each useful page call add_note with the exact sentence it says, then call finish_research again.",
+      ].join("\n\n");
+    }
     const settled = await settleRun(ctx);
     const dropped = settled?.dropped ?? 0;
     const kept = run.notes.filter((note) => note.verified);

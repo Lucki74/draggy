@@ -56,8 +56,22 @@ export function messageChars(message: Message): number {
     total += attachment.name.length + (attachment.content?.length || 0);
   }
 
+  // A reply goes back with its reasoning and a recap of its tool work, which the fold has to count.
+  if (message.role === "assistant") {
+    let work = 0;
+    for (const step of message.steps || []) {
+      if (step.type === "thinking") total += step.content?.length || 0;
+      else work += step.content?.length || 0;
+    }
+    total += Math.min(work, WORK_RECAP_CHARS);
+    for (const result of message.toolResults || []) total += result.length;
+  }
+
   return total;
 }
+
+/** The most a reply's work recap adds on the wire, as agentLoop's HISTORY_WORK_BUDGET. */
+const WORK_RECAP_CHARS = 800;
 
 /** Tokens of conversation a fold puts into the notes, near enough to show. */
 export function foldedTokens(messages: Message[], plan: CompactionPlan): number {

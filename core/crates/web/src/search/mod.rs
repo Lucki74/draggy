@@ -37,16 +37,20 @@ pub enum Provider {
     Startpage,
     DuckDuckGoLite,
     BraveHtml,
+    Ecosia,
+    Yahoo,
 }
 
 impl Provider {
-    pub const ALL: [Provider; 6] = [
+    pub const ALL: [Provider; 8] = [
         Provider::Searxng,
         Provider::Brave,
         Provider::DuckDuckGo,
         Provider::Startpage,
         Provider::DuckDuckGoLite,
         Provider::BraveHtml,
+        Provider::Ecosia,
+        Provider::Yahoo,
     ];
 
     pub fn id(self) -> &'static str {
@@ -57,6 +61,8 @@ impl Provider {
             Self::Startpage => "startpage",
             Self::DuckDuckGoLite => "duckduckgo-lite",
             Self::BraveHtml => "brave-html",
+            Self::Ecosia => "ecosia",
+            Self::Yahoo => "yahoo",
         }
     }
 
@@ -154,6 +160,16 @@ pub fn build_request(provider: Provider, term: &str, config: &SearchConfig) -> H
             pairs(&[("User-Agent", DESKTOP_USER_AGENT)]),
             PAGE_TIMEOUT,
         ),
+        Provider::Ecosia => (
+            format!("https://www.ecosia.org/search?q={query}"),
+            pairs(&[("User-Agent", DESKTOP_USER_AGENT)]),
+            PAGE_TIMEOUT,
+        ),
+        Provider::Yahoo => (
+            format!("https://search.yahoo.com/search?p={query}"),
+            pairs(&[("User-Agent", DESKTOP_USER_AGENT), ("Accept-Language", "en-US,en;q=0.9")]),
+            PAGE_TIMEOUT,
+        ),
     };
     HttpRequest {
         method: Method::Get,
@@ -167,6 +183,8 @@ pub fn build_request(provider: Provider, term: &str, config: &SearchConfig) -> H
                 | Provider::Startpage
                 | Provider::DuckDuckGoLite
                 | Provider::BraveHtml
+                | Provider::Ecosia
+                | Provider::Yahoo
         ),
     }
 }
@@ -296,13 +314,20 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
 
         let mut tried = Vec::new();
         let mut any_answered = false;
-        let mut any_blocked = false;
-        for provider in build_chain(config) {
-            if self.cooling_down(provider) {
-                any_blocked = true;
-                tracing::info!(target: "net.search", provider = provider.id(), "provider cooling down");
-                continue;
-            }
+        let chain = build_chain(config);
+        let mut order: Vec<Provider> = chain
+            .iter()
+            .copied()
+            .filter(|provider| !self.cooling_down(*provider))
+            .collect();
+        let mut any_blocked = order.len() < chain.len();
+        // All cooling down: still ask the one due back first, so a search never fails without a request.
+        if order.is_empty() {
+            order.extend(chain.iter().copied().min_by_key(|provider| {
+                self.cooldowns.get(provider).map_or(0, |&(_, until)| until)
+            }));
+        }
+        for provider in order {
             tried.push(provider);
             let started = self.clock.now_ms();
             self.pace(provider).await;
@@ -507,6 +532,28 @@ mod tests {
             .block_on(search.fetch(Provider::DuckDuckGo, "term", &SearchConfig::default()))
             .unwrap();
         assert_eq!(rows[0].url, "https://final.example.net/item/1");
+    }
+
+    #[test]
+    fn all_cooling_down_still_asks_the_provider_due_back_first() {
+        let mut search = Search::new(
+            Canned {
+                final_url: "https://html.duckduckgo.com/html/",
+                body: "<html><head><title>Captcha</title></head><body></body></html>",
+            },
+            SystemClock,
+        );
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap();
+        let config = SearchConfig::default();
+        let first = runtime.block_on(search.run("term", &config));
+        assert_eq!(first.status, Status::Blocked);
+        assert_eq!(first.tried.len(), build_chain(&config).len());
+        let second = runtime.block_on(search.run("term", &config));
+        assert_eq!(second.status, Status::Blocked);
+        assert_eq!(second.tried, vec![Provider::DuckDuckGo]);
     }
 
     #[test]

@@ -42,6 +42,10 @@ export default function App() {
 
   // The splash handed over to Settings, Providers: the app opens there, with no local model if need be.
   const [openSettingsOn, setOpenSettingsOn] = useState<"providers" | undefined>();
+
+  // Settings that arrive from sqlite after the first paint (an empty localStorage) still name the model.
+  const storedModel = isSplashMode || isRemote(settings.modelName) ? "" : settings.modelName;
+  if (!model && storedModel) setModel(storedModel);
   useEffect(() => {
     if (isSplashMode) return;
     return window.draggy?.onBootOpen?.((page) => {

@@ -12,9 +12,9 @@ fn main() {
         println!("cargo:rustc-link-arg=/DELAYLOAD:comctl32.dll");
         println!("cargo:rustc-link-lib=delayimp");
     }
-    // Listing the commands makes Tauri generate `allow-ipc-invoke` and `allow-ipc-send`, which the
+    // Listing the commands makes Tauri generate `allow-ipc-invoke`, `allow-ipc-send` and `allow-ipc-stage`, which the
     // capability file grants to the main window only.
-    let manifest = AppManifest::new().commands(&["ipc_invoke", "ipc_send", "gateway_info"]);
+    let manifest = AppManifest::new().commands(&["ipc_invoke", "ipc_send", "ipc_stage", "gateway_info"]);
     tauri_build::try_build(Attributes::new().app_manifest(manifest))
         .expect("failed to run the Tauri build step");
 }

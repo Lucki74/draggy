@@ -100,15 +100,18 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
     }
     if (spendCall(ctx)) return runSpent("search_web", ctx);
 
-    const failures = (ctx.memo.get(SEARCH_FAILURES) as number) ?? 0;
-    if (failures >= SEARCH_FAILURE_BUDGET) {
-      return `TOOL RESULT (search_web): Web search is not answering right now, so it has been switched off for this reply. Do not call search_web again. Answer from your own knowledge and say plainly which parts you could not check.`;
+    // Read fresh after the search too: searches run side by side, and a count taken before the await
+    // would let each one overwrite the others.
+    const failureCount = () => (ctx.memo.get(SEARCH_FAILURES) as number) ?? 0;
+    if (failureCount() >= SEARCH_FAILURE_BUDGET) {
+      return `TOOL RESULT (search_web): The last few searches came back empty or failed, so searching has been switched off for this reply. Do not call search_web again. Answer from your notes and your own knowledge and say plainly which parts you could not check.`;
     }
 
     const stepId = ctx.newId();
     ctx.pushStep({
       id: stepId,
       type: "searching",
+      tool: "search_web",
       content: `${ctx.t("searchingFor")} **${query}**`,
       isComplete: false,
     });
@@ -126,6 +129,7 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
 
       if (results.length === 0) {
         if (status !== "blocked" && status !== "unavailable") recordSearch(ctx, query, [], kind);
+        const failures = failureCount();
         ctx.memo.set(SEARCH_FAILURES, failures + 1);
         ctx.patchStep(stepId, { isComplete: true, type: "error" });
         ctx.syncSteps();
@@ -179,14 +183,14 @@ ${summary}
 
 Read the most relevant URL(s) with read_url when you need the full text. If you already have enough to answer, stop calling tools and reply.${runFooter(ctx)}`;
     } catch (error) {
-      ctx.memo.set(SEARCH_FAILURES, failures + 1);
+      ctx.memo.set(SEARCH_FAILURES, failureCount() + 1);
       ctx.patchStep(stepId, { isComplete: true, type: "error" });
       ctx.syncSteps();
       const reason = error instanceof Error ? error.message : String(error);
       logRendererEvent("renderer.tools", "ERROR", "search_web failed", {
         error: error instanceof Error ? error.name : "Error",
         message: reason,
-        failures: failures + 1,
+        failures: failureCount(),
       }, ctx.correlationId);
       return `TOOL RESULT (search_web): The search could not be run (${reason}). Answer from your own knowledge.`;
     }

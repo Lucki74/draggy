@@ -33,10 +33,12 @@ pub fn parse_response(
     match provider {
         Provider::Searxng => parse_searxng(status, body),
         Provider::Brave => parse_brave(status, body),
-        Provider::DuckDuckGo => parse_page(page_url, body, dom::duckduckgo_rows),
-        Provider::Startpage => parse_page(page_url, body, dom::startpage_rows),
-        Provider::DuckDuckGoLite => parse_page(page_url, body, dom::lite_rows),
-        Provider::BraveHtml => parse_page(page_url, body, dom::brave_html_rows),
+        Provider::DuckDuckGo => parse_page(page_url, status, body, dom::duckduckgo_rows),
+        Provider::Startpage => parse_page(page_url, status, body, dom::startpage_rows),
+        Provider::DuckDuckGoLite => parse_page(page_url, status, body, dom::lite_rows),
+        Provider::BraveHtml => parse_page(page_url, status, body, dom::brave_html_rows),
+        Provider::Ecosia => parse_page(page_url, status, body, dom::ecosia_rows),
+        Provider::Yahoo => parse_page(page_url, status, body, dom::yahoo_rows),
     }
 }
 
@@ -62,10 +64,11 @@ fn parse_brave(status: u16, body: &str) -> Result<Vec<SearchResult>, ProviderErr
     )?)))
 }
 
-/// A scraped page. The hidden window never checked the status, so neither does this. Links resolve against its `<base href>`.
-/// Page scripts and the readiness wait do not run here, so a page that fills in with JavaScript parses empty (see mod.rs).
+/// A scraped page. Links resolve against its `<base href>`. Page scripts do not run here, so a page that fills in with JavaScript parses empty (see mod.rs).
+/// An empty page answered with 202, 403 or 429 is a throttle (DuckDuckGo answers bursts with a bare 202), so it counts as a block and not as an empty web.
 fn parse_page(
     page_url: &str,
+    status: u16,
     body: &str,
     extract: fn(&Html, &Url) -> Vec<Value>,
 ) -> Result<Vec<SearchResult>, ProviderError> {
@@ -74,6 +77,13 @@ fn parse_page(
     let base = dom::document_base(&document, &page);
     let rows = extract(&document, &base);
     if rows.is_empty() {
+        if matches!(status, 202 | 403 | 429) {
+            return Err(ProviderError::Blocked("rate-limited".to_owned()));
+        }
+        // Startpage serves an Anubis proof-of-work page with 200 and no block wording.
+        if dom::has(&document, "#anubis_challenge, #anubis_version") {
+            return Err(ProviderError::Blocked("captcha".to_owned()));
+        }
         let (title, text) = dom::page_text(&document);
         if let Some(reason) = block_reason(&title, &text) {
             return Err(ProviderError::Blocked(reason.to_owned()));
@@ -215,6 +225,18 @@ pub fn unwrap_redirect(url: &str) -> String {
         return url.to_owned();
     };
     let host = parsed.host_str().unwrap_or_default();
+    // Yahoo keeps the destination percent-encoded in a `/RU=.../` path segment.
+    if host == "r.search.yahoo.com" {
+        let target = parsed.path().split('/').find_map(|segment| segment.strip_prefix("RU="));
+        let decoded = target.and_then(|t| {
+            let pair = format!("u={t}");
+            url::form_urlencoded::parse(pair.as_bytes()).next().map(|(_, v)| v.into_owned())
+        });
+        return match decoded {
+            Some(target) if is_http_url(&target) => target,
+            _ => url.to_owned(),
+        };
+    }
     if host != "duckduckgo.com" && !host.ends_with(".duckduckgo.com") {
         return url.to_owned();
     }
@@ -288,4 +310,54 @@ pub fn domain_of(url: &str) -> String {
         .unwrap_or_default();
     host.strip_prefix("www.")
         .map_or(host.clone(), str::to_owned)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_throttled_page_is_a_block() {
+        let url = "https://html.duckduckgo.com/html/?q=x";
+        let blocked = parse_response(Provider::DuckDuckGo, url, 202, "<html><body></body></html>");
+        assert!(matches!(blocked, Err(ProviderError::Blocked(reason)) if reason == "rate-limited"));
+        let empty = parse_response(Provider::DuckDuckGo, url, 200, "<html><body></body></html>");
+        assert!(matches!(empty, Ok(rows) if rows.is_empty()));
+    }
+
+    #[test]
+    fn anubis_challenge_is_a_block() {
+        let body = r#"<html><head><script id="anubis_challenge" type="application/json">{}</script></head>
+            <body>Verifying your request... Loading...</body></html>"#;
+        let blocked = parse_response(Provider::Startpage, "https://www.startpage.com/sp/search?query=q", 200, body);
+        assert!(matches!(blocked, Err(ProviderError::Blocked(reason)) if reason == "captcha"));
+    }
+
+    #[test]
+    fn ecosia_reads_organic_results_and_skips_ads() {
+        let body = r#"<html><head><title>q - Ecosia</title></head><body>
+            <div data-test-id="mainline-result-ad"><a data-test-id="result-link" href="https://ads.example/x">Ad</a></div>
+            <article data-test-id="organic-result"><div class="result__title"><a data-test-id="result-link" href="https://en.wikipedia.org/wiki/Large_language_model">Large language model - Wikipedia</a></div>
+            <p data-test-id="result-description">A large language model is a language model trained on text.</p></article>
+            </body></html>"#;
+        let rows = parse_response(Provider::Ecosia, "https://www.ecosia.org/search?q=q", 200, body).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].url, "https://en.wikipedia.org/wiki/Large_language_model");
+        assert_eq!(rows[0].title, "Large language model - Wikipedia");
+        assert!(rows[0].snippet.starts_with("A large language model"));
+    }
+
+    #[test]
+    fn yahoo_reads_organic_results_and_unwraps_its_redirect() {
+        let body = r#"<html><head><title>q - Yahoo Search Results</title></head><body><ol>
+            <li><div class="dd SysNews"><div class="compTitle"><a href="https://news.example/x"><h3>News</h3></a></div></div></li>
+            <li><div class="dd fst algo algo-sr relsrch Sr"><div class="compTitle options-toggle"><a href="https://r.search.yahoo.com/_ylt=A2/RV=2/RE=1/RO=10/RU=https%3a%2f%2fwww.freecodecamp.org%2fnews%2ftrain-your-own-llm%2f/RK=2/RS=x-"><div>freecodecamp.org</div><h3 class="title"><span>Train Your Own LLM</span></h3></a></div>
+            <div class="compText"><p>A hands-on tutorial.</p></div></div></li>
+            </ol></body></html>"#;
+        let rows = parse_response(Provider::Yahoo, "https://search.yahoo.com/search?p=q", 200, body).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].url, "https://www.freecodecamp.org/news/train-your-own-llm/");
+        assert_eq!(rows[0].title, "Train Your Own LLM");
+        assert_eq!(rows[0].snippet, "A hands-on tutorial.");
+    }
 }

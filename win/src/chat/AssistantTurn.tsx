@@ -251,10 +251,17 @@ export function AssistantTurn({
     Boolean(run) &&
     (step.type === "searching" ||
       step.type === "results" ||
+      // A failed search turns into an error row but keeps its tool, so it stays in the run block too.
+      step.tool === "search_web" ||
       ((step.type === "reading" || step.type === "error") && Boolean(step.retryUrl)) ||
       (step.type === "tool_call" && RUN_TOOLS.has(step.tool ?? "")));
+  // After the run block only the report's file and the reply count, so finished asides in between draw nothing.
+  const runAt = run ? steps.findIndex((step) => step.type === "research_run") : -1;
+  const asideAfterRun = (step: SearchStep, index: number) =>
+    runAt !== -1 && index > runAt && view === "normal" && step.isComplete !== false &&
+    (step.type === "text" || step.type === "thinking");
   for (const [index, entry] of steps.entries()) {
-    if (invisible(entry) || inRunBlock(entry)) continue;
+    if (invisible(entry) || inRunBlock(entry) || asideAfterRun(entry, index)) continue;
     // A finished search shows only its results row; "Searched for" is shown while it runs.
     if (entry.type === "searching" && entry.isComplete) continue;
     const before = steps[index - 1];
@@ -275,7 +282,14 @@ export function AssistantTurn({
   // Outside the chain, finished reasoning draws nothing in the normal view.
   const rest = segments
     .slice(foldLength)
-    .filter((segment) => !(segment[0].type === "thinking" && segment[0].isComplete && view === "normal"));
+    .filter((segment) => !(segment[0].type === "thinking" && segment[0].isComplete && view === "normal"))
+    // Reasoning that drew nothing must not leave the rail in pieces, so the work on either side joins up again.
+    .reduce<SearchStep[][]>((joined, segment) => {
+      const last = joined[joined.length - 1];
+      if (last && isWork(last[0]) && isWork(segment[0])) joined[joined.length - 1] = [...last, ...segment];
+      else joined.push(segment);
+      return joined;
+    }, []);
 
   // A yes to an approval shows as the call it allowed, so only the verbose view keeps the card.
   const drawsNothing = (step: SearchStep) =>
@@ -403,7 +417,12 @@ export function AssistantTurn({
                 {friendlyError ? (
                   <>
                     <p className="mb-1">{friendlyError}</p>
-                    <p className="text-[12px] text-text-tertiary wrap-anywhere">{errorMessage}</p>
+                    {/* The detail carries the help link as markdown, so it is rendered, not printed. */}
+                    <div className="text-[12px] text-text-tertiary wrap-anywhere">
+                      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={MARKDOWN_COMPONENTS}>
+                        {errorMessage}
+                      </ReactMarkdown>
+                    </div>
                   </>
                 ) : (
                   <ReactMarkdown

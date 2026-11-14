@@ -48,7 +48,8 @@ export interface LoadedModel {
   name: string;
   size: number;
   sizeVram: number;
-  gpuPercent: number;
+  /** Null: the engine does not report how many layers it offloaded. */
+  gpuPercent: number | null;
 }
 
 export interface InstalledModel {
@@ -257,6 +258,9 @@ export function noteEngineStart(
   if (started?.contextSize && started.contextSize > (loadedContextSizes.get(model) ?? 0)) {
     loadedContextSizes.set(model, started.contextSize);
   }
+  // A window that started is one memory allows.
+  const ceiling = memoryCeilings.get(model);
+  if (ceiling && started?.contextSize && started.contextSize > ceiling) memoryCeilings.set(model, started.contextSize);
   if (!started?.projectorRefused) return;
   forgetModelInfo(model);
   for (const listener of modelInfoListeners) listener();
@@ -279,12 +283,15 @@ export function windowCeiling(maxContext: number | null, loaded = 0): number {
   return Math.max(loaded, maxContext ?? FALLBACK_CONTEXT_LENGTH);
 }
 
+/** Tokens a window keeps free above the prompt for the reply. */
+export const REPLY_HEADROOM_TOKENS = 2048;
+
 export function pickContextSize(
   charEstimate: number,
   maxContext: number | null,
 ): number {
   const cap = windowCeiling(maxContext);
-  const needed = Math.ceil(charEstimate / 4) + 2048;
+  const needed = Math.ceil(charEstimate / 4) + REPLY_HEADROOM_TOKENS;
 
   for (const bucket of CONTEXT_BUCKETS) {
     if (bucket >= needed) return Math.min(bucket, cap);
@@ -296,6 +303,8 @@ export function pickContextSize(
 /** The window each model is loaded at. Changing context size restarts the server,
  * so it is kept once per model and only resets when fixed settings change. */
 const loadedContextSizes = new Map<string, number>();
+/** The largest window a model could be started at on this computer, learned when a bigger one failed. */
+const memoryCeilings = new Map<string, number>();
 let activeFixedContext: number | "max" | null | undefined;
 
 function syncFixedContext(fixedContext?: number | "max" | null): void {
@@ -323,19 +332,35 @@ export function contextSizeFor(
     loadedContextSizes.set(model, fixedContext);
     return fixedContext;
   }
-  const size = Math.max(
+  const size = underCeiling(model, Math.max(
     loadedContextSizes.get(model) ?? 0,
     pickContextSize(charEstimate, maxContext),
-  );
+  ));
   loadedContextSizes.set(model, size);
   return size;
+}
+
+function underCeiling(model: string, size: number): number {
+  const ceiling = memoryCeilings.get(model);
+  return ceiling ? Math.min(size, ceiling) : size;
+}
+
+/** A bigger window would not start: the automatic window stays at `size` from now on. */
+export function limitContextSize(model: string, size: number): void {
+  memoryCeilings.set(model, size);
+  loadedContextSizes.set(model, size);
+}
+
+/** The memory limit `limitContextSize` learned for a model, if any. */
+export function memoryCeilingFor(model: string): number | null {
+  return memoryCeilings.get(model) ?? null;
 }
 
 /** The next window above the one loaded, or null when the model cannot go higher. */
 export function nextContextSize(model: string, maxContext: number | null, from = 0): number | null {
   if (isRemote(model)) return null;
   const loaded = Math.max(from, loadedContextSizes.get(model) ?? 0);
-  const cap = windowCeiling(maxContext);
+  const cap = underCeiling(model, windowCeiling(maxContext));
   return CONTEXT_BUCKETS.find((bucket) => bucket > loaded && bucket <= cap) ?? null;
 }
 
@@ -360,7 +385,7 @@ export function peekContextSize(
   if (typeof fixedContext === "number") {
     return fixedContext;
   }
-  return Math.max(loadedContextSizes.get(model) ?? 0, pickContextSize(charEstimate, maxContext));
+  return underCeiling(model, Math.max(loadedContextSizes.get(model) ?? 0, pickContextSize(charEstimate, maxContext)));
 }
 
 /** Requests generating right now, anywhere in the app. A measurement waits for none of them and
@@ -394,6 +419,7 @@ export function onLlamaWork(listener: () => void): () => void {
 
 export function forgetContextSize(model: string) {
   loadedContextSizes.delete(model);
+  memoryCeilings.delete(model);
 }
 
 type GgufListing = Awaited<ReturnType<NonNullable<NonNullable<Window["draggy"]>["gguf"]>["listModels"]>>;
@@ -429,7 +455,7 @@ export async function describeLoadedModels(): Promise<LoadedModel[]> {
   try {
     const status = await window.draggy?.gguf?.status();
     if (!status?.running || !status.model) return [];
-    return [{ name: servedFileName(status.model), size: 0, sizeVram: 0, gpuPercent: 0 }];
+    return [{ name: servedFileName(status.model), size: 0, sizeVram: 0, gpuPercent: null }];
   } catch {
     return [];
   }
@@ -523,13 +549,24 @@ export function readMetrics(
     promptMs,
     responseMs,
     loadMs,
-    totalMs,
-    tokensPerSecond: responseMs > 0 ? (responseTokens / responseMs) * 1000 : 0,
+    totalMs: wallTotalMs(totalMs, timeToFirstTokenMs, responseMs),
+    tokensPerSecond: tokenRate(responseTokens, responseMs),
     timeToFirstTokenMs,
     contextWindow,
     model,
     gpuPercent: null,
   };
+}
+
+/** Rate over at least two tokens and a millisecond: one token in ~0 ms printed 1,000,000 tok/s. */
+export function tokenRate(tokens: number, ms: number): number {
+  return tokens >= 2 && ms >= 1 ? (tokens / ms) * 1000 : 0;
+}
+
+/** TTFT is wall time (load and queue included) and the engine's total is not, so a slow load read as
+ * a TTFT longer than the whole reply. The total is never shorter than TTFT plus generation. */
+export function wallTotalMs(totalMs: number, timeToFirstTokenMs: number | null, responseMs: number): number {
+  return timeToFirstTokenMs && timeToFirstTokenMs > 0 ? Math.max(totalMs, timeToFirstTokenMs + responseMs) : totalMs;
 }
 
 export function mergeMetrics(
@@ -549,7 +586,7 @@ export function mergeMetrics(
     responseMs,
     loadMs: Math.max(a.loadMs, b.loadMs),
     totalMs: a.totalMs + b.totalMs,
-    tokensPerSecond: responseMs > 0 ? (responseTokens / responseMs) * 1000 : 0,
+    tokensPerSecond: tokenRate(responseTokens, responseMs),
     timeToFirstTokenMs: a.timeToFirstTokenMs ?? b.timeToFirstTokenMs,
     contextWindow: Math.max(a.contextWindow, b.contextWindow),
     model: a.model,

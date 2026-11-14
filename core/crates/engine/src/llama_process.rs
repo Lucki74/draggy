@@ -619,6 +619,8 @@ where
         tracing::warn!(target: "engine.llama", port, served = %served, "port held by another model");
         return Some(Err(port_taken(port, &served, &base)));
     }
+    // A server left from an earlier run keeps the window it started with, whatever was asked now.
+    let window = inner.probe.served_context(port, PORT_CHECK).await;
     {
         let mut state = lock(&inner.state);
         if state.process.is_some() {
@@ -626,11 +628,14 @@ where
         }
         state.model = Some(model.to_path_buf());
         state.port = port;
+        if let Some(window) = window {
+            state.context = window;
+        }
     }
-    tracing::info!(target: "engine.llama", port, "adopting external server");
+    tracing::info!(target: "engine.llama", port, window = ?window, "adopting external server");
     Some(Ok(Started {
         port,
-        context_size: None,
+        context_size: window,
         already_running: false,
         projector_refused: false,
     }))

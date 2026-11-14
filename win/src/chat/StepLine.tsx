@@ -40,7 +40,8 @@ export function StepLine({ verb, target, mono, meta, failed, active, open, onTog
           )}
           {meta && !active && <span className={`flex-none text-[12px] ${failed ? "text-danger" : "text-text-tertiary"}`}>{meta}</span>}
           {onToggle && (
-            <span className="step-caret flex-none text-text-tertiary">
+            // One line tall and centred in it, so the caret sits on the text whether the row is open or wrapped.
+            <span className="step-caret box-content flex h-[1lh] flex-none items-center text-text-tertiary">
               <Icon name="caret-right" size={11} mirrored className={`transition-transform duration-[250ms] ${open ? "rotate-90" : ""}`} />
             </span>
           )}

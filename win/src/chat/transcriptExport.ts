@@ -79,16 +79,21 @@ function metricsRows(metrics: TurnMetrics): Field[] {
     ["Model", metrics.model],
     ["Prompt tokens", String(metrics.promptTokens)],
     ["Response tokens", String(metrics.responseTokens)],
-    ["Tokens per second", metrics.tokensPerSecond.toFixed(1)],
-    ["Time to first token", metrics.timeToFirstTokenMs === null ? "n/a" : `${metrics.timeToFirstTokenMs} ms`],
-    ["Prompt time", `${metrics.promptMs} ms`],
-    ["Response time", `${metrics.responseMs} ms`],
-    ["Load time", `${metrics.loadMs} ms`],
-    ["Total time", `${metrics.totalMs} ms`],
+    ["Tokens per second", metrics.tokensPerSecond > 0 ? metrics.tokensPerSecond.toFixed(1) : "n/a"],
+    ["Time to first token", metrics.timeToFirstTokenMs === null ? "n/a" : `${Math.round(metrics.timeToFirstTokenMs)} ms`],
+    ["Prompt time", `${Math.round(metrics.promptMs)} ms`],
+    ["Response time", `${Math.round(metrics.responseMs)} ms`],
+    ["Load time", `${Math.round(metrics.loadMs)} ms`],
+    ["Total time", `${Math.round(metrics.totalMs)} ms`],
     ["Context window", String(metrics.contextWindow)],
     ["GPU", metrics.gpuPercent === null ? "n/a" : `${metrics.gpuPercent}%`],
   ];
-  if (metrics.breakdown) rows.push(["Context breakdown", JSON.stringify(metrics.breakdown)]);
+  if (metrics.breakdown) {
+    const parts = Object.entries(metrics.breakdown)
+      .filter(([, tokens]) => typeof tokens === "number" && tokens > 0)
+      .map(([part, tokens]) => `${part} ${tokens}`);
+    if (parts.length > 0) rows.push(["Context breakdown", parts.join(", ")]);
+  }
   return rows;
 }
 
@@ -108,7 +113,7 @@ function stepView(step: SearchStep): StepView {
   if (step.language) rows.push(["Language", step.language]);
   if (step.model) rows.push(["Model", step.model]);
   if (step.retry) rows.push(["Retry", `${step.retry.attempt} of ${step.retry.of}`]);
-  if (step.thoughtTime !== undefined) rows.push(["Thought time", `${step.thoughtTime} s`]);
+  if (step.thoughtTime !== undefined) rows.push(["Thought time", `${step.thoughtTime.toFixed(1)} s`]);
   if (step.skill) rows.push(["Skill", step.skill]);
   if (step.checkpointId !== undefined) rows.push(["Checkpoint", String(step.checkpointId)]);
   if (step.change) rows.push(["Change", step.change]);

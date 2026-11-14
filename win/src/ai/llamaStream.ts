@@ -1,5 +1,5 @@
 import { safeJsonParse } from "../utils";
-import type { GenerationMetrics } from "../llama";
+import { tokenRate, wallTotalMs, type GenerationMetrics } from "../llama";
 import { readTokenUsage } from "../stats/tokenUsage";
 import type { EngineResult } from "./engineErrors";
 import { scopeToTarget } from "./providers";
@@ -269,8 +269,8 @@ export function readLlamaMetrics(
     promptMs,
     responseMs,
     loadMs: 0,
-    totalMs,
-    tokensPerSecond: responseMs > 0 ? (responseTokens / responseMs) * 1000 : (timings?.predicted_per_second ?? 0),
+    totalMs: wallTotalMs(totalMs, timeToFirstTokenMs, responseMs),
+    tokensPerSecond: tokenRate(responseTokens, responseMs) || (responseTokens >= 2 ? timings?.predicted_per_second ?? 0 : 0),
     timeToFirstTokenMs,
     contextWindow,
     model,

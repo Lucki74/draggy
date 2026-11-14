@@ -33,3 +33,39 @@ export function applyReceipts(wire: { role: string; content: string }[], run: Re
   }
   return swapped;
 }
+
+/** Where the run-state footer starts in a research tool result. */
+const FOOTER = "\n\nRESEARCH: ";
+
+/** Text-mode tool results come back as user messages, so those are told apart by their opening. */
+const isResult = (entry: { role: string; content: string }) =>
+  entry.role === "tool" || (entry.role === "user" && entry.content.startsWith("TOOL RESULT"));
+
+/** `text` without its run-state footer, which is stale as soon as the next result arrives. */
+export function withoutFooter(text: string): string {
+  const start = text.lastIndexOf(FOOTER);
+  return start === -1 ? text : text.slice(0, start);
+}
+
+/** Every research result ends with the whole run state, and only the newest is current. Older copies
+ * are cut, so seven add_note calls do not carry seven copies of the notes list. Returns how many. */
+export function dropStaleFooters(wire: { role: string; content: string }[]): number {
+  let newest = -1;
+  for (let at = wire.length - 1; at >= 0; at -= 1) {
+    const entry = wire[at];
+    if (isResult(entry) && entry.content.includes(FOOTER)) {
+      newest = at;
+      break;
+    }
+  }
+  let cut = 0;
+  for (let at = 0; at < newest; at += 1) {
+    const entry = wire[at];
+    if (!isResult(entry)) continue;
+    const start = entry.content.lastIndexOf(FOOTER);
+    if (start === -1) continue;
+    wire[at] = { ...entry, content: entry.content.slice(0, start) };
+    cut += 1;
+  }
+  return cut;
+}
