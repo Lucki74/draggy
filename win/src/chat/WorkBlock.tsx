@@ -292,7 +292,7 @@ function FileCard({
               <FilePreview filename={step.filename || "file.txt"} content={shown} t={t} isWriting={false} />
             </div>
           ) : (
-            <TailBox text={shown} open={writing} />
+            <TailBox text={shown} open={writing} full={canToggle && !writing} />
           )}
         </dd>
       </dl>
