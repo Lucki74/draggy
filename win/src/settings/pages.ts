@@ -92,7 +92,7 @@ export const effortOptions = (
 
 /** The web search providers, for the Web search page and the setup's Preferences step alike. */
 export const searchProviderOptions = (t: Translate) =>
-  (["auto", "brave-html", "duckduckgo", "ecosia", "startpage", "brave", "searxng"] as const).map((id) => ({
+  (["auto", "brave-html", "duckduckgo", "ecosia", "yahoo", "startpage", "brave", "searxng"] as const).map((id) => ({
     id,
     label: t(`provider_${id.replace(/-/g, "_")}`),
   }));

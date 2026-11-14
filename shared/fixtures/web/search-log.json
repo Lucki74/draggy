@@ -368,6 +368,9 @@
               },
               "ecosia": {
                 "error": "offline"
+              },
+              "yahoo": {
+                "error": "offline"
               }
             }
           }
@@ -385,7 +388,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "logs": [
               {
@@ -444,6 +448,16 @@
                 "message": "provider failed",
                 "data": {
                   "provider": "ecosia",
+                  "durationMs": 0,
+                  "error": "offline"
+                }
+              },
+              {
+                "level": "warn",
+                "scope": "net.search",
+                "message": "provider failed",
+                "data": {
+                  "provider": "yahoo",
                   "durationMs": 0,
                   "error": "offline"
                 }

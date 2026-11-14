@@ -169,6 +169,9 @@
               },
               "ecosia": {
                 "error": "offline"
+              },
+              "yahoo": {
+                "error": "offline"
               }
             }
           }
@@ -184,7 +187,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "status": "unavailable",
             "cached": false,
@@ -193,7 +197,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "waitedMs": 0
           }
@@ -222,6 +227,9 @@
               },
               "ecosia": {
                 "body": "<!DOCTYPE html><html><body></body></html>"
+              },
+              "yahoo": {
+                "body": "<!DOCTYPE html><html><body></body></html>"
               }
             }
           },
@@ -242,7 +250,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "status": "empty",
             "cached": false,
@@ -251,7 +260,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "waitedMs": 0
           },
@@ -263,7 +273,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "status": "empty",
             "cached": true,
@@ -518,6 +529,9 @@
               },
               "ecosia": {
                 "error": "offline"
+              },
+              "yahoo": {
+                "error": "offline"
               }
             }
           },
@@ -542,7 +556,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "status": "unavailable",
             "cached": false,
@@ -551,7 +566,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "waitedMs": 0
           },
@@ -8687,6 +8703,9 @@
               },
               "ecosia": {
                 "body": "<!DOCTYPE html><html><head><title>Verify you are human - Brave Search</title></head><body><h1>Please solve the captcha</h1></body></html>"
+              },
+              "yahoo": {
+                "body": "<!DOCTYPE html><html><head><title>Verify you are human - Brave Search</title></head><body><h1>Please solve the captcha</h1></body></html>"
               }
             }
           },
@@ -8712,7 +8731,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "status": "blocked",
             "cached": false,
@@ -8721,7 +8741,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "waitedMs": 0
           },
@@ -9333,6 +9354,9 @@
               },
               "ecosia": {
                 "body": "<!DOCTYPE html><html><head><title>Brave</title></head><body><p>No results.</p></body></html>"
+              },
+              "yahoo": {
+                "body": "<!DOCTYPE html><html><head><title>Brave</title></head><body><p>No results.</p></body></html>"
               }
             }
           },
@@ -9354,7 +9378,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "status": "empty",
             "cached": false,
@@ -9363,7 +9388,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "waitedMs": 0
           },
@@ -9375,7 +9401,8 @@
               "startpage",
               "duckduckgo-lite",
               "brave-html",
-              "ecosia"
+              "ecosia",
+              "yahoo"
             ],
             "status": "empty",
             "cached": true,

@@ -170,6 +170,28 @@ pub fn ecosia_rows(document: &Html, base: &Url) -> Vec<Value> {
     rows
 }
 
+/// Yahoo marks organic results `div.dd.algo`; news, video and ad blocks use other classes.
+pub fn yahoo_rows(document: &Html, base: &Url) -> Vec<Value> {
+    let mut rows = Vec::new();
+    for item in select_all(document, "div.dd.algo") {
+        let Some(link) = select_first(item, ".compTitle a[href]") else {
+            continue;
+        };
+        let url = href_of(link, base);
+        if !url.starts_with("http") {
+            continue;
+        }
+        let title = select_first(item, "h3").map(trimmed_text).unwrap_or_default();
+        if title.is_empty() {
+            continue;
+        }
+        let snippet = select_first(item, ".compText").map(trimmed_text).unwrap_or_default();
+        rows.push(row(&title, &url, &snippet));
+    }
+    rows.truncate(RESULT_LIMIT);
+    rows
+}
+
 fn row(title: &str, url: &str, snippet: &str) -> Value {
     json!({ "title": title, "url": url, "snippet": snippet })
 }

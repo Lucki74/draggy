@@ -38,10 +38,11 @@ pub enum Provider {
     DuckDuckGoLite,
     BraveHtml,
     Ecosia,
+    Yahoo,
 }
 
 impl Provider {
-    pub const ALL: [Provider; 7] = [
+    pub const ALL: [Provider; 8] = [
         Provider::Searxng,
         Provider::Brave,
         Provider::DuckDuckGo,
@@ -49,6 +50,7 @@ impl Provider {
         Provider::DuckDuckGoLite,
         Provider::BraveHtml,
         Provider::Ecosia,
+        Provider::Yahoo,
     ];
 
     pub fn id(self) -> &'static str {
@@ -60,6 +62,7 @@ impl Provider {
             Self::DuckDuckGoLite => "duckduckgo-lite",
             Self::BraveHtml => "brave-html",
             Self::Ecosia => "ecosia",
+            Self::Yahoo => "yahoo",
         }
     }
 
@@ -162,6 +165,11 @@ pub fn build_request(provider: Provider, term: &str, config: &SearchConfig) -> H
             pairs(&[("User-Agent", DESKTOP_USER_AGENT)]),
             PAGE_TIMEOUT,
         ),
+        Provider::Yahoo => (
+            format!("https://search.yahoo.com/search?p={query}"),
+            pairs(&[("User-Agent", DESKTOP_USER_AGENT), ("Accept-Language", "en-US,en;q=0.9")]),
+            PAGE_TIMEOUT,
+        ),
     };
     HttpRequest {
         method: Method::Get,
@@ -176,6 +184,7 @@ pub fn build_request(provider: Provider, term: &str, config: &SearchConfig) -> H
                 | Provider::DuckDuckGoLite
                 | Provider::BraveHtml
                 | Provider::Ecosia
+                | Provider::Yahoo
         ),
     }
 }

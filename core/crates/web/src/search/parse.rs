@@ -38,6 +38,7 @@ pub fn parse_response(
         Provider::DuckDuckGoLite => parse_page(page_url, status, body, dom::lite_rows),
         Provider::BraveHtml => parse_page(page_url, status, body, dom::brave_html_rows),
         Provider::Ecosia => parse_page(page_url, status, body, dom::ecosia_rows),
+        Provider::Yahoo => parse_page(page_url, status, body, dom::yahoo_rows),
     }
 }
 
@@ -224,6 +225,18 @@ pub fn unwrap_redirect(url: &str) -> String {
         return url.to_owned();
     };
     let host = parsed.host_str().unwrap_or_default();
+    // Yahoo keeps the destination percent-encoded in a `/RU=.../` path segment.
+    if host == "r.search.yahoo.com" {
+        let target = parsed.path().split('/').find_map(|segment| segment.strip_prefix("RU="));
+        let decoded = target.and_then(|t| {
+            let pair = format!("u={t}");
+            url::form_urlencoded::parse(pair.as_bytes()).next().map(|(_, v)| v.into_owned())
+        });
+        return match decoded {
+            Some(target) if is_http_url(&target) => target,
+            _ => url.to_owned(),
+        };
+    }
     if host != "duckduckgo.com" && !host.ends_with(".duckduckgo.com") {
         return url.to_owned();
     }
@@ -332,5 +345,19 @@ mod tests {
         assert_eq!(rows[0].url, "https://en.wikipedia.org/wiki/Large_language_model");
         assert_eq!(rows[0].title, "Large language model - Wikipedia");
         assert!(rows[0].snippet.starts_with("A large language model"));
+    }
+
+    #[test]
+    fn yahoo_reads_organic_results_and_unwraps_its_redirect() {
+        let body = r#"<html><head><title>q - Yahoo Search Results</title></head><body><ol>
+            <li><div class="dd SysNews"><div class="compTitle"><a href="https://news.example/x"><h3>News</h3></a></div></div></li>
+            <li><div class="dd fst algo algo-sr relsrch Sr"><div class="compTitle options-toggle"><a href="https://r.search.yahoo.com/_ylt=A2/RV=2/RE=1/RO=10/RU=https%3a%2f%2fwww.freecodecamp.org%2fnews%2ftrain-your-own-llm%2f/RK=2/RS=x-"><div>freecodecamp.org</div><h3 class="title"><span>Train Your Own LLM</span></h3></a></div>
+            <div class="compText"><p>A hands-on tutorial.</p></div></div></li>
+            </ol></body></html>"#;
+        let rows = parse_response(Provider::Yahoo, "https://search.yahoo.com/search?p=q", 200, body).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].url, "https://www.freecodecamp.org/news/train-your-own-llm/");
+        assert_eq!(rows[0].title, "Train Your Own LLM");
+        assert_eq!(rows[0].snippet, "A hands-on tutorial.");
     }
 }

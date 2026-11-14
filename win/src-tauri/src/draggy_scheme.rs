@@ -50,14 +50,14 @@ async fn serve(app: &AppHandle, uri: &str) -> Response<Vec<u8>> {
     }
 }
 
-/// The host picks the kind on draggy://<kind>/ and on WebView2's http://draggy.localhost/<kind>/.
+/// The host picks the kind on draggy://<kind>/; WebView2 asks http://draggy.localhost/<kind>/, which Tauri hands over as draggy://localhost/<kind>/.
 fn route(uri: &str) -> Route {
     let Some((_, rest)) = uri.split_once("://") else {
         return Route::Unknown;
     };
     let rest = rest.split(['?', '#']).next().unwrap_or_default();
     let (host, path) = rest.split_once('/').unwrap_or((rest, ""));
-    let (kind, tail) = if host.eq_ignore_ascii_case("draggy.localhost") {
+    let (kind, tail) = if host.eq_ignore_ascii_case("draggy.localhost") || host.eq_ignore_ascii_case("localhost") {
         path.split_once('/').unwrap_or((path, ""))
     } else {
         (host, path)
@@ -439,6 +439,10 @@ mod tests {
         );
         assert_eq!(
             route("http://draggy.localhost/favicon/example.com"),
+            Route::Favicon("example.com".into())
+        );
+        assert_eq!(
+            route("draggy://localhost/favicon/example.com"),
             Route::Favicon("example.com".into())
         );
         assert_eq!(
