@@ -635,6 +635,7 @@ export default function AppShell({
         pendingSteers: runs.pendingSteers[queueChatId] ?? [],
         enqueue: (content, attachments) => runs.enqueue(queueChatId, content, attachments),
         steer: (content) => runs.steer(queueChatId, content),
+        unsteer: (index) => runs.unsteer(queueChatId, index),
         sendNow: (content, attachments) => runs.sendNow(queueChatId, content, attachments),
         editQueued: (id, content) => runs.editQueued(queueChatId, id, content),
         removeQueued: (id) => runs.removeQueued(queueChatId, id),

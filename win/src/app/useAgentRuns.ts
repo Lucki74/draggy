@@ -74,6 +74,7 @@ export interface AgentRuns {
   moveQueued: TaskManager["moveQueued"];
   sendQueuedNow: TaskManager["sendQueuedNow"];
   steer: TaskManager["steer"];
+  unsteer: TaskManager["unsteer"];
   sendNow: TaskManager["sendNow"];
 }
 
@@ -138,6 +139,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
       moveQueued: manager.moveQueued,
       sendQueuedNow: manager.sendQueuedNow,
       steer: manager.steer,
+      unsteer: manager.unsteer,
       sendNow: manager.sendNow,
     }),
     [running, queues, pendingSteers, manager],

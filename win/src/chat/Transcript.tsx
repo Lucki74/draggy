@@ -6,6 +6,7 @@ import { JUMP_LIST_MIN_PROMPTS, PromptJumpList } from "./PromptJumpList";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { Button, Icon } from "../ui";
 import { ComposerQueueContext } from "./Composer";
+import { restoreToComposer } from "./mentions";
 import type { AppSettings, ApprovalAnswer, ChatSession } from "../types";
 
 export interface TranscriptProps {
@@ -244,13 +245,27 @@ export function Transcript({
           </InView>
         ))}
         {pendingNotes.map((note, index) => (
-          <div key={`${index}:${note}`} className="max-w-[var(--chat-column)] mx-auto flex items-start gap-2 text-[14px] text-text-secondary">
+          <div key={`${index}:${note}`} className="group/steer max-w-[var(--chat-column)] mx-auto flex items-start gap-2 text-[14px] text-text-secondary">
             <Icon name="user" size={14} className="mt-1 flex-shrink-0" />
-            <span className="min-w-0 whitespace-pre-wrap wrap-anywhere">
+            <span className="min-w-0 flex-1 whitespace-pre-wrap wrap-anywhere">
               <span className="text-text-tertiary me-1.5">{t("steerNote")}</span>
               {note}
               <span className="text-text-tertiary ms-1.5">{t("steerPending")}</span>
             </span>
+            {queueCtx?.unsteer && (
+              // Takes the note back before the turn reads it and puts it in the composer to edit.
+              <button
+                type="button"
+                aria-label={t("steerCancel")}
+                title={t("steerCancel")}
+                onClick={() => {
+                  if (queueCtx.unsteer?.(index)) restoreToComposer(note);
+                }}
+                className="flex size-6 flex-none items-center justify-center rounded-xs text-text-tertiary opacity-0 transition-opacity hover:text-text-primary focus-visible:opacity-100 group-hover/steer:opacity-100"
+              >
+                <Icon name="x" size={14} />
+              </button>
+            )}
           </div>
         ))}
         <div ref={messagesEndRef} />

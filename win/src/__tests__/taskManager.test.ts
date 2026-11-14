@@ -990,6 +990,19 @@ describe("turns that overlap", () => {
     expect(manager.queues()["chat-1"].map((item) => item.content)).toEqual(["late note"]);
   });
 
+  it("takes back a note the loop has not read yet", () => {
+    const { host } = createHost();
+    const manager = createTaskManager(host);
+
+    manager.send("chat-1", "first");
+    manager.steer("chat-1", "keep");
+    manager.steer("chat-1", "drop");
+    expect(manager.unsteer("chat-1", 1)).toBe(true);
+    expect(manager.pendingSteers()["chat-1"]).toEqual(["keep"]);
+    expect(pending[0].host.takeSteering?.()).toEqual(["keep"]);
+    expect(manager.unsteer("chat-1", 0)).toBe(false);
+  });
+
   it("retries a dropped connection quietly before anything is written", async () => {
     vi.useFakeTimers();
     try {

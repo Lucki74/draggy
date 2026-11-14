@@ -153,6 +153,8 @@ export interface TaskManager {
   sendQueuedNow: (chatId: string, id: string) => void;
   /** Hands a note to the running turn at its next step; sent as a message when nothing runs. */
   steer: (chatId: string, content: string) => void;
+  /** Takes back a note the running turn has not read yet; false once it was read. */
+  unsteer: (chatId: string, index: number) => boolean;
   /** Stops the running turn and sends this in its place. */
   sendNow: (chatId: string, content: string, attachments?: Attachment[]) => void;
   queues: () => Record<string, QueuedMessage[]>;
@@ -1066,6 +1068,13 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     logRendererEvent("chat", "INFO", "turn steered", { chatId, chars: content.length });
   }
 
+  function unsteer(chatId: string, index: number): boolean {
+    const notes = steers.get(chatId) ?? [];
+    if (index < 0 || index >= notes.length) return false;
+    setSteers(chatId, notes.filter((_, at) => at !== index));
+    return true;
+  }
+
   /** The data URL of an attached picture, whichever way the attachment carried it. */
   function attachedImage(attachments?: Attachment[]): string | null {
     const picture = attachments?.find((file) => file.type.startsWith("image/"));
@@ -1422,6 +1431,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     moveQueued,
     sendQueuedNow,
     steer,
+    unsteer,
     sendNow,
     pendingSteers: () => steerSnapshot,
     subscribeSteers: (listener: () => void) => {
