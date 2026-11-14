@@ -288,6 +288,7 @@ body.browser-bar {
     @apply my-6;
 }
 .markdown-body a {
+    overflow-wrap: anywhere;
     color: var(--accent-ink);
     text-decoration: underline;
     text-decoration-color: var(--rule-strong);
@@ -1019,7 +1020,7 @@ kbd {
   height: 3px;
   border-radius: 2px;
   overflow: hidden;
-  background: var(--color-rule-strong);
+  background: color-mix(in srgb, var(--text-tertiary) 45%, transparent);
 }
 .cov-tick::after {
   content: "";

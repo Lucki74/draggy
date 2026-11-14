@@ -41,7 +41,7 @@ export function ResearchReadRow({ step, run, verbose, t }: { step: SearchStep; r
         </span>
       }
       target={title}
-      meta={live ? undefined : notes.length > 0 ? t(notes.length === 1 ? "researchRunNotesOne" : "researchRunNotes").replace("{n}", String(notes.length)) : t("researchReadNoNotes")}
+      meta={live ? undefined : notes.length > 0 ? t(notes.length === 1 ? "researchRunNotesOne" : "researchRunNotes").replace("{n}", String(notes.length)) : undefined}
       active={live}
       open={open && Boolean(quotes)}
       onToggle={quotes ? () => setClicked(!open) : undefined}

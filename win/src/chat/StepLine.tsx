@@ -34,7 +34,8 @@ export function StepLine({ verb, target, mono, meta, failed, active, open, onTog
           onClick={onToggle}
           className={`step-line flex min-h-6 min-w-0 flex-1 gap-[7px] text-start ${open ? "items-start [&>*]:pt-[3px]" : "items-center"} ${onToggle ? "cursor-pointer hover:text-text-primary" : "cursor-default"}`}
         >
-          <span className={`flex-none${active ? " live-sweep" : ""}`}>{verb}</span>
+          {/* A verb with no target carries the whole line, a long URL included, so it is the part that shrinks. */}
+          <span className={`${target ? "flex-none" : "min-w-0 truncate"}${active ? " live-sweep" : ""}`}>{verb}</span>
           {target && (
             <span className={`min-w-0 text-text-tertiary ${open ? "whitespace-pre-wrap wrap-anywhere" : "truncate"}${mono ? " font-mono text-[12px]" : ""}`}>
               {target}
