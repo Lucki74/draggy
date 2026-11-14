@@ -134,7 +134,9 @@ describe("stop rule", () => {
     expect(stopReason(r, 0)).toBeNull();
     readSource(r, "https://example.com/3");
     logSearch(r, "q3", "web", []);
-    expect(stopReason(r, 0)).toBe("dry");
+    // Dry only counts once half the budget is gone, so an early lull does not end a long run.
+    expect(stopReason(r, 0)).toBeNull();
+    expect(stopReason(r, DEPTHS[r.plan.depth].wallMs / 2)).toBe("dry");
   });
 
   it("does not count parallel searches with no page read between them as dry", () => {
@@ -181,7 +183,7 @@ describe("renderRunState", () => {
     expect(text).toContain("1. [ ] What (1 notes)");
     expect(text).toContain("n1 q1 s1 single_source: Rust has a borrow checker");
     expect(text).toContain('Searched: "rust borrow"');
-    expect(text).toContain("Next: find support for sub-question 1.");
+    expect(text).toContain("Next: find support for sub-question 2.");
   });
 
   it("tells the model to write once gathering stops", () => {

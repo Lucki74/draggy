@@ -110,7 +110,7 @@ import {
 import { generateId, isBinary, safeJsonParse } from "../utils";
 import { raceAbort } from "./abortRace";
 import { describeEnded, inputFor, isHarmlessInput } from "../tools/tasks";
-import { activeRun, settleRun } from "../research/session";
+import { activeRun, gatherNudge, settleRun } from "../research/session";
 import { followUpInstruction, holdsFinishedRun } from "../research/command";
 import { applyReceipts, dropStaleFooters, withoutFooter } from "../research/receipts";
 import { ContextOverflowError, charsPerToken, fitWire, keepToolResults, readOverflow } from "./contextFit";
@@ -1866,6 +1866,21 @@ async function runTurn(
           fileStepId = null;
           syncSteps();
         }
+        // A research run with empty sub-questions and time left is not over because the model stopped calling tools.
+        const nudge = loopCount < currentLimit() ? gatherNudge(toolContext) : null;
+        if (nudge) {
+          if (textContent.trim()) {
+            showText(textContent);
+            if (textStepId !== null) patchStep(textStepId, { content: textContent, isComplete: true });
+            fullFinalContent += rawChunk + "\n";
+            host.onPatch(combine("", ""));
+          }
+          const kept = { ...(nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {}), ...carried };
+          wire.push({ role: "assistant", content: rawChunk || " ", ...kept });
+          wire.push({ role: "user", content: nudge });
+          continue;
+        }
+
         // Asked once only: a model that stays silent twice would otherwise burn every remaining loop.
 
         if (

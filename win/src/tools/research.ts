@@ -7,7 +7,10 @@ import { judgeCitation } from "../research/citations";
 import { activeRun, openRunBlock, pageTexts, priorRun, runFooter, setRun, settleRun, spendCall, syncRun } from "../research/session";
 import {
   addNote,
+  budgetOf,
   coverage,
+  emptyQuestions,
+  unnotedReads,
   createRun,
   DEPTH_IDS,
   DEPTHS,
@@ -211,6 +214,20 @@ const finishResearch: ToolSpec = {
         `Read the best search results with read_url, for example:\n${found.slice(0, 3).join("\n")}`,
         "After each useful page call add_note with the exact sentence it says, then call finish_research again.",
       ].join("\n\n");
+    }
+    // Time left and a sub-question with nothing: sent back to fill it, a few times at most.
+    const holdKey = `finish-held:${run.id}`;
+    const held = (ctx.memo.get(holdKey) as number | undefined) ?? 0;
+    const empty = emptyQuestions(run);
+    if (run.status === "gathering" && found.length > 0 && empty.length > 0 && !budgetOf(run, Date.now()).wrap && held < 3) {
+      ctx.memo.set(holdKey, held + 1);
+      const unnoted = unnotedReads(run).map((source) => `${source.id} ${source.url}`);
+      return [
+        "TOOL RESULT (finish_research): Not finished. Time remains and these sub-questions have no notes:",
+        empty.map((entry) => `${entry.subQuestion}. ${entry.text}`).join("\n"),
+        unnoted.length > 0 ? `Pages you read without a note:\n${unnoted.join("\n")}\nCall add_note for the ones that answer a sub-question.` : "",
+        "Search and read for the empty sub-questions, call add_note after each useful page, then call finish_research again.",
+      ].filter(Boolean).join("\n\n") + runFooter(ctx);
     }
     const settled = await settleRun(ctx);
     const dropped = settled?.dropped ?? 0;

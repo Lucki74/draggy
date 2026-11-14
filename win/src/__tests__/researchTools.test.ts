@@ -5,6 +5,13 @@ import type { ToolContext } from "../tools/registry";
 
 const tool = (name: string) => RESEARCH_TOOLS.find((spec) => spec.name === name)!;
 
+/** A finish is held back a few times while a sub-question has no notes, so keep asking until it goes through. */
+async function finishAll(ctx: ToolContext) {
+  let result = "";
+  for (let i = 0; i < 6 && !/Write the report now/.test(result); i += 1) result = await tool("finish_research").run({}, ctx);
+  return result;
+}
+
 function context(overrides: Partial<ToolContext> = {}): ToolContext {
   let next = 0;
   return {
@@ -78,7 +85,7 @@ describe("notes and finish", () => {
     const invented = await tool("add_note").run({ sub_question: 2, claim: "X is free", quote: "X is totally free forever", source_id: "s1" }, ctx);
     expect(invented).toMatch(/Not saved.*does not appear/);
     expect(activeRun(ctx)?.notes.map((note) => note.id)).toEqual(["n1"]);
-    const result = await tool("finish_research").run({}, ctx);
+    const result = await finishAll(ctx);
     expect(result).toContain("n1 q1 single_source: X is fast");
     expect(result).not.toContain("X is free");
     expect(result).not.toMatch(/notes were left out/);
@@ -102,7 +109,8 @@ describe("notes and finish", () => {
     expect(first).toContain("https://example.com/a");
     expect(first).toMatch(/read_url/);
     const second = await tool("finish_research").run({}, ctx);
-    expect(second).toMatch(/Write the report now/);
+    expect(second).toMatch(/Not finished/);
+    expect(await finishAll(ctx)).toMatch(/Write the report now/);
   });
 
   it("finishes at once when nothing was found", async () => {

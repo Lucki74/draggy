@@ -15,13 +15,15 @@ interface StepLineProps {
   /** Quiet links after the line, such as Open or Undo. */
   actions?: React.ReactNode;
   details?: React.ReactNode;
+  /** The caret shows only while the row is hovered or focused. */
+  hoverCaret?: boolean;
   t: (key: string) => string;
 }
 
 /** One step as one line: the verb, what it acted on, how it went, and a caret that opens the rest. */
-export function StepLine({ verb, target, mono, meta, failed, active, open, onToggle, time, actions, details, t }: StepLineProps) {
+export function StepLine({ verb, target, mono, meta, failed, active, open, onToggle, time, actions, details, hoverCaret, t }: StepLineProps) {
   return (
-    <div className={`step-rise${open ? " step-open" : ""}`}>
+    <div className={`step-rise${open ? " step-open" : ""}${hoverCaret ? " caret-on-hover" : ""}`}>
       <div className="rail-row flex min-h-6 items-center gap-[7px] text-[13px] text-text-secondary">
         <button
           type="button"

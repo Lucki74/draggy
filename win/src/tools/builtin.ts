@@ -181,7 +181,7 @@ Snippet: ${result.snippet}`,
       return `TOOL RESULT (search_web, via ${outcome.provider ?? "unknown"}):
 ${summary}
 
-Read the most relevant URL(s) with read_url when you need the full text. If you already have enough to answer, stop calling tools and reply.${runFooter(ctx)}`;
+${runFooter(ctx) ? `Read the most relevant URL(s) with read_url, then call add_note for each useful page.${runFooter(ctx)}` : "Read the most relevant URL(s) with read_url when you need the full text. If you already have enough to answer, stop calling tools and reply."}`;
     } catch (error) {
       ctx.memo.set(SEARCH_FAILURES, failureCount() + 1);
       ctx.patchStep(stepId, { isComplete: true, type: "error" });
@@ -277,7 +277,7 @@ const readUrl: ToolSpec = {
         published: page.published,
         ok: true,
       });
-      const cite = source ? `Source id: ${source.id}. Record what it says with add_note and this id.\n` : "";
+      const cite = source ? `Source id: ${source.id}. Next, call add_note for each fact on this page that answers a sub-question, with this id and the exact sentence.\n` : "";
       const facts = [
         page.site ? `Site: ${page.site}` : "",
         page.author ? `Author: ${page.author}` : "",

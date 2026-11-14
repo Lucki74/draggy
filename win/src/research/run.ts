@@ -37,6 +37,9 @@ export const SOURCE_KINDS: SourceKind[] = ["web", "papers", "wiki", "code"];
 export const WRAP_AT = 0.8;
 /** Searches in a row that add no note before the run stops looking. */
 export const DRY_SEARCHES = 3;
+/** The share of the budget before which a dry streak only nudges: a model that forgot add_note
+ * used to end a 30 minute run after 6. */
+export const DRY_AFTER = 0.5;
 
 export interface ResearchPlan {
   question: string;
@@ -300,10 +303,21 @@ export function coverage(run: ResearchRun): { subQuestion: number; text: string;
   });
 }
 
+/** Pages read in full that no note cites yet. */
+export function unnotedReads(run: ResearchRun): ResearchSource[] {
+  const cited = new Set(run.notes.map((note) => note.sourceId));
+  return run.sources.filter((source) => source.status === "read" && !cited.has(source.id));
+}
+
+/** Sub-questions without a single supporting note. */
+export function emptyQuestions(run: ResearchRun) {
+  return coverage(run).filter((entry) => entry.notes === 0);
+}
+
 export function stopReason(run: ResearchRun, now: number): StopReason | null {
   if (run.stopReason) return run.stopReason;
   if (budgetOf(run, now).over) return "budget";
-  if (run.dryStreak >= DRY_SEARCHES) return "dry";
+  if (run.dryStreak >= DRY_SEARCHES && budgetOf(run, now).used >= DRY_AFTER) return "dry";
   if (coverage(run).every((entry) => entry.enough)) return "covered";
   return null;
 }
@@ -363,8 +377,16 @@ export function renderRunState(run: ResearchRun, now: number): string {
   } else if (budget.wrap) {
     lines.push("Most of the budget is used. Fill only the sub-questions without notes, then write the report.");
   } else {
-    const open = coverage(run).filter((entry) => !entry.enough);
-    if (open.length > 0) lines.push(`Next: find support for sub-question ${open[0].subQuestion}.`);
+    const unnoted = unnotedReads(run);
+    if (unnoted.length > 0) {
+      lines.push(
+        `Read but not noted: ${unnoted.slice(-6).map((source) => source.id).join(", ")}. For each that answers a sub-question, call add_note now with the exact sentence; a fact without a note cannot be cited.`,
+      );
+    }
+    if (run.dryStreak >= DRY_SEARCHES) lines.push("The last searches added no notes. Try other words or another source kind, and note what you read.");
+    const empty = emptyQuestions(run);
+    const open = empty.length > 0 ? empty : coverage(run).filter((entry) => !entry.enough);
+    if (open.length > 0) lines.push(`Next: find support for sub-question ${open[0].subQuestion}. Keep gathering until every sub-question has notes; time remains.`);
   }
   return lines.join("\n");
 }

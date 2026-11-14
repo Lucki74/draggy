@@ -3,7 +3,6 @@ import { Icon } from "../ui";
 import SiteBadge from "./SiteBadge";
 import { StepLine, linkClass } from "./StepLine";
 import { fillComposer } from "./mentions";
-import { useTranscriptView } from "./transcriptView";
 import { hostnameOf } from "../utils";
 import { stopRun } from "../research/session";
 import type { Depth, SourceStatus } from "../research/run";
@@ -135,12 +134,31 @@ function RunTree({ run, t }: { run: ResearchRunView; t: (key: string) => string 
   );
 }
 
-/** A research run as one rail row: how far it got on the line, its questions and sources inside. */
+const TICKS = 3;
+
+/** Each question with three ticks that fill green as notes come in. */
+function Coverage({ run }: { run: ResearchRunView }) {
+  if (run.questions.length === 0) return null;
+  return (
+    <div role="list" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-6 gap-y-1 pt-1 pb-0.5">
+      {run.questions.map((question, index) => (
+        <div role="listitem" key={index} title={question.text} className="flex min-w-0 items-center gap-2 text-[12.5px] text-text-secondary">
+          <span className="min-w-0 truncate">{question.text}</span>
+          <span aria-hidden="true" className="flex flex-none gap-[3px]">
+            {Array.from({ length: TICKS }, (_, tick) => (
+              <i key={tick} className={`cov-tick${tick < question.notes ? " on" : ""}`} />
+            ))}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** A research run as one rail row: how far it got on the line, coverage under it, its questions and sources inside. */
 export function ResearchRunCard({ step, t }: { step: SearchStep; t: (key: string) => string }) {
   const run = step.researchRun;
-  const view = useTranscriptView();
   const [now, setNow] = useState(() => Date.now());
-  // null follows the view: open while it runs, then folded in the normal view. A click overrides it.
   const [clicked, setClicked] = useState<boolean | null>(null);
   const live = Boolean(run) && !step.isComplete && run!.endedAt === undefined;
 
@@ -154,11 +172,14 @@ export function ResearchRunCard({ step, t }: { step: SearchStep; t: (key: string
   const elapsed = (run.endedAt ?? now) - run.startedAt;
   const read = run.sources.filter((source) => source.status === "read").length;
   const failed = run.sources.filter(isBad).length;
-  const open = clicked ?? (live || view !== "normal");
-  const parts = live
-    ? [t(DEPTH_KEY[run.depth]), `${clock(elapsed)} / ${clock(run.wallMs)}`]
-    : [count(t, run.questions.length, "researchRunQuestionsOne", "researchRunQuestions")];
+  // The timeline under the card shows each step, so the question list opens only on a click.
+  const open = clicked ?? false;
+  const notes = run.notes.filter((note) => note.verified !== false).length;
+  const parts = [t(DEPTH_KEY[run.depth])];
+  if (live) parts.push(`${clock(elapsed)} / ${clock(run.wallMs)}`);
+  else parts.push(count(t, run.questions.length, "researchRunQuestionsOne", "researchRunQuestions"));
   parts.push(count(t, read, "researchRunSourcesOne", "researchRunSources"));
+  parts.push(count(t, notes, "researchRunNotesOne", "researchRunNotes"));
   if (failed > 0) parts.push(t("researchRunFailed").replace("{n}", String(failed)));
 
   return (
@@ -169,7 +190,7 @@ export function ResearchRunCard({ step, t }: { step: SearchStep; t: (key: string
         active={live}
         open={open}
         onToggle={() => setClicked(!open)}
-        time={live ? undefined : <span className="ms-auto flex-none ps-2 text-[12px] tabular-nums text-text-tertiary">{clock(elapsed)}</span>}
+        hoverCaret
         actions={
           live && run.gathering ? (
             <button type="button" onClick={() => stopRun(run.id)} className={linkClass}>
@@ -180,6 +201,7 @@ export function ResearchRunCard({ step, t }: { step: SearchStep; t: (key: string
         details={<RunTree run={run} t={t} />}
         t={t}
       />
+      {!open && <Coverage run={run} />}
     </div>
   );
 }
