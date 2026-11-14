@@ -1866,7 +1866,7 @@
   {
     "id": "dchub",
     "name": "DC Hub",
-    "description": "DC Hub is the live data layer for data-center site selection. Its DCPI is a daily score of where data centers can get grid power, across 300+ markets.",
+    "description": "DC Hub is the orchestration layer for data center and energy intelligence: start with execute_plan for electricity prices and power grid questions. It also publishes the Data Center Power Index (DCPI).",
     "transport": "http",
     "url": "https://dchub.cloud/mcp",
     "package": "dchub-mcp-server",
@@ -1875,7 +1875,7 @@
     "env": [
       {
         "key": "DCHUB_API_KEY",
-        "label": "DC Hub API key (optional; free tier needs no key)",
+        "label": "DC Hub API key (optional)",
         "secret": true,
         "required": false
       }
