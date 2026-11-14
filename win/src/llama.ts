@@ -48,7 +48,8 @@ export interface LoadedModel {
   name: string;
   size: number;
   sizeVram: number;
-  gpuPercent: number;
+  /** Null: the engine does not report how many layers it offloaded. */
+  gpuPercent: number | null;
 }
 
 export interface InstalledModel {
@@ -429,7 +430,7 @@ export async function describeLoadedModels(): Promise<LoadedModel[]> {
   try {
     const status = await window.draggy?.gguf?.status();
     if (!status?.running || !status.model) return [];
-    return [{ name: servedFileName(status.model), size: 0, sizeVram: 0, gpuPercent: 0 }];
+    return [{ name: servedFileName(status.model), size: 0, sizeVram: 0, gpuPercent: null }];
   } catch {
     return [];
   }

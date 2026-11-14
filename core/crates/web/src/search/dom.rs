@@ -146,6 +146,30 @@ pub fn brave_html_rows(document: &Html, base: &Url) -> Vec<Value> {
     rows
 }
 
+/// Ecosia marks its own organic results with test ids, so ads and news cards are left out.
+pub fn ecosia_rows(document: &Html, base: &Url) -> Vec<Value> {
+    let mut rows = Vec::new();
+    for item in select_all(document, r#"[data-test-id="organic-result"]"#) {
+        let Some(link) = select_first(item, r#"a[data-test-id="result-link"]"#) else {
+            continue;
+        };
+        let url = href_of(link, base);
+        if !url.starts_with("http") {
+            continue;
+        }
+        let title = trimmed_text(select_first(item, ".result__title").unwrap_or(link));
+        if title.is_empty() {
+            continue;
+        }
+        let snippet = select_first(item, r#"[data-test-id="result-description"]"#)
+            .map(trimmed_text)
+            .unwrap_or_default();
+        rows.push(row(&title, &url, &snippet));
+    }
+    rows.truncate(RESULT_LIMIT);
+    rows
+}
+
 fn row(title: &str, url: &str, snippet: &str) -> Value {
     json!({ "title": title, "url": url, "snippet": snippet })
 }

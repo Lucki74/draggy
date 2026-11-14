@@ -311,7 +311,7 @@ pub struct ImageRecord {
 /// How the web tools search. An empty provider means "auto"; the scrapers need no setting.
 #[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Default)]
 pub struct WebConfigRecord {
-    /// One of `searxng`, `brave`, `duckduckgo`, `startpage`, `duckduckgo-lite`, `brave-html`, or empty for auto.
+    /// One of `searxng`, `brave`, `duckduckgo`, `startpage`, `duckduckgo-lite`, `brave-html`, `ecosia`, or empty for auto.
     pub provider: String,
     pub searxng_url: String,
     pub brave_api_key: String,

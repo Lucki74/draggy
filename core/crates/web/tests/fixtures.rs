@@ -583,12 +583,13 @@ fn provider_of(url: &str) -> &'static str {
     if url.contains("&format=json") {
         return "searxng";
     }
-    const PREFIXES: [(&str, &str); 5] = [
+    const PREFIXES: [(&str, &str); 6] = [
         ("https://html.duckduckgo.com/", "duckduckgo"),
         ("https://lite.duckduckgo.com/", "duckduckgo-lite"),
         ("https://www.startpage.com/", "startpage"),
         ("https://api.search.brave.com/", "brave"),
         ("https://search.brave.com/", "brave-html"),
+        ("https://www.ecosia.org/", "ecosia"),
     ];
     PREFIXES
         .iter()

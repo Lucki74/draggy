@@ -436,7 +436,7 @@ describe("a plain answer with no tools", () => {
 
     expect(result.metrics?.responseTokens).toBe(40);
     expect(result.metrics?.tokensPerSecond).toBeCloseTo(100, 5);
-    expect(host.metrics?.gpuPercent).toBe(0);
+    expect(host.metrics?.gpuPercent).toBeNull();
   });
 
   it("sends a system prompt and the conversation", async () => {

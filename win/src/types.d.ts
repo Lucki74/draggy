@@ -1116,7 +1116,8 @@ export type SearchProvider =
   | "startpage"
   | "searxng"
   | "brave"
-  | "brave-html";
+  | "brave-html"
+  | "ecosia";
 
 /** How the first-run setup ended. "adopted" is an existing install that never saw it. */
 export type OnboardingPath = "local" | "provider" | "both" | "skipped";

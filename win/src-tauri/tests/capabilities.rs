@@ -60,6 +60,22 @@ fn main_capability_applies_to_the_main_webview_only() {
     assert!(permissions.iter().any(|p| p == "allow-gateway-info"));
 }
 
+/// A command in the invoke handler with no grant fails at runtime with "not allowed".
+#[test]
+fn every_registered_command_is_granted_to_main() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let lib = std::fs::read_to_string(root.join("src/lib.rs")).expect("lib.rs is readable");
+    let start = lib.find("generate_handler![").expect("invoke handler") + "generate_handler![".len();
+    let list = &lib[start..start + lib[start..].find(']').expect("handler list ends")];
+    let all = capabilities();
+    let permissions = strings(by_name(&all, "main.json"), "permissions");
+    for path in list.split(',').map(str::trim).filter(|p| !p.is_empty()) {
+        let command = path.rsplit("::").next().unwrap();
+        let grant = format!("allow-{}", command.replace('_', "-"));
+        assert!(permissions.contains(&grant), "main.json lacks {grant}");
+    }
+}
+
 #[test]
 fn no_capability_reaches_the_pane_through_its_window() {
     for (file, value) in capabilities() {

@@ -41,7 +41,7 @@ impl std::fmt::Display for SettingsError {
 impl std::error::Error for SettingsError {}
 
 /// The search engines the settings offer, in the order of the list. The first is "automatic".
-pub const PROVIDERS: [&str; 7] = [
+pub const PROVIDERS: [&str; 8] = [
     "",
     "searxng",
     "brave",
@@ -49,6 +49,7 @@ pub const PROVIDERS: [&str; 7] = [
     "startpage",
     "duckduckgo-lite",
     "brave-html",
+    "ecosia",
 ];
 
 impl Settings {

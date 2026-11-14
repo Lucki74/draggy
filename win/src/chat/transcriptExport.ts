@@ -88,7 +88,12 @@ function metricsRows(metrics: TurnMetrics): Field[] {
     ["Context window", String(metrics.contextWindow)],
     ["GPU", metrics.gpuPercent === null ? "n/a" : `${metrics.gpuPercent}%`],
   ];
-  if (metrics.breakdown) rows.push(["Context breakdown", JSON.stringify(metrics.breakdown)]);
+  if (metrics.breakdown) {
+    const parts = Object.entries(metrics.breakdown)
+      .filter(([, tokens]) => typeof tokens === "number" && tokens > 0)
+      .map(([part, tokens]) => `${part} ${tokens}`);
+    if (parts.length > 0) rows.push(["Context breakdown", parts.join(", ")]);
+  }
   return rows;
 }
 
@@ -108,7 +113,7 @@ function stepView(step: SearchStep): StepView {
   if (step.language) rows.push(["Language", step.language]);
   if (step.model) rows.push(["Model", step.model]);
   if (step.retry) rows.push(["Retry", `${step.retry.attempt} of ${step.retry.of}`]);
-  if (step.thoughtTime !== undefined) rows.push(["Thought time", `${step.thoughtTime} s`]);
+  if (step.thoughtTime !== undefined) rows.push(["Thought time", `${step.thoughtTime.toFixed(1)} s`]);
   if (step.skill) rows.push(["Skill", step.skill]);
   if (step.checkpointId !== undefined) rows.push(["Checkpoint", String(step.checkpointId)]);
   if (step.change) rows.push(["Change", step.change]);

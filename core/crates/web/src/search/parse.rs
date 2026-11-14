@@ -37,6 +37,7 @@ pub fn parse_response(
         Provider::Startpage => parse_page(page_url, status, body, dom::startpage_rows),
         Provider::DuckDuckGoLite => parse_page(page_url, status, body, dom::lite_rows),
         Provider::BraveHtml => parse_page(page_url, status, body, dom::brave_html_rows),
+        Provider::Ecosia => parse_page(page_url, status, body, dom::ecosia_rows),
     }
 }
 
@@ -305,5 +306,19 @@ mod tests {
         assert!(matches!(blocked, Err(ProviderError::Blocked(reason)) if reason == "rate-limited"));
         let empty = parse_response(Provider::DuckDuckGo, url, 200, "<html><body></body></html>");
         assert!(matches!(empty, Ok(rows) if rows.is_empty()));
+    }
+
+    #[test]
+    fn ecosia_reads_organic_results_and_skips_ads() {
+        let body = r#"<html><head><title>q - Ecosia</title></head><body>
+            <div data-test-id="mainline-result-ad"><a data-test-id="result-link" href="https://ads.example/x">Ad</a></div>
+            <article data-test-id="organic-result"><div class="result__title"><a data-test-id="result-link" href="https://en.wikipedia.org/wiki/Large_language_model">Large language model - Wikipedia</a></div>
+            <p data-test-id="result-description">A large language model is a language model trained on text.</p></article>
+            </body></html>"#;
+        let rows = parse_response(Provider::Ecosia, "https://www.ecosia.org/search?q=q", 200, body).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].url, "https://en.wikipedia.org/wiki/Large_language_model");
+        assert_eq!(rows[0].title, "Large language model - Wikipedia");
+        assert!(rows[0].snippet.starts_with("A large language model"));
     }
 }
