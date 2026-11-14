@@ -65,7 +65,8 @@ fn main_capability_applies_to_the_main_webview_only() {
 fn every_registered_command_is_granted_to_main() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let lib = std::fs::read_to_string(root.join("src/lib.rs")).expect("lib.rs is readable");
-    let start = lib.find("generate_handler![").expect("invoke handler") + "generate_handler![".len();
+    let start =
+        lib.find("generate_handler![").expect("invoke handler") + "generate_handler![".len();
     let list = &lib[start..start + lib[start..].find(']').expect("handler list ends")];
     let all = capabilities();
     let permissions = strings(by_name(&all, "main.json"), "permissions");

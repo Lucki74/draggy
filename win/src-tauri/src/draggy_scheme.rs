@@ -57,7 +57,9 @@ fn route(uri: &str) -> Route {
     };
     let rest = rest.split(['?', '#']).next().unwrap_or_default();
     let (host, path) = rest.split_once('/').unwrap_or((rest, ""));
-    let (kind, tail) = if host.eq_ignore_ascii_case("draggy.localhost") || host.eq_ignore_ascii_case("localhost") {
+    let (kind, tail) = if host.eq_ignore_ascii_case("draggy.localhost")
+        || host.eq_ignore_ascii_case("localhost")
+    {
         path.split_once('/').unwrap_or((path, ""))
     } else {
         (host, path)
@@ -198,7 +200,9 @@ async fn favicon(app: &AppHandle, cache_dir: &Path, hostname: &str) -> Response<
         .map_or(hostname, |(_, to)| to);
     let cached = cache_dir.join(format!("{host}.icon"));
     // A miss is kept for a day only: a site that was down or slow gets asked again.
-    let known = fs::read(&cached).ok().filter(|bytes| !bytes.is_empty() || !miss_expired(&cached));
+    let known = fs::read(&cached)
+        .ok()
+        .filter(|bytes| !bytes.is_empty() || !miss_expired(&cached));
     let bytes = match known {
         Some(known) => (!known.is_empty()).then_some(known),
         None => {
@@ -239,7 +243,11 @@ fn miss_expired(path: &Path) -> bool {
 fn icon_hosts(host: &str) -> Vec<String> {
     let bare = host.strip_prefix("www.").unwrap_or(host);
     let mut hosts = vec![host.to_owned()];
-    hosts.push(if bare == host { format!("www.{bare}") } else { bare.to_owned() });
+    hosts.push(if bare == host {
+        format!("www.{bare}")
+    } else {
+        bare.to_owned()
+    });
     let labels: Vec<&str> = bare.split('.').collect();
     for start in 1..labels.len().saturating_sub(1) {
         hosts.push(labels[start..].join("."));
@@ -467,8 +475,18 @@ mod tests {
 
     #[test]
     fn icon_hosts_try_www_and_parents() {
-        assert_eq!(icon_hosts("kaitchup.substack.com"), ["kaitchup.substack.com", "www.kaitchup.substack.com", "substack.com"]);
-        assert_eq!(icon_hosts("www.reddit.com"), ["www.reddit.com", "reddit.com"]);
+        assert_eq!(
+            icon_hosts("kaitchup.substack.com"),
+            [
+                "kaitchup.substack.com",
+                "www.kaitchup.substack.com",
+                "substack.com"
+            ]
+        );
+        assert_eq!(
+            icon_hosts("www.reddit.com"),
+            ["www.reddit.com", "reddit.com"]
+        );
         assert_eq!(icon_hosts("github.com"), ["github.com", "www.github.com"]);
     }
 
