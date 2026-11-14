@@ -181,6 +181,11 @@ fn select_all<'a>(document: &'a Html, css: &str) -> Vec<ElementRef<'a>> {
     }
 }
 
+/// Whether any element matches `css`.
+pub fn has(document: &Html, css: &str) -> bool {
+    !select_all(document, css).is_empty()
+}
+
 fn select_first<'a>(scope: ElementRef<'a>, css: &str) -> Option<ElementRef<'a>> {
     let selector = Selector::parse(css).ok()?;
     scope.select(&selector).next()

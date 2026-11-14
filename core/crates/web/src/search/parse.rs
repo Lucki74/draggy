@@ -79,6 +79,10 @@ fn parse_page(
         if matches!(status, 202 | 403 | 429) {
             return Err(ProviderError::Blocked("rate-limited".to_owned()));
         }
+        // Startpage serves an Anubis proof-of-work page with 200 and no block wording.
+        if dom::has(&document, "#anubis_challenge, #anubis_version") {
+            return Err(ProviderError::Blocked("captcha".to_owned()));
+        }
         let (title, text) = dom::page_text(&document);
         if let Some(reason) = block_reason(&title, &text) {
             return Err(ProviderError::Blocked(reason.to_owned()));
@@ -306,6 +310,14 @@ mod tests {
         assert!(matches!(blocked, Err(ProviderError::Blocked(reason)) if reason == "rate-limited"));
         let empty = parse_response(Provider::DuckDuckGo, url, 200, "<html><body></body></html>");
         assert!(matches!(empty, Ok(rows) if rows.is_empty()));
+    }
+
+    #[test]
+    fn anubis_challenge_is_a_block() {
+        let body = r#"<html><head><script id="anubis_challenge" type="application/json">{}</script></head>
+            <body>Verifying your request... Loading...</body></html>"#;
+        let blocked = parse_response(Provider::Startpage, "https://www.startpage.com/sp/search?query=q", 200, body);
+        assert!(matches!(blocked, Err(ProviderError::Blocked(reason)) if reason == "captcha"));
     }
 
     #[test]
