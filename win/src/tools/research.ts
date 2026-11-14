@@ -3,7 +3,8 @@
 import type { ToolSpec } from "./registry";
 import { registerTools } from "./registry";
 import { swallowed } from "../logger";
-import { activeRun, openRunBlock, priorRun, runFooter, setRun, settleRun, spendCall, syncRun } from "../research/session";
+import { judgeCitation } from "../research/citations";
+import { activeRun, openRunBlock, pageTexts, priorRun, runFooter, setRun, settleRun, spendCall, syncRun } from "../research/session";
 import {
   addNote,
   coverage,
@@ -137,6 +138,14 @@ const addNoteTool: ToolSpec = {
       confidence: args.confidence,
     });
     if (typeof note === "string") return `TOOL RESULT (add_note): ${note}`;
+    // Checked here, not only at finish: a paraphrased quote used to be dropped there, too late to fix.
+    const page = pageTexts(ctx).get(note.sourceId);
+    const verdict = page === undefined ? "unverified" : judgeCitation(note.quote, page);
+    if (verdict !== "verified") {
+      run.notes.pop();
+      const hint = verdict === "near" ? "It is close but not word for word." : "It does not appear on that page.";
+      return `TOOL RESULT (add_note): Not saved. The quote was not found on ${note.sourceId}. ${hint} Copy one sentence exactly as the page has it, with at least three words, or read the page again.`;
+    }
     syncRun(ctx);
     return `TOOL RESULT (add_note): Saved as ${note.id}.${runFooter(ctx)}`;
   },

@@ -119,7 +119,7 @@ function RunTree({ run, t }: { run: ResearchRunView; t: (key: string) => string 
       </div>
       {other.length > 0 && (
         <div>
-          <div className="min-h-6 pt-0.5 text-[12px] text-text-tertiary">{t("researchRunOtherSources")}</div>
+          <div className="min-h-6 pt-0.5 text-[12px] text-text-tertiary">{t("researchRunSourceList")}</div>
           <SourceList sources={other} t={t} />
         </div>
       )}
@@ -127,11 +127,6 @@ function RunTree({ run, t }: { run: ResearchRunView; t: (key: string) => string 
         <p role="note" className="m-0 flex items-start gap-2 pt-1 text-[12px] text-text-tertiary">
           <Icon name="warning" size={13} className="mt-px flex-shrink-0 text-danger" />
           <span>{t("researchRunNoNotes")}</span>
-        </p>
-      )}
-      {run.hosts.length > 0 && (
-        <p className="m-0 break-words pt-1 text-[12px] text-text-tertiary">
-          {t("researchRunServices").replace("{hosts}", run.hosts.join(", "))}
         </p>
       )}
     </div>

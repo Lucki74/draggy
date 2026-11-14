@@ -441,7 +441,7 @@ export interface SearchStep {
     /** A tool call still being written by the model. Display only: replaced by the real step once it runs. */
     | "tool_call";
   content: string;
-  /** On a "tool_call" step: the tool being called, once its name has arrived. */
+  /** The tool behind the step: on a "tool_call" step once its name has arrived, and on a search, which keeps it even after it fails. */
   tool?: string;
   /** On a "tool_call" step: the arguments so far. Never saved, never sent to the model. */
   liveArgs?: {

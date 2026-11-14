@@ -11,6 +11,7 @@ import {
   isExtendingContext,
   isLoadedAt,
   mergeMetrics,
+  tokenRate,
   needsTextModeTools,
   noteEngineStart,
   llamaIsBusy,
@@ -1541,7 +1542,7 @@ async function runTurn(
           if (streamingCallStr) {
             const { filename: sFn, content: sContent } = extractFileStreamingArgs(streamingCallStr);
             if (sFn || sContent !== undefined) {
-              const displayFn = sFn || "";
+              const displayFn = sFn || host.t("untitledFile");
               if (fileStepId === null) {
                 // The model is writing the file again after a cut, so the cut card gives way to it.
                 for (const old of steps.filter((entry) => entry.cut)) dropStep(old.id);
@@ -1673,7 +1674,7 @@ async function runTurn(
         const passWritten = Math.round(passChunks * tokensPerChunk);
         finishedTokens += passWritten;
         const passDurationMs = firstTokenAt !== null ? performance.now() - firstTokenAt : 0;
-        const passRate = passDurationMs > 0 ? (passWritten / passDurationMs) * 1000 : 0;
+        const passRate = tokenRate(passWritten, passDurationMs);
         if (passRate > 0) liveRate = passRate;
         const currentWireChars = estimateChars(wire, toolChars) + rawChunk.length + thinkingText.length;
         if (contextCheckpoint) {
@@ -1733,7 +1734,9 @@ async function runTurn(
         }
       }
 
-      const pendingCalls = nativeTools ? nativeCalls : [];
+      // A call the context cut off mid-way arrives with its arguments lost. Run as it stands, create_file
+      // reported "missing filename, content" and the model rewrote the whole file into the same wall.
+      const pendingCalls = nativeTools && !outOfContext ? nativeCalls : [];
       const hasToolCall = nativeTools ? pendingCalls.length > 0 : toolMatch !== null;
 
       if (signal.aborted) {
@@ -1797,7 +1800,7 @@ async function runTurn(
           const partial = steps.find((entry) => entry.id === fileStepId);
           // A file cut mid-way is kept, so a resume can say what was lost instead of losing it silently.
           if (outOfContext && partial?.fileContent) {
-            patchStep(fileStepId, { isComplete: true, cut: true, content: `${host.t("fileCutOff")} **${partial.filename ?? ""}**` });
+            patchStep(fileStepId, { isComplete: true, cut: true, content: `${host.t("fileCutOff")} **${partial.filename || host.t("untitledFile")}**` });
           } else {
             dropStep(fileStepId);
           }

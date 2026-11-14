@@ -33,10 +33,10 @@ pub fn parse_response(
     match provider {
         Provider::Searxng => parse_searxng(status, body),
         Provider::Brave => parse_brave(status, body),
-        Provider::DuckDuckGo => parse_page(page_url, body, dom::duckduckgo_rows),
-        Provider::Startpage => parse_page(page_url, body, dom::startpage_rows),
-        Provider::DuckDuckGoLite => parse_page(page_url, body, dom::lite_rows),
-        Provider::BraveHtml => parse_page(page_url, body, dom::brave_html_rows),
+        Provider::DuckDuckGo => parse_page(page_url, status, body, dom::duckduckgo_rows),
+        Provider::Startpage => parse_page(page_url, status, body, dom::startpage_rows),
+        Provider::DuckDuckGoLite => parse_page(page_url, status, body, dom::lite_rows),
+        Provider::BraveHtml => parse_page(page_url, status, body, dom::brave_html_rows),
     }
 }
 
@@ -62,10 +62,11 @@ fn parse_brave(status: u16, body: &str) -> Result<Vec<SearchResult>, ProviderErr
     )?)))
 }
 
-/// A scraped page. The hidden window never checked the status, so neither does this. Links resolve against its `<base href>`.
-/// Page scripts and the readiness wait do not run here, so a page that fills in with JavaScript parses empty (see mod.rs).
+/// A scraped page. Links resolve against its `<base href>`. Page scripts do not run here, so a page that fills in with JavaScript parses empty (see mod.rs).
+/// An empty page answered with 202, 403 or 429 is a throttle (DuckDuckGo answers bursts with a bare 202), so it counts as a block and not as an empty web.
 fn parse_page(
     page_url: &str,
+    status: u16,
     body: &str,
     extract: fn(&Html, &Url) -> Vec<Value>,
 ) -> Result<Vec<SearchResult>, ProviderError> {
@@ -74,6 +75,9 @@ fn parse_page(
     let base = dom::document_base(&document, &page);
     let rows = extract(&document, &base);
     if rows.is_empty() {
+        if matches!(status, 202 | 403 | 429) {
+            return Err(ProviderError::Blocked("rate-limited".to_owned()));
+        }
         let (title, text) = dom::page_text(&document);
         if let Some(reason) = block_reason(&title, &text) {
             return Err(ProviderError::Blocked(reason.to_owned()));
@@ -288,4 +292,18 @@ pub fn domain_of(url: &str) -> String {
         .unwrap_or_default();
     host.strip_prefix("www.")
         .map_or(host.clone(), str::to_owned)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_throttled_page_is_a_block() {
+        let url = "https://html.duckduckgo.com/html/?q=x";
+        let blocked = parse_response(Provider::DuckDuckGo, url, 202, "<html><body></body></html>");
+        assert!(matches!(blocked, Err(ProviderError::Blocked(reason)) if reason == "rate-limited"));
+        let empty = parse_response(Provider::DuckDuckGo, url, 200, "<html><body></body></html>");
+        assert!(matches!(empty, Ok(rows) if rows.is_empty()));
+    }
 }

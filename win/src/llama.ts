@@ -523,13 +523,24 @@ export function readMetrics(
     promptMs,
     responseMs,
     loadMs,
-    totalMs,
-    tokensPerSecond: responseMs > 0 ? (responseTokens / responseMs) * 1000 : 0,
+    totalMs: wallTotalMs(totalMs, timeToFirstTokenMs, responseMs),
+    tokensPerSecond: tokenRate(responseTokens, responseMs),
     timeToFirstTokenMs,
     contextWindow,
     model,
     gpuPercent: null,
   };
+}
+
+/** Rate over at least two tokens and a millisecond: one token in ~0 ms printed 1,000,000 tok/s. */
+export function tokenRate(tokens: number, ms: number): number {
+  return tokens >= 2 && ms >= 1 ? (tokens / ms) * 1000 : 0;
+}
+
+/** TTFT is wall time (load and queue included) and the engine's total is not, so a slow load read as
+ * a TTFT longer than the whole reply. The total is never shorter than TTFT plus generation. */
+export function wallTotalMs(totalMs: number, timeToFirstTokenMs: number | null, responseMs: number): number {
+  return timeToFirstTokenMs && timeToFirstTokenMs > 0 ? Math.max(totalMs, timeToFirstTokenMs + responseMs) : totalMs;
 }
 
 export function mergeMetrics(
@@ -549,7 +560,7 @@ export function mergeMetrics(
     responseMs,
     loadMs: Math.max(a.loadMs, b.loadMs),
     totalMs: a.totalMs + b.totalMs,
-    tokensPerSecond: responseMs > 0 ? (responseTokens / responseMs) * 1000 : 0,
+    tokensPerSecond: tokenRate(responseTokens, responseMs),
     timeToFirstTokenMs: a.timeToFirstTokenMs ?? b.timeToFirstTokenMs,
     contextWindow: Math.max(a.contextWindow, b.contextWindow),
     model: a.model,

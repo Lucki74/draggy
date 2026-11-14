@@ -2764,6 +2764,34 @@ describe("live streaming file creation", () => {
     expect(fileSteps[0].fileContent).toBe("# Part 1\n\nBody content");
   });
 
+  it("does not run a call the context cut before its filename arrived", async () => {
+    const host = makeHost();
+    const createFile = vi.fn().mockResolvedValue({ success: true, filepath: "C:/out/x.txt" });
+    installFetch(
+      [
+        {
+          toolCallChunks: [[{ index: 0, id: "call_cut", function: { name: "create_file", arguments: '{"content": "first half' } }]],
+          final: { finish_reason: "length" },
+        },
+        // Reached only if the cut call ran and its error went back to the model.
+        { content: ["Rewrote it."] },
+      ],
+      ["tools"],
+    );
+    // llama-server ends with a bare [DONE], which hands over any call still pending; the fixture quotes it.
+    const quoted = fetch;
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      const text = await (await quoted(url, init)).text();
+      return new Response(text.replaceAll('data: "[DONE]"', "data: [DONE]"), { status: 200 });
+    });
+    (window.draggy as Record<string, unknown>).createFile = createFile;
+
+    const cut = await run([userMessage("write a report")], undefined, host).promise;
+    expect(createFile).not.toHaveBeenCalled();
+    expect(cut.content).not.toContain("Rewrote it.");
+    expect(cut.steps.filter((s) => s.type === "create_file")).toMatchObject([{ cut: true }]);
+  });
+
   it("keeps a file cut by the context and rewrites it as one file on resume", async () => {
     const host = makeHost();
     installFetch(

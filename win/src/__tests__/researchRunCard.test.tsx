@@ -50,10 +50,11 @@ describe("ResearchRunCard", () => {
     expect(screen.getByText("Speed")).toBeTruthy();
     expect(screen.getAllByText("researchRunNotes")).toHaveLength(2);
     expect(screen.getByText("Alpha page")).toBeTruthy();
-    expect(screen.getByText("researchRunOtherSources")).toBeTruthy();
+    expect(screen.getByText("researchRunSourceList")).toBeTruthy();
     expect(screen.getByText("researchStatusReading")).toBeTruthy();
     expect(screen.getAllByText("researchStatusBlocked").length).toBeGreaterThan(0);
-    expect(screen.getByText("researchRunServices")).toBeTruthy();
+    // The hosts it contacted are not listed under the run.
+    expect(screen.queryByText(/researchRunServices/)).toBeNull();
   });
 
   it("puts a source under the question its note answers", () => {
