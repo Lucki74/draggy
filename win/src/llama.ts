@@ -258,6 +258,9 @@ export function noteEngineStart(
   if (started?.contextSize && started.contextSize > (loadedContextSizes.get(model) ?? 0)) {
     loadedContextSizes.set(model, started.contextSize);
   }
+  // A window that started is one memory allows.
+  const ceiling = memoryCeilings.get(model);
+  if (ceiling && started?.contextSize && started.contextSize > ceiling) memoryCeilings.set(model, started.contextSize);
   if (!started?.projectorRefused) return;
   forgetModelInfo(model);
   for (const listener of modelInfoListeners) listener();
@@ -280,12 +283,15 @@ export function windowCeiling(maxContext: number | null, loaded = 0): number {
   return Math.max(loaded, maxContext ?? FALLBACK_CONTEXT_LENGTH);
 }
 
+/** Tokens a window keeps free above the prompt for the reply. */
+export const REPLY_HEADROOM_TOKENS = 2048;
+
 export function pickContextSize(
   charEstimate: number,
   maxContext: number | null,
 ): number {
   const cap = windowCeiling(maxContext);
-  const needed = Math.ceil(charEstimate / 4) + 2048;
+  const needed = Math.ceil(charEstimate / 4) + REPLY_HEADROOM_TOKENS;
 
   for (const bucket of CONTEXT_BUCKETS) {
     if (bucket >= needed) return Math.min(bucket, cap);
@@ -297,6 +303,8 @@ export function pickContextSize(
 /** The window each model is loaded at. Changing context size restarts the server,
  * so it is kept once per model and only resets when fixed settings change. */
 const loadedContextSizes = new Map<string, number>();
+/** The largest window a model could be started at on this computer, learned when a bigger one failed. */
+const memoryCeilings = new Map<string, number>();
 let activeFixedContext: number | "max" | null | undefined;
 
 function syncFixedContext(fixedContext?: number | "max" | null): void {
@@ -324,19 +332,35 @@ export function contextSizeFor(
     loadedContextSizes.set(model, fixedContext);
     return fixedContext;
   }
-  const size = Math.max(
+  const size = underCeiling(model, Math.max(
     loadedContextSizes.get(model) ?? 0,
     pickContextSize(charEstimate, maxContext),
-  );
+  ));
   loadedContextSizes.set(model, size);
   return size;
+}
+
+function underCeiling(model: string, size: number): number {
+  const ceiling = memoryCeilings.get(model);
+  return ceiling ? Math.min(size, ceiling) : size;
+}
+
+/** A bigger window would not start: the automatic window stays at `size` from now on. */
+export function limitContextSize(model: string, size: number): void {
+  memoryCeilings.set(model, size);
+  loadedContextSizes.set(model, size);
+}
+
+/** The memory limit `limitContextSize` learned for a model, if any. */
+export function memoryCeilingFor(model: string): number | null {
+  return memoryCeilings.get(model) ?? null;
 }
 
 /** The next window above the one loaded, or null when the model cannot go higher. */
 export function nextContextSize(model: string, maxContext: number | null, from = 0): number | null {
   if (isRemote(model)) return null;
   const loaded = Math.max(from, loadedContextSizes.get(model) ?? 0);
-  const cap = windowCeiling(maxContext);
+  const cap = underCeiling(model, windowCeiling(maxContext));
   return CONTEXT_BUCKETS.find((bucket) => bucket > loaded && bucket <= cap) ?? null;
 }
 
@@ -361,7 +385,7 @@ export function peekContextSize(
   if (typeof fixedContext === "number") {
     return fixedContext;
   }
-  return Math.max(loadedContextSizes.get(model) ?? 0, pickContextSize(charEstimate, maxContext));
+  return underCeiling(model, Math.max(loadedContextSizes.get(model) ?? 0, pickContextSize(charEstimate, maxContext)));
 }
 
 /** Requests generating right now, anywhere in the app. A measurement waits for none of them and
@@ -395,6 +419,7 @@ export function onLlamaWork(listener: () => void): () => void {
 
 export function forgetContextSize(model: string) {
   loadedContextSizes.delete(model);
+  memoryCeilings.delete(model);
 }
 
 type GgufListing = Awaited<ReturnType<NonNullable<NonNullable<Window["draggy"]>["gguf"]>["listModels"]>>;

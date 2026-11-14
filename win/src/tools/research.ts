@@ -201,6 +201,17 @@ const finishResearch: ToolSpec = {
   run: async (_args, ctx) => {
     const run = activeRun(ctx);
     if (!run) return "TOOL RESULT (finish_research): There is no research run.";
+    // Searches alone give a report with nothing to cite, so the first early finish is turned back once.
+    const refusedKey = `finish-refused:${run.id}`;
+    const found = [...new Set(run.queries.flatMap((entry) => entry.urls))];
+    if (run.status === "gathering" && run.notes.length === 0 && found.length > 0 && !ctx.memo.has(refusedKey)) {
+      ctx.memo.set(refusedKey, true);
+      return [
+        "TOOL RESULT (finish_research): Not finished. No notes are kept, so the report would have no sources.",
+        `Read the best search results with read_url, for example:\n${found.slice(0, 3).join("\n")}`,
+        "After each useful page call add_note with the exact sentence it says, then call finish_research again.",
+      ].join("\n\n");
+    }
     const settled = await settleRun(ctx);
     const dropped = settled?.dropped ?? 0;
     const kept = run.notes.filter((note) => note.verified);

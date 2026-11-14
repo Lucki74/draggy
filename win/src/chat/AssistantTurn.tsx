@@ -417,7 +417,12 @@ export function AssistantTurn({
                 {friendlyError ? (
                   <>
                     <p className="mb-1">{friendlyError}</p>
-                    <p className="text-[12px] text-text-tertiary wrap-anywhere">{errorMessage}</p>
+                    {/* The detail carries the help link as markdown, so it is rendered, not printed. */}
+                    <div className="text-[12px] text-text-tertiary wrap-anywhere">
+                      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={MARKDOWN_COMPONENTS}>
+                        {errorMessage}
+                      </ReactMarkdown>
+                    </div>
                   </>
                 ) : (
                   <ReactMarkdown

@@ -877,6 +877,8 @@ export interface MessageVersion {
   metrics?: TurnMetrics | null;
   /** What the provider that wrote this reply needs back next turn; sent to that instance only. */
   provider_state?: ProviderState;
+  /** The tool output this reply worked from, cut to fit, sent with it on later turns. */
+  toolResults?: string[];
   /** The turn ended in an error, described by `error`; content keeps only what was generated. */
   failed?: boolean;
   error?: string;
@@ -913,6 +915,8 @@ export interface Message {
   metrics?: TurnMetrics | null;
   fold?: FoldMarker;
   provider_state?: ProviderState;
+  /** The tool output this reply worked from, cut to fit, sent with it on later turns. */
+  toolResults?: string[];
   /** The turn ended in an error, described by `error`; content keeps only what was generated. */
   failed?: boolean;
   error?: string;

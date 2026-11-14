@@ -331,6 +331,33 @@ describe("the task manager", () => {
     expect(messages[1].versions).toBeUndefined();
   });
 
+  it("redoes a reply the window refused with the whole conversation, not a resume summary", () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    seed(sessions, "chat-1");
+    const steps = [{ id: "s1", type: "results" as const, content: "Found pages", isComplete: true }];
+    sessions.set("chat-1", {
+      ...(sessions.get("chat-1") as ChatSession),
+      messages: [
+        { id: "m1", role: "user", content: "first question" },
+        { id: "m2", role: "assistant", content: "first answer", textContent: "first answer" },
+        { id: "m3", role: "user", content: "second question" },
+        { id: "m4", role: "assistant", content: "half", textContent: "half", steps, failed: true, error: "the request exceeds the available context size", errorKind: "context" },
+      ],
+    });
+
+    manager.regenerate("chat-1");
+
+    const request = pending.at(-1)?.request;
+    expect(request?.isContinuation).toBeFalsy();
+    expect(request?.seed ?? null).toBeNull();
+    expect(request?.messages.map((message) => message.content)).toEqual(["first question", "first answer", "second question"]);
+    const messages = sessions.get("chat-1")?.messages ?? [];
+    expect(messages).toHaveLength(4);
+    expect(messages[3].versions?.[0]).toMatchObject({ content: "half", errorKind: "context" });
+  });
+
   it("preserves message versions when a retry attempt fails", async () => {
     const { sessions, host } = createHost();
     const manager = createTaskManager(host);

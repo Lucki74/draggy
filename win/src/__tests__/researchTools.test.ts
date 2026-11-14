@@ -94,6 +94,22 @@ describe("notes and finish", () => {
     expect(await tool("search_notes").run({ query: "price" }, ctx)).toMatch(/No notes match/);
   });
 
+  it("turns back a finish with search results but no notes once, then lets it through", async () => {
+    const ctx = await started();
+    activeRun(ctx)?.queries.push({ query: "speed", key: "speed", kind: "web", urls: ["https://example.com/a", "https://example.com/b"] } as never);
+    const first = await tool("finish_research").run({}, ctx);
+    expect(first).toMatch(/Not finished/);
+    expect(first).toContain("https://example.com/a");
+    expect(first).toMatch(/read_url/);
+    const second = await tool("finish_research").run({}, ctx);
+    expect(second).toMatch(/Write the report now/);
+  });
+
+  it("finishes at once when nothing was found", async () => {
+    const ctx = await started();
+    expect(await tool("finish_research").run({}, ctx)).toMatch(/Write the report now/);
+  });
+
   it("reports stop once the call budget is spent", async () => {
     const ctx = await started();
     let stopped = false;

@@ -1,5 +1,5 @@
 import { DEFAULT_REFERENCE_STRENGTH } from "../images/imageTracker";
-import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, growContext, nextContextSize, windowCeiling } from "../llama";
+import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, growContext, memoryCeilingFor, nextContextSize, windowCeiling } from "../llama";
 
 import { isRemote } from "../ai/providers";
 import { generateId, titleFromContent } from "../utils";
@@ -11,6 +11,7 @@ import {
   planManualCompaction,
   runCompaction,
 } from "./compaction";
+import { keepToolResults } from "./contextFit";
 import { compactThreshold } from "./contextBreakdown";
 import { measureTurn, runAgentTurn } from "./agentLoop";
 import type { AgentHost, ContextMeasurement, OutOfContextInfo } from "./agentLoop";
@@ -306,7 +307,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       ? settings.fixedContextSize
       : isRemote(model)
       ? windowCeiling(info?.contextLength ?? null, numCtx)
-      : Math.min(maxLocal, windowCeiling(info?.contextLength ?? null, numCtx));
+      : Math.min(maxLocal, memoryCeilingFor(model) ?? maxLocal, windowCeiling(info?.contextLength ?? null, numCtx));
 
     return compactThreshold(windowTokens, limit, info?.cloud === true).tokens * CHARS_PER_TOKEN;
 
@@ -517,7 +518,9 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
     const history = modelHistory(options.isContinuation ? laid.messages : laid.messages.slice(0, -1));
     const seed = options.isContinuation ? seedFor(laid.messages) : null;
+    const seedResults = laid.messages[laid.messages.length - 1]?.toolResults ?? [];
     let failed = false;
+    let failedKind: string | null = null;
 
     const wroteAnything = () => {
       const message = host.getSession(chatId)?.messages.find((m) => m.id === messageId);
@@ -726,6 +729,10 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
             steps: result.steps,
             textContent: result.textContent,
             ...(result.providerState && !result.aborted ? { provider_state: result.providerState } : {}),
+            // A continuation adds to the tool output the reply already carried.
+            ...(result.toolResults?.length
+              ? { toolResults: keepToolResults([...(options.isContinuation ? seedResults : []), ...result.toolResults]) }
+              : {}),
           },
           { updatedAt: Date.now(), isOutOfContext: result.outOfContext },
         );
@@ -735,6 +742,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         failed = true;
         const errorMessage = err.message || "Error generating response.";
         const errorKind = classifyTurnError(errorMessage);
+        failedKind = errorKind;
         logRendererError("chat", "turn failed", err, { chatId, model, kind: errorKind, shown: "failed assistant message" }, correlationId);
 
         // The reason goes in `error`, never the reply: the model would read it back as its own words.
@@ -783,9 +791,12 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           } else if (othersWaiting) {
             // Another chat asked first, so this chat's own queue goes behind it.
             if (!failed && queueOf(chatId).length > 0) waitForTurn(chatId);
-          } else if (failed || !dispatchNext(chatId)) {
+          } else if (failed) {
+            // Retry has to see the whole conversation; only a fixed window too small for it is folded first.
+            if (failedKind === "context" && host.getSettings().fixedContextSize != null) void compactChat(chatId, false);
+          } else if (!dispatchNext(chatId)) {
             void compactChat(chatId, false);
-            if (!failed) void wakeForEnded(chatId);
+            void wakeForEnded(chatId);
           }
         }
         if (runs.size === 0 && othersWaiting) {
@@ -1209,7 +1220,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     const failedIdx = typeof index === "number" ? index : session.messages.length - 1;
     const failed = session.messages[failedIdx];
     const partial = failed ? Boolean(failed.textContent?.trim() || failed.steps?.length || (failed.content && failed.content !== failed.error)) : false;
-    if (failed?.failed && failed.error && partial && failedIdx === session.messages.length - 1) {
+    // A reply the window refused is done again whole: resuming it would carry its tool work as a short summary.
+    if (failed?.failed && failed.error && partial && failed.errorKind !== "context" && failedIdx === session.messages.length - 1) {
       const resumed = { ...failed };
       if (resumed.content === resumed.error) resumed.content = "";
       delete resumed.failed;

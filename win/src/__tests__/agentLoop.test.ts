@@ -171,6 +171,9 @@ interface Turn {
   /** A `provider_state` event the gateway sends with this pass. */
   state?: { instanceId: string; state: unknown };
   splitUsage?: boolean;
+  /** An HTTP refusal instead of a stream, such as the engine's context-too-long. */
+  status?: number;
+  body?: string;
 }
 
 function installFetch(
@@ -234,6 +237,7 @@ function installFetch(
       requests.push(body);
 
       const turn = turns[Math.min(turnIndex++, turns.length - 1)];
+      if (turn.status) return new Response(turn.body ?? "", { status: turn.status });
       return new Response(sseStream(turnToSseChunks(turn, turn.final ?? {})), { status: 200 });
     }
 
@@ -534,11 +538,37 @@ describe("a plain answer with no tools", () => {
   it("reports the window it was loaded with when the reply is cut", async () => {
     installFetch([{ content: ["truncated"], final: { done_reason: "length", prompt_eval_count: 100, eval_count: 50 } }], []);
 
-    const { host, promise } = run([userMessage("hi")]);
+    const { host, promise } = run([userMessage("hi")], undefined, undefined, { ...SETTINGS, fixedContextSize: 4096 });
     await promise;
 
-    expect(host.cutInfo).toMatchObject({ loaded: 4096, modelMax: 32768, canGrow: true });
+    expect(host.cutInfo).toMatchObject({ loaded: 4096, modelMax: 32768, canGrow: false });
     expect(host.cutInfo?.used).toBeGreaterThan(0);
+  });
+
+  it("does a cut pass again in a bigger window when the window is automatic", async () => {
+    const { requests } = installFetch(
+      [{ content: ["trunc"], final: { done_reason: "length", prompt_eval_count: 100, eval_count: 50 } }, { content: ["whole answer"] }],
+      [],
+    );
+
+    const { host, promise } = run([userMessage("hi")]);
+    const result = await promise;
+
+    expect(requests.map((body) => (body as { options: { num_ctx: number } }).options.num_ctx)).toEqual([4096, 8192]);
+    expect(result.outOfContext).toBe(false);
+    expect(host.outOfContext).toBe(false);
+    expect(result.textContent).toBe("whole answer");
+  });
+
+  it("grows the window when the engine refuses the prompt as too long", async () => {
+    const refusal = JSON.stringify({ error: { code: 400, message: "the request exceeds the available context size, try increasing it", type: "exceed_context_size_error", n_prompt_tokens: 5000, n_ctx: 4096 } });
+    const { requests } = installFetch([{ status: 400, body: refusal }, { content: ["fits now"] }], []);
+
+    const result = await run([userMessage("hi")]).promise;
+
+    expect(requests).toHaveLength(2);
+    expect((requests[1] as { options: { num_ctx: number } }).options.num_ctx).toBe(8192);
+    expect(result.textContent).toBe("fits now");
   });
 });
 
@@ -2786,7 +2816,7 @@ describe("live streaming file creation", () => {
     });
     (window.draggy as Record<string, unknown>).createFile = createFile;
 
-    const cut = await run([userMessage("write a report")], undefined, host).promise;
+    const cut = await run([userMessage("write a report")], undefined, host, { ...SETTINGS, fixedContextSize: 4096 }).promise;
     expect(createFile).not.toHaveBeenCalled();
     expect(cut.content).not.toContain("Rewrote it.");
     expect(cut.steps.filter((s) => s.type === "create_file")).toMatchObject([{ cut: true }]);

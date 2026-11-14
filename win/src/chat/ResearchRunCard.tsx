@@ -124,8 +124,10 @@ function RunTree({ run, t }: { run: ResearchRunView; t: (key: string) => string 
         </div>
       )}
       {run.endedAt !== undefined && !run.notes.some((note) => note.verified !== false) && (
-        <p role="note" className="m-0 flex items-start gap-2 pt-1 text-[12px] text-text-tertiary">
-          <Icon name="warning" size={13} className="mt-px flex-shrink-0 text-danger" />
+        <p role="note" className="m-0 flex items-start gap-2 pt-1 text-[12px] leading-[18px] text-text-tertiary">
+          <span className="flex h-[18px] flex-shrink-0 items-center">
+            <Icon name="warning" size={13} className="text-danger" />
+          </span>
           <span>{t("researchRunNoNotes")}</span>
         </p>
       )}
