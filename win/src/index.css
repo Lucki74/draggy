@@ -1240,9 +1240,16 @@ kbd {
     background-position: -60% 0;
   }
 }
+/* Reasoning reads as a quiet aside on the rail. */
+.thought {
+  font-size: 13px;
+  line-height: 20px;
+  font-style: italic;
+  color: var(--text-secondary);
+}
 /* A thought while it streams: the newest three lines, the older ones fading out at the top. */
 .thought-tail {
-  max-height: 66px;
+  max-height: 60px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
