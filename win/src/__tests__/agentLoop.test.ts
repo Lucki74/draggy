@@ -1097,6 +1097,53 @@ describe("continuing a truncated answer", () => {
     expect(result.textContent).toContain("Once upon a time");
     expect(result.textContent).toContain("and then it ended.");
   });
+
+  it("sends the tool output the cut-off reply gathered back whole", async () => {
+    const { requests } = installFetch([{ content: [" done."] }], []);
+
+    await runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("research this")],
+        isContinuation: true,
+        seed: { content: "", textContent: "", steps: [], toolResults: ["read_url s1: the whole page text"] },
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+
+    const sent = JSON.stringify(requests[0]);
+    expect(sent).toContain("the whole page text");
+  });
+});
+
+describe("an engine that serves a smaller window than asked", () => {
+  it("sizes the prompt to the window the engine reports", async () => {
+    const { requests, starts } = installFetch([{ content: ["ok"] }], []);
+    const draggy = (window as unknown as { draggy: { gguf: { start: unknown } } }).draggy;
+    draggy.gguf.start = async (opts: { modelPath: string; contextSize: number }) => {
+      starts.push(opts);
+      return { success: true, contextSize: 8192 };
+    };
+
+    await runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("older ".repeat(12000)), { id: "a1", role: "assistant", content: "noted" }, userMessage("now answer")],
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+
+    expect(starts[0].contextSize).toBeGreaterThan(8192);
+    expect(starts.at(-1)?.contextSize).toBe(8192);
+    expect(requests).toHaveLength(1);
+    expect((requests[0] as { options?: { num_ctx?: number } }).options?.num_ctx).toBe(8192);
+  });
 });
 
 describe("putting attachments on the wire", () => {

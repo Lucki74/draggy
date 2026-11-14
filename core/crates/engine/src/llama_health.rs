@@ -23,6 +23,10 @@ pub trait HealthProbe: Send + Sync + 'static {
         port: u16,
         timeout: Duration,
     ) -> impl Future<Output = Option<String>> + Send;
+    /// The window the server was started with, from `/props`, or None when it does not say.
+    fn served_context(&self, _port: u16, _timeout: Duration) -> impl Future<Output = Option<u64>> + Send {
+        async { None }
+    }
 }
 
 /// Time as the supervisor sees it: elapsed milliseconds since the clock started, and a pause.
@@ -91,6 +95,21 @@ impl HealthProbe for HttpProbe {
         let (_, body) = get(port, "/v1/models", timeout).await?;
         served_name(&body)
     }
+
+    async fn served_context(&self, port: u16, timeout: Duration) -> Option<u64> {
+        let (_, body) = get(port, "/props", timeout).await?;
+        served_window(&body)
+    }
+}
+
+/// The window in a `/props` answer: llama-server keeps it under `default_generation_settings.n_ctx`.
+pub fn served_window(body: &str) -> Option<u64> {
+    let parsed: Value = serde_json::from_str(body).ok()?;
+    parsed
+        .pointer("/default_generation_settings/n_ctx")
+        .or_else(|| parsed.get("n_ctx"))
+        .and_then(Value::as_u64)
+        .filter(|size| *size > 0)
 }
 
 /// The model name in a `/v1/models` answer: the first entry's id, model or name, as the reference reads it.
@@ -157,6 +176,15 @@ pub async fn wait_for_ready<P: HealthProbe, C: Clock>(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn served_window_reads_the_props_window() {
+        use super::served_window;
+        assert_eq!(served_window(r#"{"default_generation_settings":{"n_ctx":32768},"total_slots":1}"#), Some(32768));
+        assert_eq!(served_window(r#"{"n_ctx":4096}"#), Some(4096));
+        assert_eq!(served_window(r#"{"total_slots":1}"#), None);
+        assert_eq!(served_window("not json"), None);
+    }
+
     use super::*;
     use std::sync::atomic::{AtomicU64, Ordering};
 

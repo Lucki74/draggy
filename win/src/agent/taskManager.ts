@@ -459,6 +459,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       content: lastMsg.content || "",
       textContent: lastMsg.textContent || "",
       steps: lastMsg.steps ? [...lastMsg.steps] : [],
+      toolResults: lastMsg.toolResults ?? [],
     };
   }
 
@@ -746,9 +747,12 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         logRendererError("chat", "turn failed", err, { chatId, model, kind: errorKind, shown: "failed assistant message" }, correlationId);
 
         // The reason goes in `error`, never the reply: the model would read it back as its own words.
+        const gathered = (err as Error & { toolResults?: string[] }).toolResults ?? [];
+        const kept = keepToolResults([...(options.isContinuation ? seedResults : []), ...gathered]);
         const fail = (message: Message): Message => {
           const steps = settledSteps(message.steps);
           const next: Message = { ...message, failed: true, error: errorMessage, errorKind };
+          if (kept.length > 0) next.toolResults = kept;
           if (steps && steps.length > 0) next.steps = steps;
           else delete next.steps;
           return next;
@@ -1220,8 +1224,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     const failedIdx = typeof index === "number" ? index : session.messages.length - 1;
     const failed = session.messages[failedIdx];
     const partial = failed ? Boolean(failed.textContent?.trim() || failed.steps?.length || (failed.content && failed.content !== failed.error)) : false;
-    // A reply the window refused is done again whole: resuming it would carry its tool work as a short summary.
-    if (failed?.failed && failed.error && partial && failed.errorKind !== "context" && failedIdx === session.messages.length - 1) {
+    // Every failed reply, a context one too, carries on in place with its steps and tool output kept.
+    if (failed?.failed && failed.error && partial && failedIdx === session.messages.length - 1) {
       const resumed = { ...failed };
       if (resumed.content === resumed.error) resumed.content = "";
       delete resumed.failed;

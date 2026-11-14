@@ -278,6 +278,8 @@ export interface AgentSeed {
   content: string;
   textContent: string;
   steps: SearchStep[];
+  /** The tool output the cut-off reply had gathered, sent back whole rather than as a summary. */
+  toolResults?: string[];
 }
 
 export interface AgentRequest {
@@ -597,7 +599,9 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     // Tool results only ever existed inside the turn that was cut off, so what
     // was actually done has to be rebuilt from the steps that survived.
     const resume = buildResumeMessage(request.seed?.steps ?? []);
-    if (resume) wire.push({ role: "user", content: resume });
+    const seedResults = request.seed?.toolResults ?? [];
+    const gathered = seedResults.length > 0 ? `\n\n${TOOL_RESULTS_HEADING}\n${seedResults.join("\n\n")}` : "";
+    if (resume || gathered) wire.push({ role: "user", content: `${resume ?? ""}${gathered}`.trim() });
 
     wire.push({
       role: "user",
@@ -1357,6 +1361,11 @@ async function runTurn(
           throw new Error(engineFailure(started, { markdown: true }));
         }
         noteEngineStart(model, started);
+        // An engine left running from before keeps its own window; the prompt is fitted to that one.
+        if (autoWindow && started?.contextSize && started.contextSize < numCtx) {
+          limitContextSize(model, started.contextSize);
+          throw new ContextOverflowError(`The engine serves a ${started.contextSize}-token window.`, null, true);
+        }
       }
 
       const thinkingBudget = localBudget(effort.sent, numCtx);
@@ -1995,7 +2004,11 @@ async function runTurn(
       // Tool results went in after the last count, so until the next pass ends this is an estimate.
       emitLive(0, null);
     } catch (error) {
-      if (!(error instanceof ContextOverflowError) || !autoWindow || fitRetries >= MAX_FIT_RETRIES || signal.aborted) throw error;
+      if (!(error instanceof ContextOverflowError) || !autoWindow || fitRetries >= MAX_FIT_RETRIES || signal.aborted) {
+        // A failed turn keeps the tool output it gathered, so Retry carries on from it instead of starting over.
+        if (error instanceof Error) Object.assign(error, { toolResults: keepToolResults(turnResults) });
+        throw error;
+      }
       fitRetries += 1;
       // The engine's count of the refused prompt calibrates the next estimate.
       if (error.promptTokens) contextCheckpoint = { tokens: error.promptTokens, chars: estimateChars(wire, toolChars) };

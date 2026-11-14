@@ -331,7 +331,7 @@ describe("the task manager", () => {
     expect(messages[1].versions).toBeUndefined();
   });
 
-  it("redoes a reply the window refused with the whole conversation, not a resume summary", () => {
+  it("resumes a reply the window refused in place, with its steps and tool output kept", () => {
     const { sessions, host } = createHost();
     const manager = createTaskManager(host);
 
@@ -343,19 +343,35 @@ describe("the task manager", () => {
         { id: "m1", role: "user", content: "first question" },
         { id: "m2", role: "assistant", content: "first answer", textContent: "first answer" },
         { id: "m3", role: "user", content: "second question" },
-        { id: "m4", role: "assistant", content: "half", textContent: "half", steps, failed: true, error: "the request exceeds the available context size", errorKind: "context" },
+        { id: "m4", role: "assistant", content: "half", textContent: "half", steps, toolResults: ["read_url s1: page text"], failed: true, error: "the request exceeds the available context size", errorKind: "context" },
       ],
     });
 
     manager.regenerate("chat-1");
 
     const request = pending.at(-1)?.request;
-    expect(request?.isContinuation).toBeFalsy();
-    expect(request?.seed ?? null).toBeNull();
-    expect(request?.messages.map((message) => message.content)).toEqual(["first question", "first answer", "second question"]);
+    expect(request?.isContinuation).toBe(true);
+    expect(request?.seed?.steps).toEqual(steps);
+    expect(request?.seed?.toolResults).toEqual(["read_url s1: page text"]);
+    expect(request?.messages.map((message) => message.content)).toEqual(["first question", "first answer", "second question", "half"]);
     const messages = sessions.get("chat-1")?.messages ?? [];
     expect(messages).toHaveLength(4);
-    expect(messages[3].versions?.[0]).toMatchObject({ content: "half", errorKind: "context" });
+    expect(messages[3].failed).toBeUndefined();
+    expect(messages[3].steps).toEqual(steps);
+  });
+
+  it("keeps the tool output a failed turn gathered on the failed reply", async () => {
+    const { sessions, host } = createHost();
+    const manager = createTaskManager(host);
+
+    seed(sessions, "chat-1");
+    manager.send("chat-1", "look it up");
+    pending.at(-1)?.reject(Object.assign(new Error("the request exceeds the available context size"), { toolResults: ["search_web: results"] }));
+    await vi.waitFor(() => expect(sessions.get("chat-1")?.isGenerating).toBe(false));
+
+    const reply = sessions.get("chat-1")?.messages.at(-1);
+    expect(reply?.failed).toBe(true);
+    expect(reply?.toolResults).toEqual(["search_web: results"]);
   });
 
   it("preserves message versions when a retry attempt fails", async () => {
