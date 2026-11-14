@@ -6,7 +6,7 @@ import { ThinkingRow } from "../chat/ThinkingRow";
 import { translations } from "../translations";
 import type { SearchStep } from "../types";
 
-/** Normal hides finished reasoning; Thinking and Verbose show it as plain text. */
+/** Normal hides finished reasoning, Thinking shows it folded, Verbose opens everything. */
 
 afterEach(cleanup);
 
@@ -36,20 +36,21 @@ describe("finished reasoning", () => {
 
   it("is hidden in Normal", () => {
     inView("normal", row);
-    expect(screen.queryByText("Weighing the two options")).toBeNull();
+    expect(screen.queryByText("Thought for 3s")).toBeNull();
   });
 
-  it("shows as plain text in Thinking and Verbose, with no disclosure", () => {
-    for (const view of ["thinking", "verbose"] as const) {
-      const { container } = inView(view, row);
-      expect(screen.getByText("Weighing the two options")).toBeTruthy();
-      expect(container.querySelector("details")).toBeNull();
-      cleanup();
-    }
+  it("shows folded in Thinking and open in Verbose", () => {
+    const { container } = inView("thinking", row);
+    expect(screen.getByText("Thought for 3s")).toBeTruthy();
+    expect(container.querySelector("details")?.open).toBe(false);
+    cleanup();
+
+    const verbose = inView("verbose", row);
+    expect(verbose.container.querySelector("details")?.open).toBe(true);
   });
 
   it("stays visible in Normal while it is still thinking", () => {
-    inView("normal", <ThinkingRow step={{ ...thought, isComplete: false }} live={false} isGenerating t={t} />);
-    expect(screen.getByText("Weighing the two options")).toBeTruthy();
+    inView("normal", <ThinkingRow step={{ ...thought, isComplete: false }} live isGenerating t={t} />);
+    expect(screen.getByRole("status").textContent).toBe("Thinking");
   });
 });

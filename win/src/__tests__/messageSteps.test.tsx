@@ -127,7 +127,7 @@ describe("a thinking step with indented lines", () => {
       },
     ], "thinking");
 
-    const block = container.querySelector(".thought pre");
+    const block = container.querySelector("details pre");
     expect(block).not.toBeNull();
     expect(block?.closest(".markdown-body")?.className).toContain("[&_pre]:whitespace-pre-wrap");
   });

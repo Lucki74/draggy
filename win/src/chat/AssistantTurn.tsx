@@ -341,7 +341,7 @@ export function AssistantTurn({
     isWork(segment[0]) || segment[0].type === "create_file" || segment[0].type === "research_run";
   const renderSegment = (segment: SearchStep[]) =>
     segment[0].type === "research_run" ? (
-      <Rail key={segment[0].id} entries={toEntries(segment, false)} focus={view === "normal" && runLive} pinFirst running={runningNow} t={t} />
+      <Rail key={segment[0].id} entries={toEntries(segment, true)} focus={view === "normal" && runLive} pinFirst running={runningNow} t={t} />
     ) : drawsRail(segment) ? (
       <Rail key={segment[0].id} entries={toEntries(segment, false)} running={runningNow} t={t} />
     ) : (
