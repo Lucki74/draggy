@@ -164,15 +164,37 @@ export function loadSettings(): AppSettings {
  * reach the network before the user has chosen, and they choose on its Preferences step. */
 export function useSettings(isSplashMode: boolean, holdUpdates = false) {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  // localStorage is per origin and can be wiped, so an empty one is not a first run: sqlite is asked
+  // first, and nothing is saved until it answers, or its copy would be overwritten with defaults.
+  const [hydrated, setHydrated] = useState(() => !window.draggy?.db || localStorage.getItem(SETTINGS_KEY) !== null);
 
   useEffect(() => {
-    if (isSplashMode) return;
+    if (hydrated) return;
+    let live = true;
+    storageBackend()
+      .loadSettings()
+      .then((stored) => {
+        if (!live || !stored) return;
+        writeLocalStorage(SETTINGS_KEY, JSON.stringify(stored));
+        setSettings(loadSettings());
+      })
+      .catch(swallowed("app", "falls back to the defaults"))
+      .finally(() => {
+        if (live) setHydrated(true);
+      });
+    return () => {
+      live = false;
+    };
+  }, [hydrated]);
+
+  useEffect(() => {
+    if (isSplashMode || !hydrated) return;
 
     writeLocalStorage(SETTINGS_KEY, JSON.stringify(settings));
     storageBackend()
       .saveSettings(settings)
       .catch(swallowed("app", "best effort, the screen works without it"));
-  }, [settings, isSplashMode]);
+  }, [settings, isSplashMode, hydrated]);
 
   useEffect(() => {
     window.draggy
