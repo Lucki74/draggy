@@ -167,7 +167,10 @@ pub fn build_request(provider: Provider, term: &str, config: &SearchConfig) -> H
         ),
         Provider::Yahoo => (
             format!("https://search.yahoo.com/search?p={query}"),
-            pairs(&[("User-Agent", DESKTOP_USER_AGENT), ("Accept-Language", "en-US,en;q=0.9")]),
+            pairs(&[
+                ("User-Agent", DESKTOP_USER_AGENT),
+                ("Accept-Language", "en-US,en;q=0.9"),
+            ]),
             PAGE_TIMEOUT,
         ),
     };

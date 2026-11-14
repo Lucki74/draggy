@@ -24,7 +24,11 @@ pub trait HealthProbe: Send + Sync + 'static {
         timeout: Duration,
     ) -> impl Future<Output = Option<String>> + Send;
     /// The window the server was started with, from `/props`, or None when it does not say.
-    fn served_context(&self, _port: u16, _timeout: Duration) -> impl Future<Output = Option<u64>> + Send {
+    fn served_context(
+        &self,
+        _port: u16,
+        _timeout: Duration,
+    ) -> impl Future<Output = Option<u64>> + Send {
         async { None }
     }
 }
@@ -179,7 +183,10 @@ mod tests {
     #[test]
     fn served_window_reads_the_props_window() {
         use super::served_window;
-        assert_eq!(served_window(r#"{"default_generation_settings":{"n_ctx":32768},"total_slots":1}"#), Some(32768));
+        assert_eq!(
+            served_window(r#"{"default_generation_settings":{"n_ctx":32768},"total_slots":1}"#),
+            Some(32768)
+        );
         assert_eq!(served_window(r#"{"n_ctx":4096}"#), Some(4096));
         assert_eq!(served_window(r#"{"total_slots":1}"#), None);
         assert_eq!(served_window("not json"), None);

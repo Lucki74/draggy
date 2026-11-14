@@ -181,11 +181,15 @@ pub fn yahoo_rows(document: &Html, base: &Url) -> Vec<Value> {
         if !url.starts_with("http") {
             continue;
         }
-        let title = select_first(item, "h3").map(trimmed_text).unwrap_or_default();
+        let title = select_first(item, "h3")
+            .map(trimmed_text)
+            .unwrap_or_default();
         if title.is_empty() {
             continue;
         }
-        let snippet = select_first(item, ".compText").map(trimmed_text).unwrap_or_default();
+        let snippet = select_first(item, ".compText")
+            .map(trimmed_text)
+            .unwrap_or_default();
         rows.push(row(&title, &url, &snippet));
     }
     rows.truncate(RESULT_LIMIT);

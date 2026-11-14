@@ -227,10 +227,15 @@ pub fn unwrap_redirect(url: &str) -> String {
     let host = parsed.host_str().unwrap_or_default();
     // Yahoo keeps the destination percent-encoded in a `/RU=.../` path segment.
     if host == "r.search.yahoo.com" {
-        let target = parsed.path().split('/').find_map(|segment| segment.strip_prefix("RU="));
+        let target = parsed
+            .path()
+            .split('/')
+            .find_map(|segment| segment.strip_prefix("RU="));
         let decoded = target.and_then(|t| {
             let pair = format!("u={t}");
-            url::form_urlencoded::parse(pair.as_bytes()).next().map(|(_, v)| v.into_owned())
+            url::form_urlencoded::parse(pair.as_bytes())
+                .next()
+                .map(|(_, v)| v.into_owned())
         });
         return match decoded {
             Some(target) if is_http_url(&target) => target,
@@ -329,7 +334,12 @@ mod tests {
     fn anubis_challenge_is_a_block() {
         let body = r#"<html><head><script id="anubis_challenge" type="application/json">{}</script></head>
             <body>Verifying your request... Loading...</body></html>"#;
-        let blocked = parse_response(Provider::Startpage, "https://www.startpage.com/sp/search?query=q", 200, body);
+        let blocked = parse_response(
+            Provider::Startpage,
+            "https://www.startpage.com/sp/search?query=q",
+            200,
+            body,
+        );
         assert!(matches!(blocked, Err(ProviderError::Blocked(reason)) if reason == "captcha"));
     }
 
@@ -340,9 +350,18 @@ mod tests {
             <article data-test-id="organic-result"><div class="result__title"><a data-test-id="result-link" href="https://en.wikipedia.org/wiki/Large_language_model">Large language model - Wikipedia</a></div>
             <p data-test-id="result-description">A large language model is a language model trained on text.</p></article>
             </body></html>"#;
-        let rows = parse_response(Provider::Ecosia, "https://www.ecosia.org/search?q=q", 200, body).unwrap();
+        let rows = parse_response(
+            Provider::Ecosia,
+            "https://www.ecosia.org/search?q=q",
+            200,
+            body,
+        )
+        .unwrap();
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].url, "https://en.wikipedia.org/wiki/Large_language_model");
+        assert_eq!(
+            rows[0].url,
+            "https://en.wikipedia.org/wiki/Large_language_model"
+        );
         assert_eq!(rows[0].title, "Large language model - Wikipedia");
         assert!(rows[0].snippet.starts_with("A large language model"));
     }
@@ -354,9 +373,18 @@ mod tests {
             <li><div class="dd fst algo algo-sr relsrch Sr"><div class="compTitle options-toggle"><a href="https://r.search.yahoo.com/_ylt=A2/RV=2/RE=1/RO=10/RU=https%3a%2f%2fwww.freecodecamp.org%2fnews%2ftrain-your-own-llm%2f/RK=2/RS=x-"><div>freecodecamp.org</div><h3 class="title"><span>Train Your Own LLM</span></h3></a></div>
             <div class="compText"><p>A hands-on tutorial.</p></div></div></li>
             </ol></body></html>"#;
-        let rows = parse_response(Provider::Yahoo, "https://search.yahoo.com/search?p=q", 200, body).unwrap();
+        let rows = parse_response(
+            Provider::Yahoo,
+            "https://search.yahoo.com/search?p=q",
+            200,
+            body,
+        )
+        .unwrap();
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].url, "https://www.freecodecamp.org/news/train-your-own-llm/");
+        assert_eq!(
+            rows[0].url,
+            "https://www.freecodecamp.org/news/train-your-own-llm/"
+        );
         assert_eq!(rows[0].title, "Train Your Own LLM");
         assert_eq!(rows[0].snippet, "A hands-on tutorial.");
     }
