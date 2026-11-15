@@ -6,6 +6,7 @@
 //! - cancelling goes through `CancelToken`, which stops the turn and the tools it is running.
 
 pub mod adblock;
+pub mod base_model;
 pub mod cancel;
 pub mod cost;
 pub mod documents;

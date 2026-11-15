@@ -53,7 +53,7 @@ export function useImageEngine(refreshKey?: unknown): ImageEngineStatus & { refr
     const api = window.draggy?.sd;
     if (!api) return;
     return api.onProgress((progress) => {
-      if (progress.status === "model-done" || progress.status === "done") refresh();
+      if (progress.status === "model-done" || progress.status === "done" || progress.status === "configured") refresh();
     });
   }, [refresh]);
 

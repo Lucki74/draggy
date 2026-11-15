@@ -12,6 +12,7 @@ import { NEURAL_VOICES, isNeuralVoiceAvailable, resolveNeuralVoice } from "../vo
 import { previewVoice } from "../voice/preview";
 import { isSystemVoiceSupported, listVoices } from "../voice/systemVoice";
 import { DEFAULT_WORKSPACE_ID } from "../workspaces";
+import { modelKey, modelOptions, resolveChoice, splitModelKey, voiceOptions, type CloudProvider } from "./cloudChoice";
 import type { ModelManager } from "./useModelManager";
 import type { AppSettings } from "../types";
 
@@ -130,7 +131,7 @@ export function ChatPreferencesPage({
 const VOICE_SPEEDS = [0.9, 1, 1.1, 1.25];
 
 interface CloudState {
-  providers: { id: string; name: string; configured: boolean }[];
+  providers: CloudProvider[];
   consent: Record<string, string[]>;
   refresh: () => void;
 }
@@ -160,46 +161,58 @@ function CloudVoiceRows({
   state,
   t,
 }: Pick<ChatPageProps, "settings" | "onUpdate" | "t"> & { state: CloudState }) {
-  const usable = state.providers.filter((provider) => provider.configured);
-  const chosen = usable.find((entry) => entry.id === settings.cloudProvider) ?? usable[0];
+  const choice = resolveChoice(state.providers, {
+    provider: settings.cloudProvider,
+    model: settings.cloudModel,
+    voice: settings.cloudVoice,
+  });
+  // A saved choice that no longer resolves (a removed key, a legacy voice name) is rewritten to what is used.
+  // Nothing is rewritten while no provider can speak, so a list still loading cannot wipe the saved choice.
   useEffect(() => {
-    if (chosen && chosen.id !== settings.cloudProvider) onUpdate({ cloudProvider: chosen.id });
-  }, [chosen, settings.cloudProvider, onUpdate]);
-  if (usable.length === 0) {
+    if (!choice.provider) return;
+    if (
+      choice.provider !== settings.cloudProvider ||
+      choice.model !== settings.cloudModel ||
+      choice.voice !== settings.cloudVoice
+    ) {
+      onUpdate({ cloudProvider: choice.provider, cloudModel: choice.model, cloudVoice: choice.voice });
+    }
+  }, [choice.provider, choice.model, choice.voice, settings.cloudProvider, settings.cloudModel, settings.cloudVoice, onUpdate]);
+
+  if (!choice.provider) {
     return (
-      <Row label={t("cloudProvider")}>
+      <Row label={t("cloudVoiceModel")}>
         <span className="text-[12px] text-text-tertiary">{t("cloudNoProviders")}</span>
       </Row>
     );
   }
-  const provider = chosen;
-  const allowed = state.consent[provider.id]?.includes("text") ?? false;
+  const allowed = state.consent[choice.provider]?.includes("text") ?? false;
   const setConsent = (grant: boolean) => {
     const call = grant
-      ? window.draggy?.tts?.grantConsent(provider.id)
-      : window.draggy?.tts?.revokeConsent(provider.id);
+      ? window.draggy?.tts?.grantConsent(choice.provider)
+      : window.draggy?.tts?.revokeConsent(choice.provider);
     void call?.then(state.refresh);
   };
 
   return (
     <>
-      <Row label={t("cloudProvider")}>
+      <Row label={t("cloudVoiceModel")}>
         <Select
-          label={t("cloudProvider")}
-          value={provider.id}
-          options={usable.map((entry) => ({ id: entry.id, label: entry.name }))}
-          onChange={(cloudProvider) => onUpdate({ cloudProvider, cloudVoice: "", cloudModel: "" })}
+          label={t("cloudVoiceModel")}
+          value={modelKey(choice.provider, choice.model)}
+          options={modelOptions(state.providers)}
+          onChange={(key) => {
+            const next = splitModelKey(key);
+            onUpdate({ cloudProvider: next.provider, cloudModel: next.model, cloudVoice: "" });
+          }}
         />
       </Row>
       <Row label={t("cloudVoiceName")}>
-        <input
-          type="text"
-          aria-label={t("cloudVoiceName")}
-          title={t("cloudVoiceNameHint")}
-          placeholder={t("automatic")}
-          value={settings.cloudVoice}
-          onChange={(event) => onUpdate({ cloudProvider: provider.id, cloudVoice: event.target.value })}
-          className="h-8 w-44 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        <Select
+          label={t("cloudVoiceName")}
+          value={choice.voice}
+          options={voiceOptions(state.providers, choice, t("automatic"))}
+          onChange={(cloudVoice) => onUpdate({ cloudVoice })}
         />
       </Row>
       <Block>

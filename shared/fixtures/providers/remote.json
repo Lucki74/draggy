@@ -101,7 +101,37 @@
             "quirks": {
               "developerRole": true
             },
-            "vendor": "openai"
+            "vendor": "openai",
+            "image": {
+              "protocol": "openai-images",
+              "defaultModels": [
+                "gpt-image-2.6-flare",
+                "gpt-image-2.5-flare"
+              ]
+            },
+            "speech": {
+              "protocol": "openai-speech",
+              "models": [
+                {
+                  "id": "gpt-4o-mini-tts",
+                  "voices": [
+                    "alloy",
+                    "ash",
+                    "ballad",
+                    "coral",
+                    "echo",
+                    "fable",
+                    "nova",
+                    "onyx",
+                    "sage",
+                    "shimmer",
+                    "verse",
+                    "marin",
+                    "cedar"
+                  ]
+                }
+              ]
+            }
           }
         ]
       }

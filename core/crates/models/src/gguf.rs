@@ -68,6 +68,54 @@ pub struct GgufHeader {
     pub tokenizer_pre: Option<String>,
     pub vocab_size: Option<f64>,
     pub version: u32,
+    /// Base models this file was finetuned or merged from (`general.base_model.{i}.*`), nearest first.
+    pub base_models: Vec<BaseModel>,
+}
+
+/// One entry of `general.base_model.{i}.*`. Any field may be absent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BaseModel {
+    pub name: Option<String>,
+    pub organization: Option<String>,
+    pub repo_url: Option<String>,
+}
+
+impl BaseModel {
+    /// The `org/name` repo id, from the organization and name, or else from a Hugging Face `repo_url`.
+    pub fn repo_id(&self) -> Option<String> {
+        if let (Some(org), Some(name)) = (&self.organization, &self.name)
+            && !org.is_empty()
+            && !name.is_empty()
+        {
+            return Some(format!("{org}/{name}"));
+        }
+        let url = self.repo_url.as_deref()?;
+        let path = url
+            .strip_prefix("https://huggingface.co/")
+            .or_else(|| url.strip_prefix("http://huggingface.co/"))?;
+        let mut parts = path
+            .trim_matches('/')
+            .split('/')
+            .filter(|part| !part.is_empty());
+        let (org, name) = (parts.next()?, parts.next()?);
+        Some(format!("{org}/{name}"))
+    }
+}
+
+/// Reads `general.base_model.count` and each entry below it. Capped so a damaged count cannot run long.
+fn base_models_of(meta: &HashMap<String, Value>) -> Vec<BaseModel> {
+    let count = to_number(meta.get("general.base_model.count")).clamp(0.0, 16.0) as usize;
+    (0..count)
+        .map(|index| {
+            let text =
+                |field: &str| string_of(meta.get(&format!("general.base_model.{index}.{field}")));
+            BaseModel {
+                name: text("name"),
+                organization: text("organization"),
+                repo_url: text("repo_url"),
+            }
+        })
+        .collect()
 }
 
 /// A metadata value as the reference keeps it: every number as a double, arrays as null.
@@ -430,6 +478,7 @@ fn walk_header<S: ByteSource>(source: &mut S) -> Result<GgufHeader, GgufError> {
         offset = next;
     }
 
+    let base_models = base_models_of(&meta);
     let architecture = match meta.get("general.architecture") {
         Some(Value::String(name)) => name.clone(),
         _ => "unknown".to_owned(),
@@ -455,6 +504,7 @@ fn walk_header<S: ByteSource>(source: &mut S) -> Result<GgufHeader, GgufError> {
             _ => None,
         },
         name: string_of(meta.get("general.name")),
+        base_models,
         expert_count: truthy(field("expert_count")).unwrap_or(0.0),
         expert_used_count: truthy(field("expert_used_count")).unwrap_or(0.0),
         head_count_kv: truthy(field("attention.head_count_kv")).or(head_count),
@@ -689,6 +739,53 @@ mod tests {
             read_header(&mut Cursor::new(vec![0; 10])),
             Err(GgufError::TooShort)
         ));
+    }
+
+    #[test]
+    fn base_models_are_read_from_the_header() {
+        let file = header(
+            &[
+                kv("general.base_model.count", TYPE_U32, &1_u32.to_le_bytes()),
+                kv(
+                    "general.base_model.0.name",
+                    TYPE_STRING,
+                    &str_bytes("Qwen3.6-35B-A3B"),
+                ),
+                kv(
+                    "general.base_model.0.organization",
+                    TYPE_STRING,
+                    &str_bytes("Qwen"),
+                ),
+                kv(
+                    "general.base_model.0.repo_url",
+                    TYPE_STRING,
+                    &str_bytes("https://huggingface.co/Qwen/Qwen3.6-35B-A3B"),
+                ),
+            ],
+            4,
+        );
+        let parsed = parse_header(&file).expect("header");
+        assert_eq!(parsed.base_models.len(), 1);
+        assert_eq!(
+            parsed.base_models[0].repo_id().as_deref(),
+            Some("Qwen/Qwen3.6-35B-A3B")
+        );
+    }
+
+    #[test]
+    fn a_base_model_without_organization_reads_its_repo_url() {
+        let base = BaseModel {
+            name: None,
+            organization: None,
+            repo_url: Some("https://huggingface.co/Qwen/Qwen3-8B/".to_owned()),
+        };
+        assert_eq!(base.repo_id().as_deref(), Some("Qwen/Qwen3-8B"));
+    }
+
+    #[test]
+    fn a_header_without_base_model_has_none() {
+        let file = header(&[], 0);
+        assert!(parse_header(&file).expect("header").base_models.is_empty());
     }
 
     #[test]

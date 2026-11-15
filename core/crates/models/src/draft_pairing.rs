@@ -183,6 +183,7 @@ mod tests {
             tokenizer_pre: None,
             vocab_size: Some(131_072.0),
             version: 3,
+            base_models: Vec::new(),
         };
         assert!(family_draft_for(Some(&header)).is_none());
     }

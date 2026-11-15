@@ -601,7 +601,8 @@ export interface ImageProgress {
     | "engine-download"
     | "model-download"
     | "model-verify"
-    | "model-done";
+    | "model-done"
+    | "configured";
   position?: number;
   percent?: number;
   completed?: number;
@@ -1347,7 +1348,7 @@ export interface AppSettings {
   fixedContextSize: number | "max" | null;
   /** "release" only offers x.x.x tags; "prerelease" offers everything including x.x.x-label. */
   /** The image model to draw with. Empty uses the first one installed. */
-  imageModel: string;
+  imageModel: { source: "local" | "cloud"; provider?: string; model: string };
   /** The size images are drawn at, as width and height in pixels: "1024x1024". */
   imageResolution: string;
   budgets?: BudgetSettings;
@@ -1355,8 +1356,6 @@ export interface AppSettings {
   priceRefresh?: boolean;
   /** ISO code the costs are shown in. They are stored in US dollars either way. */
   displayCurrency?: string;
-  /** The model a local reply is priced against for "saved", as `provider/model`. */
-  referenceModel?: string;
 }
 
 declare global {
@@ -1974,7 +1973,7 @@ declare global {
 
       tts: {
         providers: () => Promise<{
-          providers: { id: string; name: string; configured: boolean }[];
+          providers: { id: string; name: string; configured: boolean; models: { id: string; voices: string[] }[] }[];
           consent: Record<string, string[]>;
         }>;
         grantConsent: (provider: string) => Promise<{ success: boolean; code?: string }>;
@@ -1986,6 +1985,17 @@ declare global {
         cancel: (turnId: number) => Promise<{ success: boolean }>;
         /** Returns a cleanup function. */
         onFrames: (callback: (frame: { turnId: number; pcm: Int16Array; sampleRate: number }) => void) => () => void;
+      };
+
+      images: {
+        cloudModels: () => Promise<{ providers: { id: string; name: string; models: string[] }[] }>;
+        cloudGenerate: (request: {
+          provider: string;
+          model: string;
+          prompt: string;
+          width?: number;
+          height?: number;
+        }) => Promise<{ success: boolean; dataUrl?: string; code?: string }>;
       };
 
       providers: {
@@ -2056,7 +2066,7 @@ declare global {
 
       sd?: {
         status: () => Promise<ImageEngineStatus>;
-        configure: (options: { model: string; resolution?: string }) => Promise<{ success: boolean }>;
+        configure: (options: { model: string; resolution?: string; cloud?: { provider: string; model: string } | null }) => Promise<{ success: boolean }>;
         setupEngine: () => Promise<{ success: boolean; runner?: string; kind?: string; error?: string }>;
         downloadRepo: (reference: string) => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
         cancelDownload: (id: string) => Promise<{ success: boolean }>;
@@ -2111,6 +2121,8 @@ declare global {
           contextLength: number | null;
           blockCount: number | null;
           fileType: number | null;
+          /** Base model repo ids from the header (`org/name`), nearest first. */
+          baseModels?: string[];
           /** From the chat template: tools and completion for all, thinking where the template has it. */
           capabilities?: string[];
         }[]>;

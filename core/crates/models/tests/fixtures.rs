@@ -132,6 +132,7 @@ fn header_of(value: &Value) -> Option<GgufHeader> {
             .as_u64()
             .and_then(|v| u32::try_from(v).ok())
             .unwrap_or(3),
+        base_models: Vec::new(),
     })
 }
 

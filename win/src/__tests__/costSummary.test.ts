@@ -44,13 +44,23 @@ describe("what the stored turns cost", () => {
     expect(summary.paidTurns).toBe(2);
   });
 
-  it("leaves local turns out of spent and prices them on the reference model as saved", () => {
+  it("leaves local turns out of spent and prices them on their own base model as saved", () => {
     const summary = summarizeCost([row({ kind: "local", costMicros: null, providerId: null, model: "qwen3.gguf" })], {
-      priceReference: (turn) => turn.promptTokens * 3 + turn.responseTokens * 15,
+      priceLocal: (turn) => ({ micros: turn.promptTokens * 3 + turn.responseTokens * 15, priceId: "qwen/qwen3.6-35b-a3b" }),
     });
     expect(summary.spentMicros).toBe(0);
     expect(summary.savedMicros).toBe(10_500);
     expect(summary.paidTurns).toBe(0);
+    expect(summary.byModel[0]).toMatchObject({ key: "qwen3.gguf", turns: 1, savedMicros: 10_500, priceId: "qwen/qwen3.6-35b-a3b" });
+  });
+
+  it("shows a local model with no base model as unknown and leaves it out of the total", () => {
+    const summary = summarizeCost([row({ kind: "local", costMicros: null, providerId: null, model: "Clover.gguf" })], {
+      priceLocal: () => null,
+    });
+    expect(summary.savedMicros).toBe(0);
+    expect(summary.unpricedTurns).toBe(1);
+    expect(summary.byModel[0]).toMatchObject({ key: "Clover.gguf", priceId: null });
   });
 
   it("prices rows from before costs were kept, flagged as an estimate", () => {

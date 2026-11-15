@@ -54,7 +54,7 @@ describe("the statistics page", () => {
   it("shows speed by model, tool usage and task time", async () => {
     await show();
 
-    expect(screen.getByText("qwen3:8b")).toBeTruthy();
+    expect(screen.getAllByText("qwen3:8b").length).toBeGreaterThan(0);
     expect(screen.getAllByText("50.0 tok/s").length).toBeGreaterThan(0);
     expect(screen.getByText("read_file")).toBeTruthy();
     expect(screen.getAllByText("12 s").length).toBeGreaterThan(0);
@@ -117,7 +117,7 @@ describe("the usage pane", () => {
     await showChat("chat-a");
 
     expect((list.mock.calls[0] as unknown as [number])[0]).toBe(0);
-    expect(screen.getByText("qwen3:8b")).toBeTruthy();
+    expect(screen.getAllByText("qwen3:8b").length).toBeGreaterThan(0);
     expect(screen.queryByText("llama3.2")).toBeNull();
     expect(screen.queryByRole("radiogroup")).toBeNull();
     expect(screen.queryByRole("button", { name: t("statsClear") })).toBeNull();

@@ -47,9 +47,6 @@ struct TurnCostRecord: Identifiable, Sendable, Equatable {
 /// Prices replies with the core's price table. The arithmetic stays in `draggy-core`; this only picks the route and
 /// hands over the token counts.
 enum TurnPricer {
-    /// The reference model local replies are compared with. Same default as the Windows app.
-    static let referenceProvider = "anthropic"
-    static let referenceModel = "claude-sonnet-4-5"
 
     private struct KnownHost: Sendable {
         let provider: String
@@ -115,7 +112,8 @@ enum TurnPricer {
         }
 
         if route.kind == .local {
-            let saved = priceReply(provider: referenceProvider, modelId: referenceModel, passes: usage).micros
+            // Priced by the cloud model the local one is built on; none when the core does not know it.
+            let saved = priceLocalReply(model: model, passes: usage).micros
             return TurnCostRecord(
                 date: date, provider: route.name, model: model, workspace: workspace, kind: .local,
                 input: input, cacheRead: cacheRead, cacheWrite: cacheWrite, output: output, reasoning: reasoning,

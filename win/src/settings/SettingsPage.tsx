@@ -202,7 +202,7 @@ export default function SettingsPage(props: SettingsPageProps) {
 
             {tab === "usage" && (
               <Page title={t("statistics")}>
-                <StatsPanel t={t} referenceModel={settings.referenceModel} />
+                <StatsPanel t={t} />
                 <BudgetsGroup settings={settings} onUpdate={onUpdate} t={t} />
                 <PricesGroup settings={settings} onUpdate={onUpdate} t={t} />
               </Page>

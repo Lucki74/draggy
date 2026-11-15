@@ -552,6 +552,8 @@ mod tests {
             discovery: None,
             key_optional,
             remote: None,
+            image: None,
+            speech: None,
         }
     }
 

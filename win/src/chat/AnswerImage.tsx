@@ -36,6 +36,8 @@ export function withImageTokens(text: string, streaming = false): string {
 }
 
 const WEB = /^https?:\/\//i;
+// A picture a cloud account drew and saved to the created files: {image}created/<file>{image}.
+const CREATED = /^created\/([^\\/]+)$/;
 
 /** Where a tracked picture can be read from; a project picture needs the file tools, so it comes back later. */
 function useTrackedSrc(image: TrackedImage | undefined): string | null {
@@ -67,9 +69,10 @@ export function AnswerImage({ src, title }: { src?: string; alt?: string; title?
   const [broken, setBroken] = useState(false);
   const wanted = String(src ?? "").trim();
   const web = WEB.test(wanted);
-  const tracked = web ? undefined : images.find((image) => image.id === wanted.toLowerCase());
+  const created = CREATED.exec(wanted)?.[1];
+  const tracked = web || created ? undefined : images.find((image) => image.id === wanted.toLowerCase());
   const trackedSrc = useTrackedSrc(tracked);
-  const shown = web ? wanted : trackedSrc;
+  const shown = web ? wanted : created ? draggyUrl(`images/${encodeURIComponent(created)}`) : trackedSrc;
   // A web picture that will not load says so, so the answer never points at nothing.
   if (web && broken)
     return (

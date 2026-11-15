@@ -1,9 +1,11 @@
 //! A ChatGPT account's chat turn: one Codex app-server per request, stopped when the reader goes. Port of
 //! adapters/codex.cjs. A turn that calls a Draggy tool keeps its process until the tool results come back.
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
+use base64::Engine as _;
 use draggy_providers::account::threads::{Threads, same_conversation};
 use draggy_providers::claude::adapter::text_of;
 use draggy_providers::codex::adapter::{
@@ -15,7 +17,7 @@ use draggy_providers::sse::Delta;
 use draggy_providers::types::{ErrorKind, FinishReason, ProviderError, ProviderState, Usage};
 use draggy_providers::usage::from_codex;
 use serde_json::{Value, json};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use super::claude_chat::trailing_results;
 use super::codex::{Client, install, setup};
@@ -86,6 +88,8 @@ struct Turn {
     failure: Option<AccountFailure>,
     parked: Option<Instant>,
     epoch: u64,
+    /// The created-files folder, where a picture Codex draws is saved.
+    pictures: PathBuf,
 }
 
 /// A tool call Codex made, answered once its result comes back in a later request.
@@ -233,6 +237,7 @@ async fn run(
         failure: None,
         parked: None,
         epoch: stop_epoch(),
+        pictures: crate::ipc::files::created_dir(app.state::<crate::AppState>().storage.data_dir()),
     };
     let id = turn
         .client
@@ -359,9 +364,53 @@ fn notified(turn: &mut Turn, method: &str, params: &Value, sink: &mut dyn Accoun
     match method {
         "thread/tokenUsage/updated" => turn.usage = from_codex(params["tokenUsage"].get("last")),
         "turn/completed" => return completed(turn, &params["turn"], sink),
+        "item/completed" => {
+            if let Some(token) = save_picture(&turn.pictures, &params["item"]) {
+                sink.delta(Delta {
+                    content: Some(token),
+                    ..Default::default()
+                });
+            }
+        }
         _ => {}
     }
     Flow::Go
+}
+
+/// The bytes and prompt of a finished `imageGeneration` item: the base64 `result`, else the file at `savedPath`.
+fn picture_of(item: &Value) -> Option<(Vec<u8>, String)> {
+    if item["type"].as_str() != Some("imageGeneration") {
+        return None;
+    }
+    let bytes = match item["result"].as_str().filter(|data| !data.is_empty()) {
+        Some(data) => base64::engine::general_purpose::STANDARD
+            .decode(data.trim())
+            .ok()?,
+        None => std::fs::read(item["savedPath"].as_str()?).ok()?,
+    };
+    crate::images::cloud::format_of(&bytes)?;
+    let prompt = item["revisedPrompt"]
+        .as_str()
+        .unwrap_or("picture")
+        .to_owned();
+    Some((bytes, prompt))
+}
+
+/// Saves a picture Codex drew to the created files and returns the image token that places it in the answer.
+fn save_picture(dir: &Path, item: &Value) -> Option<String> {
+    let (bytes, prompt) = picture_of(item)?;
+    let (_, ext) = crate::images::cloud::format_of(&bytes)?;
+    std::fs::create_dir_all(dir).ok()?;
+    let stamp = crate::engines::sd::stamp_of(crate::engines::now_ms() / 1000);
+    let name = crate::engines::image_models::requests::output_name(&prompt, &stamp, |candidate| {
+        dir.join(candidate).with_extension(ext).exists()
+    });
+    let name = match name.strip_suffix(".png") {
+        Some(stem) if ext != "png" => format!("{stem}.{ext}"),
+        _ => name,
+    };
+    std::fs::write(dir.join(&name), &bytes).ok()?;
+    Some(format!("\n\n{{image}}created/{name}{{image}}\n\n"))
 }
 
 fn merge_limits(turn: &mut Turn, rate_limits: &Value) {
@@ -595,6 +644,34 @@ mod tests {
 
     fn fixture(line: &str) -> Value {
         serde_json::from_str(line).expect("fixture")
+    }
+
+    const PNG_1PX: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+    #[test]
+    fn an_image_generation_item_is_saved_and_placed_in_the_answer() {
+        let dir = std::env::temp_dir().join(format!("draggy-codex-picture-{}", std::process::id()));
+        let item = json!({ "type": "imageGeneration", "id": "ig_1", "revisedPrompt": "A red fox", "result": PNG_1PX });
+        let token = save_picture(&dir, &item).expect("saved");
+        let name = token
+            .trim()
+            .strip_prefix("{image}created/")
+            .and_then(|rest| rest.strip_suffix("{image}"))
+            .expect("token");
+        assert!(name.ends_with("-a-red-fox.png"), "{name}");
+        assert!(
+            std::fs::read(dir.join(name))
+                .expect("file")
+                .starts_with(crate::images::cloud::PNG_MAGIC)
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn other_items_and_empty_pictures_are_left_alone() {
+        assert!(picture_of(&json!({ "type": "agentMessage", "text": "hi" })).is_none());
+        assert!(picture_of(&json!({ "type": "imageGeneration", "result": "" })).is_none());
+        assert!(picture_of(&json!({ "type": "imageGeneration", "result": "aGVsbG8=" })).is_none());
     }
 
     #[test]

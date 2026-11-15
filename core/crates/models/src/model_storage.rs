@@ -25,6 +25,8 @@ pub struct ModelEntry {
     pub block_count: Option<f64>,
     pub file_type: Option<f64>,
     pub capabilities: Vec<String>,
+    /// Base model repo ids from the header (`org/name`), nearest first.
+    pub base_models: Vec<String>,
 }
 
 /// Capabilities read from each file's chat template, keyed by path, size and modification time, so a listing reads
@@ -110,6 +112,16 @@ fn describe(
             .and_then(|header| present(header.block_count)),
         file_type: header.as_ref().and_then(|header| present(header.file_type)),
         capabilities,
+        base_models: header
+            .as_ref()
+            .map(|header| {
+                header
+                    .base_models
+                    .iter()
+                    .filter_map(|base| base.repo_id())
+                    .collect()
+            })
+            .unwrap_or_default(),
     })
 }
 

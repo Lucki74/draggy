@@ -7,13 +7,12 @@ use serde_json::{Value, json};
 
 pub const CATALOG_NAME: &str = "draggy-models.json";
 
-pub const FEATURES_OFF: [&str; 26] = [
+pub const FEATURES_OFF: [&str; 25] = [
     "code_mode",
     "code_mode_only",
     "context_management",
     "current_time_reminder",
     "deferred_executor",
-    "image_generation",
     "memories",
     "multi_agent",
     "multi_agent_v2",
