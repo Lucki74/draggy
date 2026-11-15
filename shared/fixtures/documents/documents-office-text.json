@@ -486,6 +486,56 @@
       "expected": false
     },
     {
+      "name": "a trailing dot does not hide an executable",
+      "input": {
+        "fn": "isExecutableName",
+        "args": [
+          "run.bat."
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "a trailing space does not hide an executable",
+      "input": {
+        "fn": "isExecutableName",
+        "args": [
+          "run.bat "
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "a stream suffix does not hide an executable",
+      "input": {
+        "fn": "isExecutableName",
+        "args": [
+          "run.bat::$DATA"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "a compiled help file is refused",
+      "input": {
+        "fn": "isExecutableName",
+        "args": [
+          "guide.chm"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "a stream on a text file is judged by the file",
+      "input": {
+        "fn": "isExecutableName",
+        "args": [
+          "notes.txt:x.exe"
+        ]
+      },
+      "expected": false
+    },
+    {
       "name": "page text joins items and keeps line ends",
       "input": {
         "fn": "pageText",
@@ -587,42 +637,69 @@
         "EXECUTABLE_EXTENSIONS": [
           ".app",
           ".appimage",
+          ".application",
+          ".appref-ms",
           ".appx",
           ".bash",
           ".bat",
+          ".chm",
           ".cmd",
           ".com",
           ".command",
           ".cpl",
           ".desktop",
+          ".diagcab",
           ".dll",
           ".dmg",
           ".exe",
           ".gadget",
+          ".hlp",
           ".hta",
+          ".img",
           ".inf",
+          ".iso",
           ".jar",
+          ".jnlp",
           ".js",
           ".jse",
+          ".library-ms",
           ".lnk",
           ".msc",
           ".msi",
           ".msix",
+          ".msp",
+          ".mst",
           ".pif",
           ".pkg",
           ".ps1",
+          ".ps1xml",
+          ".psc1",
           ".psd1",
           ".psm1",
+          ".py",
+          ".pyw",
           ".reg",
           ".run",
           ".scf",
           ".scr",
+          ".sct",
+          ".search-ms",
+          ".searchconnector-ms",
+          ".settingcontent-ms",
           ".sh",
           ".url",
+          ".vb",
           ".vbe",
           ".vbs",
+          ".vhd",
+          ".vhdx",
+          ".website",
+          ".ws",
+          ".wsc",
           ".wsf",
           ".wsh",
+          ".xbap",
+          ".xll",
           ".zsh"
         ]
       }

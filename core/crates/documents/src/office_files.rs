@@ -58,6 +58,33 @@ pub const EXECUTABLE_EXTENSIONS: &[&str] = &[
     ".sh",
     ".bash",
     ".zsh",
+    ".chm",
+    ".hlp",
+    ".application",
+    ".appref-ms",
+    ".settingcontent-ms",
+    ".library-ms",
+    ".search-ms",
+    ".searchconnector-ms",
+    ".msp",
+    ".mst",
+    ".wsc",
+    ".sct",
+    ".ws",
+    ".vb",
+    ".py",
+    ".pyw",
+    ".xll",
+    ".iso",
+    ".img",
+    ".vhd",
+    ".vhdx",
+    ".diagcab",
+    ".website",
+    ".xbap",
+    ".jnlp",
+    ".ps1xml",
+    ".psc1",
 ];
 
 /// The lowercase extension with its dot, or an empty string when there is none.
@@ -69,9 +96,13 @@ fn extension_of(path: &str) -> String {
         .unwrap_or_default()
 }
 
-/// Whether a file name ends in an executable extension, ignoring case.
+/// Whether a file name ends in an executable extension, ignoring case. Windows writes `run.bat.`, `run.bat ` and
+/// `run.bat::$DATA` as `run.bat`, so a stream suffix and trailing dots and spaces are dropped before the check.
 pub fn is_executable_name(filename: &str) -> bool {
-    EXECUTABLE_EXTENSIONS.contains(&extension_of(filename).as_str())
+    let base = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
+    let stream_free = base.split(':').next().unwrap_or(base);
+    let name = stream_free.trim_end_matches(['.', ' ']);
+    EXECUTABLE_EXTENSIONS.contains(&extension_of(name).as_str())
 }
 
 /// The text of an Office file or PDF, chosen by the name's extension. Other types are refused.
