@@ -503,7 +503,11 @@ impl Writer {
         if tiny || (alt.is_empty() && !large) {
             return;
         }
-        let alt = if alt.is_empty() { String::from("Picture") } else { alt };
+        let alt = if alt.is_empty() {
+            String::from("Picture")
+        } else {
+            alt
+        };
         let src = [attr("src"), attr("data-src")]
             .into_iter()
             .find(|src| !src.is_empty() && !src.starts_with("data:"))
@@ -512,7 +516,9 @@ impl Writer {
             Some(base) => base.join(src).ok(),
             None => Url::parse(src).ok(),
         };
-        if let Some(target) = resolved.filter(|url| url.scheme() == "https" || url.scheme() == "http") {
+        if let Some(target) =
+            resolved.filter(|url| url.scheme() == "https" || url.scheme() == "http")
+        {
             let alt = alt.replace(['[', ']'], "");
             let target = String::from(target).replace(')', "%29").replace(' ', "%20");
             self.out.push_str(&format!("![{alt}]({target})"));
@@ -722,9 +728,18 @@ mod tests {
 <table class="infobox"><tr><td><img src="//upload.example.org/thumb/cliff.jpg" width="220" height="324"></td></tr><tr><th>Built</th><td>1911</td></tr></table>
 </article></body></html>"#;
         let text = extract(html, "https://example.com/page").markdown;
-        assert!(text.contains("![The lighthouse at dusk](https://example.com/img/light.jpg)"), "{text}");
-        assert!(text.contains("![Picture](https://upload.example.org/thumb/cliff.jpg)"), "{text}");
-        assert!(!text.contains("spacer") && !text.contains("icon.png") && !text.contains("data:"), "{text}");
+        assert!(
+            text.contains("![The lighthouse at dusk](https://example.com/img/light.jpg)"),
+            "{text}"
+        );
+        assert!(
+            text.contains("![Picture](https://upload.example.org/thumb/cliff.jpg)"),
+            "{text}"
+        );
+        assert!(
+            !text.contains("spacer") && !text.contains("icon.png") && !text.contains("data:"),
+            "{text}"
+        );
     }
 
     #[test]
