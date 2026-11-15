@@ -46,7 +46,6 @@ export interface AgentRuns {
   /** Ids of the conversations with a turn in flight right now. */
   running: string[];
   send: (chatId: string, content: string, attachments?: Attachment[]) => void;
-  image: (chatId: string, argument: string, attachments?: Attachment[]) => void;
   regenerate: (chatId: string, index?: number) => void;
   editMessage: (chatId: string, messageIndex: number, content: string) => void;
   switchVersion: (
@@ -119,7 +118,6 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
     () => ({
       running,
       send: manager.send,
-      image: manager.image,
       regenerate: manager.regenerate,
       editMessage: manager.editMessage,
       switchVersion: manager.switchVersion,
