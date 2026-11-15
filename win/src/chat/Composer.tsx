@@ -111,7 +111,6 @@ export interface ComposerProps {
     onPatchSettings: (patch: Partial<AppSettings>) => void;
     onPermissionMode?: (mode: PermissionMode) => void;
     onCompact?: () => Promise<CompactOutcome>;
-    onImageCommand?: (argument: string, attachments: Attachment[]) => void;
     onOpenUsage?: () => void;
     onProjectMemory?: () => void;
     removeFile: (index: number) => void;
@@ -198,7 +197,6 @@ export function Composer({
     onPatchSettings,
     onPermissionMode,
     onCompact,
-    onImageCommand,
     onOpenUsage,
     onProjectMemory,
     removeFile,
@@ -342,8 +340,6 @@ export function Composer({
     const noModel = !model && !downloading;
     const slowModel = useSlowModel(model);
     const unavailable = downloading ?? (noModel ? t("composerNoModel") : undefined);
-    // Drawing never reaches the chat model, so a missing or downloading one does not block it.
-    const drawing = Boolean(onImageCommand) && parseSlashArgument(input.trim())?.id === "image";
 
     // Without a queue to hand the text to, typing during a reply keeps its old meaning: stop.
     const sendWhileGenerating = (mode: "queue" | "steer" | "now") => {
@@ -377,7 +373,7 @@ export function Composer({
             sendWhileGenerating("steer");
             return;
         }
-        if (unavailable && !drawing) return;
+        if (unavailable) return;
 
         let sanitizedInput = input.trim();
         if (isBinary(sanitizedInput)) {
@@ -395,13 +391,8 @@ export function Composer({
             return;
         }
 
-        if (command?.id === "image" && onImageCommand) {
-            onImageCommand(command.argument, attachedFiles);
-            setInput("");
-            localStorage.removeItem(draftKeyFor(chat, surface));
-            clearAttachments();
-            return;
-        }
+        // /image asks the chat model for a picture; the model writes the prompt and calls the image tool.
+        if (command?.id === "image") sanitizedInput = `Generate an image: ${command.argument}`;
 
         onSendMessage(sanitizedInput, attachedFiles);
         setInput("");
@@ -469,7 +460,7 @@ export function Composer({
         <Icon name={!isRemote(model) ? "cpu" : "cloud"} size={16} />
     );
 
-    const canSend = (input.trim() !== "" || attachedFiles.length > 0) && (!unavailable || drawing);
+    const canSend = (input.trim() !== "" || attachedFiles.length > 0) && !unavailable;
     const micBusy = micState === "loading" || micState === "transcribing";
     const micLabel =
         micState === "recording"

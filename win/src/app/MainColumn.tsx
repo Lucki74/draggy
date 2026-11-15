@@ -62,7 +62,6 @@ export interface MainColumnProps {
     onRevert: (checkpointId: number) => Promise<boolean>;
     onInitProject?: () => void;
     onCompact: () => Promise<CompactOutcome>;
-    onImageCommand: (argument: string, attachments: Attachment[]) => void;
     composerQueue?: ComposerQueue;
     onOpenUsage: () => void;
     onMeasureContext: (
@@ -118,7 +117,6 @@ export function MainColumn({
     onRevert,
     onInitProject,
     onCompact,
-    onImageCommand,
     composerQueue,
     onOpenUsage,
     onMeasureContext,
@@ -204,7 +202,6 @@ export function MainColumn({
                             onProjectMemory={active.rootPath ? onOpenProjectMemory : undefined}
                             onInitProject={active.rootPath ? onInitProject : undefined}
                             onCompact={onCompact}
-                            onImageCommand={onImageCommand}
                             onOpenUsage={onOpenUsage}
                             onMeasureContext={onMeasureContext}
                             onSelectModel={onSelectModel}

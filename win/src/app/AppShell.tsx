@@ -1409,7 +1409,6 @@ export default function AppShell({
           onRevert={handleRevert}
           onInitProject={draftProject}
           onCompact={() => runs.compact(currentChatId!)}
-          onImageCommand={(argument, attachments) => runs.image(currentChatId!, argument, attachments)}
           composerQueue={composerQueue}
           onOpenUsage={handleOpenUsage}
           onMeasureContext={measureContext}

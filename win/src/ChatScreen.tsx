@@ -48,8 +48,6 @@ interface ChatScreenProps {
   onProjectMemory?: () => void;
   onInitProject?: () => void;
   onCompact?: () => Promise<CompactOutcome>;
-  /** "/image <prompt>", drawn by the image engine with no model turn in between. */
-  onImageCommand?: (argument: string, attachments: Attachment[]) => void;
   onOpenUsage?: () => void;
   unavailable?: string;
   seedDraft?: string;
@@ -85,7 +83,6 @@ export default function ChatScreen({
   onProjectMemory,
   onInitProject,
   onCompact,
-  onImageCommand,
   onOpenUsage,
   onMeasureContext,
   unavailable,
@@ -262,7 +259,6 @@ export default function ChatScreen({
       onPermissionMode={onPermissionMode}
       workContext={workContext}
       onCompact={onCompact}
-      onImageCommand={onImageCommand}
       clearAttachments={session.clearAttachments}
       onOpenUsage={onOpenUsage}
       onProjectMemory={onProjectMemory}

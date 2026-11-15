@@ -1,4 +1,5 @@
 import { useContext, useState } from "react";
+import { withImageTokens } from "./AnswerImage";
 import ReactMarkdown from "react-markdown";
 import StreamingMarkdown from "./StreamingMarkdown";
 import { copyAsMarkdown } from "./copyMarkdown";
@@ -173,7 +174,7 @@ export function AssistantTurn({
         <div key={`prose-${step.id}`} className="mb-4">
           {live ? (
             <StreamingMarkdown
-              source={normalizeMath(sanitizeContent(step.content))}
+              source={withImageTokens(normalizeMath(sanitizeContent(step.content)), isGenerating && !step.isComplete)}
               streaming={isGenerating && !step.isComplete}
               animateOnMount={isGenerating && !step.isComplete}
               components={MARKDOWN_COMPONENTS}
@@ -184,7 +185,7 @@ export function AssistantTurn({
               rehypePlugins={REHYPE_PLUGINS}
               components={MARKDOWN_COMPONENTS}
             >
-              {normalizeMath(sanitizeContent(step.content))}
+              {withImageTokens(normalizeMath(sanitizeContent(step.content)))}
             </ReactMarkdown>
           )}
         </div>
@@ -320,7 +321,7 @@ export function AssistantTurn({
       .filter((step) => !drawsNothing(step))
       .map((step) => ({
         key: step.id,
-        state: step.type === "error" || step.failed ? "failed" : runningNow && !step.isComplete ? "live" : "done",
+        state: step.type === "error" || step.failed || step.image?.status === "error" ? "failed" : runningNow && !step.isComplete ? "live" : "done",
         kind:
           step.type === "thinking"
             ? "think"
@@ -417,7 +418,7 @@ export function AssistantTurn({
             <div key={bodyKey} className={isFailed ? "mb-3" : undefined}>
               {live ? (
                 <StreamingMarkdown
-                  source={normalizeMath(text)}
+                  source={withImageTokens(normalizeMath(text), isGenerating)}
                   streaming={isGenerating}
                   animateOnMount={false}
                   components={MARKDOWN_COMPONENTS}
@@ -428,7 +429,7 @@ export function AssistantTurn({
                   rehypePlugins={REHYPE_PLUGINS}
                   components={MARKDOWN_COMPONENTS}
                 >
-                  {normalizeMath(text)}
+                  {withImageTokens(normalizeMath(text))}
                 </ReactMarkdown>
               )}
             </div>

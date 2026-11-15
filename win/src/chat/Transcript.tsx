@@ -7,6 +7,8 @@ import { ErrorBoundary } from "../ErrorBoundary";
 import { Button, Icon } from "../ui";
 import { ComposerQueueContext } from "./Composer";
 import { restoreToComposer } from "./mentions";
+import { ChatImagesContext } from "./AnswerImage";
+import { trackImages } from "../images/imageTracker";
 import type { AppSettings, ApprovalAnswer, ChatSession } from "../types";
 
 export interface TranscriptProps {
@@ -193,6 +195,8 @@ export function Transcript({
     card?.querySelector("button")?.focus({ preventScroll: true });
   };
 
+  const chatImages = useMemo(() => trackImages(chat.messages), [chat.messages]);
+
   const jumpToLatest = () => {
     setAtBottom(true);
     scrollBoxToEnd("smooth");
@@ -200,6 +204,7 @@ export function Transcript({
 
   return (
     <TranscriptViewContext.Provider value={chat.view ?? "normal"}>
+    <ChatImagesContext.Provider value={chatImages}>
     <div data-region="transcript" tabIndex={-1} className="relative flex-1 min-h-0 flex flex-col">
       <div
         ref={scrollContainerRef}
@@ -316,6 +321,7 @@ export function Transcript({
         </div>
       )}
     </div>
+    </ChatImagesContext.Provider>
     </TranscriptViewContext.Provider>
   );
 }

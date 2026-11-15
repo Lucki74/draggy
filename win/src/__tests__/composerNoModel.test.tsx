@@ -21,19 +21,13 @@ describe("the composer with no model loaded", () => {
     expect(onOpenSettings).toHaveBeenCalledWith("models");
   });
 
-  it("still sends /image, since drawing never reaches the chat model", () => {
+  it("sends /image to the chat model as an instruction", () => {
     const onSendMessage = vi.fn();
-    const onImageCommand = vi.fn();
-    render(<ComposerPreview model="" onSendMessage={onSendMessage} onImageCommand={onImageCommand} />);
+    render(<ComposerPreview onSendMessage={onSendMessage} />);
 
-    const field = screen.getByRole("textbox") as HTMLTextAreaElement;
-    fireEvent.change(field, { target: { value: "/image a dragon" } });
-    const send = screen.getByRole("button", { name: "Send" }) as HTMLButtonElement;
-    expect(send.disabled).toBe(false);
-
-    fireEvent.click(send);
-    expect(onImageCommand).toHaveBeenCalledWith("a dragon", expect.anything());
-    expect(onSendMessage).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "/image a dragon" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(onSendMessage).toHaveBeenCalledWith("Generate an image: a dragon", expect.anything());
   });
 
   it("says nothing once a model is loaded", () => {

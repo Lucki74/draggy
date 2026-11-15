@@ -3,12 +3,10 @@ import { registerImageTools } from "../tools/image";
 import { registerBuiltinTools } from "../tools/builtin";
 import { annotationsFor, availableTools, resetRegistry, runTool, withoutTools } from "../tools/registry";
 import type { ToolContext, ToolEnvironment } from "../tools/registry";
-import { createTaskManager } from "../agent/taskManager";
-import type { TaskHost } from "../agent/taskManager";
-import { parseImageCommand, defaultProjectPath } from "../images/imageCommand";
-import type { AppSettings, ChatSession, ImageProgress, ImageRequest, ImageResult, ImageStepInfo, MessageVersion, SearchStep } from "../types";
+import { defaultProjectPath } from "../images/imageCommand";
+import type { AppSettings, ImageProgress, ImageRequest, ImageResult, ImageStepInfo, SearchStep } from "../types";
 
-/** The image tool and /image as the model and the user meet them: offered only when it can work, stopped
+/** The image tool as the model meets it: offered only when it can work, stopped
  * with the turn, and never carrying the picture's bytes into the conversation. */
 
 const CHAT: ToolEnvironment = { webMode: "off", codeExecution: false, libraryReady: false, imageReady: true };
@@ -259,142 +257,9 @@ describe("a picture cut off by quitting", () => {
   });
 });
 
-describe("/image", () => {
-  it("reads flags on either side of the prompt", () => {
-    expect(parseImageCommand('--size 768x512 a cat on a "red" sofa --seed 42 --to "public/my cat.png" --hires')).toEqual({
-      prompt: "a cat on a red sofa",
-      width: 768,
-      height: 512,
-      seed: 42,
-      to: "public/my cat.png",
-      hires: true,
-      overwrite: false,
-      lora: [],
-    });
-  });
-
-  it("collects several LoRAs and a negative prompt", () => {
-    const parsed = parseImageCommand('portrait --lora ink:0.6 --lora grain --negative "blurry, text"');
-    expect(parsed).toMatchObject({ prompt: "portrait", lora: ["ink:0.6", "grain"], negative: "blurry, text" });
-  });
-
-  it("refuses an unknown flag or a bad value, and an empty prompt", () => {
-    expect(parseImageCommand("cat --colour red")).toEqual({ error: "flag", flag: "--colour" });
-    expect(parseImageCommand("cat --size big")).toEqual({ error: "flag", flag: "--size big" });
-    expect(parseImageCommand("--seed 3")).toEqual({ error: "empty" });
-  });
-
+describe("defaultProjectPath", () => {
   it("names a project file after the prompt", () => {
     expect(defaultProjectPath("Hello, World!")).toBe("assets/generated/hello-world.png");
-  });
-});
-
-describe("/image in a conversation", () => {
-  function createHost(environment: ToolEnvironment = CHAT) {
-    const sessions = new Map<string, ChatSession>();
-    const host: TaskHost = {
-      getModel: () => "qwen3:8b",
-      getSettings: () => ({ customInstructions: [] }) as unknown as AppSettings,
-      getEnvironment: () => environment,
-      getWorkspaceId: () => "project-7",
-      getPermission: () => ({ mode: "auto" as const, grants: [] }),
-      onGrant: () => {},
-      getSession: (chatId) => sessions.get(chatId),
-      addSession: (session) => sessions.set(session.id, session),
-      updateSession: (chatId, updater) => {
-        const session = sessions.get(chatId);
-        if (session) sessions.set(chatId, updater(session));
-      },
-      patchActiveMessage: (chatId, patch: Partial<MessageVersion>) => {
-        const session = sessions.get(chatId);
-        if (!session) return;
-        const messages = session.messages.slice();
-        messages[messages.length - 1] = { ...messages[messages.length - 1], ...patch };
-        sessions.set(chatId, { ...session, messages });
-      },
-      t: (key) => key,
-    };
-    return { sessions, host };
-  }
-
-  it("draws with no model turn and keeps only the path in history", async () => {
-    const sd = installSd();
-    const { sessions, host } = createHost();
-    const manager = createTaskManager(host);
-
-    manager.image("chat-9", "a lighthouse --seed 5");
-    await tick();
-    expect(manager.isRunning("chat-9")).toBe(true);
-    expect(sessions.get("chat-9")?.messages[0].content).toBe("/image a lighthouse --seed 5");
-    expect(sd.requests[0]).toMatchObject({ prompt: "a lighthouse", seed: 5, destination: { kind: "chat" } });
-
-    sd.finish({ success: true, path: "C:\\data\\created_files\\l.png", filename: "l.png", width: 512, height: 512, seed: 5 });
-    await tick();
-
-    const reply = sessions.get("chat-9")?.messages[1];
-    expect(reply?.steps?.[0].image).toMatchObject({ status: "done", filename: "l.png" });
-    expect(reply?.content).toBe("imageReply");
-    expect(manager.isRunning("chat-9")).toBe(false);
-    expect(sessions.get("chat-9")?.isGenerating).toBe(false);
-    expect(JSON.stringify(sessions.get("chat-9"))).not.toMatch(/base64/);
-  });
-
-  it("draws again on regenerate, rather than sending /image to the chat model", async () => {
-    const sd = installSd();
-    const { sessions, host } = createHost();
-    const manager = createTaskManager(host);
-
-    manager.image("chat-9", "a boat");
-    await tick();
-    sd.finish({ success: true, path: "p", filename: "boat.png" });
-    await tick();
-
-    manager.regenerate("chat-9");
-    await tick();
-    expect(sd.requests).toHaveLength(2);
-    expect(sd.requests[1].prompt).toBe("a boat");
-    expect(sessions.get("chat-9")?.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
-    sd.finish({ success: true, path: "p", filename: "boat-2.png" });
-  });
-
-  it("stops like any other turn", async () => {
-    const sd = installSd();
-    const { sessions, host } = createHost();
-    const manager = createTaskManager(host);
-
-    manager.image("chat-9", "slow one");
-    await tick();
-    manager.stop("chat-9");
-    await tick();
-
-    expect(sd.cancelled).toEqual([sd.requests[0].requestId]);
-    expect(sessions.get("chat-9")?.messages[1].steps?.[0].image?.status).toBe("cancelled");
-  });
-
-  it("uses an attached picture as the starting image", async () => {
-    const sd = installSd();
-    const { host } = createHost();
-    const manager = createTaskManager(host);
-    manager.image("chat-9", "make it night", [{ name: "day.png", type: "image/png", content: "iVBORw0KGgo" }]);
-    await tick();
-    expect(sd.requests[0].init).toEqual({ kind: "attachment", dataUrl: "data:image/png;base64,iVBORw0KGgo" });
-    sd.finish({ success: true, path: "p", filename: "n.png" });
-  });
-
-  it("saves into the project from Code, and answers a bad flag without drawing", async () => {
-    const sd = installSd();
-    const { sessions, host } = createHost(CODE);
-    const manager = createTaskManager(host);
-
-    manager.image("chat-9", "favicon --to public/favicon.png");
-    await tick();
-    expect(sd.requests[0].destination).toMatchObject({ kind: "project", path: "public/favicon.png", workspaceId: "project-7" });
-    sd.finish({ success: true, path: "p", filename: "favicon.png" });
-    await tick();
-
-    manager.image("chat-9", "--wat");
-    expect(sd.requests).toHaveLength(1);
-    expect(sessions.get("chat-9")?.messages.at(-1)?.content).toBe("imageCommandBadFlag");
   });
 });
 

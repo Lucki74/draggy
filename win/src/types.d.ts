@@ -521,6 +521,10 @@ export type ImageStatus = "loading-model" | "queued" | "generating" | "done" | "
 
 export interface ImageStepInfo {
   prompt: string;
+  /** A few words the model named the picture with, shown on it. */
+  title?: string;
+  /** The picture's ID in the chat, such as img_2. */
+  imageId?: string;
   status: ImageStatus;
   requestId?: string;
   /** Where the file was saved: the output folder, or a project the conversation works in. */

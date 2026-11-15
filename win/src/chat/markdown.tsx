@@ -12,6 +12,7 @@ import type { Node as UnistNode, Parent as UnistParent } from "unist";
 import { MarkdownBlockquote } from "./MarkdownAlert";
 import { MarkdownCode } from "./CodeBlock";
 import { CiteChip } from "./CiteChip";
+import { AnswerImage } from "./AnswerImage";
 
 /** How a reply is rendered. rehypeSanitize sits between rehypeRaw and the page, and that order
  * is all that stops HTML a model wrote from running. */
@@ -123,4 +124,5 @@ export const MARKDOWN_COMPONENTS = {
   code: MarkdownCode,
   blockquote: MarkdownBlockquote,
   "draggy-cite": CiteChip,
+  img: AnswerImage,
 };
