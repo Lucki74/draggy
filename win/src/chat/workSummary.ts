@@ -2,7 +2,7 @@ import { diffLines } from "./diff";
 import { hostnameOf } from "../utils";
 import type { SearchStep } from "../types";
 
-type Kind = "read" | "site" | "created" | "edited" | "moved" | "deleted" | "ran" | "searched" | "browsed" | "other";
+type Kind = "read" | "site" | "created" | "edited" | "moved" | "deleted" | "ran" | "searched" | "browsed" | "image" | "other";
 
 const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   reading: "read",
@@ -19,9 +19,10 @@ const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   clicking: "browsed",
   typing: "browsed",
   scanned: "browsed",
+  image: "image",
 };
 
-const ORDER: Kind[] = ["read", "site", "created", "edited", "moved", "deleted", "ran", "searched", "browsed", "other"];
+const ORDER: Kind[] = ["read", "site", "created", "edited", "moved", "deleted", "ran", "searched", "browsed", "image", "other"];
 
 /** Translation keys are work<Name>_one and work<Name>_other. */
 const KEY: Record<Kind, string> = {
@@ -34,14 +35,16 @@ const KEY: Record<Kind, string> = {
   ran: "Ran",
   searched: "Searched",
   browsed: "Browsed",
+  image: "Image",
   other: "Other",
 };
 
 /** Steps that fold into a work block. Prose, reasoning, questions for the user and written files
- * stay in the transcript on their own; an answered approval folds in with the call it allowed. */
+ * stay in the transcript on their own; an answered approval folds in with the call it allowed.
+ * A generated picture is a step too: the answer shows it, so its step sits on the rail. */
 export function isWorkStep(step: SearchStep) {
   if (step.type === "approval") return Boolean(step.answer);
-  return !["text", "thinking", "create_file", "app", "image", "research_run"].includes(step.type) &&
+  return !["text", "thinking", "create_file", "app", "research_run"].includes(step.type) &&
     !(step.type === "loading" && !step.isComplete);
 }
 
@@ -143,7 +146,7 @@ export function touchedFiles(steps: SearchStep[]): { name: string; path: string;
 }
 
 /** How many leading segments of a turn fold under the summary row. Prose still being written,
- * approvals, questions, files and pictures stay out, and the first of them ends the fold. */
+ * approvals, questions and files stay out, and the first of them ends the fold. */
 export function processFoldLength(segments: SearchStep[][]): number {
   let lastText = -1;
   // Only prose still being written may be the reply, so finished prose stays on the rail.

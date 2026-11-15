@@ -16,8 +16,8 @@ const picture = (image: Partial<ImageStepInfo>): SearchStep => {
 };
 
 describe("a picture in the transcript", () => {
-  it("stands on its own instead of folding into a work block", () => {
-    expect(isWorkStep(picture({}))).toBe(false);
+  it("sits on the rail as a step of the work", () => {
+    expect(isWorkStep(picture({}))).toBe(true);
   });
 
   it("is exported as an image pointing at the saved file", () => {

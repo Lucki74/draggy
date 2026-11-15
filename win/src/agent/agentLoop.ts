@@ -2,7 +2,7 @@ import { imageIndex, trackImages } from "../images/imageTracker";
 
 /** How the answer shows a picture; the chat draws the token as the picture itself. */
 const IMAGE_PLACEMENT =
-  "To show a picture in your answer, write {image}img_1|Short title{image} on a line of its own, with the picture's ID and a title of a few words. A web image URL works the same way: {image}https://example.org/photo.jpg|Short title{image}.";
+  "To show a picture in your answer, write {image}img_1|Short title{image} on a line of its own, with the picture's ID and a title of a few words. A web picture works the same way: {image}https://example.org/photo.jpg|Short title{image}, but only with an address you saw in a page you read with read_url in this conversation. Never guess or build an image address from memory: it will not load. To find one, search, read a page that shows the picture and take the address from its ![…](…) link.";
 import { PartialArgsScanner } from "./partialArgs";
 import {
   KEEP_ALIVE,

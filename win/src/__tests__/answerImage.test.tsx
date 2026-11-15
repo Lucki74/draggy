@@ -18,4 +18,10 @@ describe("image tokens in an answer", () => {
   it("leave text without tokens alone", () => {
     expect(withImageTokens("plain {braces}")).toBe("plain {braces}");
   });
+
+  it("take the title a model writes after a markdown picture", () => {
+    expect(withImageTokens("Look:\n\n![](https://a.org/x.jpg)|Point Lighthouse, CA\n\nMore.")).toBe(
+      'Look:\n\n![Point Lighthouse, CA](<https://a.org/x.jpg> "Point Lighthouse, CA")\n\nMore.',
+    );
+  });
 });

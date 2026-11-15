@@ -1291,9 +1291,10 @@ kbd {
 /* A picture the image engine draws, as a step of the work: a small thumbnail under its line. */
 .img-step .img-stop { flex: none; white-space: nowrap; font-size: 12px; color: var(--text-secondary); margin-inline-start: 10px; }
 .img-step .img-stop:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 2px; }
-/* The prompt wraps to two lines and stops a little past the middle, rather than one line across the page. */
-.img-step .step-line { flex: 0 1 auto; max-width: 60%; align-items: flex-start; }
-.img-step .step-line > span:nth-child(2) { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+/* The prompt stays on one line that stops a little past the middle, open or closed. */
+.img-step .step-line { flex: 0 1 auto; max-width: 60%; align-items: center; }
+.img-step .step-line > * { padding-top: 0; }
+.img-step .step-line > span:nth-child(2) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .img-thumb { position: relative; display: block; width: 184px; aspect-ratio: 4 / 3; margin-top: 6px; border-radius: 8px; overflow: hidden; background: var(--surface-raised); cursor: zoom-in; }
 .img-thumb.wait { cursor: default; }
 .img-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
@@ -1310,6 +1311,7 @@ kbd {
 
 /* A picture the answer placed: its own proportions, height capped. */
 .img-inline { position: relative; display: block; width: fit-content; max-width: 100%; margin: 12px 0 16px; border-radius: 10px; overflow: hidden; cursor: zoom-in; background: var(--surface-raised); animation: img-rise .45s cubic-bezier(.23,1,.32,1) both; }
+.img-missing { display: flex; width: fit-content; align-items: center; gap: 8px; margin: 12px 0 16px; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 10px; font-size: 13px; color: var(--text-secondary); }
 .img-inline img { display: block; max-width: 100%; max-height: 400px; width: auto; height: auto; margin: 0; border-radius: 0; }
 @keyframes img-rise { from { opacity: 0; transform: translateY(6px); } }
 
@@ -1317,9 +1319,14 @@ kbd {
 .img-viewer { position: fixed; inset: 0; z-index: 80; }
 .img-viewer .scrim { position: absolute; inset: 0; background: #0b0c0e; opacity: 0; transition: opacity .3s; }
 .img-viewer.show .scrim { opacity: .96; }
-.img-viewer .pic { position: absolute; border-radius: 10px; overflow: hidden; transform-origin: 0 0; }
-.img-viewer .pic img { width: 100%; height: 100%; display: block; object-fit: contain; }
-.img-viewer .bar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 6px; padding: 12px 16px; color: #e7eaed; opacity: 0; transition: opacity .2s; }
+.img-viewer .pic { position: absolute; transform-origin: 0 0; }
+.img-viewer .pic img { width: 100%; height: 100%; display: block; object-fit: contain; border-radius: 10px; cursor: grab; touch-action: none; user-select: none; -webkit-user-drag: none; }
+.img-viewer .pic img.dragging { cursor: grabbing; }
+.img-viewer .pic img.eased { transition: transform .22s cubic-bezier(.23,1,.32,1); }
+.img-viewer .bar { position: absolute; z-index: 1; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 6px; padding: 12px 16px; color: #e7eaed; background: linear-gradient(#0b0c0ee6, #0b0c0e00); opacity: 0; transition: opacity .2s; }
+.img-viewer .bar .zoom { display: inline-flex; align-items: center; margin-inline-end: 6px; }
+.img-viewer .bar .zoom button { padding: 0 8px; }
+.img-viewer .bar .zoom .level { min-width: 58px; justify-content: center; font-variant-numeric: tabular-nums; }
 .img-viewer.show .bar { opacity: 1; }
 .img-viewer .bar b { font-weight: 500; font-size: 14px; min-width: 0; }
 .img-viewer .bar b + span { color: #a6abb2; font-size: 12px; margin-inline-start: 8px; font-variant-numeric: tabular-nums; }

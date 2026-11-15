@@ -455,6 +455,7 @@ impl Writer {
                     self.out.push('`');
                 }
             }
+            "img" => self.image(element),
             _ if SKIPPED_INLINE.contains(&name) => {}
             _ if BLOCKS.contains(&name) => {
                 self.blank();
@@ -480,6 +481,47 @@ impl Writer {
         self.out.push_str(mark);
         if raw.ends_with(char::is_whitespace) {
             self.text(" ");
+        }
+    }
+
+    /// A picture of the page, so the model can show a real address instead of guessing one.
+    /// Icons and spacers are decoration and stay out: a picture needs alt text or a stated size
+    /// of 100px or more, and none under 64px.
+    fn image(&mut self, element: ElementRef<'_>) {
+        let attr = |key: &str| element.value().attr(key).unwrap_or("").trim();
+        let sizes: Vec<u32> = ["width", "height"]
+            .iter()
+            .filter_map(|key| attr(key).parse::<u32>().ok())
+            .collect();
+        let tiny = sizes.iter().any(|size| *size < 64);
+        let large = !sizes.is_empty() && sizes.iter().all(|size| *size >= 100);
+        let alt = [attr("alt"), attr("title")]
+            .into_iter()
+            .map(collapse)
+            .find(|text| !text.is_empty())
+            .unwrap_or_default();
+        if tiny || (alt.is_empty() && !large) {
+            return;
+        }
+        let alt = if alt.is_empty() {
+            String::from("Picture")
+        } else {
+            alt
+        };
+        let src = [attr("src"), attr("data-src")]
+            .into_iter()
+            .find(|src| !src.is_empty() && !src.starts_with("data:"))
+            .unwrap_or("");
+        let resolved = match &self.base {
+            Some(base) => base.join(src).ok(),
+            None => Url::parse(src).ok(),
+        };
+        if let Some(target) =
+            resolved.filter(|url| url.scheme() == "https" || url.scheme() == "http")
+        {
+            let alt = alt.replace(['[', ']'], "");
+            let target = String::from(target).replace(')', "%29").replace(' ', "%20");
+            self.out.push_str(&format!("![{alt}]({target})"));
         }
     }
 
@@ -592,12 +634,23 @@ impl Writer {
             })
             .filter(|row| !row.replace('|', "").trim().is_empty())
             .collect();
-        if rows.is_empty() {
-            return;
+        if !rows.is_empty() {
+            self.blank();
+            self.out.push_str(&rows.join("\n"));
+            self.blank();
         }
-        self.blank();
-        self.out.push_str(&rows.join("\n"));
-        self.blank();
+        // The cells keep only their text, so a table's pictures (an infobox photo) follow it.
+        for picture in table
+            .descendants()
+            .filter_map(ElementRef::wrap)
+            .filter(|node| node.value().name() == "img" && !inside_noise(*node))
+        {
+            let before = self.out.len();
+            self.image(picture);
+            if self.out.len() > before {
+                self.blank();
+            }
+        }
     }
 }
 
@@ -663,6 +716,30 @@ mod tests {
         );
         assert!(text.contains("`cargo test`"), "{text}");
         assert!(text.contains("Name | Score\nAnn | 3"), "{text}");
+    }
+
+    #[test]
+    fn keeps_described_pictures_and_drops_decoration() {
+        let html = r#"<html><body><article><p>A lighthouse stands on the cliff above the bay, lit every night since 1890 and painted red and white.</p>
+<img src="/img/light.jpg" alt="The lighthouse at dusk">
+<img src="/img/spacer.gif" alt="" >
+<img src="/img/icon.png" alt="Share" width="16" height="16">
+<img src="data:image/png;base64,AAAA" alt="Inline">
+<table class="infobox"><tr><td><img src="//upload.example.org/thumb/cliff.jpg" width="220" height="324"></td></tr><tr><th>Built</th><td>1911</td></tr></table>
+</article></body></html>"#;
+        let text = extract(html, "https://example.com/page").markdown;
+        assert!(
+            text.contains("![The lighthouse at dusk](https://example.com/img/light.jpg)"),
+            "{text}"
+        );
+        assert!(
+            text.contains("![Picture](https://upload.example.org/thumb/cliff.jpg)"),
+            "{text}"
+        );
+        assert!(
+            !text.contains("spacer") && !text.contains("icon.png") && !text.contains("data:"),
+            "{text}"
+        );
     }
 
     #[test]
