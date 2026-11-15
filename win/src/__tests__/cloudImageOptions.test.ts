@@ -41,11 +41,11 @@ describe("imageModelOptions grouping", () => {
       automaticLabel: "Automatic",
       localLabel: "Local",
     });
-    expect(options.map((option) => [option.label, option.group])).toEqual([
-      ["Automatic", undefined],
-      ["SDXL Turbo", "Local"],
-      ["gpt-image-2.6-flare", "OpenAI"],
-      ["black-forest-labs/FLUX.2-pro", "Together"],
+    expect(options.map((option) => [option.label, option.group, option.groupType])).toEqual([
+      ["Automatic", undefined, undefined],
+      ["SDXL Turbo", "Local", "draggy"],
+      ["gpt-image-2.6-flare", "OpenAI", "openai"],
+      ["black-forest-labs/FLUX.2-pro", "Together", "together"],
     ]);
   });
 
