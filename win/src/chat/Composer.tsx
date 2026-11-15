@@ -9,7 +9,7 @@ import { displayModelName, modelLabel } from "../llama";
 import { isRemote } from "../ai/providers";
 import { useSlowModel } from "./useSlowModel";
 import { chipSegments, parseSlashArgument } from "./slashCommands";
-import { FILL_EVENT, insertMention, mentionAt, useMentionHits, type Mention } from "./mentions";
+import { FILL_EVENT, RESTORE_EVENT, insertMention, mentionAt, useMentionHits, type Mention } from "./mentions";
 import { isBinary } from "../utils";
 import { draftKeyFor } from "./useChatSession";
 import { ImagePreview } from "../ui/ImagePreview";
@@ -61,6 +61,8 @@ export interface ComposerQueue {
     pendingSteers?: string[];
     enqueue: (content: string, attachments?: Attachment[]) => void;
     steer: (content: string) => void;
+    /** Takes back an unread note; false once the turn has read it. */
+    unsteer?: (index: number) => boolean;
     sendNow: (content: string, attachments?: Attachment[]) => void;
     editQueued: (id: string, content: string) => void;
     removeQueued: (id: string) => void;
@@ -235,7 +237,11 @@ export function Composer({
                 field.setSelectionRange(field.value.length, field.value.length);
             });
         window.addEventListener(FILL_EVENT, focusEnd);
-        return () => window.removeEventListener(FILL_EVENT, focusEnd);
+        window.addEventListener(RESTORE_EVENT, focusEnd);
+        return () => {
+            window.removeEventListener(FILL_EVENT, focusEnd);
+            window.removeEventListener(RESTORE_EVENT, focusEnd);
+        };
     }, []);
 
     // Re-read on every edit and caret move, since the @word is whatever the caret ends.

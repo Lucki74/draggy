@@ -3,10 +3,14 @@
 import type { ToolSpec } from "./registry";
 import { registerTools } from "./registry";
 import { swallowed } from "../logger";
-import { activeRun, openRunBlock, priorRun, runFooter, setRun, settleRun, spendCall, syncRun } from "../research/session";
+import { judgeCitation } from "../research/citations";
+import { activeRun, openRunBlock, pageTexts, priorRun, runFooter, setRun, settleRun, spendCall, syncRun } from "../research/session";
 import {
   addNote,
+  budgetOf,
   coverage,
+  emptyQuestions,
+  unnotedReads,
   createRun,
   DEPTH_IDS,
   DEPTHS,
@@ -60,13 +64,16 @@ const startResearch: ToolSpec = {
     "Start a research run for a question that needs several sources. Draft the sub-questions that together answer it; the user approves the plan before any search runs. Then search, read pages and record what you learn with add_note.",
   parameters: {
     question: { type: "string", description: "The question to research, in the user's words." },
-    sub_questions: { type: "string", description: "The sub-questions, one per line." },
+    sub_questions: {
+      type: "string",
+      description: 'The sub-questions, one per line, each as "Topic | question" where the topic is one or two words, like "Pricing | What does it cost per month?".',
+    },
     depth: { type: "string", description: `How deep to go: ${DEPTH_IDS.join(", ")}.` },
     sources: { type: "string", description: "Where to look, comma separated: web, papers, wiki, code. Pass the same word as search_web's source parameter to search each one." },
   },
   required: ["question", "sub_questions"],
   usage:
-    '{"question": "...", "sub_questions": "First\\nSecond", "depth": "standard", "sources": "web"} → the approved plan',
+    '{"question": "...", "sub_questions": "Speed | How fast is it?\\nCost | What does it cost?", "depth": "standard", "sources": "web"} → the approved plan',
   annotations: READ_ONLY,
   available: mayStartResearch,
   run: async (args, ctx) => {
@@ -137,6 +144,14 @@ const addNoteTool: ToolSpec = {
       confidence: args.confidence,
     });
     if (typeof note === "string") return `TOOL RESULT (add_note): ${note}`;
+    // Checked here, not only at finish: a paraphrased quote used to be dropped there, too late to fix.
+    const page = pageTexts(ctx).get(note.sourceId);
+    const verdict = page === undefined ? "unverified" : judgeCitation(note.quote, page);
+    if (verdict !== "verified") {
+      run.notes.pop();
+      const hint = verdict === "near" ? "It is close but not word for word." : "It does not appear on that page.";
+      return `TOOL RESULT (add_note): Not saved. The quote was not found on ${note.sourceId}. ${hint} Copy one sentence exactly as the page has it, with at least three words, or read the page again.`;
+    }
     syncRun(ctx);
     return `TOOL RESULT (add_note): Saved as ${note.id}.${runFooter(ctx)}`;
   },
@@ -192,6 +207,31 @@ const finishResearch: ToolSpec = {
   run: async (_args, ctx) => {
     const run = activeRun(ctx);
     if (!run) return "TOOL RESULT (finish_research): There is no research run.";
+    // Searches alone give a report with nothing to cite, so the first early finish is turned back once.
+    const refusedKey = `finish-refused:${run.id}`;
+    const found = [...new Set(run.queries.flatMap((entry) => entry.urls))];
+    if (run.status === "gathering" && run.notes.length === 0 && found.length > 0 && !ctx.memo.has(refusedKey)) {
+      ctx.memo.set(refusedKey, true);
+      return [
+        "TOOL RESULT (finish_research): Not finished. No notes are kept, so the report would have no sources.",
+        `Read the best search results with read_url, for example:\n${found.slice(0, 3).join("\n")}`,
+        "After each useful page call add_note with the exact sentence it says, then call finish_research again.",
+      ].join("\n\n");
+    }
+    // Time left and a sub-question with nothing: sent back to fill it, a few times at most.
+    const holdKey = `finish-held:${run.id}`;
+    const held = (ctx.memo.get(holdKey) as number | undefined) ?? 0;
+    const empty = emptyQuestions(run);
+    if (run.status === "gathering" && found.length > 0 && empty.length > 0 && !budgetOf(run, Date.now()).wrap && held < 3) {
+      ctx.memo.set(holdKey, held + 1);
+      const unnoted = unnotedReads(run).map((source) => `${source.id} ${source.url}`);
+      return [
+        "TOOL RESULT (finish_research): Not finished. Time remains and these sub-questions have no notes:",
+        empty.map((entry) => `${entry.subQuestion}. ${entry.text}`).join("\n"),
+        unnoted.length > 0 ? `Pages you read without a note:\n${unnoted.join("\n")}\nCall add_note for the ones that answer a sub-question.` : "",
+        "Search and read for the empty sub-questions, call add_note after each useful page, then call finish_research again.",
+      ].filter(Boolean).join("\n\n") + runFooter(ctx);
+    }
     const settled = await settleRun(ctx);
     const dropped = settled?.dropped ?? 0;
     const kept = run.notes.filter((note) => note.verified);

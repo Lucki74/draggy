@@ -4,6 +4,7 @@ import type { ToolContext } from "../tools/registry";
 import {
   addSource,
   budgetOf,
+  emptyQuestions,
   finish,
   findRepeat,
   logSearch,
@@ -136,6 +137,19 @@ export function pageTexts(ctx: Memo): Map<string, string> {
 export function runFooter(ctx: Memo, now = Date.now()): string {
   const run = activeRun(ctx);
   return run ? `\n\n${renderRunState(run, now)}` : "";
+}
+
+/** What to tell a model that answered mid-run without a tool call, or null when it may write.
+ * Asked a few times only, so a model that will not gather still gets to write. */
+export function gatherNudge(ctx: Memo, now = Date.now()): string | null {
+  const run = activeRun(ctx);
+  if (!run || run.status !== "gathering") return null;
+  const key = `gather-nudged:${run.id}`;
+  const asked = (ctx.memo.get(key) as number | undefined) ?? 0;
+  const budget = budgetOf(run, now);
+  if (asked >= 3 || budget.wrap || emptyQuestions(run).length === 0) return null;
+  ctx.memo.set(key, asked + 1);
+  return `The research is still gathering and some sub-questions have no notes. Do not write the report yet. Call a tool now: add_note for a page you read, search_web or read_url for an open sub-question. Call finish_research only when every sub-question has notes or time runs out.${runFooter(ctx, now)}`;
 }
 
 /** Counts a gathering call. True when the run says stop, which the caller reports instead of working. */

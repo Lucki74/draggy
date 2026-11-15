@@ -15,13 +15,15 @@ interface StepLineProps {
   /** Quiet links after the line, such as Open or Undo. */
   actions?: React.ReactNode;
   details?: React.ReactNode;
+  /** The caret shows only while the row is hovered or focused. */
+  hoverCaret?: boolean;
   t: (key: string) => string;
 }
 
 /** One step as one line: the verb, what it acted on, how it went, and a caret that opens the rest. */
-export function StepLine({ verb, target, mono, meta, failed, active, open, onToggle, time, actions, details, t }: StepLineProps) {
+export function StepLine({ verb, target, mono, meta, failed, active, open, onToggle, time, actions, details, hoverCaret, t }: StepLineProps) {
   return (
-    <div className={`step-rise${open ? " step-open" : ""}`}>
+    <div className={`step-rise${open ? " step-open" : ""}${hoverCaret ? " caret-on-hover" : ""}`}>
       <div className="rail-row flex min-h-6 items-center gap-[7px] text-[13px] text-text-secondary">
         <button
           type="button"
@@ -32,7 +34,8 @@ export function StepLine({ verb, target, mono, meta, failed, active, open, onTog
           onClick={onToggle}
           className={`step-line flex min-h-6 min-w-0 flex-1 gap-[7px] text-start ${open ? "items-start [&>*]:pt-[3px]" : "items-center"} ${onToggle ? "cursor-pointer hover:text-text-primary" : "cursor-default"}`}
         >
-          <span className={`flex-none${active ? " live-sweep" : ""}`}>{verb}</span>
+          {/* A verb with no target carries the whole line, a long URL included, so it is the part that shrinks. */}
+          <span className={`${target ? "flex-none" : "min-w-0 truncate"}${active ? " live-sweep" : ""}`}>{verb}</span>
           {target && (
             <span className={`min-w-0 text-text-tertiary ${open ? "whitespace-pre-wrap wrap-anywhere" : "truncate"}${mono ? " font-mono text-[12px]" : ""}`}>
               {target}
@@ -40,7 +43,8 @@ export function StepLine({ verb, target, mono, meta, failed, active, open, onTog
           )}
           {meta && !active && <span className={`flex-none text-[12px] ${failed ? "text-danger" : "text-text-tertiary"}`}>{meta}</span>}
           {onToggle && (
-            <span className="step-caret flex-none text-text-tertiary">
+            // One line tall and centred in it, so the caret sits on the text whether the row is open or wrapped.
+            <span className="step-caret box-content flex h-[1lh] flex-none items-center text-text-tertiary">
               <Icon name="caret-right" size={11} mirrored className={`transition-transform duration-[250ms] ${open ? "rotate-90" : ""}`} />
             </span>
           )}

@@ -1,13 +1,11 @@
 import { draggyUrl } from "../appUrl";
 import { useState } from "react";
-import { hueFor, siteLabel } from "../utils";
+import { Icon } from "../ui";
 import { iconMissing, markIconMissing } from "../favicon";
 
-// Hostname-based icon or fallback letter to protect user privacy.
+// The site's own icon, fetched by the app; the web glyph when the site has none.
 export function SiteBadge({ hostname, small = false }: { hostname: string; small?: boolean }) {
-  const label = siteLabel(hostname);
-  const hue = hueFor(label);
-  const box = small ? "size-4 text-[9px]" : "w-5 h-5 mt-0.5 text-[10px]";
+  const box = small ? "size-4" : "w-5 h-5 mt-0.5";
 
   // Tracks host errors so reused rows retry instead of sticking to missing icons.
   const [failedFor, setFailedFor] = useState<string | null>(null);
@@ -28,16 +26,13 @@ export function SiteBadge({ hostname, small = false }: { hostname: string; small
     );
   }
 
+  // A site with no icon of its own gets the web glyph, never a made-up letter.
   return (
     <span
       aria-hidden="true"
-      className={`${box} rounded-sm flex-shrink-0 flex items-center justify-center font-semibold select-none`}
-      style={{
-        backgroundColor: `hsl(${hue} 62% 46%)`,
-        color: "white",
-      }}
+      className={`${box} rounded-sm flex-shrink-0 flex items-center justify-center bg-surface-tint text-text-tertiary select-none`}
     >
-      {label.slice(0, 1)}
+      <Icon name="globe-simple" size={small ? 11 : 13} />
     </span>
   );
 }

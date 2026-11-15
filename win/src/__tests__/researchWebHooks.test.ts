@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { registerBuiltinTools } from "../tools/builtin";
 import { resetRegistry, runTool } from "../tools/registry";
 import type { ToolContext, ToolEnvironment } from "../tools/registry";
-import { createRun } from "../research/run";
+import { createRun, DEPTHS } from "../research/run";
 import { activeRun, pageTexts, setRun } from "../research/session";
 
 const WEB: ToolEnvironment = {
@@ -90,7 +90,9 @@ describe("web tools during a research run", () => {
 
   it("name the real reason when gathering stops", async () => {
     const ctx = researching();
-    activeRun(ctx)!.dryStreak = 3;
+    const run = activeRun(ctx)!;
+    run.dryStreak = 3;
+    run.startedAt -= DEPTHS[run.plan.depth].wallMs / 2;
     const result = await runTool("read_url", { url: hit.url }, ctx, WEB);
     expect(result).toMatch(/found nothing new/);
     expect(result).not.toMatch(/budget is spent/);

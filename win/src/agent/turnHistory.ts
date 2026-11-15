@@ -24,6 +24,7 @@ function ownVersion(message: Message): MessageVersion {
   version.steps = message.steps;
   version.metrics = message.metrics;
   if (message.provider_state) version.provider_state = message.provider_state;
+  if (message.toolResults) version.toolResults = message.toolResults;
   if (message.failed) version.failed = true;
   if (message.error) version.error = message.error;
   if (message.errorKind) version.errorKind = message.errorKind;
@@ -52,7 +53,7 @@ export function shownMessage(message: Message): Message {
   const shown: Message = { ...message, ...fields };
   if (message.role === "user") shown.attachments = attachments ?? message.attachments;
   if (message.role === "assistant") {
-    for (const key of ["failed", "error", "errorKind", "stopped"] as const) {
+    for (const key of ["failed", "error", "errorKind", "stopped", "toolResults"] as const) {
       if (version[key] === undefined) delete shown[key];
     }
     delete shown.interrupted;
@@ -100,7 +101,7 @@ export function retryAt(messages: Message[], index: number): Message[] | null {
     steps: [],
     metrics: null,
   };
-  for (const key of ["provider_state", "failed", "error", "errorKind", "stopped"] as const) delete fresh[key];
+  for (const key of ["provider_state", "toolResults", "failed", "error", "errorKind", "stopped"] as const) delete fresh[key];
   return [...messages.slice(0, index), fresh];
 }
 

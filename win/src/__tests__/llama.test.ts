@@ -19,6 +19,7 @@ import {
   warmModel,
   isLoadedAt,
   mergeMetrics,
+  tokenRate,
   needsTextModeTools,
   noteEngineStart,
   peekContextSize,
@@ -401,5 +402,17 @@ describe("growing the window to continue a cut reply", () => {
   it("starts from the size the engine reported when the tally is empty", () => {
     forgetContextSize("grow-model-2");
     expect(growContext("grow-model-2", 131072, 32768)).toBe(65536);
+  });
+});
+
+describe("metric sanity", () => {
+  it("reports no rate for one token in no time", () => {
+    expect(tokenRate(1, 0.001)).toBe(0);
+    expect(tokenRate(40, 1000)).toBe(40);
+  });
+
+  it("keeps the total at least as long as the wall-clock first token", () => {
+    const m = readMetrics({ eval_count: 53, eval_duration: 1_600_000_000, prompt_eval_duration: 12_000_000_000 }, "m", 16384, 99_872);
+    expect(m?.totalMs).toBeGreaterThanOrEqual(99_872 + 1600);
   });
 });

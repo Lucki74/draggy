@@ -441,7 +441,7 @@ export interface SearchStep {
     /** A tool call still being written by the model. Display only: replaced by the real step once it runs. */
     | "tool_call";
   content: string;
-  /** On a "tool_call" step: the tool being called, once its name has arrived. */
+  /** The tool behind the step: on a "tool_call" step once its name has arrived, and on a search, which keeps it even after it fails. */
   tool?: string;
   /** On a "tool_call" step: the arguments so far. Never saved, never sent to the model. */
   liveArgs?: {
@@ -877,6 +877,8 @@ export interface MessageVersion {
   metrics?: TurnMetrics | null;
   /** What the provider that wrote this reply needs back next turn; sent to that instance only. */
   provider_state?: ProviderState;
+  /** The tool output this reply worked from, cut to fit, sent with it on later turns. */
+  toolResults?: string[];
   /** The turn ended in an error, described by `error`; content keeps only what was generated. */
   failed?: boolean;
   error?: string;
@@ -913,6 +915,8 @@ export interface Message {
   metrics?: TurnMetrics | null;
   fold?: FoldMarker;
   provider_state?: ProviderState;
+  /** The tool output this reply worked from, cut to fit, sent with it on later turns. */
+  toolResults?: string[];
   /** The turn ended in an error, described by `error`; content keeps only what was generated. */
   failed?: boolean;
   error?: string;
@@ -1116,7 +1120,9 @@ export type SearchProvider =
   | "startpage"
   | "searxng"
   | "brave"
-  | "brave-html";
+  | "brave-html"
+  | "ecosia"
+  | "yahoo";
 
 /** How the first-run setup ended. "adopted" is an existing install that never saw it. */
 export type OnboardingPath = "local" | "provider" | "both" | "skipped";

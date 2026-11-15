@@ -171,6 +171,9 @@ interface Turn {
   /** A `provider_state` event the gateway sends with this pass. */
   state?: { instanceId: string; state: unknown };
   splitUsage?: boolean;
+  /** An HTTP refusal instead of a stream, such as the engine's context-too-long. */
+  status?: number;
+  body?: string;
 }
 
 function installFetch(
@@ -234,6 +237,7 @@ function installFetch(
       requests.push(body);
 
       const turn = turns[Math.min(turnIndex++, turns.length - 1)];
+      if (turn.status) return new Response(turn.body ?? "", { status: turn.status });
       return new Response(sseStream(turnToSseChunks(turn, turn.final ?? {})), { status: 200 });
     }
 
@@ -436,7 +440,7 @@ describe("a plain answer with no tools", () => {
 
     expect(result.metrics?.responseTokens).toBe(40);
     expect(result.metrics?.tokensPerSecond).toBeCloseTo(100, 5);
-    expect(host.metrics?.gpuPercent).toBe(0);
+    expect(host.metrics?.gpuPercent).toBeNull();
   });
 
   it("sends a system prompt and the conversation", async () => {
@@ -534,11 +538,37 @@ describe("a plain answer with no tools", () => {
   it("reports the window it was loaded with when the reply is cut", async () => {
     installFetch([{ content: ["truncated"], final: { done_reason: "length", prompt_eval_count: 100, eval_count: 50 } }], []);
 
-    const { host, promise } = run([userMessage("hi")]);
+    const { host, promise } = run([userMessage("hi")], undefined, undefined, { ...SETTINGS, fixedContextSize: 4096 });
     await promise;
 
-    expect(host.cutInfo).toMatchObject({ loaded: 4096, modelMax: 32768, canGrow: true });
+    expect(host.cutInfo).toMatchObject({ loaded: 4096, modelMax: 32768, canGrow: false });
     expect(host.cutInfo?.used).toBeGreaterThan(0);
+  });
+
+  it("does a cut pass again in a bigger window when the window is automatic", async () => {
+    const { requests } = installFetch(
+      [{ content: ["trunc"], final: { done_reason: "length", prompt_eval_count: 100, eval_count: 50 } }, { content: ["whole answer"] }],
+      [],
+    );
+
+    const { host, promise } = run([userMessage("hi")]);
+    const result = await promise;
+
+    expect(requests.map((body) => (body as { options: { num_ctx: number } }).options.num_ctx)).toEqual([4096, 8192]);
+    expect(result.outOfContext).toBe(false);
+    expect(host.outOfContext).toBe(false);
+    expect(result.textContent).toBe("whole answer");
+  });
+
+  it("grows the window when the engine refuses the prompt as too long", async () => {
+    const refusal = JSON.stringify({ error: { code: 400, message: "the request exceeds the available context size, try increasing it", type: "exceed_context_size_error", n_prompt_tokens: 5000, n_ctx: 4096 } });
+    const { requests } = installFetch([{ status: 400, body: refusal }, { content: ["fits now"] }], []);
+
+    const result = await run([userMessage("hi")]).promise;
+
+    expect(requests).toHaveLength(2);
+    expect((requests[1] as { options: { num_ctx: number } }).options.num_ctx).toBe(8192);
+    expect(result.textContent).toBe("fits now");
   });
 });
 
@@ -1066,6 +1096,53 @@ describe("continuing a truncated answer", () => {
 
     expect(result.textContent).toContain("Once upon a time");
     expect(result.textContent).toContain("and then it ended.");
+  });
+
+  it("sends the tool output the cut-off reply gathered back whole", async () => {
+    const { requests } = installFetch([{ content: [" done."] }], []);
+
+    await runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("research this")],
+        isContinuation: true,
+        seed: { content: "", textContent: "", steps: [], toolResults: ["read_url s1: the whole page text"] },
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+
+    const sent = JSON.stringify(requests[0]);
+    expect(sent).toContain("the whole page text");
+  });
+});
+
+describe("an engine that serves a smaller window than asked", () => {
+  it("sizes the prompt to the window the engine reports", async () => {
+    const { requests, starts } = installFetch([{ content: ["ok"] }], []);
+    const draggy = (window as unknown as { draggy: { gguf: { start: unknown } } }).draggy;
+    draggy.gguf.start = async (opts: { modelPath: string; contextSize: number }) => {
+      starts.push(opts);
+      return { success: true, contextSize: 8192 };
+    };
+
+    await runAgentTurn(
+      {
+        model: MODEL,
+        settings: SETTINGS,
+        environment: ENVIRONMENT,
+        messages: [userMessage("older ".repeat(12000)), { id: "a1", role: "assistant", content: "noted" }, userMessage("now answer")],
+        signal: new AbortController().signal,
+      },
+      makeHost().host,
+    );
+
+    expect(starts[0].contextSize).toBeGreaterThan(8192);
+    expect(starts.at(-1)?.contextSize).toBe(8192);
+    expect(requests).toHaveLength(1);
+    expect((requests[0] as { options?: { num_ctx?: number } }).options?.num_ctx).toBe(8192);
   });
 });
 
@@ -2762,6 +2839,34 @@ describe("live streaming file creation", () => {
     expect(fileSteps[0].isComplete).toBe(true);
     expect(fileSteps[0].filepath).toBe("C:/out/report.docx");
     expect(fileSteps[0].fileContent).toBe("# Part 1\n\nBody content");
+  });
+
+  it("does not run a call the context cut before its filename arrived", async () => {
+    const host = makeHost();
+    const createFile = vi.fn().mockResolvedValue({ success: true, filepath: "C:/out/x.txt" });
+    installFetch(
+      [
+        {
+          toolCallChunks: [[{ index: 0, id: "call_cut", function: { name: "create_file", arguments: '{"content": "first half' } }]],
+          final: { finish_reason: "length" },
+        },
+        // Reached only if the cut call ran and its error went back to the model.
+        { content: ["Rewrote it."] },
+      ],
+      ["tools"],
+    );
+    // llama-server ends with a bare [DONE], which hands over any call still pending; the fixture quotes it.
+    const quoted = fetch;
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      const text = await (await quoted(url, init)).text();
+      return new Response(text.replaceAll('data: "[DONE]"', "data: [DONE]"), { status: 200 });
+    });
+    (window.draggy as Record<string, unknown>).createFile = createFile;
+
+    const cut = await run([userMessage("write a report")], undefined, host, { ...SETTINGS, fixedContextSize: 4096 }).promise;
+    expect(createFile).not.toHaveBeenCalled();
+    expect(cut.content).not.toContain("Rewrote it.");
+    expect(cut.steps.filter((s) => s.type === "create_file")).toMatchObject([{ cut: true }]);
   });
 
   it("keeps a file cut by the context and rewrites it as one file on resume", async () => {

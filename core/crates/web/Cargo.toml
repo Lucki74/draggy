@@ -10,7 +10,7 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "cookies"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots", "cookies"] }
 encoding_rs = "0.8"
 scraper = "0.27"
 serde_json = "1"

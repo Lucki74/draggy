@@ -27,7 +27,7 @@ export interface ResearchRunView {
   wallMs: number;
   /** True while the model may still search; false once Stop was pressed or the report is being written. */
   gathering: boolean;
-  questions: { text: string; notes: number }[];
+  questions: { text: string; topic?: string; notes: number }[];
   sources: RunViewSource[];
   notes: RunViewNote[];
   hosts: string[];
@@ -41,7 +41,7 @@ export function toRunView(run: ResearchRun, now: number): ResearchRunView {
     ...(run.endedAt ? { endedAt: run.endedAt } : {}),
     wallMs: budgetOf(run, now).wallMs,
     gathering: run.status === "gathering",
-    questions: coverage(run).map((entry) => ({ text: entry.text, notes: entry.notes })),
+    questions: coverage(run).map((entry) => ({ text: entry.text, topic: entry.topic, notes: entry.notes })),
     sources: run.sources.map((source) => ({
       id: source.id,
       url: source.url,

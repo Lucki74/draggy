@@ -9,6 +9,7 @@
     "core:event:allow-unlisten",
     "allow-ipc-invoke",
     "allow-ipc-send",
+    "allow-ipc-stage",
     "allow-gateway-info",
     "opener:default",
     "dialog:default",

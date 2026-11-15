@@ -166,6 +166,12 @@
               },
               "brave-html": {
                 "error": "offline"
+              },
+              "ecosia": {
+                "error": "offline"
+              },
+              "yahoo": {
+                "error": "offline"
               }
             }
           }
@@ -180,7 +186,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "status": "unavailable",
             "cached": false,
@@ -188,7 +196,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "waitedMs": 0
           }
@@ -214,6 +224,12 @@
               },
               "brave-html": {
                 "body": "<!DOCTYPE html><html><body></body></html>"
+              },
+              "ecosia": {
+                "body": "<!DOCTYPE html><html><body></body></html>"
+              },
+              "yahoo": {
+                "body": "<!DOCTYPE html><html><body></body></html>"
               }
             }
           },
@@ -233,7 +249,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "status": "empty",
             "cached": false,
@@ -241,7 +259,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "waitedMs": 0
           },
@@ -252,7 +272,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "status": "empty",
             "cached": true,
@@ -504,6 +526,12 @@
               },
               "brave-html": {
                 "error": "offline"
+              },
+              "ecosia": {
+                "error": "offline"
+              },
+              "yahoo": {
+                "error": "offline"
               }
             }
           },
@@ -527,7 +555,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "status": "unavailable",
             "cached": false,
@@ -535,7 +565,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "waitedMs": 0
           },
@@ -8668,6 +8700,12 @@
               },
               "brave-html": {
                 "body": "<!DOCTYPE html><html><head><title>Verify you are human - Brave Search</title></head><body><h1>Please solve the captcha</h1></body></html>"
+              },
+              "ecosia": {
+                "body": "<!DOCTYPE html><html><head><title>Verify you are human - Brave Search</title></head><body><h1>Please solve the captcha</h1></body></html>"
+              },
+              "yahoo": {
+                "body": "<!DOCTYPE html><html><head><title>Verify you are human - Brave Search</title></head><body><h1>Please solve the captcha</h1></body></html>"
               }
             }
           },
@@ -8692,7 +8730,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "status": "blocked",
             "cached": false,
@@ -8700,7 +8740,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "waitedMs": 0
           },
@@ -9309,6 +9351,12 @@
               },
               "brave-html": {
                 "body": "<!DOCTYPE html><html><head><title>Brave</title></head><body><p>No results.</p></body></html>"
+              },
+              "ecosia": {
+                "body": "<!DOCTYPE html><html><head><title>Brave</title></head><body><p>No results.</p></body></html>"
+              },
+              "yahoo": {
+                "body": "<!DOCTYPE html><html><head><title>Brave</title></head><body><p>No results.</p></body></html>"
               }
             }
           },
@@ -9329,7 +9377,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "status": "empty",
             "cached": false,
@@ -9337,7 +9387,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "waitedMs": 0
           },
@@ -9348,7 +9400,9 @@
               "duckduckgo",
               "startpage",
               "duckduckgo-lite",
-              "brave-html"
+              "brave-html",
+              "ecosia",
+              "yahoo"
             ],
             "status": "empty",
             "cached": true,

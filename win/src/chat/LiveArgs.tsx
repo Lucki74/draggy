@@ -39,7 +39,8 @@ function useRevealed(text: string, live: boolean): string {
 }
 
 /** A long value in a fixed-height box that follows its newest line, unless the reader scrolled up. */
-export function TailBox({ text, open }: { text: string; open: boolean }) {
+/** `full` sizes a finished file like its preview: up to 320px, no shorter than its text. */
+export function TailBox({ text, open, full = false }: { text: string; open: boolean; full?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
 
@@ -57,7 +58,7 @@ export function TailBox({ text, open }: { text: string; open: boolean }) {
         const el = event.currentTarget;
         pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8;
       }}
-      className={`live-args-tail mt-1.5 h-[164px] overflow-y-auto overflow-x-hidden rounded-[8px] border border-rule bg-surface-base px-3 py-2.5 font-mono text-[12.5px] leading-[1.6] text-text-secondary whitespace-pre-wrap break-words ${open ? "live-args-fade" : ""}`}
+      className={`live-args-tail mt-1.5 ${full ? "max-h-[320px]" : "h-[164px]"} overflow-y-auto overflow-x-hidden rounded-[8px] border border-rule bg-surface-base px-3 py-2.5 font-mono text-[12.5px] leading-[1.6] text-text-secondary whitespace-pre-wrap break-words ${open ? "live-args-fade" : ""}`}
     >
       {text}
     </div>

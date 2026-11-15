@@ -39,6 +39,13 @@ export function fillComposer(text: string) {
   window.dispatchEvent(new CustomEvent<string>(FILL_EVENT, { detail: text }));
 }
 
+/** Puts text back in the composer ahead of any draft, as when a queued note is taken back. */
+export const RESTORE_EVENT = "draggy:restore";
+
+export function restoreToComposer(text: string) {
+  window.dispatchEvent(new CustomEvent<string>(RESTORE_EVENT, { detail: text }));
+}
+
 /** The draft with `@path` added at its end, on its own word. */
 export function appendMention(text: string, path: string): string {
   const written = `@${path} `;

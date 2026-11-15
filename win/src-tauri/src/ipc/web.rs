@@ -101,7 +101,20 @@ async fn run_search(app: &AppHandle, query: &str) -> Outcome {
             cached: false,
         };
     };
-    engine.lock().await.run(query, &config).await
+    let outcome = engine.lock().await.run(query, &config).await;
+    // Core tracing is not routed to the app logs, so the outcome is logged here.
+    app.state::<AppState>().diag.info(
+        "net.search",
+        "search finished",
+        Some(json!({
+            "status": outcome.status.as_str(),
+            "provider": outcome.provider.map(Provider::id),
+            "tried": outcome.tried.iter().map(|provider| provider.id()).collect::<Vec<_>>(),
+            "results": outcome.results.len(),
+            "cached": outcome.cached,
+        })),
+    );
+    outcome
 }
 
 async fn search_web(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {

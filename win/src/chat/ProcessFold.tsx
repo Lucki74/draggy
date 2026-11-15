@@ -14,6 +14,8 @@ interface ProcessFoldProps {
   durationMs?: number;
   view: TranscriptView;
   language: string;
+  /** A rail follows right after, so the open chain's line runs on into it. */
+  joinsNext?: boolean;
   t: (key: string) => string;
 }
 
@@ -38,7 +40,7 @@ function useRunningFor(running: boolean) {
 
 /** A turn's reasoning and tool calls on one rail under a single header line.
  * Open while it runs; once done the normal view folds it and the other views keep it open. */
-export function ProcessFold({ steps, entries, live, durationMs, view, language, t }: ProcessFoldProps) {
+export function ProcessFold({ steps, entries, live, durationMs, view, language, joinsNext = false, t }: ProcessFoldProps) {
   // null follows the turn and the view. A click overrides it.
   const [clicked, setClicked] = useState<boolean | null>(null);
   const open = clicked ?? (live || view !== "normal");
@@ -56,7 +58,7 @@ export function ProcessFold({ steps, entries, live, durationMs, view, language, 
   const dot = <span aria-hidden="true" className="text-text-tertiary">·</span>;
 
   return (
-    <div className="mb-4" data-testid="process-fold">
+    <div className={joinsNext ? "mb-4 fold-joins" : "mb-4"} data-testid="process-fold">
       <button
         type="button"
         aria-expanded={open}

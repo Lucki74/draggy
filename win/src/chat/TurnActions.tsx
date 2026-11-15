@@ -50,8 +50,9 @@ export function MetricsFooter({
       ? Math.min(100, Math.round((contextUsed / metrics.contextWindow) * 100))
       : 0;
 
+  // No rate is known for a reply of one token, and "0.0 tok/s" would read as a stall.
   const cells: Cell[] = [
-    `${metrics.tokensPerSecond.toFixed(1)} ${t("tokensPerSecond")}`,
+    ...(metrics.tokensPerSecond > 0 ? [`${metrics.tokensPerSecond.toFixed(1)} ${t("tokensPerSecond")}`] : []),
     `${formatTokens(metrics.responseTokens)} ${t("tokensOut")}`,
   ];
 

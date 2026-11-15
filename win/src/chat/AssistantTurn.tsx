@@ -13,8 +13,8 @@ import { isWorkStep, processFoldLength, touchedFiles } from "./workSummary";
 import ProcessFold from "./ProcessFold";
 import { OpenFileContext } from "./openFileContext";
 import { CitationContext, runOf } from "./citationContext";
-import { ResearchSourceList } from "./ResearchSourceList";
 import { useTranscriptView } from "./transcriptView";
+import ResearchReadRow from "./ResearchReadRow";
 import TurnActions from "./TurnActions";
 import { Button, Chip, Icon, Lightbox, Spark } from "../ui";
 import { formatTokenCount } from "../agent/contextBreakdown";
@@ -251,10 +251,39 @@ export function AssistantTurn({
     Boolean(run) &&
     (step.type === "searching" ||
       step.type === "results" ||
+      // A failed search turns into an error row but keeps its tool, so it stays in the run block too.
+      step.tool === "search_web" ||
       ((step.type === "reading" || step.type === "error") && Boolean(step.retryUrl)) ||
       (step.type === "tool_call" && RUN_TOOLS.has(step.tool ?? "")));
+  // After the run block only the report's file and the reply count, so finished asides in between draw nothing.
+  const runAt = run ? steps.findIndex((step) => step.type === "research_run") : -1;
+  const asideAfterRun = (step: SearchStep, index: number) =>
+    runAt !== -1 && index > runAt && view === "normal" && step.isComplete !== false &&
+    (step.type === "text" || step.type === "thinking");
+  // The run's own timeline: every search, read and thought between the card and finish_research.
+  const runningNow = live && isGenerating && isLast;
+  const runEnd = runAt === -1 ? -1 : steps.findIndex((step, index) => index > runAt && step.type === "tool_call" && step.tool === "finish_research");
+  const runLive = runAt !== -1 && runningNow && !steps[runAt].isComplete;
+  const runEvent = (step: SearchStep, index: number) => {
+    if (runAt === -1 || index <= runAt || (runEnd !== -1 && index >= runEnd) || invisible(step)) return false;
+    if (step.type === "thinking") return view !== "normal" || (runningNow && !step.isComplete);
+    // Once the run is over the normal view keeps only the card.
+    if (view === "normal" && !runLive) return false;
+    if (step.type === "searching") return !step.isComplete;
+    if (step.type === "results") return true;
+    const failed = step.type === "error" || Boolean(step.failed);
+    // Skipped pages and failed searches, with their reasons, are for the verbose view.
+    if (failed && (step.retryUrl || step.tool === "search_web")) return view === "verbose";
+    return step.type === "reading" && Boolean(step.retryUrl);
+  };
+  const runEvents = steps.filter((step, index) => runEvent(step, index));
+  const eventIds = new Set(runEvents.map((step) => step.id));
   for (const [index, entry] of steps.entries()) {
-    if (invisible(entry) || inRunBlock(entry)) continue;
+    if (index === runAt) {
+      segments.push([entry, ...runEvents]);
+      continue;
+    }
+    if (eventIds.has(entry.id) || invisible(entry) || inRunBlock(entry) || asideAfterRun(entry, index)) continue;
     // A finished search shows only its results row; "Searched for" is shown while it runs.
     if (entry.type === "searching" && entry.isComplete) continue;
     const before = steps[index - 1];
@@ -268,14 +297,20 @@ export function AssistantTurn({
   }
 
   // Reasoning and tool calls from the start of the turn go in one chain: open while it runs, folded under a summary after.
-  const runningNow = live && isGenerating && isLast;
   const candidate = processFoldLength(segments);
   const foldedSegments = segments.slice(0, candidate);
   const foldLength = foldedSegments.some((segment) => isWork(segment[0])) ? candidate : 0;
   // Outside the chain, finished reasoning draws nothing in the normal view.
   const rest = segments
     .slice(foldLength)
-    .filter((segment) => !(segment[0].type === "thinking" && segment[0].isComplete && view === "normal"));
+    .filter((segment) => !(segment[0].type === "thinking" && segment[0].isComplete && view === "normal"))
+    // Reasoning that drew nothing must not leave the rail in pieces, so the work on either side joins up again.
+    .reduce<SearchStep[][]>((joined, segment) => {
+      const last = joined[joined.length - 1];
+      if (last && isWork(last[0]) && isWork(segment[0])) joined[joined.length - 1] = [...last, ...segment];
+      else joined.push(segment);
+      return joined;
+    }, []);
 
   // A yes to an approval shows as the call it allowed, so only the verbose view keeps the card.
   const drawsNothing = (step: SearchStep) =>
@@ -294,11 +329,20 @@ export function AssistantTurn({
               : step.type === "edit_file" && step.before !== undefined && step.after !== undefined && !step.failed
                 ? "card"
                 : "step",
-        node: renderStep(step, inChain),
+        node:
+          run && step.type === "reading" && step.retryUrl && !step.failed ? (
+            <ResearchReadRow key={step.id} step={step} run={run} verbose={view === "verbose"} t={t} />
+          ) : (
+            renderStep(step, inChain)
+          ),
       }));
 
+  const drawsRail = (segment: SearchStep[]) =>
+    isWork(segment[0]) || segment[0].type === "create_file" || segment[0].type === "research_run";
   const renderSegment = (segment: SearchStep[]) =>
-    isWork(segment[0]) || segment[0].type === "create_file" || segment[0].type === "research_run" ? (
+    segment[0].type === "research_run" ? (
+      <Rail key={segment[0].id} entries={toEntries(segment, true)} focus={view === "normal" && runLive} pinFirst running={runningNow} t={t} />
+    ) : drawsRail(segment) ? (
       <Rail key={segment[0].id} entries={toEntries(segment, false)} running={runningNow} t={t} />
     ) : (
       renderStep(segment[0])
@@ -362,6 +406,7 @@ export function AssistantTurn({
                   durationMs={displayMsg.metrics?.totalMs}
                   view={view}
                   language={settings.language}
+                  joinsNext={rest.length > 0 && drawsRail(rest[0])}
                   t={t}
                 />,
               ]
@@ -403,7 +448,12 @@ export function AssistantTurn({
                 {friendlyError ? (
                   <>
                     <p className="mb-1">{friendlyError}</p>
-                    <p className="text-[12px] text-text-tertiary wrap-anywhere">{errorMessage}</p>
+                    {/* The detail carries the help link as markdown, so it is rendered, not printed. */}
+                    <div className="text-[12px] text-text-tertiary wrap-anywhere">
+                      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={MARKDOWN_COMPONENTS}>
+                        {errorMessage}
+                      </ReactMarkdown>
+                    </div>
                   </>
                 ) : (
                   <ReactMarkdown
@@ -437,8 +487,6 @@ export function AssistantTurn({
 
         {showsTailMark(steps, isGenerating, isLast) && <WorkingStatus language={settings.language} />}
       </div>
-
-      {run?.endedAt !== undefined && !isGenerating && <ResearchSourceList run={run} t={t} />}
 
       {!isGenerating && files.length > 0 && (
         <div

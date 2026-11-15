@@ -5,6 +5,13 @@ import type { ToolContext } from "../tools/registry";
 
 const tool = (name: string) => RESEARCH_TOOLS.find((spec) => spec.name === name)!;
 
+/** A finish is held back a few times while a sub-question has no notes, so keep asking until it goes through. */
+async function finishAll(ctx: ToolContext) {
+  let result = "";
+  for (let i = 0; i < 6 && !/Write the report now/.test(result); i += 1) result = await tool("finish_research").run({}, ctx);
+  return result;
+}
+
 function context(overrides: Partial<ToolContext> = {}): ToolContext {
   let next = 0;
   return {
@@ -33,7 +40,7 @@ describe("start_research", () => {
     const edited = { subQuestions: ["Speed only"], depth: "deep", sources: ["web", "papers"] };
     const ctx = context({ askUser: vi.fn(async () => ({ choices: ["approve"], text: JSON.stringify(edited) })) });
     await tool("start_research").run(PLAN, ctx);
-    expect(activeRun(ctx)?.plan).toEqual({ question: "How fast is X?", ...edited });
+    expect(activeRun(ctx)?.plan).toEqual({ question: "How fast is X?", topics: ["Speed only"], ...edited });
     expect(ctx.pushStep).toHaveBeenCalledWith(expect.objectContaining({ type: "research_plan" }));
   });
 
@@ -64,7 +71,7 @@ describe("notes and finish", () => {
     expect(await tool("add_note").run({ claim: "c", quote: "q", source_id: "s1" }, ctx)).toMatch(/not one you have read/);
   });
 
-  it("keeps notes whose quote is on the page and drops the rest", async () => {
+  it("saves notes whose quote is on the page and turns the rest back at once", async () => {
     const ctx = await started();
     const page = "X runs at nine hundred frames per second on a laptop. It costs nothing to use.";
     const source = recordRead(ctx, { url: "https://example.com/x", title: "X", text: page, ok: true });
@@ -73,11 +80,15 @@ describe("notes and finish", () => {
       { sub_question: 1, claim: "X is fast", quote: "X runs at nine hundred frames per second", source_id: "s1" },
       ctx,
     );
-    await tool("add_note").run({ sub_question: 2, claim: "X is free", quote: "X is totally free forever", source_id: "s1" }, ctx);
-    const result = await tool("finish_research").run({}, ctx);
+    const paraphrase = await tool("add_note").run({ sub_question: 2, claim: "X is free", quote: "X costs nothing to use", source_id: "s1" }, ctx);
+    expect(paraphrase).toMatch(/Not saved.*close but not word for word/);
+    const invented = await tool("add_note").run({ sub_question: 2, claim: "X is free", quote: "X is totally free forever", source_id: "s1" }, ctx);
+    expect(invented).toMatch(/Not saved.*does not appear/);
+    expect(activeRun(ctx)?.notes.map((note) => note.id)).toEqual(["n1"]);
+    const result = await finishAll(ctx);
     expect(result).toContain("n1 q1 single_source: X is fast");
     expect(result).not.toContain("X is free");
-    expect(result).toMatch(/1 notes were left out/);
+    expect(result).not.toMatch(/notes were left out/);
     expect(result).toContain("2. Cost");
     expect(activeRun(ctx)?.contactedHosts).toEqual(["example.com"]);
   });
@@ -88,6 +99,23 @@ describe("notes and finish", () => {
     await tool("add_note").run({ claim: "Latency is low", quote: "a b c", source_id: "s1" }, ctx);
     expect(await tool("search_notes").run({ query: "latency" }, ctx)).toContain("n1 (s1): Latency is low");
     expect(await tool("search_notes").run({ query: "price" }, ctx)).toMatch(/No notes match/);
+  });
+
+  it("turns back a finish with search results but no notes once, then lets it through", async () => {
+    const ctx = await started();
+    activeRun(ctx)?.queries.push({ query: "speed", key: "speed", kind: "web", urls: ["https://example.com/a", "https://example.com/b"] } as never);
+    const first = await tool("finish_research").run({}, ctx);
+    expect(first).toMatch(/Not finished/);
+    expect(first).toContain("https://example.com/a");
+    expect(first).toMatch(/read_url/);
+    const second = await tool("finish_research").run({}, ctx);
+    expect(second).toMatch(/Not finished/);
+    expect(await finishAll(ctx)).toMatch(/Write the report now/);
+  });
+
+  it("finishes at once when nothing was found", async () => {
+    const ctx = await started();
+    expect(await tool("finish_research").run({}, ctx)).toMatch(/Write the report now/);
   });
 
   it("reports stop once the call budget is spent", async () => {

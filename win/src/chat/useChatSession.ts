@@ -40,7 +40,7 @@ import {
     slashTokenAt,
 } from "./slashCommands";
 import { isBinary, writeLocalStorage } from "../utils";
-import { appendMention, FILL_EVENT, MENTION_EVENT } from "./mentions";
+import { appendMention, FILL_EVENT, MENTION_EVENT, RESTORE_EVENT } from "./mentions";
 import type {
     AppSettings,
     Attachment,
@@ -141,6 +141,15 @@ export function useChatSession({
         };
         window.addEventListener(FILL_EVENT, fill);
         return () => window.removeEventListener(FILL_EVENT, fill);
+    }, []);
+
+    useEffect(() => {
+        const restore = (event: Event) => {
+            const text = (event as CustomEvent<string>).detail;
+            if (typeof text === "string") setInput((draft) => (draft.trim() ? `${text}\n${draft}` : text));
+        };
+        window.addEventListener(RESTORE_EVENT, restore);
+        return () => window.removeEventListener(RESTORE_EVENT, restore);
     }, []);
 
     const [loadedDraftKey, setLoadedDraftKey] = useState(draftKey);

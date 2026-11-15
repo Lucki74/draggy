@@ -36,9 +36,15 @@ describe("readPlan", () => {
     expect(plan?.depth).toBe("quick");
   });
 
+  it("reads a short topic before each question and draws one when missing", () => {
+    const plan = readPlan({ question: "Q", subQuestions: "1. Pricing | What does it cost?\nWhat are the main use cases of LLMs?" });
+    expect(plan?.subQuestions).toEqual(["What does it cost?", "What are the main use cases of LLMs?"]);
+    expect(plan?.topics).toEqual(["Pricing", "Main use"]);
+  });
+
   it("falls back to standard depth, web source and the question itself", () => {
     const plan = readPlan({ question: "Q", subQuestions: [], depth: "huge", sources: "nope" });
-    expect(plan).toEqual({ question: "Q", subQuestions: ["Q"], depth: "standard", sources: ["web"] });
+    expect(plan).toEqual({ question: "Q", subQuestions: ["Q"], topics: ["Q"], depth: "standard", sources: ["web"] });
   });
 
   it("rejects an empty question", () => {
@@ -134,7 +140,9 @@ describe("stop rule", () => {
     expect(stopReason(r, 0)).toBeNull();
     readSource(r, "https://example.com/3");
     logSearch(r, "q3", "web", []);
-    expect(stopReason(r, 0)).toBe("dry");
+    // Dry only counts once half the budget is gone, so an early lull does not end a long run.
+    expect(stopReason(r, 0)).toBeNull();
+    expect(stopReason(r, DEPTHS[r.plan.depth].wallMs / 2)).toBe("dry");
   });
 
   it("does not count parallel searches with no page read between them as dry", () => {
@@ -181,7 +189,7 @@ describe("renderRunState", () => {
     expect(text).toContain("1. [ ] What (1 notes)");
     expect(text).toContain("n1 q1 s1 single_source: Rust has a borrow checker");
     expect(text).toContain('Searched: "rust borrow"');
-    expect(text).toContain("Next: find support for sub-question 1.");
+    expect(text).toContain("Next: find support for sub-question 2.");
   });
 
   it("tells the model to write once gathering stops", () => {

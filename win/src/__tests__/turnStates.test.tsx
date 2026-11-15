@@ -52,8 +52,16 @@ describe("failed replies", () => {
     renderTurn(baseMessage({ failed: true, errorKind: "network", error: "ECONNRESET 42" }));
 
     expect(screen.getByText(t("errorKindNetwork"))).toBeTruthy();
-    expect(screen.getByText("ECONNRESET 42").className).toContain("text-text-tertiary");
+    expect(screen.getByText("ECONNRESET 42").closest("div")?.className).toContain("text-text-tertiary");
     expect(screen.getByText("Partial answer")).toBeTruthy();
+  });
+
+  it("shows the help link in the muted detail as a link, not as markdown", () => {
+    renderTurn(baseMessage({ failed: true, errorKind: "context", error: "Too long. [More about this error](https://draggy.org/docs/errors#context-too-long)" }));
+
+    const link = screen.getByRole("link", { name: "More about this error" });
+    expect(link.getAttribute("href")).toBe("https://draggy.org/docs/errors#context-too-long");
+    expect(screen.queryByText(/\[More about this error\]/)).toBeNull();
   });
 
   it("shows only the error text for an unknown kind", () => {

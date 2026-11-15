@@ -50,14 +50,16 @@ async fn serve(app: &AppHandle, uri: &str) -> Response<Vec<u8>> {
     }
 }
 
-/// The host picks the kind on draggy://<kind>/ and on WebView2's http://draggy.localhost/<kind>/.
+/// The host picks the kind on draggy://<kind>/; WebView2 asks http://draggy.localhost/<kind>/, which Tauri hands over as draggy://localhost/<kind>/.
 fn route(uri: &str) -> Route {
     let Some((_, rest)) = uri.split_once("://") else {
         return Route::Unknown;
     };
     let rest = rest.split(['?', '#']).next().unwrap_or_default();
     let (host, path) = rest.split_once('/').unwrap_or((rest, ""));
-    let (kind, tail) = if host.eq_ignore_ascii_case("draggy.localhost") {
+    let (kind, tail) = if host.eq_ignore_ascii_case("draggy.localhost")
+        || host.eq_ignore_ascii_case("localhost")
+    {
         path.split_once('/').unwrap_or((path, ""))
     } else {
         (host, path)
@@ -197,9 +199,13 @@ async fn favicon(app: &AppHandle, cache_dir: &Path, hostname: &str) -> Response<
         .find(|(from, _)| *from == hostname)
         .map_or(hostname, |(_, to)| to);
     let cached = cache_dir.join(format!("{host}.icon"));
-    let bytes = match fs::read(&cached) {
-        Ok(known) => (!known.is_empty()).then_some(known),
-        Err(_) => {
+    // A miss is kept for a day only: a site that was down or slow gets asked again.
+    let known = fs::read(&cached)
+        .ok()
+        .filter(|bytes| !bytes.is_empty() || !miss_expired(&cached));
+    let bytes = match known {
+        Some(known) => (!known.is_empty()).then_some(known),
+        None => {
             let fetched = fetch_icon(app, host).await;
             let _ = fs::create_dir_all(cache_dir);
             let _ = fs::write(&cached, fetched.as_deref().unwrap_or_default());
@@ -223,8 +229,44 @@ async fn favicon(app: &AppHandle, cache_dir: &Path, hostname: &str) -> Response<
     }
 }
 
-/// The icon a host declares, asked of the site itself: /favicon.ico first, then the page's own link tags.
+const MISS_SECONDS: u64 = 86_400;
+
+fn miss_expired(path: &Path) -> bool {
+    fs::metadata(path)
+        .and_then(|meta| meta.modified())
+        .ok()
+        .and_then(|at| SystemTime::now().duration_since(at).ok())
+        .is_none_or(|age| age.as_secs() > MISS_SECONDS)
+}
+
+/// The names to ask for an icon: the host, its www twin, then each parent domain down to two labels.
+fn icon_hosts(host: &str) -> Vec<String> {
+    let bare = host.strip_prefix("www.").unwrap_or(host);
+    let mut hosts = vec![host.to_owned()];
+    hosts.push(if bare == host {
+        format!("www.{bare}")
+    } else {
+        bare.to_owned()
+    });
+    let labels: Vec<&str> = bare.split('.').collect();
+    for start in 1..labels.len().saturating_sub(1) {
+        hosts.push(labels[start..].join("."));
+    }
+    hosts
+}
+
+/// The icon a host declares, asked of the site itself; a subdomain without one falls back to its parent's.
 async fn fetch_icon(app: &AppHandle, host: &str) -> Option<Vec<u8>> {
+    for name in icon_hosts(host) {
+        if let Some(bytes) = fetch_host_icon(app, &name).await {
+            return Some(bytes);
+        }
+    }
+    None
+}
+
+/// /favicon.ico first, then the page's own link tags.
+async fn fetch_host_icon(app: &AppHandle, host: &str) -> Option<Vec<u8>> {
     let origin = format!("https://{host}");
     if let Some(bytes) = icon_at(app, &format!("{origin}/favicon.ico")).await {
         return Some(bytes);
@@ -432,6 +474,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn icon_hosts_try_www_and_parents() {
+        assert_eq!(
+            icon_hosts("kaitchup.substack.com"),
+            [
+                "kaitchup.substack.com",
+                "www.kaitchup.substack.com",
+                "substack.com"
+            ]
+        );
+        assert_eq!(
+            icon_hosts("www.reddit.com"),
+            ["www.reddit.com", "reddit.com"]
+        );
+        assert_eq!(icon_hosts("github.com"), ["github.com", "www.github.com"]);
+    }
+
+    #[test]
     fn the_host_picks_the_kind_in_both_address_forms() {
         assert_eq!(
             route("draggy://images/a%20b.png"),
@@ -439,6 +498,10 @@ mod tests {
         );
         assert_eq!(
             route("http://draggy.localhost/favicon/example.com"),
+            Route::Favicon("example.com".into())
+        );
+        assert_eq!(
+            route("draggy://localhost/favicon/example.com"),
             Route::Favicon("example.com".into())
         );
         assert_eq!(
