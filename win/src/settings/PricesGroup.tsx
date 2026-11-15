@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Button } from "../ui/Button";
 import { Group, Row, Select, Toggle } from "./Controls";
 import { DISPLAY_CURRENCIES } from "../stats/displayMoney";
-import { DEFAULT_REFERENCE, formatReference } from "../stats/pricing";
 import { swallowed } from "../logger";
 import type { AppSettings, PricingStatus } from "../types";
 
@@ -11,17 +10,6 @@ interface PricesGroupProps {
   onUpdate: (patch: Partial<AppSettings>) => void;
   t: (key: string) => string;
 }
-
-/** Models a local reply can be priced against to show what it would have cost. All are in the bundled snapshot. */
-const REFERENCE_MODELS = [
-  "anthropic/claude-sonnet-4-5",
-  "anthropic/claude-opus-4-5",
-  "anthropic/claude-haiku-4-5",
-  "openai/gpt-4o",
-  "openai/gpt-4o-mini",
-  "gemini/gemini-2.5-pro",
-  "gemini/gemini-2.5-flash",
-];
 
 const day = (iso: string | null) => (iso ? iso.slice(0, 10) : "–");
 
@@ -63,7 +51,6 @@ export default function PricesGroup({ settings, onUpdate, t }: PricesGroupProps)
     }
   };
 
-  const reference = settings.referenceModel ?? formatReference(DEFAULT_REFERENCE);
   const summary = status
     ? [
         `${t(status.origin === "live" ? "priceOriginLive" : "priceOriginBundled")} ${day(status.pricesGeneratedAt)}`,
@@ -99,14 +86,6 @@ export default function PricesGroup({ settings, onUpdate, t }: PricesGroupProps)
           value={settings.displayCurrency ?? "USD"}
           options={DISPLAY_CURRENCIES.map((code) => ({ id: code, label: code }))}
           onChange={(displayCurrency) => onUpdate({ displayCurrency })}
-        />
-      </Row>
-      <Row label={t("priceReference")}>
-        <Select
-          label={t("priceReference")}
-          value={reference}
-          options={REFERENCE_MODELS.map((id) => ({ id, label: id.split("/")[1] }))}
-          onChange={(referenceModel) => onUpdate({ referenceModel })}
         />
       </Row>
     </Group>

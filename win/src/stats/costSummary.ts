@@ -12,11 +12,18 @@ export type LegacyPrice =
   | { kind: "local"; providerId: string | null }
   | null;
 
+/** What a local row's tokens would have cost on the cloud model it is built on. */
+export interface LocalPrice {
+  micros: number;
+  /** The priced cloud model id, such as an OpenRouter id. */
+  priceId: string;
+}
+
 export interface CostSummaryOptions {
   /** Prices a row recorded before costs were kept. Left out, such rows count as unpriced. */
   priceLegacy?: (row: MetricRow) => LegacyPrice;
-  /** What a local row's tokens would have cost on the reference model, or null when that is unknown. */
-  priceReference?: (row: MetricRow) => number | null;
+  /** What a local row's tokens would have cost on its own base model, or null when that model is unknown. */
+  priceLocal?: (row: MetricRow) => LocalPrice | null;
 }
 
 export interface CostBucket {
@@ -24,6 +31,10 @@ export interface CostBucket {
   turns: number;
   spentMicros: number;
   accountMicros: number;
+  /** Local models only: what their turns would have cost on their base model. */
+  savedMicros?: number;
+  /** Local models only: the priced id, or null when the model is unknown (shown as "Unknown", left out of totals). */
+  priceId?: string | null;
   /** True when part of the figure was worked out from a model name instead of recorded. */
   estimated: boolean;
 }
@@ -74,8 +85,16 @@ export function fillDays(days: CostDay[], from: number, to: number): CostDay[] {
   return out;
 }
 
-const bySize = (a: CostBucket, b: CostBucket) =>
-  b.spentMicros + b.accountMicros - (a.spentMicros + a.accountMicros) || b.turns - a.turns || a.key.localeCompare(b.key);
+const sizeOf = (bucket: CostBucket) => bucket.spentMicros + bucket.accountMicros + (bucket.savedMicros ?? 0);
+const bySize = (a: CostBucket, b: CostBucket) => sizeOf(b) - sizeOf(a) || b.turns - a.turns || a.key.localeCompare(b.key);
+
+function addLocal(map: Map<string, CostBucket>, key: string, priceId: string | null, micros: number) {
+  const bucket = map.get(key) ?? { key, turns: 0, spentMicros: 0, accountMicros: 0, estimated: false, savedMicros: 0, priceId };
+  bucket.turns += 1;
+  bucket.savedMicros = (bucket.savedMicros ?? 0) + micros;
+  bucket.priceId = priceId;
+  map.set(key, bucket);
+}
 
 function add(map: Map<string, CostBucket>, key: string, kind: "billed" | "account", micros: number, estimated: boolean) {
   const bucket = map.get(key) ?? { key, turns: 0, spentMicros: 0, accountMicros: 0, estimated: false };
@@ -116,8 +135,14 @@ export function summarizeCost(rows: MetricRow[], options: CostSummaryOptions = {
     }
 
     if (kind === "local") {
-      const saved = options.priceReference?.(row) ?? null;
-      if (saved !== null) savedMicros += saved;
+      const priced = options.priceLocal?.(row) ?? null;
+      if (priced) {
+        savedMicros += priced.micros;
+        addLocal(models, row.model, priced.priceId, priced.micros);
+      } else {
+        unpricedTurns += 1;
+        addLocal(models, row.model, null, 0);
+      }
       continue;
     }
 

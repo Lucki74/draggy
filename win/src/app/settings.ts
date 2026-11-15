@@ -6,7 +6,7 @@ import { swallowed } from "../logger";
 import { DEFAULT_ACCENT, applyAccent } from "./accent";
 import { EFFORT_DEFAULT, effortFromLegacy, isEffortLevel } from "../ai/effort";
 import { DEFAULT_BUDGETS } from "../stats/budget";
-import { DEFAULT_REFERENCE, formatReference, turnPricer } from "../stats/pricing";
+import { turnPricer } from "../stats/pricing";
 import { resolveDisplayMoney, setDisplayMoney } from "../stats/displayMoney";
 
 /** Thinking modes before the five effort levels, and the key each one became. */
@@ -59,12 +59,11 @@ export const defaultSettings: AppSettings = {
   showMetrics: false,
   compactLimit: null,
   fixedContextSize: null,
-  imageModel: "",
+  imageModel: { source: "local", model: "" },
   imageResolution: "1024x1024",
   budgets: DEFAULT_BUDGETS,
   priceRefresh: true,
   displayCurrency: "USD",
-  referenceModel: formatReference(DEFAULT_REFERENCE),
 };
 
 export const FONT_SIZES = { sm: "13px", base: "15px", lg: "18px" };
@@ -83,6 +82,18 @@ const VALID_LANGUAGES =new Set(["en", "fr", "es", "ru"]);
 
 /** Read synchronously from localStorage rather than awaited from sqlite: the first paint needs the
  * theme and the language before any IPC can answer. */
+/** Reads the saved image model, whichever shape it was saved in. A bare string is a local model name. */
+export function migrateImageModel(value: unknown): AppSettings["imageModel"] {
+  if (typeof value === "string") return { source: "local", model: value };
+  if (value && typeof value === "object" && typeof (value as { model?: unknown }).model === "string") {
+    const saved = value as { source?: unknown; provider?: unknown; model: string };
+    const provider = typeof saved.provider === "string" && saved.provider ? saved.provider : undefined;
+    if (saved.source === "cloud" && provider) return { source: "cloud", provider, model: saved.model };
+    return { source: "local", model: saved.model };
+  }
+  return { source: "local", model: "" };
+}
+
 export function loadSettings(): AppSettings {
   const saved = localStorage.getItem(SETTINGS_KEY);
   const parsed = saved ? safeJsonParse<Partial<AppSettings> & { braveApiKey?: string }>(saved) : null;
@@ -118,6 +129,12 @@ export function loadSettings(): AppSettings {
     parsed.language = "en";
     migrated = true;
   }
+  // The image model was a bare local name. It is now { source, provider?, model }.
+  const imageModel = migrateImageModel((parsed as { imageModel?: unknown }).imageModel);
+  if (JSON.stringify((parsed as { imageModel?: unknown }).imageModel) !== JSON.stringify(imageModel)) {
+    (parsed as { imageModel?: unknown }).imageModel = imageModel;
+    migrated = true;
+  }
 
   // The neural voice is the default now. Someone saved on the old default "system" without ever
   // naming a system voice never chose it, so they move over once; a later choice sticks.
@@ -149,6 +166,11 @@ export function loadSettings(): AppSettings {
       legacy[key] = EFFORT_DEFAULT;
       migrated = true;
     }
+  }
+  // Local replies are priced by their own base model now, so the "compare against" choice is gone.
+  if ("referenceModel" in parsed) {
+    delete (parsed as { referenceModel?: unknown }).referenceModel;
+    migrated = true;
   }
   // Earlier versions saved the speed line switched on without anyone asking for it.
   const resolved = parsed.metricsChosen
@@ -255,9 +277,13 @@ export function useSettings(isSplashMode: boolean, holdUpdates = false) {
   useEffect(() => {
     if (isSplashMode) return;
     window.draggy?.sd
-      ?.configure({ model: settings.imageModel, resolution: settings.imageResolution })
+      ?.configure({
+        model: settings.imageModel.source === "local" ? settings.imageModel.model : "",
+        resolution: settings.imageResolution,
+        cloud: settings.imageModel.source === "cloud" ? { provider: settings.imageModel.provider ?? "", model: settings.imageModel.model } : null,
+      })
       .catch(swallowed("app", "the main process already logged this call"));
-  }, [settings.imageModel, settings.imageResolution, isSplashMode]);
+  }, [settings.imageModel.source, settings.imageModel.provider, settings.imageModel.model, settings.imageResolution, isSplashMode]);
 
   // Matching the system means following it while the app is open, not just reading it once.
   useEffect(() => {

@@ -10,7 +10,8 @@ import type { StatsRange } from "./summary";
 import CostSection from "./CostSection";
 import { swallowed } from "../logger";
 import { summarizeCost } from "./costSummary";
-import { legacyPricer, parseReference, referencePricer } from "./pricing";
+import { legacyPricer, localPricer } from "./pricing";
+import { installedBaseModels } from "./baseModelIndex";
 import type { PriceTable } from "./cost";
 import type { MetricRow, ProviderInstance } from "../types";
 
@@ -19,8 +20,6 @@ interface StatsPanelProps {
   /** Narrows the figures to one chat, as the Usage pane does. `null` is a pane with no chat open.
    * Left out, the panel covers every chat and offers a range and a way to clear. */
   chatId?: string | null;
-  /** The `provider/model` that local replies are priced against for "saved". */
-  referenceModel?: string;
 }
 
 const RANGES: { id: StatsRange; label: string }[] = [
@@ -46,7 +45,7 @@ function Bar({ value, max, strong }: { value: number; max: number; strong: boole
 
 /** How the user's models have done: speed by model, tool use, time per task. From turns kept
  * locally, shown nowhere else, and clearable. */
-export default function StatsPanel({ t, chatId, referenceModel }: StatsPanelProps) {
+export default function StatsPanel({ t, chatId }: StatsPanelProps) {
   const scoped = chatId !== undefined;
   const [chosenRange, setRange] = useState<StatsRange>("30d");
   const range = scoped ? "all" : chosenRange;
@@ -93,6 +92,7 @@ export default function StatsPanel({ t, chatId, referenceModel }: StatsPanelProp
       Promise.all([
         window.draggy?.pricing?.table().catch(swallowed("stats", "old rows show without an estimate", null)),
         window.draggy?.providers?.list?.().catch(() => []),
+        installedBaseModels.refresh(),
       ]).then(([answer, instances]) => {
         if (current) setPrices({ table: answer?.success ? (answer.table ?? null) : null, instances: instances ?? [] });
       });
@@ -110,10 +110,10 @@ export default function StatsPanel({ t, chatId, referenceModel }: StatsPanelProp
       rows && prices
         ? summarizeCost(rows, {
             priceLegacy: legacyPricer(prices.table, prices.instances),
-            priceReference: referencePricer(prices.table, parseReference(referenceModel)),
+            priceLocal: localPricer(prices.table, installedBaseModels),
           })
         : null,
-    [rows, prices, referenceModel],
+    [rows, prices],
   );
 
   const clear = async () => {

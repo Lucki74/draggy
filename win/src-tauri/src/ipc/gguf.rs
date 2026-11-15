@@ -106,6 +106,7 @@ pub fn model_value(entry: &ModelEntry) -> Value {
         "blockCount": entry.block_count,
         "fileType": entry.file_type,
         "capabilities": entry.capabilities,
+        "baseModels": entry.base_models,
     })
 }
 
@@ -533,11 +534,13 @@ mod tests {
             block_count: Some(32.0),
             file_type: None,
             capabilities: vec!["vision".into()],
+            base_models: vec!["Qwen/Qwen3.6-35B-A3B".into()],
         };
         let value = model_value(&entry);
         assert_eq!(value["name"], value["filename"]);
         assert_eq!(value["contextLength"], Value::Null);
         assert_eq!(value["blockCount"], json!(32.0));
+        assert_eq!(value["baseModels"], json!(["Qwen/Qwen3.6-35B-A3B"]));
     }
 
     #[test]

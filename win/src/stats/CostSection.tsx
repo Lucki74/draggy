@@ -21,12 +21,15 @@ function BucketTable({
   buckets,
   money,
   t,
+  showSaved = false,
 }: {
   title: string;
   keyHeader: string;
   buckets: CostBucket[];
   money: (micros: number, estimated?: boolean) => string;
   t: (key: string) => string;
+  /** Local models: what their turns would have cost on their base model. */
+  showSaved?: boolean;
 }) {
   if (buckets.length === 0) return null;
   return (
@@ -39,17 +42,28 @@ function BucketTable({
               <th className="px-3 py-2 text-end font-medium">{t("statsTurns")}</th>
               <th className="px-3 py-2 text-end font-medium">{t("costSpent")}</th>
               <th className="px-3 py-2 text-end font-medium">{t("costPlanValue")}</th>
+              {showSaved && <th className="px-3 py-2 text-end font-medium">{t("costSaved")}</th>}
             </tr>
           </thead>
           <tbody>
             {buckets.map((bucket) => (
               <tr key={bucket.key} className="border-t border-rule">
-                <td className="px-3 py-2 font-mono text-[12px] text-text-primary">{bucket.key}</td>
+                <td
+                  className="px-3 py-2 font-mono text-[12px] text-text-primary"
+                  title={bucket.priceId ? `OpenRouter: ${bucket.priceId}` : undefined}
+                >
+                  {bucket.key}
+                </td>
                 <td className="px-3 py-2 text-end">{bucket.turns}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-end">{money(bucket.spentMicros, bucket.estimated)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-end text-text-secondary">
                   {bucket.accountMicros > 0 ? money(bucket.accountMicros, true) : "–"}
                 </td>
+                {showSaved && (
+                  <td className="whitespace-nowrap px-3 py-2 text-end">
+                    {bucket.priceId === null ? t("costUnknown") : bucket.savedMicros ? money(bucket.savedMicros, true) : "–"}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -66,7 +80,9 @@ export default function CostSection({ t, cost, from, to, locale }: CostSectionPr
   const money = (micros: number, estimated = false) =>
     formatMoney(micros, display.currency, { estimated, locale, rate: display.rate });
 
-  const hasMoney = cost.paidTurns > 0 || cost.savedMicros > 0;
+  // A local model counts even when it has no price, so its row can say Unknown.
+  const hasLocal = cost.byModel.some((bucket) => bucket.priceId !== undefined);
+  const hasMoney = cost.paidTurns > 0 || cost.savedMicros > 0 || hasLocal;
   if (!hasMoney) {
     return <p className="max-w-[52ch] text-[13px] leading-5 text-text-secondary">{t("costNoBilled")}</p>;
   }
@@ -124,7 +140,7 @@ export default function CostSection({ t, cost, from, to, locale }: CostSectionPr
       )}
 
       <BucketTable title={t("costByProvider")} keyHeader={t("costProvider")} buckets={cost.byProvider} money={money} t={t} />
-      <BucketTable title={t("statsByModel")} keyHeader={t("statsModel")} buckets={cost.byModel} money={money} t={t} />
+      <BucketTable title={t("statsCostByModel")} keyHeader={t("statsModel")} buckets={cost.byModel} money={money} t={t} showSaved />
       <BucketTable
         title={t("costByWorkspace")}
         keyHeader={t("costWorkspace")}

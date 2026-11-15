@@ -4,7 +4,6 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import PricesGroup from "../settings/PricesGroup";
 import { defaultSettings } from "../app/settings";
 import { getDisplayMoney, resolveDisplayMoney, setDisplayMoney, US_DOLLARS } from "../stats/displayMoney";
-import { DEFAULT_REFERENCE, formatReference, parseReference } from "../stats/pricing";
 import { turnCostLabel } from "../stats/turnCostLabel";
 import { translations } from "../translations";
 import type { PricingStatus, TurnCost } from "../types";
@@ -82,14 +81,5 @@ describe("the display currency", () => {
     const label = turnCostLabel(cost, t, "en-US", { currency: "EUR", rate: 0.9 });
     expect(label?.text).toContain("0.90");
     expect(label?.text).toContain("€");
-  });
-});
-
-describe("the reference model setting", () => {
-  it("round-trips and falls back on a bad value", () => {
-    expect(parseReference(formatReference({ provider: "openai", model: "gpt-4o" }))).toEqual({ provider: "openai", model: "gpt-4o" });
-    expect(parseReference(undefined)).toEqual(DEFAULT_REFERENCE);
-    expect(parseReference("nonsense")).toEqual(DEFAULT_REFERENCE);
-    expect(parseReference("openai/")).toEqual(DEFAULT_REFERENCE);
   });
 });

@@ -61,10 +61,15 @@ describe("the cost section of the statistics", () => {
     expect(screen.queryByText(/Nothing was billed/)).toBeNull();
   });
 
-  it("shows local savings against the reference model", () => {
-    show([row({ kind: "local", costMicros: null, providerId: null })], { priceReference: () => 500_000 });
-    expect(screen.getByText("Saved locally")).toBeTruthy();
-    expect(screen.getByText("~$0.50")).toBeTruthy();
+  it("shows local savings against the base model, and Unknown for a model it cannot price", () => {
+    show([row({ kind: "local", costMicros: null, providerId: null })], { priceLocal: () => ({ micros: 500_000, priceId: "qwen/qwen3.6-35b-a3b" }) });
+    expect(screen.getAllByText("Saved locally").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("~$0.50").length).toBeGreaterThan(0);
+  });
+
+  it("shows Unknown for a local model with no base model", () => {
+    show([row({ kind: "local", costMicros: null, providerId: null })], { priceLocal: () => null });
+    expect(screen.getByText("Unknown")).toBeTruthy();
   });
 
   it("counts turns it could not price instead of showing them as free", () => {

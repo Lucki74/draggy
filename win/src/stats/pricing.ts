@@ -5,7 +5,8 @@ import { parseRef } from "../ai/providers";
 import { swallowed } from "../logger";
 import type { GenerationMetrics } from "../llama";
 import type { MetricRow, ProviderInstance, TurnCost } from "../types";
-import type { LegacyPrice } from "./costSummary";
+import type { LegacyPrice, LocalPrice } from "./costSummary";
+import { pricedModelOf, type BaseModelSources } from "./baseModel";
 import { costKindOf, costOf, costOfPasses, lookupPrice, PRICE_PROVIDER_OF_VENDOR, UNKNOWN_COST, type Cost, type CostKind, type PriceTable } from "./cost";
 import { sumTokenUsage, type TokenUsage } from "./tokenUsage";
 
@@ -81,28 +82,11 @@ export function legacyPricer(table: PriceTable | null, instances: readonly Provi
   };
 }
 
-/** The model local replies are priced against to show what they would have cost. */
-export interface ReferenceModel {
-  provider: string;
-  model: string;
-}
-
-export const DEFAULT_REFERENCE: ReferenceModel = { provider: "anthropic", model: "claude-sonnet-4-5" };
-
-/** Reads the `provider/model` form Settings stores; anything else falls back to the default reference. */
-export function parseReference(value: string | undefined): ReferenceModel {
-  const slash = value ? value.indexOf("/") : -1;
-  if (!value || slash <= 0 || slash === value.length - 1) return DEFAULT_REFERENCE;
-  return { provider: value.slice(0, slash), model: value.slice(slash + 1) };
-}
-
-export const formatReference = (reference: ReferenceModel): string => `${reference.provider}/${reference.model}`;
-
-/** What a row's tokens would have cost on the reference model, or null when the table has no price for it. */
-export function referencePricer(table: PriceTable | null, reference: ReferenceModel = DEFAULT_REFERENCE) {
-  const price = lookupPrice(table, reference.provider, reference.model);
-  return (row: MetricRow): number | null => {
-    if (!price) return null;
+/** What a local row's tokens would have cost on the cloud model its base model is priced as, or null when unknown. */
+export function localPricer(table: PriceTable | null, sources: BaseModelSources = {}) {
+  return (row: MetricRow): LocalPrice | null => {
+    const priced = pricedModelOf(row.model, table, sources);
+    if (!priced) return null;
     const cost = costOf(
       {
         input: row.inputTokens ?? row.promptTokens,
@@ -112,9 +96,9 @@ export function referencePricer(table: PriceTable | null, reference: ReferenceMo
         reasoning: row.reasoningTokens ?? 0,
         source: "estimated",
       },
-      price,
+      priced.price,
     );
-    return cost.micros;
+    return cost.micros === null ? null : { micros: cost.micros, priceId: priced.id };
   };
 }
 
