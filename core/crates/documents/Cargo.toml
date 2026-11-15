@@ -10,10 +10,11 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-docx-rs = { version = "0.4", default-features = false }
+# The 0.4.22 release still pins zip 8; this upstream commit moves to the patched zip 9.0.5.
+docx-rs = { git = "https://github.com/bokuweb/docx-rs", rev = "3b959fa73e6ea78a3c96ab50416407b2c3b8fa7a", default-features = false }
 lopdf = { version = "0.45", default-features = false }
 regex = "1"
-rust_xlsxwriter = "0.99"
+rust_xlsxwriter = "0.102"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 tracing = "0.1"
