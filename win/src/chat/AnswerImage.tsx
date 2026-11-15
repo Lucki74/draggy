@@ -7,6 +7,7 @@ import { hostnameOf } from "../utils";
 import { swallowed } from "../logger";
 import type { TrackedImage } from "../images/imageTracker";
 import { ImageViewer } from "./ImageViewer";
+import { Icon } from "../ui";
 
 /** A picture the answer placed with {image}img_2|Title{image}, or {image}https://…|Title{image} for one from the web. */
 
@@ -15,13 +16,19 @@ export const ChatImagesContext = createContext<TrackedImage[]>([]);
 const TOKEN = /\{image\}([^{}|\n]+?)(?:\|([^{}\n]+?))?\{image\}/g;
 // An image token still being written: hidden until it closes, so the raw braces never flash up.
 const OPEN_TAIL = /\{image\}[^\n]*$/;
+const MIXED = /!\[[^\]\n]*\]\(<?(https?:\/\/[^\s<>)]+)>?\)\|([^|\n{}]+)$/gm;
 
 const escapeTitle = (title: string) => title.replace(/["\\]/g, "\\$&").replace(/[[\]]/g, "\\$&");
 
 /** Turns each token into a markdown image of its own block, which the img component then draws. */
 export function withImageTokens(text: string, streaming = false): string {
-  if (!text.includes("{image}")) return text;
-  const placed = text.replace(TOKEN, (_, src: string, title?: string) => {
+  // A model that mixes the two forms writes ![](url)|Title: the words after the bar are the picture's title.
+  const mixed = text.replace(MIXED, (_, src: string, title: string) => {
+    const name = escapeTitle(title.trim());
+    return `![${name}](<${src}> "${name}")`;
+  });
+  if (!mixed.includes("{image}")) return mixed;
+  const placed = mixed.replace(TOKEN, (_, src: string, title?: string) => {
     const name = escapeTitle((title ?? "").trim());
     return `\n\n![${name}](<${src.trim()}>${name ? ` "${name}"` : ""})\n\n`;
   });
@@ -63,7 +70,16 @@ export function AnswerImage({ src, title }: { src?: string; alt?: string; title?
   const tracked = web ? undefined : images.find((image) => image.id === wanted.toLowerCase());
   const trackedSrc = useTrackedSrc(tracked);
   const shown = web ? wanted : trackedSrc;
-  // An ID the chat does not have, or a picture that will not load, draws nothing rather than a broken icon.
+  // A web picture that will not load says so, so the answer never points at nothing.
+  if (web && broken)
+    return (
+      <span className="img-missing" role="note">
+        <Icon name="image" size={14} />
+        <span>{uiText("imageWebUnavailable")}</span>
+        <span className="text-text-tertiary">{hostnameOf(wanted)}</span>
+      </span>
+    );
+  // An ID the chat does not have draws nothing rather than a broken icon.
   if (!shown || broken) return null;
   const name = title || (tracked?.origin === "attached" ? tracked.label : "") || (web ? hostnameOf(wanted) : wanted);
 
