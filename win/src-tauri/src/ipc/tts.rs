@@ -10,12 +10,13 @@ use tauri::{AppHandle, Manager};
 use tokio::sync::watch;
 
 use super::pricing::now_ms;
+use super::providers::active_catalog;
 use super::terminals::text;
 use super::web::keys;
 use super::{IpcError, Registry, emit};
 use crate::AppState;
 use crate::pricing::build::iso_utc;
-use crate::tts::cloud::{Provider, SpeakError, Speech, speak};
+use crate::tts::cloud::{SpeakError, Speech, Target, speak};
 use crate::tts::consent::{self, KEY as CONSENT_KEY};
 use crate::tts::frames::SAMPLE_RATE;
 
@@ -58,20 +59,32 @@ fn write_consent(app: &AppHandle, change: impl FnOnce(Option<&str>) -> String) -
         .is_ok()
 }
 
-fn stored_key(app: &AppHandle, provider: Provider) -> String {
-    keys::stored(app, &format!("provider:{}", provider.id()))
+fn stored_key(app: &AppHandle, provider: &str) -> String {
+    keys::stored(app, &format!("provider:{provider}"))
+}
+
+/// The catalog provider that can speak, by id.
+fn target_for(id: &str) -> Option<Target> {
+    active_catalog().find(id).and_then(Target::from_entry)
 }
 
 async fn tts_providers(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
-    let providers: Vec<Value> = [Provider::OpenAi, Provider::Gemini]
-        .into_iter()
-        .map(|provider| {
-            let configured = !stored_key(&app, provider).is_empty();
+    let providers: Vec<Value> = active_catalog()
+        .speech_entries()
+        .filter_map(Target::from_entry)
+        .map(|target| {
+            let configured = !stored_key(&app, &target.id).is_empty();
+            let models: Vec<Value> = target
+                .models
+                .iter()
+                .map(|model| json!({ "id": model.id, "voices": model.voices }))
+                .collect();
             json!({
-                "id": provider.id(),
-                "name": provider.name(),
+                "id": target.id,
+                "name": target.name,
                 "configured": configured,
-                "instance": configured.then_some(provider.id()),
+                "instance": configured.then_some(target.id.as_str()),
+                "models": models,
             })
         })
         .collect();
@@ -82,17 +95,17 @@ async fn tts_providers(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcEr
 }
 
 async fn tts_consent_grant(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
-    let Some(provider) = Provider::from_id(&text(args.first())) else {
+    let Some(target) = target_for(&text(args.first())) else {
         return Ok(code("unknown-provider"));
     };
     let now = iso_utc(now_ms());
-    if !write_consent(&app, |raw| consent::grant(raw, provider.id(), &now)) {
+    if !write_consent(&app, |raw| consent::grant(raw, &target.id, &now)) {
         return Ok(code("closed"));
     }
     app.state::<AppState>().diag.info(
         "settings.voice",
         "consent granted",
-        Some(json!({ "provider": provider.id(), "kind": "text" })),
+        Some(json!({ "provider": target.id, "kind": "text" })),
     );
     Ok(json!({ "success": true }))
 }
@@ -116,13 +129,13 @@ async fn tts_speak(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
     let turn_key = text(args.first());
     let request = args.get(1);
     let field = |name: &str| text(request.and_then(|request| request.get(name)));
-    let Some(provider) = Provider::from_id(&field("provider")) else {
+    let Some(target) = target_for(&field("provider")) else {
         return Ok(code("unknown-provider"));
     };
-    if !consent::has(read_consent(&app).as_deref(), provider.id()) {
+    if !consent::has(read_consent(&app).as_deref(), &target.id) {
         return Ok(code("no-consent"));
     }
-    let key = stored_key(&app, provider);
+    let key = stored_key(&app, &target.id);
     if key.is_empty() {
         return Ok(code("no-key"));
     }
@@ -134,7 +147,7 @@ async fn tts_speak(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
     diag.debug(
         "ipc.tts",
         "engine chosen",
-        Some(json!({ "provider": provider.id(), "chars": speech_text.chars().count() })),
+        Some(json!({ "provider": target.id, "chars": speech_text.chars().count() })),
     );
 
     let (cancel, cancelled) = watch::channel(false);
@@ -158,7 +171,7 @@ async fn tts_speak(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
         model: &model,
     };
     let outcome = tokio::select! {
-        result = speak(provider, &key, &speech, on_frames) => Some(result),
+        result = speak(&target, &key, &speech, on_frames) => Some(result),
         _ = wait_for_cancel(cancelled) => None,
     };
     forget(&turn_key, slot);
@@ -168,7 +181,7 @@ async fn tts_speak(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
             diag.info(
                 "ipc.tts",
                 "synthesis cancelled",
-                Some(json!({ "provider": provider.id() })),
+                Some(json!({ "provider": target.id })),
             );
             code("cancelled")
         }
@@ -176,13 +189,13 @@ async fn tts_speak(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
             diag.info(
                 "ipc.tts",
                 "synthesis done",
-                Some(json!({ "provider": provider.id(), "characters": done.characters, "frames": done.frames })),
+                Some(json!({ "provider": target.id, "characters": done.characters, "frames": done.frames })),
             );
             json!({
                 "success": true,
                 "characters": done.characters,
                 "frames": done.frames,
-                "provider": provider.id(),
+                "provider": target.id,
             })
         }
         Some(Err(error)) => {
@@ -190,7 +203,7 @@ async fn tts_speak(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
             diag.warn(
                 "ipc.tts",
                 "synthesis failed",
-                Some(json!({ "provider": provider.id(), "code": code })),
+                Some(json!({ "provider": target.id, "code": code })),
             );
             json!({ "success": false, "code": code })
         }
@@ -227,7 +240,7 @@ fn forget(turn: &str, slot: u64) {
 /// The error code the renderer sees.
 fn error_code(error: &SpeakError) -> String {
     match error {
-        SpeakError::Empty | SpeakError::Transport => "failed".to_owned(),
+        SpeakError::Empty | SpeakError::Unsupported | SpeakError::Transport => "failed".to_owned(),
         SpeakError::Http(status) => format!("http-{status}"),
     }
 }
