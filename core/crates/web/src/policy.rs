@@ -1,6 +1,6 @@
 //! Which URLs the model may fetch, and which permissions the app window holds.
 
-use std::net::Ipv6Addr;
+use std::net::{IpAddr, Ipv6Addr};
 
 use url::{Host, Url};
 
@@ -241,6 +241,14 @@ fn ipv4_is_private(host: &str) -> Option<bool> {
         return Some(false);
     }
     Some(ipv4_octets_are_private(octets))
+}
+
+/// Whether an address a name resolved to is this machine or its local network, by the same ranges as a literal.
+pub fn is_private_ip(address: IpAddr) -> bool {
+    match address {
+        IpAddr::V4(v4) => ipv4_octets_are_private(v4.octets().map(u32::from)),
+        IpAddr::V6(v6) => ipv6_is_private(v6) || v6.segments()[0] & 0xfe00 == 0xfc00,
+    }
 }
 
 fn ipv4_octets_are_private([a, b, _, _]: [u32; 4]) -> bool {

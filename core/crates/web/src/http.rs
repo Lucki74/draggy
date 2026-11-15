@@ -1,11 +1,13 @@
 //! The network seam. The search and connectivity logic talk to this trait, so tests can answer with canned responses.
 
 use std::future::Future;
+use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use encoding_rs::{Encoding, UTF_8};
 
-use crate::policy::UrlPolicy;
+use crate::policy::{UrlPolicy, is_private_ip};
 
 /// Redirect hops a request may follow. Node's fetch and the hidden browser both follow 20.
 const REDIRECT_LIMIT: usize = 20;
@@ -77,6 +79,7 @@ impl ReqwestClient {
             page: build(
                 reqwest::Client::builder()
                     .cookie_store(true)
+                    .dns_resolver(Arc::new(PublicResolver))
                     .redirect(page_redirects()),
             )?,
             no_redirects: build(
@@ -84,6 +87,33 @@ impl ReqwestClient {
             )?,
         })
     }
+}
+
+/// Resolves names for scraped pages and drops local addresses, so a public name that points at this machine or its
+/// network (DNS rebinding) cannot reach a local service. The literal check in the URL policy never sees those addresses.
+struct PublicResolver;
+
+impl reqwest::dns::Resolve for PublicResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        let host = name.as_str().to_owned();
+        Box::pin(async move {
+            let found = tokio::net::lookup_host((host.as_str(), 0)).await?;
+            let public = public_addresses(found);
+            if public.is_empty() {
+                return Err(format!("{host} resolves only to local addresses").into());
+            }
+            let addrs: reqwest::dns::Addrs = Box::new(public.into_iter());
+            Ok(addrs)
+        })
+    }
+}
+
+/// The resolved addresses a scraped page may connect to.
+pub fn public_addresses(found: impl IntoIterator<Item = SocketAddr>) -> Vec<SocketAddr> {
+    found
+        .into_iter()
+        .filter(|address| !is_private_ip(address.ip()))
+        .collect()
 }
 
 /// Scraped pages hold every redirect hop to the URL policy, as `page` reads do. A refused hop fails the request.
@@ -188,6 +218,41 @@ mod tests {
         assert!(!redirect_allowed("http://127.0.0.1/admin", 1));
         assert!(!redirect_allowed("http://192.168.1.10/", 1));
         assert!(!redirect_allowed("http://localhost/", 1));
+    }
+
+    #[test]
+    fn resolved_local_addresses_are_dropped() {
+        let found: Vec<SocketAddr> = [
+            "127.0.0.1:0",
+            "10.0.0.5:0",
+            "192.168.1.1:0",
+            "169.254.169.254:0",
+            "[::1]:0",
+            "[fd00::1]:0",
+            "[fe80::1]:0",
+            "[::ffff:127.0.0.1]:0",
+            "93.184.216.34:0",
+            "[2606:2800:220:1::1]:0",
+        ]
+        .iter()
+        .map(|text| text.parse().unwrap())
+        .collect();
+        let kept: Vec<String> = public_addresses(found)
+            .iter()
+            .map(|address| address.ip().to_string())
+            .collect();
+        assert_eq!(kept, ["93.184.216.34", "2606:2800:220:1::1"]);
+    }
+
+    #[test]
+    fn a_name_that_resolves_to_loopback_is_refused() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let name: reqwest::dns::Name = "localhost".parse().unwrap();
+        let outcome = runtime.block_on(reqwest::dns::Resolve::resolve(&PublicResolver, name));
+        assert!(outcome.is_err());
     }
 
     #[test]
