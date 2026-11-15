@@ -22,7 +22,7 @@ Windows code must not carry macOS or Linux branches. A fixture change must keep 
 
 ## What Draggy is
 
-A local-first desktop assistant running an embedded native GGUF engine (`llama-server`) with open models from Hugging Face. Mixture-of-Experts models too big for memory run on a second engine, colibri. Pictures come from stable-diffusion.cpp's `sd-server`. No account, no telemetry, and nothing leaves the machine without explicit user action, with the standing exceptions described under Network below. Any change weakening those guarantees is unacceptable.
+A local-first desktop assistant running an embedded native GGUF engine (`llama-server`) with open models from Hugging Face. Mixture-of-Experts models too big for memory run on a second engine, colibri. Pictures come from stable-diffusion.cpp's `sd-server` or from a cloud image model the user picked. No account, no telemetry, and nothing leaves the machine without explicit user action, with the standing exceptions described under Network below. Any change weakening those guarantees is unacceptable.
 
 The Windows app is a Tauri 2 application. The Rust shell is in `win/src-tauri/` (`src/main.rs` is the entry point, `src/lib.rs` sets up the app). The React renderer is in `win/src/`. The TypeScript agent loop runs in the `node.exe` sidecar that ships as `binaries/node`.
 
@@ -80,7 +80,7 @@ Every child process must be started through the hidden-spawn helpers in `core/cr
 
 Outbound HTTP requests on behalf of models must pass through the URL policy in `core/crates/web/src/policy.rs`. Only `http:` and `https:` schemes are permitted, and private network addresses are blocked.
 
-A cloud or hosted model request is routed through the `draggy-ai` protocol handled in `win/src-tauri/src/chat_gateway.rs`. Provider API keys stay in the OS keystore (`win/src-tauri/src/secrets.rs`) and are never returned to the renderer or written to logs.
+A cloud or hosted model request is routed through the `draggy-ai` protocol handled in `win/src-tauri/src/chat_gateway.rs`. Provider API keys stay in the OS keystore (`win/src-tauri/src/secrets.rs`) and are never returned to the renderer or written to logs. Cloud image and voice requests are the exception to the gateway: `win/src-tauri/src/images/cloud/` and `win/src-tauri/src/tts/cloud/` send them from the Rust process to the provider the user picked, with the key from the keystore, and hand the renderer only picture bytes or PCM frames.
 
 Four languages remain in parity: English (`en`), French (`fr`), Spanish (`es`), and Russian (`ru`). `src/__tests__/translations.test.ts` enforces identical key sets across all four. Do not use machine translation; each table maintains its own register.
 
@@ -153,9 +153,9 @@ Releases are cut from the Release workflow (`release.yml`, run by hand on `main`
 
 ## Documentation and website
 
-The public website lives in `../draggy-website` as an independent repository. Draggy interfaces use Phosphor icons (`@phosphor-icons/core`), while the website maintains its own icon builds.
+The public website lives in `../draggy-website` (Lucki74/draggy-website) and the documentation in `../draggy-docs` (Lucki74/draggy-docs), both public repositories. Draggy interfaces use Phosphor icons (`@phosphor-icons/core`), while the website maintains its own icon builds.
 
-Documentation screenshots come from `npm run shots`, `npm run wiki:shots` and `npm run clips`. They start a dev build of the app with WebView2 remote debugging on 127.0.0.1, attach through `scripts/tauri-app.cjs` and run on a throwaway data folder.
+Documentation screenshots come from `npm run shots` (the docs screenshots) and `npm run clips` (the website clips). They start a dev build of the app with WebView2 remote debugging on 127.0.0.1, attach through `scripts/tauri-app.cjs` and run on a throwaway data folder. Screenshots go to `../draggy-docs/assets/img` and clips to `../draggy-website/assets/clips`.
 
 - Set `TEMP` and `TMP` to a neutral folder such as `C:\demo` first, so settings screenshots do not show your user name.
 - Look at every generation-dependent shot before publishing it.

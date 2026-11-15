@@ -203,13 +203,13 @@ function overlayPane(basePng, panePng, rect, outPng) {
 /** Writes a small demo project with history and uncommitted work, for the project scenes. */
 function writeDemoProject(project) {
   const files = {
-    "package.json": JSON.stringify({ name: "weather-cli", version: "0.3.0", type: "module", scripts: { build: "tsc", test: "vitest run" } }, null, 2),
+    "package.json": JSON.stringify({ name: "weather-cli", version: "0.3.0", type: "module", scripts: { build: "tsc", test: "node --test" } }, null, 2),
     "AGENTS.md": "# weather-cli\n\nA command line forecast tool.\n\n- Run `npm test` before saying a change works.\n- Keep output under 80 columns.\n",
     "README.md": "# weather-cli\n\nPrints a three day forecast for a city.\n\n```\nweather paris\n```\n",
     "src/cli.ts": 'import { forecast } from "./forecast.js";\nimport { formatDay } from "./format.js";\n\nconst city = process.argv[2];\n\nif (!city) {\n  console.error("usage: weather <city>");\n  process.exit(1);\n}\n\nfor (const day of await forecast(city)) {\n  console.log(formatDay(day));\n}\n',
     "src/forecast.ts": "export interface Day {\n  date: string;\n  high: number;\n  low: number;\n  summary: string;\n}\n\nexport async function forecast(city: string): Promise<Day[]> {\n  const response = await fetch(`https://api.example.com/forecast?city=${encodeURIComponent(city)}`);\n  if (!response.ok) throw new Error(`No forecast for ${city}`);\n  return (await response.json()).days;\n}\n",
     "src/format.ts": 'import type { Day } from "./forecast.js";\n\nexport function formatTemperature(celsius: number): string {\n  return String(celsius);\n}\n\nexport function formatDay(day: Day): string {\n  return `${day.date}  ${formatTemperature(day.high)} / ${formatTemperature(day.low)}  ${day.summary}`;\n}\n',
-    "tests/format.test.ts": 'import { describe, expect, it } from "vitest";\nimport { formatTemperature } from "../src/format.js";\n\ndescribe("formatTemperature", () => {\n  it("prints whole degrees", () => {\n    expect(formatTemperature(21)).toBe("21");\n  });\n});\n',
+    "tests/format.test.ts": 'import { describe, it } from "node:test";\nimport assert from "node:assert/strict";\nimport { formatTemperature } from "../src/format.ts";\n\ndescribe("formatTemperature", () => {\n  it("prints whole degrees", () => {\n    assert.equal(formatTemperature(21), "21");\n  });\n});\n',
   };
   for (const [name, text] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(path.join(project, name)), { recursive: true });
@@ -234,7 +234,7 @@ function writeDemoProject(project) {
 }
 
 /** Seeds the workspace, chats, settings and a finished setup, then reloads so the app reads them. */
-async function seedProfile(page, { project, model }) {
+async function seedProfile(page, { project, model, language = "en" }) {
   const hour = 3600 * 1000;
   const chats = [
     ["default", "optimize sqlite wal checkpointing", 20, "how do i tune sqlite wal mode for concurrent writes without locking?", "Set PRAGMA journal_mode=WAL and PRAGMA synchronous=NORMAL, then run PRAGMA wal_checkpoint(TRUNCATE) on an idle connection."],
@@ -247,6 +247,44 @@ async function seedProfile(page, { project, model }) {
     ["weather", "fix the flaky forecast test", 26, "the forecast test fails every few runs", "The test compares against the current time. Passing a fixed clock into the formatter makes it stable."],
     ["weather", "add a --units flag", 100, "can the cli take --units metric or imperial", "Yes. Parse the flag in the entry point and pass it to formatTemperature, with metric as the default."],
   ];
+  // The sidebar is on screen in every capture, so its chats are in the capture's language.
+  const AGO = [20, 30, 52, 75, 130, 200, 340, 26, 100];
+  const LOCAL = {
+  fr: [
+    ["default", "optimiser les checkpoints wal de sqlite", "comment régler le mode wal de sqlite pour des écritures concurrentes sans verrou ?", "Passez PRAGMA journal_mode=WAL et PRAGMA synchronous=NORMAL, puis lancez PRAGMA wal_checkpoint(TRUNCATE) sur une connexion inactive."],
+    ["default", "fuite mémoire dans le serveur websocket", "le heap snapshot montre des EventEmitter détachés qui s'accumulent à la déconnexion", "Retirez les écouteurs data et drain dans le gestionnaire close, ou utilisez once() quand vous chaînez les flux."],
+    ["default", "retry avec backoff exponentiel et jitter", "quel algorithme de jitter pour des api limitées en débit ?", "Le full jitter : délai = random_between(0, min(cap, base * 2 ** tentative)). Il étale mieux les pics que l'equal jitter."],
+    ["default", "régler les threads du runtime tokio", "les threads doivent suivre les cœurs physiques ou logiques pour beaucoup d'io ?", "Les cœurs logiques pour l'IO async. Envoyez le travail bloquant dans spawn_blocking plutôt que d'ajouter des threads."],
+    ["default", "pourquoi mon merge pandas duplique des lignes", "un left merge me donne 12k lignes à partir de 10k", "La table de droite a des clés répétées. Vérifiez right.duplicated(subset=['id']).sum() et dédoublonnez d'abord."],
+    ["default", "lire un rapport sarif de codeql", "comment extraire les règles de sévérité moyenne et haute avec jq ?", "jq -r '.runs[].results[] | select(.level == \"error\" or .level == \"warning\") | .ruleId' results.sarif | sort -u"],
+    ["default", "healthcheck docker compose pour redis et postgres", "les conteneurs démarrent avant que la base accepte les connexions", "Utilisez depends_on avec condition: service_healthy et un healthcheck pg_isready ou redis-cli ping."],
+    ["weather", "corriger le test de prévision instable", "le test de prévision échoue une fois sur quelques lancements", "Le test compare avec l'heure actuelle. Passer une horloge fixe au formateur le rend stable."],
+    ["weather", "ajouter une option --units", "la cli peut prendre --units metric ou imperial ?", "Oui. Lisez l'option dans le point d'entrée et passez-la à formatTemperature, avec metric par défaut."],
+  ],
+  es: [
+    ["default", "optimizar los checkpoints wal de sqlite", "¿cómo ajusto el modo wal de sqlite para escrituras concurrentes sin bloqueos?", "Pon PRAGMA journal_mode=WAL y PRAGMA synchronous=NORMAL, y ejecuta PRAGMA wal_checkpoint(TRUNCATE) en una conexión inactiva."],
+    ["default", "fuga de memoria en el servidor websocket", "el heap snapshot muestra EventEmitters sueltos que se acumulan al desconectar", "Quita los listeners data y drain en el handler de close, o usa once() al encadenar streams."],
+    ["default", "reintentos con backoff exponencial y jitter", "¿qué algoritmo de jitter conviene para apis con límite de peticiones?", "Full jitter: espera = random_between(0, min(cap, base * 2 ** intento)). Reparte los picos mejor que el equal jitter."],
+    ["default", "ajustar los hilos del runtime de tokio", "¿los hilos deben seguir los núcleos físicos o lógicos con mucha io?", "Los núcleos lógicos para IO asíncrona. Manda el trabajo bloqueante a spawn_blocking en vez de sumar hilos."],
+    ["default", "por qué mi merge de pandas duplica filas", "un left merge me da 12k filas a partir de 10k", "La tabla derecha tiene claves repetidas. Mira right.duplicated(subset=['id']).sum() y quita duplicados antes."],
+    ["default", "leer un informe sarif de codeql", "¿cómo saco con jq las reglas de severidad media y alta?", "jq -r '.runs[].results[] | select(.level == \"error\" or .level == \"warning\") | .ruleId' results.sarif | sort -u"],
+    ["default", "healthcheck de docker compose para redis y postgres", "los contenedores arrancan antes de que la base acepte conexiones", "Usa depends_on con condition: service_healthy y un healthcheck con pg_isready o redis-cli ping."],
+    ["weather", "arreglar el test de previsión inestable", "el test de previsión falla cada pocas ejecuciones", "El test compara con la hora actual. Pasar un reloj fijo al formateador lo vuelve estable."],
+    ["weather", "añadir una opción --units", "¿la cli puede aceptar --units metric o imperial?", "Sí. Lee la opción en el punto de entrada y pásala a formatTemperature, con metric por defecto."],
+  ],
+  ru: [
+    ["default", "настройка checkpoint wal в sqlite", "как настроить wal в sqlite для параллельной записи без блокировок?", "Включите PRAGMA journal_mode=WAL и PRAGMA synchronous=NORMAL, а PRAGMA wal_checkpoint(TRUNCATE) запускайте на свободном соединении."],
+    ["default", "утечка памяти в websocket-сервере", "heap snapshot показывает, что отвязанные EventEmitter копятся после отключения", "Снимайте обработчики data и drain в close или используйте once() при соединении потоков."],
+    ["default", "повторы с экспоненциальной задержкой и jitter", "какой jitter лучше для api с лимитом запросов?", "Full jitter: задержка = random_between(0, min(cap, base * 2 ** попытка)). Он лучше размазывает пики, чем equal jitter."],
+    ["default", "потоки рантайма tokio", "число потоков подбирать по физическим или логическим ядрам при большом io?", "По логическим ядрам для асинхронного IO. Блокирующую работу отправляйте в spawn_blocking, а не добавляйте потоки."],
+    ["default", "почему merge в pandas дублирует строки", "left merge даёт 12 тысяч строк из 10 тысяч", "В правой таблице повторяются ключи. Проверьте right.duplicated(subset=['id']).sum() и сначала уберите дубликаты."],
+    ["default", "разбор sarif-отчёта codeql", "как вытащить jq правила средней и высокой важности?", "jq -r '.runs[].results[] | select(.level == \"error\" or .level == \"warning\") | .ruleId' results.sarif | sort -u"],
+    ["default", "healthcheck в docker compose для redis и postgres", "контейнеры стартуют раньше, чем база принимает подключения", "Используйте depends_on с condition: service_healthy и healthcheck через pg_isready или redis-cli ping."],
+    ["weather", "починить нестабильный тест прогноза", "тест прогноза падает раз в несколько запусков", "Тест сравнивает с текущим временем. Если передать форматтеру фиксированные часы, он станет стабильным."],
+    ["weather", "добавить флаг --units", "может ли cli принимать --units metric или imperial?", "Да. Разберите флаг в точке входа и передайте его в formatTemperature, по умолчанию metric."],
+  ],
+  };
+  if (LOCAL[language]) LOCAL[language].forEach(([workspaceId, title, ask, answer], index) => { chats[index] = [workspaceId, title, AGO[index], ask, answer]; });
   const now = Date.now();
   const workspace = { id: "weather", name: "weather-cli", kind: "project", rootPath: project, permissionMode: process.env.DRAGGY_CAPTURE_MODE || "acceptEdits", settings: {} };
   const sessions = chats.map(([workspaceId, title, ago, ask, answer], index) => ({
@@ -266,12 +304,12 @@ async function seedProfile(page, { project, model }) {
     for (const session of data.sessions) await window.draggy.db.saveChat(session);
     // The renderer reads settings from localStorage at boot, so a model saved only in the db leaves the page blank.
     const saved = JSON.parse(localStorage.getItem("draggy_settings") || "{}");
-    localStorage.setItem("draggy_settings", JSON.stringify({ ...saved, modelName: data.model }));
+    localStorage.setItem("draggy_settings", JSON.stringify({ ...saved, modelName: data.model, language: data.language }));
     // The window opened at ?onboarding=true and reload keeps the query, so drop it first.
     const clean = new URL(location.href);
     clean.search = "";
     history.replaceState(null, "", clean.toString());
-  }, { workspace, sessions, model });
+  }, { workspace, sessions, model, language });
   await page.reload();
 }
 
@@ -379,4 +417,17 @@ function capturePng(page, width, height) {
   return page.screenshot({ clip: { x: 0, y: 0, width, height }, type: "png" });
 }
 
-module.exports = { launch, sizeWindow, sleep, waitFor, inPage, panePage, paneRect, overlayPane, writeDemoProject, seedProfile, resolveExe, removeScratch, prepareScratch, hideStarNotice, openWorkspace, setDark, clickText, submitText, allowPending, generating, sendAndWait, capturePng };
+// The app's own strings, { en: {...}, fr, es, ru }, so a capture finds buttons by the label shown in its language.
+function appStrings() {
+  const source = fs.readFileSync(path.join(__dirname, "..", "src", "translations.ts"), "utf8");
+  const start = source.indexOf("=", source.indexOf("export const translations")) + 1;
+  let depth = 0;
+  let end = start;
+  for (; end < source.length; end += 1) {
+    if (source[end] === "{") depth += 1;
+    else if (source[end] === "}" && --depth === 0) break;
+  }
+  return new Function(`return ${source.slice(start, end + 1)}`)();
+}
+
+module.exports = { appStrings, launch, sizeWindow, sleep, waitFor, inPage, panePage, paneRect, overlayPane, writeDemoProject, seedProfile, resolveExe, removeScratch, prepareScratch, hideStarNotice, openWorkspace, setDark, clickText, submitText, allowPending, generating, sendAndWait, capturePng };

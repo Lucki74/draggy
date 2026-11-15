@@ -152,7 +152,7 @@ When done, name the files you changed instead of repeating their contents.`;
 }
 
 export const COMMANDS_PROMPT = `Execute terminal commands in the project folder with run_command using the local shell. Run tests, builds, linting, git, or gh; prefer existing project scripts.
-Environment: Windows. Commands run in bash (Git for Windows) when it is installed and in PowerShell otherwise; the result names the shell that ran. Write POSIX syntax for bash and PowerShell syntax for pwsh, or pass shell to choose.
+Environment: Windows. Commands run in bash (Git for Windows) when it is installed and in PowerShell otherwise; the result names the shell that ran. Write POSIX syntax for bash and PowerShell syntax for pwsh, or pass shell to choose. Commands already start in the project folder, so do not cd into it; in bash, write Windows paths with forward slashes (C:/dir).
 The folder and environment variables a command ends with carry over to the next one. Pass flags that avoid prompts and pagers. A server, watcher or long job goes in the background with background: true, or moves there by itself at the time limit; read it with task_output, wait with task_wait, stop it with task_stop, and answer a prompt it shows with task_input. You are told when a background task ends. The user sees commands and may be asked to approve them. Destructive operations (force push, history rewrite, unprompted file deletion) are forbidden. Verify outcomes before reporting success.`;
 
 export const PLAN_PROMPT = `For multi-step work, initialize a checklist via update_plan before starting, updating it as steps complete so the user can track progress. Single questions or one-step tasks require no plan. If the user edits the plan, follow their updated checklist.`;

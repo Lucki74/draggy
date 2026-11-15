@@ -27,7 +27,6 @@
     "logs": "node scripts/logs.cjs",
     "logs:turn": "node scripts/logs.cjs --turn",
     "shots": "node scripts/screenshots.cjs",
-    "wiki:shots": "node scripts/wiki-shots.cjs",
     "clips": "node scripts/clips.cjs",
     "browser:eval": "node scripts/browser-eval.cjs",
     "bench:engine": "node scripts/bench-engine.cjs",

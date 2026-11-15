@@ -44,7 +44,7 @@ The [documentation](https://docs.draggy.org/development) describes the folder la
 
 All child processes must start through the hidden-spawn helpers in `core/crates/tools/src/spawn.rs`. Never use `npx` at runtime.
 
-Pictures come from stable-diffusion.cpp's `sd-server`, a hidden child process on `127.0.0.1`, managed by the engine crate in `core/crates/engine/`. Its tests run against a fake server started as a real child process, so they need no binary and no GPU. Keep it that way.
+Pictures come from a cloud provider the user picked or from stable-diffusion.cpp's `sd-server`, a hidden child process on `127.0.0.1`, managed by the engine crate in `core/crates/engine/`. Its tests run against a fake server started as a real child process, so they need no binary and no GPU. Keep it that way.
 
 Models too large for memory run on colibri, a second engine managed by the same crate. Its tests also use fakes, so they need no engine, no GPU and no big download. Only one local engine runs at a time (`core/crates/engine/src/engine_host.rs`). The user-facing side is described in the documentation at [docs.draggy.org](https://docs.draggy.org).
 
