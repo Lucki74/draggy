@@ -582,6 +582,21 @@ const CLIPS = {
   // Voice: the question is spoken, written into the box, and sent.
   voice: {
     workspace: ["default", "chat"],
+    // A fresh profile downloads the speech model on first use; one unrecorded dictation loads it before the take.
+    async prepare(page) {
+      const mic = (label) => app.inPage(page, (l) => document.querySelector(`[data-region=composer] form button[aria-label^='${l}']`)?.click(), label);
+      const typed = () => app.inPage(page, () => document.querySelector("[data-region=composer] form textarea")?.value || "");
+      await mic(T("voiceInput"));
+      await app.sleep(4000);
+      await mic(T("voiceListening"));
+      await app.waitFor(async () => (await typed()).trim().length > 3, { timeout: 300_000, every: 500, label: "the speech model" });
+      await app.inPage(page, () => {
+        const box = document.querySelector("[data-region=composer] form textarea");
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(box, "");
+        box.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await app.sleep(800);
+    },
     async script(rec, page) {
       await rec.clickOn((label) => document.querySelector(`[data-region=composer] form button[aria-label^='${label}']`), T("voiceInput"));
       await app.sleep(1500);
