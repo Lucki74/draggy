@@ -116,10 +116,14 @@ async fn open_file(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
     else {
         return Ok(Value::String(refusal()));
     };
-    match app
-        .opener()
-        .open_path(resolved.to_string_lossy(), None::<&str>)
-    {
+    // A script or an installer is shown in its folder, so a click never runs it.
+    let opened = if super::files::is_executable(&resolved.to_string_lossy()) {
+        app.opener().reveal_item_in_dir(&resolved)
+    } else {
+        app.opener()
+            .open_path(resolved.to_string_lossy(), None::<&str>)
+    };
+    match opened {
         Ok(()) => Ok(Value::String(String::new())),
         Err(error) => Ok(Value::String(error.to_string())),
     }

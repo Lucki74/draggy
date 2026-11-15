@@ -12,7 +12,7 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use draggy_documents::office_files::write_generated_file;
+use draggy_documents::office_files::{is_executable_name, write_generated_file};
 use draggy_storage::{Checkpoint as StoredCheckpoint, CheckpointInput, Storage};
 use draggy_tools::files::{
     Action, Checkpoint, CheckpointStore, ContentKind, FileOps, NewCheckpoint, Query, Recycler,
@@ -26,49 +26,6 @@ use tauri_plugin_opener::OpenerExt;
 use super::pdf_writer;
 use super::{IpcError, Registry};
 use crate::AppState;
-
-/// Extensions that open in the file manager and never run.
-const EXECUTABLE_EXTENSIONS: &[&str] = &[
-    ".exe",
-    ".msi",
-    ".msix",
-    ".appx",
-    ".com",
-    ".scr",
-    ".pif",
-    ".cpl",
-    ".dll",
-    ".bat",
-    ".cmd",
-    ".ps1",
-    ".psm1",
-    ".psd1",
-    ".vbs",
-    ".vbe",
-    ".js",
-    ".jse",
-    ".wsf",
-    ".wsh",
-    ".hta",
-    ".lnk",
-    ".url",
-    ".scf",
-    ".reg",
-    ".inf",
-    ".jar",
-    ".app",
-    ".dmg",
-    ".pkg",
-    ".command",
-    ".desktop",
-    ".run",
-    ".appimage",
-    ".gadget",
-    ".msc",
-    ".sh",
-    ".bash",
-    ".zsh",
-];
 
 /// The most a preview of a created file shows.
 const PREVIEW_LIMIT: usize = 200 * 1024;
@@ -385,11 +342,8 @@ fn path_text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
-fn is_executable(name: &str) -> bool {
-    Path::new(name)
-        .extension()
-        .map(|ext| format!(".{}", ext.to_string_lossy().to_lowercase()))
-        .is_some_and(|ext| EXECUTABLE_EXTENSIONS.contains(&ext.as_str()))
+pub(crate) fn is_executable(name: &str) -> bool {
+    is_executable_name(name)
 }
 
 async fn fs_list(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
@@ -1216,6 +1170,10 @@ mod tests {
         assert!(is_executable("run.PS1"));
         assert!(is_executable("tool.exe"));
         assert!(!is_executable("notes.md"));
+        assert!(is_executable("run.bat."));
+        assert!(is_executable("run.cmd "));
+        assert!(is_executable("run.bat::$DATA"));
+        assert!(is_executable("help.chm"));
     }
 
     #[test]
