@@ -31,8 +31,8 @@ export function decodeImageChoice(value: string): ImageModelChoice {
 }
 
 /**
- * Picker rows: automatic, then Local models, then one group per connected provider. Model names only.
- * Groups keep their order, so the local group comes first.
+ * Picker rows: automatic, then the local models under the Draggy logo, then one group per connected provider under its
+ * own icon. Model names only. Groups keep their order, so the local group comes first.
  */
 export function imageModelOptions({
   localModels,
@@ -47,11 +47,11 @@ export function imageModelOptions({
 }): SelectOption[] {
   const options: SelectOption[] = [{ id: "", label: automaticLabel }];
   for (const model of localModels) {
-    options.push({ id: `${LOCAL_PREFIX}${model.id}`, label: model.label, group: localLabel });
+    options.push({ id: `${LOCAL_PREFIX}${model.id}`, label: model.label, group: localLabel, groupType: "draggy" });
   }
   for (const provider of cloud) {
     for (const model of provider.models) {
-      options.push({ id: `${CLOUD_PREFIX}${provider.id}:${model}`, label: model, group: provider.name });
+      options.push({ id: `${CLOUD_PREFIX}${provider.id}:${model}`, label: model, group: provider.name, groupType: provider.id });
     }
   }
   return options;

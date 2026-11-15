@@ -6,7 +6,6 @@ import { MODE_KEY } from "./app/modes";
 import { writeLocalStorage } from "./utils";
 import AppShell from "./app/AppShell";
 import { useSettings } from "./app/settings";
-import { isRemote } from "./ai/providers";
 import { registerBuiltinTools } from "./tools/builtin";
 import { registerFileTools } from "./tools/files";
 import { registerPlanTools } from "./tools/plan";
@@ -36,15 +35,14 @@ export default function App() {
   const [onboarding, setOnboarding] = useState(() => window.location.search.includes("onboarding=true"));
   const [settings, setSettings] = useSettings(isSplashMode, onboarding);
 
-  const [model, setModel] = useState<string | null>(
-    isSplashMode || isRemote(settings.modelName) ? null : settings.modelName,
-  );
+  // A cloud model opens the app as well: the Tauri app has no splash to hand it over.
+  const [model, setModel] = useState<string | null>(isSplashMode ? null : settings.modelName);
 
   // The splash handed over to Settings, Providers: the app opens there, with no local model if need be.
   const [openSettingsOn, setOpenSettingsOn] = useState<"providers" | undefined>();
 
   // Settings that arrive from sqlite after the first paint (an empty localStorage) still name the model.
-  const storedModel = isSplashMode || isRemote(settings.modelName) ? "" : settings.modelName;
+  const storedModel = isSplashMode ? "" : settings.modelName;
   if (!model && storedModel) setModel(storedModel);
   useEffect(() => {
     if (isSplashMode) return;

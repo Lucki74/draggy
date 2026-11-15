@@ -187,7 +187,7 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
                 localModels: imageModels.map((entry) => ({ id: entry.id, label: imageModelLabel(entry) })),
                 cloud: cloudImage,
                 automaticLabel: t("automatic"),
-                localLabel: t("imageGroupLocal"),
+                localLabel: t("draggyEngine"),
               })}
               onChange={(value) => onUpdate({ imageModel: decodeImageChoice(value) })}
             />
