@@ -5,6 +5,7 @@ pub mod browser;
 pub mod chat_gateway;
 pub mod draggy_scheme;
 pub mod engines;
+pub mod images;
 pub mod ipc;
 pub mod legacy_local_storage;
 pub mod mcp;

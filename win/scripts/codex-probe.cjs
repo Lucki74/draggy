@@ -9,7 +9,7 @@ const { spawn } = require("node:child_process");
 // Mirrors config_toml and FEATURES_OFF in core/crates/providers/src/codex/process.rs; keep them in step.
 const FEATURES_OFF = [
   "code_mode", "code_mode_only", "context_management", "current_time_reminder", "deferred_executor",
-  "image_generation", "memories", "multi_agent", "multi_agent_v2", "plugins", "request_permissions_tool",
+  "memories", "multi_agent", "multi_agent_v2", "plugins", "request_permissions_tool",
   "shell_snapshot", "shell_tool", "standalone_web_search", "token_budget", "tool_suggest", "unified_exec",
   "view_image", "goals", "apps", "browser_use", "computer_use", "in_app_browser", "skill_search",
   "sleep_tool", "hooks",

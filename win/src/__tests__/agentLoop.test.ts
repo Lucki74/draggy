@@ -80,7 +80,7 @@ const SETTINGS = {
   fitContext: 8192,
   compactLimit: null,
   fixedContextSize: null,
-  imageModel: "",
+  imageModel: { source: "local", model: "" },
   imageResolution: "1024x1024",
 } as AppSettings;
 

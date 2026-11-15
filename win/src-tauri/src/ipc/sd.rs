@@ -48,6 +48,7 @@ static RUNNING: LazyLock<Mutex<HashMap<String, Vec<String>>>> =
 struct Config {
     model: String,
     resolution: Option<(i64, i64)>,
+    cloud: Option<CloudChoice>,
 }
 
 static CONFIG: LazyLock<Mutex<Config>> = LazyLock::new(|| Mutex::new(Config::default()));
@@ -411,8 +412,10 @@ async fn sd_status(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError>
     let (_, vram) = engines.specs().await;
     let installed = sd_install::find_sd_binary(&engines.user_data, None);
     let models = image_models::list_image_models(&dir);
-    let wanted = locked(&CONFIG).model.clone();
-    let model = sdlogic::chosen_model(&models, &wanted);
+    let config = locked(&CONFIG).clone();
+    let model = sdlogic::chosen_model(&models, &config.model);
+    // A cloud model needs no engine on this machine; the key is checked when a picture is asked for.
+    let ready = config.cloud.is_some() || (installed.is_some() && !model.is_empty());
     Ok(json!({
         "success": true,
         "release": sd_runner::release_for(host.os),
@@ -423,23 +426,36 @@ async fn sd_status(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError>
         "defaultRunner": sd_runner::default_runner(host.os, host.arch, vram, nvidia, false),
         "model": model,
         "models": models,
-        "ready": installed.is_some() && !model.is_empty(),
+        "ready": ready,
         "server": engines.sd.status(),
     }))
 }
 
-/// Saves the chosen model and picture size. A model name over 300 characters is refused.
-async fn sd_configure(_app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+/// Saves the chosen model, cloud model and picture size. A model name over 300 characters is refused.
+async fn sd_configure(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let body = args.first().cloned().unwrap_or(Value::Null);
     let model = body.get("model").and_then(Value::as_str).unwrap_or("");
     if model.chars().count() > 300 {
         return Ok(failure("E_REQUEST", "The model name is too long"));
     }
     let resolution = sdlogic::parse_resolution(body.get("resolution").unwrap_or(&Value::Null));
+    let cloud = body.get("cloud").and_then(|cloud| {
+        let field = |name: &str| cloud.get(name).and_then(Value::as_str).unwrap_or("").trim();
+        let (provider, model) = (field("provider"), field("model"));
+        (!provider.is_empty() && !model.is_empty() && model.chars().count() <= 300).then(|| {
+            CloudChoice {
+                provider: provider.to_owned(),
+                model: model.to_owned(),
+            }
+        })
+    });
     *locked(&CONFIG) = Config {
         model: model.to_owned(),
         resolution,
+        cloud,
     };
+    // Whether pictures can be made may have changed, so the renderer reads the status again.
+    emit(&app, "sd:progress", json!({ "status": "configured" }));
     Ok(json!({ "success": true }))
 }
 
@@ -519,8 +535,20 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
     };
 
     let dir = image_dir(&engines);
-    let (_, vram) = engines.specs().await;
     let config = locked(&CONFIG).clone();
+    if let Some(cloud) = config.cloud.as_ref().filter(|_| parsed.model.is_empty()) {
+        return Ok(cloud_job(
+            &app,
+            &engines,
+            cloud,
+            &parsed,
+            project_out,
+            config.resolution,
+            &progress,
+        )
+        .await);
+    }
+    let (_, vram) = engines.specs().await;
     let wanted = if parsed.model.is_empty() {
         config.model.clone()
     } else {
@@ -719,6 +747,104 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
         }
     };
 
+    let meta = json!({
+        "width": clamped.width,
+        "height": clamped.height,
+        "seed": clamped.seed,
+        "model": chosen,
+        "referenceUsed": reference.is_some(),
+        "referenceDropped": clamped.reference_dropped,
+    });
+    let saved = save_picture(
+        &app,
+        &engines,
+        project_out,
+        &parsed.destination,
+        &bytes,
+        &clamped.prompt,
+        meta,
+    );
+    if saved["success"] == json!(true) {
+        progress(json!({ "status": "done" }));
+    }
+    Ok(saved)
+}
+
+/// The cloud model the Settings picked: provider id and model id.
+#[derive(Clone, Default)]
+struct CloudChoice {
+    provider: String,
+    model: String,
+}
+
+/// One job on the cloud model: the provider draws it and the picture is saved like a local one.
+async fn cloud_job(
+    app: &AppHandle,
+    engines: &Engines,
+    cloud: &CloudChoice,
+    parsed: &sdlogic::Parsed,
+    project_out: Option<(String, String)>,
+    resolution: Option<(i64, i64)>,
+    progress: &impl Fn(Value),
+) -> Value {
+    let prompt = parsed.input["prompt"].as_str().unwrap_or("").to_owned();
+    let size = |name: &str, fallback: i64| {
+        parsed.input[name]
+            .as_i64()
+            .unwrap_or(fallback)
+            .clamp(64, 2048)
+    };
+    let (default_w, default_h) = resolution.unwrap_or((1024, 1024));
+    let (width, height) = (size("width", default_w), size("height", default_h));
+    progress(json!({ "status": "generating" }));
+    let bytes = match super::images::render(
+        app,
+        &cloud.provider,
+        &cloud.model,
+        &prompt,
+        width as u32,
+        height as u32,
+    )
+    .await
+    {
+        Ok(bytes) => bytes,
+        Err(code) => {
+            progress(json!({ "status": "error", "error": code }));
+            return failure("E_CLOUD", code);
+        }
+    };
+    let meta = json!({ "width": width, "height": height, "model": cloud.model });
+    let saved = save_picture(
+        app,
+        engines,
+        project_out,
+        &parsed.destination,
+        &bytes,
+        &prompt,
+        meta,
+    );
+    if saved["success"] == json!(true) {
+        progress(json!({ "status": "done" }));
+    }
+    saved
+}
+
+/// Writes a finished picture to the project target or the created folder and merges `meta` into the reply.
+fn save_picture(
+    app: &AppHandle,
+    engines: &Engines,
+    project_out: Option<(String, String)>,
+    destination: &sdlogic::Destination,
+    bytes: &[u8],
+    prompt: &str,
+    meta: Value,
+) -> Value {
+    let with_meta = |mut reply: Value| {
+        if let (Some(reply), Some(meta)) = (reply.as_object_mut(), meta.as_object()) {
+            reply.extend(meta.clone());
+        }
+        reply
+    };
     if let Some((workspace, target)) = project_out {
         let lower = target.to_ascii_lowercase();
         let mime = if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
@@ -730,72 +856,66 @@ async fn sd_generate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
         };
         let data_url = format!(
             "data:{mime};base64,{}",
-            base64::engine::general_purpose::STANDARD.encode(&bytes)
+            base64::engine::general_purpose::STANDARD.encode(bytes)
         );
-        let chat = match &parsed.destination {
+        let chat = match destination {
             sdlogic::Destination::Project { chat, .. } => chat.clone(),
             sdlogic::Destination::Chat => None,
         };
-        return Ok(
-            match super::files::write_project_image(&workspace, &target, &data_url, chat.as_deref())
-            {
-                Ok((path, checkpoint_id, created)) => {
-                    super::files::announce(
-                        &app,
-                        &workspace,
-                        &json!({ "success": true, "path": path.to_string_lossy() }),
-                    );
-                    progress(json!({ "status": "done" }));
-                    json!({
-                        "success": true,
-                        "path": path.to_string_lossy(),
-                        "filename": path.file_name().map(|n| n.to_string_lossy().into_owned()),
-                        "checkpointId": checkpoint_id,
-                        "created": created,
-                        "width": clamped.width,
-                        "height": clamped.height,
-                        "seed": clamped.seed,
-                        "model": chosen,
-                        "referenceUsed": reference.is_some(),
-                        "referenceDropped": clamped.reference_dropped,
-                    })
-                }
-                Err(message) => failure(
-                    "E_SAVE",
-                    if message.is_empty() {
-                        "The image could not be saved".to_owned()
-                    } else {
-                        message
-                    },
-                ),
-            },
-        );
+        return match super::files::write_project_image(
+            &workspace,
+            &target,
+            &data_url,
+            chat.as_deref(),
+        ) {
+            Ok((path, checkpoint_id, created)) => {
+                super::files::announce(
+                    app,
+                    &workspace,
+                    &json!({ "success": true, "path": path.to_string_lossy() }),
+                );
+                with_meta(json!({
+                    "success": true,
+                    "path": path.to_string_lossy(),
+                    "filename": path.file_name().map(|n| n.to_string_lossy().into_owned()),
+                    "checkpointId": checkpoint_id,
+                    "created": created,
+                }))
+            }
+            Err(message) => failure(
+                "E_SAVE",
+                if message.is_empty() {
+                    "The image could not be saved".to_owned()
+                } else {
+                    message
+                },
+            ),
+        };
     }
 
     let out_dir = super::files::created_dir(&engines.user_data);
     if let Err(error) = fs::create_dir_all(&out_dir) {
-        return Ok(failure("E_FAILED", error.to_string()));
+        return failure("E_FAILED", error.to_string());
     }
     let stamp = sdlogic::stamp_of(now_ms() / 1000);
-    let name = image_models::requests::output_name(&clamped.prompt, &stamp, |candidate| {
-        out_dir.join(candidate).exists()
+    // A cloud provider may send JPEG or WebP; the file keeps the format it came in.
+    let ext = crate::images::cloud::format_of(bytes).map_or("png", |(_, ext)| ext);
+    let name = image_models::requests::output_name(prompt, &stamp, |candidate| {
+        out_dir.join(candidate).with_extension(ext).exists()
     });
+    let name = match name.strip_suffix(".png") {
+        Some(stem) if ext != "png" => format!("{stem}.{ext}"),
+        _ => name,
+    };
     let path = out_dir.join(&name);
-    if let Err(error) = fs::write(&path, &bytes) {
-        return Ok(failure("E_FAILED", error.to_string()));
+    if let Err(error) = fs::write(&path, bytes) {
+        return failure("E_FAILED", error.to_string());
     }
-    progress(json!({ "status": "done" }));
-    Ok(json!({
+    with_meta(json!({
         "success": true,
         "path": path.to_string_lossy(),
         "filename": name,
         "created": true,
-        "width": clamped.width,
-        "height": clamped.height,
-        "seed": clamped.seed,
-        "model": chosen,
-        "referenceUsed": reference.is_some(),
-        "referenceDropped": clamped.reference_dropped,
     }))
 }
 

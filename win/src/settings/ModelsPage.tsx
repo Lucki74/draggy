@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { type CloudImageProvider, decodeImageChoice, encodeImageChoice, imageModelOptions } from "../images/cloudImageOptions";
 import { Button as UiButton } from "../ui/Button";
 import { CapabilityIcons } from "../providers/CapabilityIcons";
 import { formatBytes } from "../formatBytes";
@@ -59,13 +60,26 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
   const displayNames = installedModelDisplayNames(manager.installed);
   const imageEngine = useImageEngine();
   const imageModels = imageEngine.models.filter((entry) => entry.installed);
+  const [cloudImage, setCloudImage] = useState<CloudImageProvider[]>([]);
+  useEffect(() => {
+    let live = true;
+    void window.draggy?.images
+      ?.cloudModels()
+      .then((reply) => {
+        if (live) setCloudImage(reply?.providers ?? []);
+      })
+      .catch(swallowed("settings", "the main process already logged this call"));
+    return () => {
+      live = false;
+    };
+  }, []);
   // Automatic uses the first embedding model installed.
   const embedModel =
     settings.embedModel || manager.installed.find((entry) => isEmbeddingModel(entry.capabilities))?.name || "";
 
   const removeImageModel = async (id: string) => {
     await window.draggy?.sd?.deleteModel(id).catch(swallowed("settings", "the main process already logged this call"));
-    if (settings.imageModel === id) onUpdate({ imageModel: "" });
+    if (settings.imageModel.source === "local" && settings.imageModel.model === id) onUpdate({ imageModel: { source: "local", model: "" } });
     imageEngine.refresh();
   };
 
@@ -163,15 +177,21 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
 
       <Group title={t("capabilityImageGeneration")}>
         <Row label={t("imageModel")}>
-          <Select
-            label={t("imageModel")}
-            value={settings.imageModel}
-            options={[
-              { id: "", label: t("automatic") },
-              ...imageModels.map((entry) => ({ id: entry.id, label: imageModelLabel(entry) })),
-            ]}
-            onChange={(imageModel) => onUpdate({ imageModel })}
-          />
+          {imageModels.length === 0 && cloudImage.length === 0 ? (
+            <p className="text-[13px] text-text-tertiary">{t("cloudImageEmpty")}</p>
+          ) : (
+            <Select
+              label={t("imageModel")}
+              value={encodeImageChoice(settings.imageModel)}
+              options={imageModelOptions({
+                localModels: imageModels.map((entry) => ({ id: entry.id, label: imageModelLabel(entry) })),
+                cloud: cloudImage,
+                automaticLabel: t("automatic"),
+                localLabel: t("imageGroupLocal"),
+              })}
+              onChange={(value) => onUpdate({ imageModel: decodeImageChoice(value) })}
+            />
+          )}
         </Row>
         <Row label={t("imageResolution")}>
           <Select

@@ -392,6 +392,11 @@ export function createDraggyApi(ipc: IpcLike): NonNullable<Window["draggy"]> {
       cancel: (turnId) => ipc.invoke("tts:cancel", turnId),
       onFrames: (callback) => subscribe("tts:frames", callback),
     },
+    // Cloud image models. The key stays in main; the picture comes back as a PNG data URL.
+    images: {
+      cloudModels: () => ipc.invoke("images:cloud-models"),
+      cloudGenerate: (request) => ipc.invoke("images:cloud-generate", request),
+    },
     providers: {
       catalog: () => ipc.invoke("providers:catalog"),
       list: () => ipc.invoke("providers:list"),

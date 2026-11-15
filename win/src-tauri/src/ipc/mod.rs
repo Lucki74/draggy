@@ -34,6 +34,7 @@ pub(crate) mod files;
 mod gguf;
 mod git;
 mod hardware;
+mod images;
 mod library;
 mod logs;
 pub(crate) mod mcp;
@@ -106,6 +107,7 @@ impl Registry {
         hardware::register_all(&mut registry);
         models::register_all(&mut registry);
         sd::register_all(&mut registry);
+        images::register_all(&mut registry);
         tier::register_all(&mut registry);
         tts::register_all(&mut registry);
         updater::register_all(&mut registry);
