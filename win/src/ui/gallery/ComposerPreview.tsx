@@ -39,7 +39,6 @@ export function ComposerPreview({
     narrow = false,
     model = "qwen3:8b",
     onSendMessage = noop,
-    onImageCommand,
     clearAttachments = noop,
     attachedFiles = [{ name: "screenshot.png", type: "image/png" }] as unknown as ComposerProps["attachedFiles"],
 }: {
@@ -54,7 +53,6 @@ export function ComposerPreview({
     /** Empty for a first run with no model loaded. */
     model?: string;
     onSendMessage?: ComposerProps["onSendMessage"];
-    onImageCommand?: ComposerProps["onImageCommand"];
     clearAttachments?: () => void;
     attachedFiles?: ComposerProps["attachedFiles"];
 }) {
@@ -91,7 +89,6 @@ export function ComposerPreview({
         variant,
         t,
         onSendMessage,
-        onImageCommand,
         onStopGeneration: noop,
         onSelectModel: noop,
         onOpenSettings,

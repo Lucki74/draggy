@@ -23,6 +23,7 @@ const generateImage: ToolSpec = {
     "Draw a picture from a description with the local image engine. In a project it saves the file there; otherwise it goes to the user's created files. Describe the subject, style and composition in plain words.",
   parameters: {
     prompt: { type: "string", description: "What the picture shows, in detail: subject, setting, style, lighting." },
+    title: { type: "string", description: "A short name for the picture, a few words, shown on it in the chat." },
     path: {
       type: "string",
       description: "Projects only: where to save it, relative to the project folder, ending in .png, .jpg or .webp. Defaults to assets/generated/<name>.png.",
@@ -81,6 +82,8 @@ const generateImage: ToolSpec = {
       height: numberArg(args.height),
       startedAt: Date.now(),
       reference: reference?.image.id,
+      title: args.title ? String(args.title).trim().slice(0, 80) || undefined : undefined,
+      imageId: `img_${images.length + 1}`,
     };
     const stepOf = (current: ImageStepInfo): SearchStep => ({
       id: stepId,
@@ -142,7 +145,7 @@ const generateImage: ToolSpec = {
       const dropped = result.referenceDropped
         ? ` The reference ${reference?.image.id ?? "picture"} was not used, because this image model cannot start from a picture or the file was gone, so it was drawn from the prompt alone. Tell the user.`
         : "";
-      return `TOOL RESULT (generate_image): Saved ${result.path} as ${tracked.id}${size}. The user can already see the picture; do not describe it as if they cannot.${dropped}`;
+      return `TOOL RESULT (generate_image): Saved ${result.path} as ${tracked.id}${size}. The user can already see the picture; do not describe it as if they cannot. To show it in your answer, put {image}${tracked.id}|${info.title || "A short title"}{image} on a line of its own.${dropped}`;
     }
     if (result.code === "E_CANCELLED") return "TOOL RESULT (generate_image): The user stopped the image before it was finished.";
     if (result.code === "E_EXISTS") {

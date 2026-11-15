@@ -35,68 +35,44 @@ describe("the image card", () => {
     render(<ImageCard step={step({ prompt: "a pear", status: "done", filename: "a-pear.png", location: "created", path: "C:/a-pear.png", model: "sd15-q8" })} t={t} />);
     fireEvent.error(screen.getByAltText("a pear"));
     expect(screen.queryByAltText("a pear")).toBeNull();
-    expect(screen.getByRole("status").textContent).toBe(translations.en.imageUnavailable);
+    expect(screen.getByText(translations.en.imageUnavailable)).toBeTruthy();
   });
 
   it("says what it is doing and stops the job from its button", () => {
     const cancel = vi.fn(async () => ({ success: true }));
     bridge().sd.cancel = cancel;
-
     render(<ImageCard step={step({ prompt: "a fox", status: "generating", requestId: "r1", startedAt: Date.now() })} t={t} />);
-    expect(screen.getByRole("status").textContent).toBe("Drawing…");
-    // The pulsing placeholder alone says it is working; no bar rides on the picture.
-    expect(screen.queryByRole("progressbar")).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
+    expect(screen.getByText("Generating image")).toBeTruthy();
+    expect(screen.getByText("a fox")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
     expect(cancel).toHaveBeenCalledWith("r1");
   });
 
-  it("holds the picture's place at its requested shape while it is drawn", () => {
-    const { container } = render(
-      <ImageCard step={step({ prompt: "tall", status: "loading-model", requestId: "r1", width: 512, height: 1024 })} t={t} />,
-    );
-    expect(container.querySelector<HTMLElement>("[style*='aspect-ratio']")?.style.aspectRatio).toBe("512 / 1024");
+  it("holds the picture's place with a placeholder and no timer while it is drawn", () => {
+    render(<ImageCard step={step({ prompt: "a fox", status: "loading-model", startedAt: Date.now() - 65_000 })} t={t} />);
+    expect(screen.getByRole("status").getAttribute("aria-label")).toBe("Loading the image model");
+    expect(screen.queryByText(/\d:\d\d/)).toBeNull();
+    expect(screen.queryByText("a fox")).toBeNull();
   });
 
-  it("says where it is in the queue", () => {
-    render(<ImageCard step={step({ prompt: "a fox", status: "queued", queuePosition: 2, requestId: "r1" })} t={t} />);
-    expect(screen.getByRole("status").textContent).toBe("Waiting in line (position 2)");
+  it("says it is waiting for the engine", () => {
+    render(<ImageCard step={step({ prompt: "a fox", status: "queued", queuePosition: 2 })} t={t} />);
+    expect(screen.getByText("Waiting for the image engine")).toBeTruthy();
   });
 
-  it("shows a finished picture from the output folder by its path, never embedded bytes", () => {
+  it("shows a finished picture from the output folder by its path, with its title and no stats", () => {
     render(
       <ImageCard
-        step={step({
-          prompt: "a fox",
-          status: "done",
-          location: "created",
-          filename: "2026 fox.png",
-          path: "C:\\d\\2026 fox.png",
-          width: 768,
-          height: 512,
-          seed: 9,
-          model: "Z-Image",
-        })}
+        step={step({ prompt: "a fox", title: "Fox in snow", imageId: "img_1", status: "done", location: "created", filename: "2026 fox.png", path: "C:/d/2026 fox.png", width: 768, height: 512, seed: 9, model: "Z-Image" })}
         t={t}
       />,
     );
-    const image = screen.getAllByRole("img", { name: "a fox" })[0] as HTMLImageElement;
+    const image = screen.getByAltText("a fox") as HTMLImageElement;
     expect(image.getAttribute("src")).toBe("draggy://images/2026%20fox.png");
-    expect(screen.getByText("Z-Image · 768×512")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /^Open$/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Show in folder/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /seed 9/ })).toBeTruthy();
-  });
-
-  it("copies the seed and says so", async () => {
-    const writeText = vi.fn(async () => undefined);
-    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-    render(
-      <ImageCard step={step({ prompt: "a fox", status: "done", location: "created", filename: "f.png", path: "C:\\f.png", seed: 77 })} t={t} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /seed 77/ }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith("77"));
-    await waitFor(() => expect(screen.getByRole("status").textContent).toContain("Copied"));
+    expect(screen.getByText("Generated image")).toBeTruthy();
+    expect(screen.getByText("Fox in snow")).toBeTruthy();
+    expect(screen.queryByText(/768/)).toBeNull();
+    expect(screen.queryByText(/seed/i)).toBeNull();
   });
 
   it("reads a project picture through the file tools, inside the conversation's folder", async () => {
@@ -105,12 +81,12 @@ describe("the image card", () => {
 
     render(
       <ImageCard
-        step={step({ prompt: "logo", status: "done", location: "project", workspaceId: "w1", filename: "logo.png", path: "C:\\p\\public\\logo.png" })}
+        step={step({ prompt: "logo", status: "done", location: "project", workspaceId: "w1", filename: "logo.png", path: "C:/p/public/logo.png" })}
         t={t}
       />,
     );
-    await waitFor(() => expect(screen.getAllByRole("img", { name: "logo" }).length).toBeGreaterThan(0));
-    expect(read).toHaveBeenCalledWith("w1", "C:\\p\\public\\logo.png");
+    await waitFor(() => expect(screen.getByAltText("logo")).toBeTruthy());
+    expect(read).toHaveBeenCalledWith("w1", "C:/p/public/logo.png");
   });
 
   it("shows a failure in words, with its link", () => {
@@ -120,7 +96,7 @@ describe("the image card", () => {
         t={t}
       />,
     );
-    expect(screen.getByText("Not drawn")).toBeTruthy();
+    expect(screen.getByText("Image failed")).toBeTruthy();
     expect(screen.getByRole("link", { name: "More about this error" }).getAttribute("href")).toBe(
       "https://draggy.org/error/image-out-of-memory",
     );
@@ -128,15 +104,17 @@ describe("the image card", () => {
 
   it("tells a picture stopped by the user from one stopped when the app closed", () => {
     const { rerender } = render(<ImageCard step={step({ prompt: "a fox", status: "cancelled", finishedAt: 5 })} t={t} />);
-    expect(screen.getByRole("status").textContent).toBe("Stopped");
+    expect(screen.getByText("Stopped image")).toBeTruthy();
+    expect(screen.queryByText("Stopped when Draggy closed")).toBeNull();
     rerender(<ImageCard step={step({ prompt: "a fox", status: "cancelled" })} t={t} />);
-    expect(screen.getByRole("status").textContent).toBe("Stopped when Draggy closed");
+    expect(screen.getByText("Stopped when Draggy closed")).toBeTruthy();
   });
 
-  it("enlarges the picture and closes again with Escape", () => {
-    render(<ImageCard step={step({ prompt: "a fox", status: "done", location: "created", filename: "f.png", path: "C:\\f.png" })} t={t} />);
-    fireEvent.click(screen.getByRole("button", { name: "Show full size" }));
+  it("opens the picture full screen and minimizes it again with Escape", () => {
+    render(<ImageCard step={step({ prompt: "a fox", title: "Fox", status: "done", location: "created", filename: "f.png", path: "C:/f.png" })} t={t} />);
+    fireEvent.click(screen.getByRole("button", { name: "Show full size: Fox" }));
     expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Minimize/ })).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });

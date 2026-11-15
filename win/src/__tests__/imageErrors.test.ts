@@ -59,11 +59,5 @@ describe("the image messages in every language", () => {
       const wrong = keys.filter((key) => placeholders(translations[code][key]).join() !== placeholders(translations.en[key]).join());
       expect(wrong).toEqual([]);
     });
-
-    it(`${code} lists the /image flags exactly, since they are typed as written`, () => {
-      for (const flag of ["--to", "--from", "--size", "--seed", "--steps", "--strength", "--negative", "--lora", "--hires", "--overwrite"]) {
-        expect(translations[code].imageCommandBadFlag).toContain(flag);
-      }
-    });
   }
 });

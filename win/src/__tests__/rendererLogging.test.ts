@@ -17,7 +17,7 @@ const rel = (file: string) => path.relative(SRC, file).split(path.sep).join("/")
 /** Local asset loads that carry no engine or provider traffic, and the logger's own wrapper. */
 const FETCH_ALLOWED = new Map([
   ["logger.ts", "the loggedFetch wrapper itself"],
-  ["chat/ImageCard.tsx", "reads an in-memory blob or data URL; loggedFetch would put the payload in the log line"],
+  ["chat/ImageViewer.tsx", "reads an in-memory blob or data URL; loggedFetch would put the payload in the log line"],
   ["tools/image.ts", "reads a created picture off the draggy:// protocol; loggedFetch would put the payload in the log line"],
   ["voice/supertonicWorker.ts", "worker: no access to the renderer logger"],
   ["voice/vadWorker.ts", "worker: no access to the renderer logger"],

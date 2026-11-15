@@ -1,4 +1,8 @@
 import { imageIndex, trackImages } from "../images/imageTracker";
+
+/** How the answer shows a picture; the chat draws the token as the picture itself. */
+const IMAGE_PLACEMENT =
+  "To show a picture in your answer, write {image}img_1|Short title{image} on a line of its own, with the picture's ID and a title of a few words. A web image URL works the same way: {image}https://example.org/photo.jpg|Short title{image}.";
 import { PartialArgsScanner } from "./partialArgs";
 import {
   KEEP_ALIVE,
@@ -514,6 +518,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     ),
     loadedSection,
     environment.imageReady ? imageIndex(trackImages(messages)) : "",
+    environment.imageReady ? IMAGE_PLACEMENT : "",
     environment.webMode !== "off" && holdsFinishedRun(messages) ? followUpInstruction() : "",
   ]
     .filter(Boolean)

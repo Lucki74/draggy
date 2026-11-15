@@ -1,4 +1,3 @@
-import { DEFAULT_REFERENCE_STRENGTH } from "../images/imageTracker";
 import { CONTEXT_BUCKETS, FALLBACK_CONTEXT_LENGTH, contextSizeFor, getModelInfo, growContext, memoryCeilingFor, nextContextSize, windowCeiling } from "../llama";
 
 import { isRemote } from "../ai/providers";
@@ -18,9 +17,6 @@ import type { AgentHost, ContextMeasurement, OutOfContextInfo } from "./agentLoo
 import { setLiveTurn } from "./liveTurn";
 import { describeEnded } from "../tools/tasks";
 import { autoContinueWindow } from "./autoContinue";
-import { defaultProjectPath, parseImageCommand } from "../images/imageCommand";
-import { applyImageProgress, finishImageStep, runImageJob } from "../images/imageJob";
-import { imageFailure } from "../ai/engineErrors";
 import { isSlowModel } from "../slowMode";
 import { logRendererError, logRendererEvent, newCorrelationId, swallowed } from "../logger";
 import type { ToolEnvironment } from "../tools/registry";
@@ -32,8 +28,6 @@ import type {
   Attachment,
   ChatSession,
   FoldMarker,
-  ImageRequest,
-  ImageStepInfo,
   Message,
   MessageVersion,
   MetricRow,
@@ -110,8 +104,6 @@ export interface TaskManager {
     options?: RunOptions,
   ) => Promise<void>;
   send: (chatId: string, content: string, attachments?: Attachment[]) => void;
-  /** "/image" typed in the composer: a picture from the image engine, with no model turn. */
-  image: (chatId: string, argument: string, attachments?: Attachment[]) => void;
   regenerate: (chatId: string, index?: number) => void;
   editMessage: (
     chatId: string,
@@ -1075,142 +1067,6 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     return true;
   }
 
-  /** The data URL of an attached picture, whichever way the attachment carried it. */
-  function attachedImage(attachments?: Attachment[]): string | null {
-    const picture = attachments?.find((file) => file.type.startsWith("image/"));
-    if (!picture?.content) return null;
-    return picture.content.startsWith("data:") ? picture.content : `data:${picture.type};base64,${picture.content}`;
-  }
-
-  function image(chatId: string, argument: string, attachments?: Attachment[]) {
-    const existing = host.getSession(chatId);
-    const parsed = parseImageCommand(argument);
-    const typed = `/image ${argument}`.trim();
-    const userMessage: Message = { id: generateId(), role: "user", content: typed, attachments };
-
-    if (!existing) {
-      host.addSession({
-        id: chatId,
-        workspaceId: host.getWorkspaceId(),
-        title: titleFromContent("error" in parsed ? typed : parsed.prompt, host.t("newDiscussion")),
-        messages: [],
-        updatedAt: Date.now(),
-        isGenerating: false,
-      });
-    }
-
-    if ("error" in parsed) {
-      const reply = parsed.error === "empty"
-        ? host.t("imageCommandEmpty")
-        : host.t("imageCommandBadFlag").replace("{flag}", parsed.flag);
-      host.updateSession(chatId, (s) => ({
-        ...s,
-        updatedAt: Date.now(),
-        messages: [...s.messages, userMessage, { id: generateId(), role: "assistant", content: reply }],
-      }));
-      return;
-    }
-
-    runs.get(chatId)?.abort();
-    const controller = new AbortController();
-    runs.set(chatId, controller);
-    latest.set(chatId, controller);
-    turnMessage.delete(chatId);
-    notify();
-
-    const replyId = generateId();
-    const live = () => latest.get(chatId) === controller;
-    const inProject = Boolean(host.getEnvironment().hasFolder);
-    const workspaceId = host.getWorkspaceId();
-    const requestId = generateId();
-    let info: ImageStepInfo = {
-      prompt: parsed.prompt,
-      status: "loading-model",
-      requestId,
-      workspaceId: inProject ? workspaceId : undefined,
-      width: parsed.width,
-      height: parsed.height,
-      startedAt: Date.now(),
-    };
-    const stepId = generateId();
-    const stepOf = (current: ImageStepInfo): SearchStep => ({
-      id: stepId,
-      type: "image",
-      content: current.prompt,
-      isComplete: !["loading-model", "queued", "generating"].includes(current.status),
-      image: current,
-    });
-
-    host.updateSession(chatId, (s) => ({
-      ...s,
-      isGenerating: true,
-      updatedAt: Date.now(),
-      messages: [...s.messages, userMessage, { id: replyId, role: "assistant", content: "", steps: [stepOf(info)] }],
-    }));
-
-    const init = parsed.from && inProject
-      ? { kind: "project" as const, workspaceId, path: parsed.from }
-      : attachedImage(attachments)
-        ? { kind: "attachment" as const, dataUrl: attachedImage(attachments) as string }
-        : undefined;
-
-    const request: ImageRequest = {
-      requestId,
-      prompt: parsed.prompt,
-      negativePrompt: parsed.negative,
-      width: parsed.width,
-      height: parsed.height,
-      steps: parsed.steps,
-      seed: parsed.seed,
-      // Only a picture the user attached steers the image, and it keeps its subject unless they ask for more.
-      strength: parsed.strength ?? (init?.kind === "attachment" ? DEFAULT_REFERENCE_STRENGTH : undefined),
-      hires: parsed.hires,
-      lora: parsed.lora,
-      init,
-      destination: inProject
-        ? { kind: "project", workspaceId, path: parsed.to || defaultProjectPath(parsed.prompt), chatId, overwrite: parsed.overwrite }
-        : { kind: "chat" },
-    };
-
-    void (async () => {
-      try {
-        const result = await runImageJob(request, {
-          signal: controller.signal,
-          onProgress: (progress) => {
-            info = applyImageProgress(info, progress);
-            if (live()) host.patchActiveMessage(chatId, { steps: [stepOf(info)] }, undefined, replyId);
-          },
-        });
-        info = finishImageStep(info, result, inProject ? "project" : "created", (failed) => imageFailure(failed, { markdown: true }));
-        const reply = result.success
-          ? host.t("imageReply").replace("{file}", result.filename || "")
-          : "";
-        if (live()) host.patchActiveMessage(chatId, { steps: [stepOf(info)], content: reply }, { updatedAt: Date.now() }, replyId);
-      } catch (err: unknown) {
-        // A job that threw would otherwise leave its card spinning for good.
-        const aborted = err instanceof Error && err.name === "AbortError";
-        if (!aborted) logRendererError("chat", "image job failed", err, { chatId }, requestId);
-        info = { ...info, status: aborted ? "cancelled" : "error" };
-        const message = err instanceof Error ? err.message : String(err);
-        if (live()) {
-          host.patchActiveMessage(
-            chatId,
-            { steps: [stepOf(info)], ...(aborted ? {} : { failed: true, error: message, errorKind: classifyTurnError(message) }) },
-            { updatedAt: Date.now() },
-            replyId,
-          );
-        }
-      } finally {
-        if (runs.get(chatId) === controller) {
-          runs.delete(chatId);
-          notify();
-          host.updateSession(chatId, (s) => (s.isGenerating ? { ...s, isGenerating: false } : s));
-          if (runs.size === 0) dispatchWaiting();
-        }
-      }
-    })();
-  }
-
   function regenerate(chatId: string, index?: number) {
     const session = host.getSession(chatId);
     if (!session) return;
@@ -1220,14 +1076,6 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
     const at = typeof index === "number" && index >= 0 ? index : session.messages.length - 1;
     const before = session.messages.slice(0, at);
-
-    // A picture asked for with /image is drawn again, not handed to the chat model as text.
-    const asked = before[before.length - 1];
-    if (asked?.role === "user" && asked.content.startsWith("/image ")) {
-      host.updateSession(chatId, (s) => ({ ...s, messages: before.slice(0, -1) }));
-      image(chatId, asked.content.slice("/image ".length).trim(), asked.attachments);
-      return;
-    }
 
     // A failed reply keeps what it produced and resumes from there, so Retry never throws work away.
     const failedIdx = typeof index === "number" ? index : session.messages.length - 1;
@@ -1413,7 +1261,6 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     },
     run,
     send,
-    image,
     regenerate,
     editMessage,
     switchVersion,

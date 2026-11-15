@@ -1,44 +1,35 @@
 import { draggyUrl } from "../appUrl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Chip, Icon, IconButton, Lightbox, Skeleton, Spark, Tooltip } from "../ui";
 import type { ImageStepInfo, SearchStep } from "../types";
 import { INLINE_COMPONENTS, REHYPE_PLUGINS, REMARK_PLUGINS } from "./markdown";
 import { swallowed } from "../logger";
+import { StepLine } from "./StepLine";
+import { NoiseThumb } from "./NoiseThumb";
+import { ImageViewer } from "./ImageViewer";
 
-/** A picture from the local image engine: its progress while it is made, then the picture and what can be done with it. */
+/** A picture from the local image engine as one step of the work: a line saying what it is doing, a small
+ * placeholder while it draws, then the thumbnail that opens it full screen. */
 
 const RUNNING: ImageStepInfo["status"][] = ["loading-model", "queued", "generating"];
-
-/** The tallest the picture, or the placeholder for it, gets. */
-const MAX_HEIGHT_REM = 24;
-
-/** A model that does not say what size it draws is taken as square. */
-const DEFAULT_SIZE = 1024;
 
 function imageSource(info: ImageStepInfo): string | null {
   if (info.status !== "done" || !info.filename || info.location !== "created") return null;
   return draggyUrl(`images/${encodeURIComponent(info.filename)}`);
 }
 
-function useElapsed(startedAt: number | undefined, running: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!running || startedAt === undefined) return;
-    const timer = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(timer);
-  }, [running, startedAt]);
-  return startedAt === undefined ? 0 : Math.max(0, now - startedAt);
-}
-
 /** A project picture goes through the file tools, so it is only read from inside the conversation's folder. */
-function useProjectImage(info: ImageStepInfo): string | null {
+function useProjectImage(info: ImageStepInfo | undefined): string | null {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const status = info?.status;
+  const location = info?.location;
+  const path = info?.path;
+  const workspaceId = info?.workspaceId;
   useEffect(() => {
-    if (info.status !== "done" || info.location !== "project" || !info.path) return;
+    if (status !== "done" || location !== "project" || !path) return;
     let cancelled = false;
     window.draggy?.files
-      .read(info.workspaceId || "default", info.path)
+      .read(workspaceId || "default", path)
       .then((result) => {
         if (!cancelled && result?.success && result.dataUrl) setDataUrl(result.dataUrl);
       })
@@ -46,46 +37,12 @@ function useProjectImage(info: ImageStepInfo): string | null {
     return () => {
       cancelled = true;
     };
-  }, [info.status, info.location, info.path, info.workspaceId]);
+  }, [status, location, path, workspaceId]);
   return dataUrl;
 }
 
-/** The clipboard takes PNG everywhere; a JPEG or WebP is redrawn first. */
-async function toPng(blob: Blob): Promise<Blob> {
-  const bitmap = await createImageBitmap(blob);
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
-  return new Promise((resolve, reject) => canvas.toBlob((out) => (out ? resolve(out) : reject(new Error("no png"))), "image/png"));
-}
-
-async function copyImage(src: string): Promise<boolean> {
-  try {
-    const blob = await (await fetch(src)).blob();
-    const png = blob.type === "image/png" ? blob : await toPng(blob);
-    await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function clock(ms: number): string {
-  const total = Math.floor(ms / 1000);
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-}
-
-type Copied = "image" | "seed" | null;
+/** The short name shown on the picture: the title the model gave it, else its ID in the chat. */
+const imageTitle = (info: ImageStepInfo) => info.title || info.imageId || info.prompt;
 
 interface ImageCardProps {
   step: SearchStep;
@@ -96,153 +53,91 @@ interface ImageCardProps {
 
 export default function ImageCard({ step, t, previewSrc }: ImageCardProps) {
   const info = step.image;
-  const running = Boolean(info && RUNNING.includes(info.status));
-  const elapsed = useElapsed(info?.startedAt, running);
-  const projectSrc = useProjectImage(info ?? { prompt: "", status: "error" });
-  const [lightbox, setLightbox] = useState(false);
+  const projectSrc = useProjectImage(info);
   const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
-  const [copied, setCopied] = useState<Copied>(null);
-  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  useEffect(() => () => clearTimeout(copiedTimer.current), []);
-  const flash = useCallback((what: Exclude<Copied, null>) => {
-    setCopied(what);
-    clearTimeout(copiedTimer.current);
-    copiedTimer.current = setTimeout(() => setCopied(null), 1600);
-  }, []);
+  // The picture fades in from the cloud only when it arrives, never when an old chat is opened.
+  const [reveal] = useState(() => Boolean(info && RUNNING.includes(info.status)));
+  const [origin, setOrigin] = useState<HTMLElement | null>(null);
 
   if (!info) return null;
 
+  const running = RUNNING.includes(info.status);
   const candidate = previewSrc ?? imageSource(info) ?? projectSrc;
   // A picture the page cannot load is never drawn as a broken-image icon.
   const unloadable = candidate !== null && candidate === brokenSrc;
   const src = unloadable ? null : candidate;
-  const width = info.width || DEFAULT_SIZE;
-  const height = info.height || DEFAULT_SIZE;
-  const ratio = width / height;
   const interrupted = info.status === "cancelled" && info.finishedAt === undefined;
-  const hasSeed = info.seed !== undefined && info.seed >= 0;
 
-  const statusText =
+  const verb =
     info.status === "loading-model"
-      ? t("imageLoadingModel")
+      ? t("imageStepLoading")
       : info.status === "queued"
-        ? t("imageQueued").replace("{position}", String(Math.max(1, info.queuePosition ?? 1)))
+        ? t("imageStepQueued")
         : info.status === "generating"
-          ? t("imageGenerating")
-          : interrupted
-            ? t("imageInterrupted")
+          ? t("imageStepGenerating")
+          : info.status === "error"
+            ? t("imageStepFailed")
             : info.status === "cancelled"
-              ? t("imageCancelled")
-              : info.status === "error"
-                ? t("imageFailed")
-                : unloadable
-                  ? t("imageUnavailable")
-                  : "";
-
-  const meta = [info.model, info.width && info.height ? `${info.width}×${info.height}` : ""].filter(Boolean).join(" · ");
-  const doneWithPicture = info.status === "done" && src;
+              ? t("imageStepStopped")
+              : t("imageStepDone");
+  const target = info.status === "loading-model" || info.status === "queued" ? undefined : info.prompt;
+  const meta = interrupted ? t("imageInterrupted") : info.status === "done" && unloadable ? t("imageUnavailable") : undefined;
+  const title = imageTitle(info);
 
   return (
-    <div className="mb-3 w-full max-w-xl overflow-hidden rounded-md border border-rule bg-surface-base" data-testid="image-card">
+    <div className="img-step" data-testid="image-card">
+      <StepLine
+        verb={verb}
+        target={target}
+        meta={meta}
+        failed={unloadable}
+        active={running}
+        open={false}
+        actions={
+          info.status === "generating" && info.requestId ? (
+            <button type="button" className="img-stop" onClick={() => void window.draggy?.sd?.cancel(info.requestId as string)}>
+              {t("imageStop")}
+            </button>
+          ) : undefined
+        }
+        t={t}
+      />
+
       {running && (
-        <div className="relative mx-auto w-full" style={{ aspectRatio: `${width} / ${height}`, maxWidth: `${MAX_HEIGHT_REM * ratio}rem` }}>
-          <Skeleton className="absolute inset-0 rounded-none motion-reduce:animate-none" />
+        <div className="img-thumb wait" role="status" aria-label={verb}>
+          <NoiseThumb dim={info.status !== "generating"} />
         </div>
       )}
 
-      {doneWithPicture && (
+      {info.status === "done" && src && (
         <button
           type="button"
-          onClick={() => setLightbox(true)}
-          aria-label={t("imageEnlarge")}
-          className="block w-full cursor-zoom-in bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-text-primary"
+          className={`img-thumb${reveal ? " reveal" : ""}`}
+          aria-label={`${t("imageEnlarge")}: ${title}`}
+          onClick={(event) => setOrigin(event.currentTarget)}
         >
-          <img src={src} alt={info.prompt} onError={() => setBrokenSrc(src)} className="mx-auto block w-auto object-contain" style={{ maxHeight: `${MAX_HEIGHT_REM}rem`, maxWidth: "100%" }} />
+          <img src={src} alt={info.prompt} onError={() => setBrokenSrc(src)} />
+          <span className="htitle">{title}</span>
         </button>
       )}
 
-      <div className="flex items-start gap-2 px-3 py-2.5">
-        {running ? (
-          <Spark className="mt-[6px]" />
-        ) : (
-          <Icon name={info.status === "error" || unloadable ? "warning-circle" : "image"} size={16} className={`mt-0.5 shrink-0 ${info.status === "error" || unloadable ? "text-danger" : "text-text-secondary"}`} />
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] leading-[18px] text-text-primary" title={info.prompt}>
-            {info.prompt}
-          </p>
-          <p className="flex items-center gap-2 text-[12px] leading-4 text-text-secondary">
-            <span role="status" className={info.status === "error" || unloadable ? "text-danger" : undefined}>
-              {statusText}
-              {copied && <span className="sr-only">{t("imageCopied")}</span>}
-            </span>
-            {running && (
-              <span aria-hidden="true" className="font-mono tabular-nums">
-                {clock(elapsed)}
-              </span>
-            )}
-            {info.status === "done" && !unloadable && meta && <span className="truncate">{meta}</span>}
-          </p>
-          {info.status === "done" && info.referenceDropped && (
-            <p role="note" className="text-[12px] leading-4 text-text-secondary">
-              {t("imageReferenceDropped")}
-            </p>
-          )}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-0.5">
-          {running && info.requestId && (
-            <Tooltip label={t("imageStop")} align="end">
-              <IconButton name="stop" size="dense" label={t("imageStop")} onClick={() => void window.draggy?.sd?.cancel(info.requestId as string)} />
-            </Tooltip>
-          )}
-          {doneWithPicture && (
-            <>
-              <Tooltip label={copied === "image" ? t("imageCopied") : t("imageCopy")}>
-                <IconButton
-                  name={copied === "image" ? "check" : "copy"}
-                  size="dense"
-                  label={t("imageCopy")}
-                  onClick={() => void copyImage(src).then((ok) => ok && flash("image"))}
-                />
-              </Tooltip>
-              {info.path && (
-                <>
-                  <Tooltip label={t("openFile")}>
-                    <IconButton name="arrow-square-out" size="dense" label={t("openFile")} onClick={() => void window.draggy?.openFile(info.path as string)} />
-                  </Tooltip>
-                  <Tooltip label={t("showInFolder")} align="end">
-                    <IconButton name="folder-open" size="dense" label={t("showInFolder")} onClick={() => void window.draggy?.revealCreatedFile(info.path as string)} />
-                  </Tooltip>
-                </>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {info.status === "done" && hasSeed && (
-        <div className="flex items-center gap-1.5 px-3 pb-2.5 ps-9">
-          <Chip
-            size="dense"
-            label={<span className="font-mono tabular-nums">{`${t("imageSeed")} ${info.seed}`}</span>}
-            icon={<Icon name={copied === "seed" ? "check" : "copy"} size={12} />}
-            title={t("imageCopySeed")}
-            onClick={() => void copyText(String(info.seed)).then((ok) => ok && flash("seed"))}
-          />
-        </div>
+      {info.status === "done" && info.referenceDropped && (
+        <p role="note" className="img-err">
+          {t("imageReferenceDropped")}
+        </p>
       )}
 
       {info.status === "error" && info.error && (
-        <div className="markdown-inline px-3 pb-3 ps-9 text-[13px] leading-5 text-text-secondary">
+        <div className="img-err markdown-inline" role="status">
           <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={INLINE_COMPONENTS}>
             {info.error}
           </ReactMarkdown>
         </div>
       )}
 
-      <Lightbox open={lightbox} src={src ?? undefined} alt={info.prompt} onClose={() => setLightbox(false)} />
+      {origin && src && (
+        <ImageViewer image={{ src, title, path: info.path }} origin={origin} onClose={() => setOrigin(null)} t={t} />
+      )}
     </div>
   );
 }
