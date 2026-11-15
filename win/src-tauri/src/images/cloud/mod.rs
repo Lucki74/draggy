@@ -208,7 +208,10 @@ mod tests {
         let jpeg = [0xff_u8, 0xd8, 0xff, 0xe0];
         assert_eq!(parse(Protocol::HfInference, &jpeg).unwrap(), jpeg);
         assert_eq!(format_of(&jpeg), Some(("image/jpeg", "jpg")));
-        assert_eq!(format_of(b"RIFF\0\0\0\0WEBPVP8 "), Some(("image/webp", "webp")));
+        assert_eq!(
+            format_of(b"RIFF\0\0\0\0WEBPVP8 "),
+            Some(("image/webp", "webp"))
+        );
     }
 
     #[test]
