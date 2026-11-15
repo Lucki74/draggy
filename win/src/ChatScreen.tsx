@@ -164,6 +164,8 @@ export default function ChatScreen({
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
+    // The composer and the screen both listen; one drop must attach each file once.
+    e.stopPropagation();
     setIsDragging(false);
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {

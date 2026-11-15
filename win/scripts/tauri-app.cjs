@@ -53,15 +53,21 @@ function prepareScratch(prefix, { model = "", realAppData = process.env.APPDATA 
   if (fs.existsSync(path.join(realDir, "bin"))) fs.symlinkSync(path.join(realDir, "bin"), path.join(dataDir, "bin"), "junction");
   const realModel = path.join(realDir, "models", path.basename(model));
   if (model && fs.existsSync(realModel)) {
-    fs.mkdirSync(path.join(dataDir, "models"));
+    fs.mkdirSync(path.join(dataDir, "models"), { recursive: true });
     fs.linkSync(realModel, path.join(dataDir, "models", path.basename(model)));
+  }
+  // The image models too, so a picture asked for in a capture is really drawn.
+  const realImages = path.join(realDir, "models", "image");
+  if (fs.existsSync(realImages)) {
+    fs.mkdirSync(path.join(dataDir, "models"), { recursive: true });
+    fs.symlinkSync(realImages, path.join(dataDir, "models", "image"), "junction");
   }
   return { scratch, appData, dataDir };
 }
 
 // Removes the links first so deleting the scratch folder never follows a junction into the real data.
 function removeScratch(scratch, dataDir) {
-  for (const name of ["bin", "models"]) {
+  for (const name of ["bin", "models/image", "models"]) {
     try {
       fs.unlinkSync(path.join(dataDir, name));
     } catch {

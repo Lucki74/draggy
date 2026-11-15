@@ -422,7 +422,8 @@ async function dropFile(rec, page, name, type, text) {
   await app.sleep(300);
   await rec.moveTo(760, 600);
   await app.inPage(page, ({ name, type, text }) => {
-    const target = document.querySelector("[data-region=composer] form textarea");
+    // The form, not the textarea, so the file lands once on builds where both drop handlers ran.
+    const target = document.querySelector("[data-region=composer] form");
     const data = new DataTransfer();
     data.items.add(new File([text], name, { type }));
     for (const kind of ["dragenter", "dragover", "drop"]) target.dispatchEvent(new DragEvent(kind, { bubbles: true, cancelable: true, dataTransfer: data }));
@@ -557,6 +558,8 @@ const CLIPS = {
   image: {
     workspace: ["default", "chat"],
     speed: 10,
+    // A model that never called the image tool draws SVG instead; that take does not count.
+    check: (page) => app.inPage(page, () => Boolean(document.querySelector("[data-region=transcript] img"))),
     async script(rec, page) {
       await ask(rec, P("image"));
       await work(rec, page);
@@ -765,7 +768,8 @@ async function record(session, name, project) {
         const failedBadge = [...document.querySelectorAll("[data-region=transcript] button, [data-region=transcript] span")].some((n) => /\bfailed\b/i.test(n.textContent));
         return warning || failedBadge;
       });
-      if (hasErrors && take < 3) {
+      const missed = clip.check ? !(await clip.check(page)) : false;
+      if ((hasErrors || missed) && take < 3) {
         log(`${name}-${tone}: take ${take} showed failed steps, retrying...`);
         await dropNewChats(page, keep);
         continue;
