@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../ui";
 import { clampScale, wheelFactor } from "../ui/imageView";
@@ -37,7 +43,10 @@ interface Rect {
 }
 
 function fit(width: number, height: number): Rect {
-  const room = { w: window.innerWidth - PAD * 2, h: window.innerHeight - TOP - PAD };
+  const room = {
+    w: window.innerWidth - PAD * 2,
+    h: window.innerHeight - TOP - PAD,
+  };
   const k = Math.min(room.w / width, room.h / height);
   const w = width * k;
   const h = height * k;
@@ -51,7 +60,12 @@ async function toPng(blob: Blob): Promise<Blob> {
   canvas.width = bitmap.width;
   canvas.height = bitmap.height;
   canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
-  return new Promise((resolve, reject) => canvas.toBlob((out) => (out ? resolve(out) : reject(new Error("no png"))), "image/png"));
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (out) => (out ? resolve(out) : reject(new Error("no png"))),
+      "image/png",
+    ),
+  );
 }
 
 async function copyImage(src: string): Promise<boolean> {
@@ -70,7 +84,8 @@ const hide = (element: HTMLElement, hidden: boolean) => {
   element.style.visibility = hidden ? "hidden" : "";
 };
 
-const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const reduced = () =>
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 function transformBetween(from: DOMRect, to: Rect): string {
   return `translate(${from.left - to.x}px, ${from.top - to.y}px) scale(${from.width / to.w}, ${from.height / to.h})`;
@@ -91,9 +106,14 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
   const closing = useRef(false);
   const size = () => {
     const img = origin.querySelector("img");
-    return { width: img?.naturalWidth || origin.clientWidth || 1, height: img?.naturalHeight || origin.clientHeight || 1 };
+    return {
+      width: img?.naturalWidth || origin.clientWidth || 1,
+      height: img?.naturalHeight || origin.clientHeight || 1,
+    };
   };
-  const [rect, setRect] = useState<Rect>(() => fit(size().width, size().height));
+  const [rect, setRect] = useState<Rect>(() =>
+    fit(size().width, size().height),
+  );
   const [shown, setShown] = useState(false);
   const [copied, setCopied] = useState(false);
   const source = () => origin.querySelector("img") ?? origin;
@@ -110,7 +130,11 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
       const k = next.zoom / fitZoom;
       const limitX = (rect.w * k) / 2 + window.innerWidth / 2 - KEEP;
       const limitY = (rect.h * k) / 2 + window.innerHeight / 2 - KEEP;
-      return { zoom: next.zoom, x: Math.max(-limitX, Math.min(limitX, next.x)), y: Math.max(-limitY, Math.min(limitY, next.y)) };
+      return {
+        zoom: next.zoom,
+        x: Math.max(-limitX, Math.min(limitX, next.x)),
+        y: Math.max(-limitY, Math.min(limitY, next.y)),
+      };
     },
     [fitZoom, rect.w, rect.h],
   );
@@ -123,7 +147,11 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
         const from = was ?? { zoom: fitZoom, x: 0, y: 0 };
         const zoom = clampScale(from.zoom * factor);
         const ratio = zoom / from.zoom;
-        return held({ zoom, x: anchor.x - (anchor.x - from.x) * ratio, y: anchor.y - (anchor.y - from.y) * ratio });
+        return held({
+          zoom,
+          x: anchor.x - (anchor.x - from.x) * ratio,
+          y: anchor.y - (anchor.y - from.y) * ratio,
+        });
       });
     },
     [fitZoom, held],
@@ -136,7 +164,10 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
     setEased(true);
     setView({ zoom: 1, x: 0, y: 0 });
   };
-  const fromCentre = (clientX: number, clientY: number) => ({ x: clientX - (rect.x + rect.w / 2), y: clientY - (rect.y + rect.h / 2) });
+  const fromCentre = (clientX: number, clientY: number) => ({
+    x: clientX - (rect.x + rect.w / 2),
+    y: clientY - (rect.y + rect.h / 2),
+  });
 
   // By hand, because React's wheel listener is passive and could not keep the chat behind from scrolling.
   useEffect(() => {
@@ -144,7 +175,10 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
     if (!root) return;
     const wheel = (event: WheelEvent) => {
       event.preventDefault();
-      zoomBy(wheelFactor(event.deltaY), fromCentre(event.clientX, event.clientY));
+      zoomBy(
+        wheelFactor(event.deltaY),
+        fromCentre(event.clientX, event.clientY),
+      );
     };
     root.addEventListener("wheel", wheel, { passive: false });
     return () => root.removeEventListener("wheel", wheel);
@@ -161,7 +195,15 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
   useLayoutEffect(() => {
     hide(origin, true);
     if (!reduced()) {
-      picRef.current?.animate?.([{ transform: transformBetween(source().getBoundingClientRect(), rect) }, { transform: "none" }], { duration: 420, easing: EASE });
+      picRef.current?.animate?.(
+        [
+          {
+            transform: transformBetween(source().getBoundingClientRect(), rect),
+          },
+          { transform: "none" },
+        ],
+        { duration: 420, easing: EASE },
+      );
     }
     requestAnimationFrame(() => setShown(true));
     minRef.current?.focus({ preventScroll: true });
@@ -183,7 +225,15 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
     if (reduced() || !pic.animate) return done();
     const now = pic.getBoundingClientRect();
     const anim = pic.animate(
-      [{ transform: "none" }, { transform: transformBetween((origin.querySelector("img") ?? origin).getBoundingClientRect(), { x: now.left, y: now.top, w: now.width, h: now.height }) }],
+      [
+        { transform: "none" },
+        {
+          transform: transformBetween(
+            (origin.querySelector("img") ?? origin).getBoundingClientRect(),
+            { x: now.left, y: now.top, w: now.width, h: now.height },
+          ),
+        },
+      ],
       { duration: 360, easing: EASE, fill: "forwards" },
     );
     anim.onfinish = done;
@@ -194,8 +244,10 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
       if (event.key === "Escape") {
         event.stopPropagation();
         minimize();
-      } else if (event.key === "+" || event.key === "=") zoomBy(KEY_STEP, undefined, true);
-      else if (event.key === "-" || event.key === "_") zoomBy(1 / KEY_STEP, undefined, true);
+      } else if (event.key === "+" || event.key === "=")
+        zoomBy(KEY_STEP, undefined, true);
+      else if (event.key === "-" || event.key === "_")
+        zoomBy(1 / KEY_STEP, undefined, true);
       else if (event.key === "0") fitView();
       else if (event.key === "1") actualSize();
       else return;
@@ -210,7 +262,12 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
 
   const web = Boolean(image.host);
   const copy = () => {
-    const work = web ? navigator.clipboard.writeText(image.src).then(() => true, () => false) : copyImage(image.src);
+    const work = web
+      ? navigator.clipboard.writeText(image.src).then(
+          () => true,
+          () => false,
+        )
+      : copyImage(image.src);
     void work.then((ok) => {
       if (!ok) return;
       setCopied(true);
@@ -219,15 +276,28 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
   };
 
   return createPortal(
-    <div ref={rootRef} className={`img-viewer${shown ? " show" : ""}`} role="dialog" aria-modal="true" aria-label={image.title}>
+    <div
+      ref={rootRef}
+      className={`img-viewer${shown ? " show" : ""}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label={image.title}
+    >
       <div className="scrim" onClick={minimize} />
       <div className="bar">
         <b className="truncate">{image.title}</b>
         {image.host && <span>{image.host}</span>}
         <span className="flex-1" />
         <span className="zoom">
-          <button type="button" onClick={() => zoomBy(1 / KEY_STEP, undefined, true)} aria-label={t("zoomOut")} title={`${t("zoomOut")} (-)`}>
-            <span aria-hidden="true" className="text-base leading-none">−</span>
+          <button
+            type="button"
+            onClick={() => zoomBy(1 / KEY_STEP, undefined, true)}
+            aria-label={t("zoomOut")}
+            title={`${t("zoomOut")} (-)`}
+          >
+            <span aria-hidden="true" className="text-base leading-none">
+              −
+            </span>
           </button>
           <button
             type="button"
@@ -238,7 +308,12 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
           >
             {Math.round(current.zoom * 100)}%
           </button>
-          <button type="button" onClick={() => zoomBy(KEY_STEP, undefined, true)} aria-label={t("zoomIn")} title={`${t("zoomIn")} (+)`}>
+          <button
+            type="button"
+            onClick={() => zoomBy(KEY_STEP, undefined, true)}
+            aria-label={t("zoomIn")}
+            title={`${t("zoomIn")} (+)`}
+          >
             <Icon name="plus" size={15} />
           </button>
         </span>
@@ -247,13 +322,24 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
           {copied ? t("imageCopied") : web ? t("copyLink") : t("copy")}
         </button>
         {web ? (
-          <button type="button" onClick={() => window.open(image.src, "_blank")}>
+          <button
+            type="button"
+            onClick={() => {
+              window.open(image.src, "_blank");
+              minimize();
+            }}
+          >
             <Icon name="arrow-square-out" size={15} />
             {t("openInBrowser")}
           </button>
         ) : (
           image.path && (
-            <button type="button" onClick={() => void window.draggy?.revealCreatedFile(image.path as string)}>
+            <button
+              type="button"
+              onClick={() =>
+                void window.draggy?.revealCreatedFile(image.path as string)
+              }
+            >
               <Icon name="folder-open" size={15} />
               {t("showInFolder")}
             </button>
@@ -265,24 +351,40 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
         </button>
       </div>
       {
-        <div ref={picRef} className="pic" style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}>
+        <div
+          ref={picRef}
+          className="pic"
+          style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
+        >
           <img
             src={image.src}
             alt={image.title}
             draggable={false}
             className={`${dragging ? "dragging" : ""}${eased && !dragging ? " eased" : ""}`}
-            style={{ transform: `translate(${current.x}px, ${current.y}px) scale(${current.zoom / fitZoom})` }}
+            style={{
+              transform: `translate(${current.x}px, ${current.y}px) scale(${current.zoom / fitZoom})`,
+            }}
             onPointerDown={(event) => {
               if (event.button !== 0) return;
               event.currentTarget.setPointerCapture(event.pointerId);
-              drag.current = { x: event.clientX, y: event.clientY, from: current };
+              drag.current = {
+                x: event.clientX,
+                y: event.clientY,
+                from: current,
+              };
               setDragging(true);
             }}
             onPointerMove={(event) => {
               const start = drag.current;
               if (!start) return;
               setEased(false);
-              setView(held({ ...start.from, x: start.from.x + event.clientX - start.x, y: start.from.y + event.clientY - start.y }));
+              setView(
+                held({
+                  ...start.from,
+                  x: start.from.x + event.clientX - start.x,
+                  y: start.from.y + event.clientY - start.y,
+                }),
+              );
             }}
             onPointerUp={() => {
               drag.current = null;
@@ -294,7 +396,12 @@ export function ImageViewer({ image, origin, onClose, t }: ImageViewerProps) {
             }}
             onDoubleClick={(event) => {
               if (view) fitView();
-              else zoomBy(Math.max(2, 1 / fitZoom), fromCentre(event.clientX, event.clientY), true);
+              else
+                zoomBy(
+                  Math.max(2, 1 / fitZoom),
+                  fromCentre(event.clientX, event.clientY),
+                  true,
+                );
             }}
           />
         </div>
