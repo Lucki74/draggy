@@ -58,6 +58,8 @@ export default function ImageCard({ step, t, previewSrc }: ImageCardProps) {
   // The picture fades in from the cloud only when it arrives, never when an old chat is opened.
   const [reveal] = useState(() => Boolean(info && RUNNING.includes(info.status)));
   const [origin, setOrigin] = useState<HTMLElement | null>(null);
+  // The answer shows the picture itself, so the step keeps its thumbnail folded away until asked.
+  const [open, setOpen] = useState(false);
 
   if (!info) return null;
 
@@ -83,6 +85,18 @@ export default function ImageCard({ step, t, previewSrc }: ImageCardProps) {
   const target = info.status === "loading-model" || info.status === "queued" ? undefined : info.prompt;
   const meta = interrupted ? t("imageInterrupted") : info.status === "done" && unloadable ? t("imageUnavailable") : undefined;
   const title = imageTitle(info);
+  const shownThumb =
+    info.status === "done" && src ? (
+      <button
+        type="button"
+        className={`img-thumb${reveal ? " reveal" : ""}`}
+        aria-label={`${t("imageEnlarge")}: ${title}`}
+        onClick={(event) => setOrigin(event.currentTarget)}
+      >
+        <img src={src} alt={info.prompt} onError={() => setBrokenSrc(src)} />
+        <span className="htitle">{title}</span>
+      </button>
+    ) : undefined;
 
   return (
     <div className="img-step" data-testid="image-card">
@@ -92,7 +106,9 @@ export default function ImageCard({ step, t, previewSrc }: ImageCardProps) {
         meta={meta}
         failed={unloadable}
         active={running}
-        open={false}
+        open={open && Boolean(shownThumb)}
+        onToggle={shownThumb ? () => setOpen((value) => !value) : undefined}
+        details={shownThumb}
         actions={
           info.status === "generating" && info.requestId ? (
             <button type="button" className="img-stop" onClick={() => void window.draggy?.sd?.cancel(info.requestId as string)}>
@@ -107,18 +123,6 @@ export default function ImageCard({ step, t, previewSrc }: ImageCardProps) {
         <div className="img-thumb wait" role="status" aria-label={verb}>
           <NoiseThumb dim={info.status !== "generating"} />
         </div>
-      )}
-
-      {info.status === "done" && src && (
-        <button
-          type="button"
-          className={`img-thumb${reveal ? " reveal" : ""}`}
-          aria-label={`${t("imageEnlarge")}: ${title}`}
-          onClick={(event) => setOrigin(event.currentTarget)}
-        >
-          <img src={src} alt={info.prompt} onError={() => setBrokenSrc(src)} />
-          <span className="htitle">{title}</span>
-        </button>
       )}
 
       {info.status === "done" && info.referenceDropped && (
