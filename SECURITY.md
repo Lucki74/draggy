@@ -62,6 +62,11 @@ boundary there.
   reaching the renderer, a URL, a log, or a file in plain text.
 - A provider's own hosted tools (web search, code execution) running on a
   request Draggy sent.
+- A cloud image or voice request (`win/src-tauri/src/images/cloud/`,
+  `win/src-tauri/src/tts/cloud/`) going anywhere but the provider the user
+  picked, or its key reaching the renderer.
+- A picture from the web shown in an answer loading anything but the image
+  itself.
 - The image engine: an engine archive or model accepted without the SHA-256
   pinned in the app, an archive entry unpacked outside its folder, or an image
   written outside the project or output folder it was meant for.

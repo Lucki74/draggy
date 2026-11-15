@@ -39,10 +39,15 @@ export function isInsideRoot(root: string, target: string): boolean {
   return to === from || to.startsWith(`${from}/`);
 }
 
+/** Forward slashes, without the `\\?\` prefix Windows puts on canonical paths. */
+function plainPath(p: string): string {
+  return p.replace(/\\/g, "/").replace(/^\/\/\?\/(UNC\/)?/i, (_m, unc) => (unc ? "//" : ""));
+}
+
 /** `target` from `root`, with forward slashes, as the model and the @ picker write paths. */
 export function relativePath(root: string, target: string): string {
-  const from = root.replace(/\\/g, "/").replace(/\/+$/, "");
-  const to = target.replace(/\\/g, "/");
+  const from = plainPath(root).replace(/\/+$/, "");
+  const to = plainPath(target);
   return to.toLowerCase().startsWith(`${from.toLowerCase()}/`) ? to.slice(from.length + 1) : to;
 }
 

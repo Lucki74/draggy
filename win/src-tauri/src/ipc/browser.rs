@@ -154,13 +154,18 @@ async fn navigate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
         Ok(url) => url,
         Err(message) => return Ok(pages::failure("refused_url", Some(message))),
     };
-    if let Err(failed) = ensure_page(&app).await {
+    let empty = app.state::<Panes>().lock().views().is_empty();
+    if empty && let Err(failed) = add_tab(&app) {
         return Ok(failed);
     }
     let Some(webview) = front_webview(&app) else {
         return Ok(pages::failure("pane_unavailable", None));
     };
+    // The renderer shows the pane only once it has a page, so the loading state goes out first.
     emit_load_state(&app, &webview, url.as_str(), true, None).await;
+    if let Err(failed) = show(&app).await {
+        return Ok(failed);
+    }
     let reply = load(&webview, &url).await;
     if reply.get("ok").and_then(Value::as_bool) == Some(false) {
         let code = reply
@@ -1821,6 +1826,7 @@ async fn open_main_link(app: &AppHandle, url: Url) {
         return;
     }
     if let Some(webview) = front_webview(app) {
+        emit_load_state(app, &webview, url.as_str(), true, None).await;
         load(&webview, &url).await;
     }
     let _ = show(app).await;

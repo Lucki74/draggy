@@ -7,6 +7,7 @@ import {
   joinPath,
   parentOf,
   partitionEntries,
+  relativePath,
   sortEntries,
 } from "../files/tree";
 import type { DirectoryEntry } from "../types";
@@ -136,5 +137,12 @@ describe("what the tree folds away", () => {
 
     expect(shown.map((one) => one.name)).toEqual(["src", "README.md"]);
     expect(folded.map((one) => one.name)).toEqual(["node_modules", ".env"]);
+  });
+});
+
+describe("relativePath", () => {
+  it("drops the verbatim prefix Windows adds to canonical paths", () => {
+    expect(relativePath("C:\\work\\app", "\\\\?\\C:\\work\\app\\tests\\a.test.ts")).toBe("tests/a.test.ts");
+    expect(relativePath("C:/work/app", "C:/elsewhere/b.ts")).toBe("C:/elsewhere/b.ts");
   });
 });

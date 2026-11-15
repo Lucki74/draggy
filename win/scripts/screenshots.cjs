@@ -1,6 +1,7 @@
-// Retakes the website screenshots from the real Tauri app on a throwaway data folder.
+// Retakes the docs screenshots from the real Tauri app on a throwaway data folder.
 // Build or run the app first, then: node scripts/screenshots.cjs [--exe <draggy-win.exe>] [--port 9222]
-// Env: DRAGGY_SHOTS_OUT, DRAGGY_SHOTS_ONLY (comma list), DRAGGY_SHOTS_LANG, DRAGGY_SHOTS_MODEL, DRAGGY_SHOTS_SCALE.
+// Env: DRAGGY_SHOTS_OUT, DRAGGY_SHOTS_ONLY (comma list), DRAGGY_SHOTS_LANGS (en,fr,es,ru), DRAGGY_SHOTS_MODEL, DRAGGY_SHOTS_SCALE.
+// English shots are <name>-<tone>.png, the others <name>-<lang>-<tone>.png.
 const fs = require("node:fs");
 const path = require("node:path");
 const app = require("./tauri-app.cjs");
@@ -8,16 +9,65 @@ const app = require("./tauri-app.cjs");
 const args = process.argv.slice(2);
 const flag = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 if (args.includes("--help")) {
-  console.log("node scripts/screenshots.cjs [--exe path] [--port 9222]  (env: DRAGGY_SHOTS_OUT, DRAGGY_SHOTS_ONLY, DRAGGY_SHOTS_LANG, DRAGGY_SHOTS_MODEL, DRAGGY_SHOTS_SCALE)");
+  console.log("node scripts/screenshots.cjs [--exe path] [--port 9222]  (env: DRAGGY_SHOTS_OUT, DRAGGY_SHOTS_ONLY, DRAGGY_SHOTS_LANGS, DRAGGY_SHOTS_MODEL, DRAGGY_SHOTS_SCALE)");
   process.exit(0);
 }
 
-const OUT = path.resolve(process.env.DRAGGY_SHOTS_OUT || path.join(__dirname, "..", "..", "..", "draggy-website", "assets", "img"));
-const ONLY = (process.env.DRAGGY_SHOTS_ONLY || "").split(",").filter(Boolean);
+const OUT = path.resolve(process.env.DRAGGY_SHOTS_OUT || path.join(__dirname, "..", "..", "..", "draggy-docs", "assets", "img"));
+// The scenes behind the shots the docs use. Name others in DRAGGY_SHOTS_ONLY to take them too.
+const DOCS = ["project", "settings", "skills", "talk", "browser", "permissions"];
+const ONLY = (process.env.DRAGGY_SHOTS_ONLY || DOCS.join(",")).split(",").filter(Boolean);
 const WIDTH = 1280;
 const HEIGHT = 800;
 const ONBOARDING = ONLY.includes("onboarding");
-const LANGUAGE = process.env.DRAGGY_SHOTS_LANG || "";
+const LANGS = (process.env.DRAGGY_SHOTS_LANGS || "en,fr,es,ru").split(",").filter(Boolean);
+const LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES", ru: "ru-RU" };
+let LANG = "en";
+const STRINGS = app.appStrings();
+const T = (key) => STRINGS[LANG]?.[key] || STRINGS.en[key];
+// A file name in the language being taken: the tone stays last.
+const stem = (name) => (LANG === "en" ? name : /-(light|dark)$/.test(name) ? name.replace(/-(light|dark)$/, `-${LANG}-$1`) : `${name}-${LANG}`);
+
+// What is typed in each scene, as a person would type it in that language.
+const PROMPTS = {
+  en: {
+    chat: "the wal file still keeps growing even after a checkpoint runs, what can hold it open?",
+    project: "formatTemperature in src/format.ts should round to one decimal and add °C. can you change it and update tests/format.test.ts to expect 21.0°C?",
+    proof: "/proofreader Their going too the park tomorow, weather permiting, and they has invited Sam.",
+    proofProject: "/proofreader The weather-cli prints the forcast for any city, and it round every temperature to one decimal with a °C sign.",
+    history1: "how do i handle backpressure in nodejs readable streams with highWaterMark?",
+    history2: "write a type guard in typescript for a discriminated union with status error",
+    command: "what was the last commit in this repo? check with git log",
+  },
+  fr: {
+    chat: "le fichier wal continue de grossir même après un checkpoint, qu'est-ce qui peut le garder ouvert ?",
+    project: "formatTemperature dans src/format.ts devrait arrondir à une décimale et ajouter °C. tu peux le changer et mettre tests/format.test.ts à jour pour attendre 21.0°C ?",
+    proof: "/proofreader Demain ils vont au parc, si le temp le permet, et ils a invité Sam a venir.",
+    proofProject: "/proofreader weather-cli affiche la prévision pour n'importe quelle ville, et il arrondi chaque température a une décimale avec le signe °C.",
+    history1: "comment gérer la backpressure dans les readable streams de node avec highWaterMark ?",
+    history2: "écris un type guard typescript pour une union discriminée avec status error",
+    command: "c'était quoi le dernier commit de ce dépôt ? regarde avec git log",
+  },
+  es: {
+    chat: "el archivo wal sigue creciendo incluso después de un checkpoint, ¿qué puede estar manteniéndolo abierto?",
+    project: "formatTemperature en src/format.ts debería redondear a un decimal y añadir °C. ¿puedes cambiarlo y actualizar tests/format.test.ts para que espere 21.0°C?",
+    proof: "/proofreader Mañana ban al parque si el tiempo lo permite, y an invitado a Sam a venir.",
+    proofProject: "/proofreader weather-cli muestra el pronostico de cualquier ciudad, y redondea cada temperatura a un decimal con el signo °C.",
+    history1: "¿cómo manejo la backpressure en los readable streams de node con highWaterMark?",
+    history2: "escribe un type guard en typescript para una unión discriminada con status error",
+    command: "¿cuál fue el último commit de este repo? míralo con git log",
+  },
+  ru: {
+    chat: "wal-файл продолжает расти даже после checkpoint, что может держать его открытым?",
+    project: "formatTemperature в src/format.ts должна округлять до одного знака и добавлять °C. поменяешь её и обновишь tests/format.test.ts, чтобы он ждал 21.0°C?",
+    proof: "/proofreader Завтра они пойдут в парк если позволит погода, и они пригласил Сэма тоже.",
+    proofProject: "/proofreader weather-cli показывает прогноз для любого города и округлят каждую температуру до одного знака с °C.",
+    history1: "как справиться с backpressure в readable stream в node через highWaterMark?",
+    history2: "напиши type guard на typescript для размеченного объединения со status error",
+    command: "какой последний коммит в этом репозитории? глянь через git log",
+  },
+};
+const P = (key) => PROMPTS[LANG]?.[key] || PROMPTS.en[key];
 const SHOTS_MODEL = process.env.DRAGGY_SHOTS_MODEL || "Qwen3.6-35B-A3B-Q8_0.gguf";
 const wanted = (scene) => ONLY.length === 0 || ONLY.includes(scene);
 const log = (...parts) => console.log("[shots]", ...parts);
@@ -28,8 +78,8 @@ if (ONLY.includes("downloads")) log("downloads: skipped, the Tauri app has no tr
 async function capture(page, name) {
   await app.sleep(700);
   const png = await app.capturePng(page, WIDTH, HEIGHT);
-  fs.writeFileSync(path.join(OUT, `${name}.png`), png);
-  log(`saved ${name}.png`);
+  fs.writeFileSync(path.join(OUT, `${stem(name)}.png`), png);
+  log(`saved ${stem(name)}.png`);
 }
 
 // Both themes of whatever is on screen.
@@ -136,49 +186,41 @@ async function run(page) {
   fs.mkdirSync(OUT, { recursive: true });
   await app.hideStarNotice(page);
   await app.waitFor(() => app.inPage(page, () => Boolean(document.querySelector("[data-region=composer] form"))), { label: "the chat screen" });
-  if (LANGUAGE) {
-    await app.inPage(page, (language) => {
-      const saved = JSON.parse(localStorage.getItem("draggy_settings") || "{}");
-      localStorage.setItem("draggy_settings", JSON.stringify({ ...saved, language }));
-    }, LANGUAGE);
-    await page.reload();
-    await app.hideStarNotice(page);
-  }
   log("composer says", JSON.stringify(await app.inPage(page, () => document.querySelector("[data-region=composer] form textarea").placeholder)));
   await app.sleep(2000);
 
   if (wanted("chat")) await scene("chat", async () => {
-    await app.sendAndWait(page, "the wal file still keeps growing even after a checkpoint runs, what can hold it open?", { log });
+    await app.sendAndWait(page, P("chat"), { log });
     await shoot(page, "app-chat");
   });
 
   if (wanted("extensions")) await scene("extensions", async () => {
     await app.openWorkspace(page, "default");
-    await app.clickText(page, "Settings", { exact: true });
+    await app.clickText(page, T("settings"), { exact: true });
     await app.sleep(800);
-    await openSettingsPage(page, "App", "Extensions");
+    await openSettingsPage(page, T("settingsApp"), T("extensions"));
     await app.sleep(2500);
     await shoot(page, "app-extensions");
-    await app.clickText(page, "Skills", { exact: true });
+    await app.clickText(page, T("extensionSkills"), { exact: true });
     await app.sleep(1200);
     await shoot(page, "app-skills");
   });
 
   if (wanted("project")) await scene("project", async () => {
     await app.openWorkspace(page, "weather");
-    await app.sendAndWait(page, "in src/format.ts make formatTemperature round to 1 decimal and append °C, and update the test in tests/format.test.ts to expect 21.0°C. just edit the files, dont run anything", { log });
+    await app.sendAndWait(page, P("project"), { log });
     // Each edit shows as a diff in the reply; bring the last one into view.
-    await app.inPage(page, () => {
-      const edits = [...document.querySelectorAll("span")].filter((node) => /^(Wrote|Edited)\b/.test(node.textContent.trim()));
+    await app.inPage(page, (wrote) => {
+      const edits = [...document.querySelectorAll("span")].filter((node) => node.textContent.trim().startsWith(wrote));
       edits.at(-1)?.scrollIntoView({ block: "start" });
-    });
+    }, T("wroteFile"));
     await app.sleep(1500);
     await shoot(page, "app-project");
   });
 
   if (wanted("skills")) await scene("skills", async () => {
     await app.openWorkspace(page, "default");
-    await app.clickText(page, "New chat");
+    await app.clickText(page, T("newDiscussion"));
     await app.inPage(page, () => {
       const box = document.querySelector("[data-region=composer] form textarea");
       const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
@@ -193,36 +235,36 @@ async function run(page) {
     });
     await app.sleep(500);
     await capture(page, "app-skill-menu");
-    await app.sendAndWait(page, "/proofreader Their going too the park tomorow, weather permiting, and they has invited Sam.", { log });
+    await app.sendAndWait(page, P("proof"), { log });
     await shoot(page, "app-skill-request");
     await app.openWorkspace(page, "weather");
-    await app.sendAndWait(page, "/proofreader The weather-cli prints the forcast for any city, and it round every temperature to one decimal with a °C sign.", { log });
-    await app.clickText(page, "Context window:")
+    await app.sendAndWait(page, P("proofProject"), { log });
+    await app.clickText(page, `${T("contextWindow")}:`)
       .then(async () => {
         await app.inPage(page, () => {
           const header = document.querySelector("[role=dialog] button[aria-expanded]");
           if (header && header.getAttribute("aria-expanded") === "false") header.click();
         });
         await shoot(page, "app-skill-context");
-        await app.clickText(page, "Context window:");
+        await app.clickText(page, `${T("contextWindow")}:`);
       })
       .catch((error) => log("skipped app-skill-context:", error.message));
   });
 
   if (wanted("history")) await scene("history", async () => {
     await app.openWorkspace(page, "default");
-    await app.clickText(page, "New chat");
-    await app.sendAndWait(page, "how do i handle backpressure in nodejs readable streams with highWaterMark?", { log });
-    await app.clickText(page, "New chat");
-    await app.sendAndWait(page, "write a type guard in typescript for a discriminated union with status error", { log });
+    await app.clickText(page, T("newDiscussion"));
+    await app.sendAndWait(page, P("history1"), { log });
+    await app.clickText(page, T("newDiscussion"));
+    await app.sendAndWait(page, P("history2"), { log });
     await app.sleep(1200);
     await shoot(page, "app-history");
   });
 
   if (wanted("stats")) await scene("stats", async () => {
-    await app.clickText(page, "Settings");
-    await app.clickText(page, "Statistics");
-    await app.clickText(page, "All time");
+    await app.clickText(page, T("settings"));
+    await app.clickText(page, T("statistics"));
+    await app.clickText(page, T("statsAllTime"));
     await app.sleep(1000);
     await shoot(page, "app-stats");
   });
@@ -232,7 +274,7 @@ async function run(page) {
     await hoverSidebar(page, true);
     await shoot(page, "app-mode-chat");
     await hoverSidebar(page, false);
-    await app.clickText(page, "Code", { exact: true });
+    await app.clickText(page, T("codeMode"), { exact: true });
     await app.sleep(2500);
     await hoverSidebar(page, true);
     await shoot(page, "app-mode-code");
@@ -241,24 +283,17 @@ async function run(page) {
     await app.setDark(page, true);
     await capture(page, "app-mode-rail-dark");
     await app.setDark(page, false);
-    await app.clickText(page, "Chat", { exact: true });
+    await app.clickText(page, T("chatMode"), { exact: true });
     await app.sleep(1500);
   });
 
   if (wanted("settings")) await scene("settings", async () => {
     await app.openWorkspace(page, "weather");
-    await app.clickText(page, "Settings", { exact: true });
+    await app.clickText(page, T("settings"), { exact: true });
     await app.sleep(800);
     const pages = [
-      ["App", "General", "app-settings-general"],
-      ["App", "Models", "app-settings-models"],
-      ["App", "Extensions", "app-settings-extensions"],
-      ["App", "Data", "app-settings-data"],
-      ["Chat", "Preferences", "app-settings-chat"],
-      ["Chat", "Talk", "app-settings-talk"],
-      ["Chat", "Library", "app-settings-library"],
-      ["Code", "Preferences", "app-settings-code"],
-      ["Code", "Projects", "app-settings-projects"],
+      [T("settingsApp"), T("settingsGeneral"), "app-settings-general"],
+      [T("codeMode"), T("preferences"), "app-settings-code"],
     ];
     for (const [group, label, name] of pages) {
       await openSettingsPage(page, group, label);
@@ -268,11 +303,11 @@ async function run(page) {
 
   if (wanted("command")) await scene("command", async () => {
     await app.openWorkspace(page, "weather");
-    await app.submitText(page, "Run the shell command `git log --oneline -1` using your run command tool, then tell me the commit message.");
-    const outcome = await app.waitFor(() => app.inPage(page, () => {
-      if (document.body.innerText.includes("Run a command")) return "approval";
+    await app.submitText(page, P("command"));
+    const outcome = await app.waitFor(() => app.inPage(page, (card) => {
+      if (document.body.innerText.includes(card)) return "approval";
       return document.querySelector("[data-stop='true']") ? null : "replied";
-    }), { timeout: 420_000, every: 1000, label: "the command approval card" });
+    }, T("approvalRunCommand")), { timeout: 420_000, every: 1000, label: "the command approval card" });
     log("outcome", outcome);
     if (outcome !== "approval") {
       await capture(page, "app-command-no-approval");
@@ -281,7 +316,7 @@ async function run(page) {
     await app.sleep(800);
     await app.inPage(page, () => [...document.querySelectorAll("pre")].at(-1)?.scrollIntoView({ block: "center" }));
     await shoot(page, "app-command-approval");
-    await app.clickText(page, "Allow once");
+    await app.clickText(page, T("allowOnce"));
     await app.waitFor(async () => {
       const allowed = await app.allowPending(page);
       if (allowed) log("allowed once:", allowed);
@@ -294,7 +329,7 @@ async function run(page) {
 
   if (wanted("browser")) await scene("browser", async () => {
     // Links open in the Browser pane, a native view: its page is captured on its own and laid over the window's capture.
-    await app.inPage(page, () => window.open("https://en.wikipedia.org/wiki/SQLite", "_blank"));
+    await app.inPage(page, (url) => window.open(url, "_blank"), `https://${LANG}.wikipedia.org/wiki/SQLite`);
     const pane = await app.waitFor(() => app.panePage(page.context().browser()), { timeout: 60_000, label: "the browser pane" });
     await pane.waitForLoadState("load").catch(() => {});
     await pane.addStyleTag({ content: "#frbanner, #centralNotice, .frb, [id^=frb], .cn-fundraising { display: none !important; }" }).catch(() => {});
@@ -306,14 +341,30 @@ async function run(page) {
       const paneShot = path.join(OUT, `.pane-${dark ? "dark" : "light"}.png`);
       fs.writeFileSync(shell, await app.capturePng(page, WIDTH, HEIGHT));
       fs.writeFileSync(paneShot, await pane.screenshot({ type: "png" }));
-      app.overlayPane(shell, paneShot, await app.paneRect(page), path.join(OUT, `app-browser-${dark ? "dark" : "light"}.png`));
+      app.overlayPane(shell, paneShot, await app.paneRect(page), path.join(OUT, `${stem(`app-browser-${dark ? "dark" : "light"}`)}.png`));
       fs.rmSync(shell, { force: true });
       fs.rmSync(paneShot, { force: true });
-      log(`saved app-browser-${dark ? "dark" : "light"}.png (pane over the window)`);
+      log(`saved ${stem(`app-browser-${dark ? "dark" : "light"}`)}.png (pane over the window)`);
     }
     await app.setDark(page, false);
     await page.keyboard.press("Escape");
     await app.sleep(800);
+  });
+
+  if (wanted("permissions")) await scene("permissions", async () => {
+    await app.openWorkspace(page, "weather", "code");
+    await app.clickText(page, T("newSession")).catch(() => {});
+    await app.sleep(1200);
+    const openMenu = () => app.clickText(page, `${T("permissionMode")}:`);
+    await openMenu();
+    await app.sleep(600);
+    await app.clickText(page, T("permissionAcceptEdits"), { exact: true });
+    await app.sleep(600);
+    await openMenu();
+    await app.sleep(900);
+    await shoot(page, "app-permission-modes");
+    await page.keyboard.press("Escape");
+    await app.sleep(500);
   });
 
   if (wanted("talk")) await scene("talk", async () => {
@@ -323,20 +374,21 @@ async function run(page) {
       localStorage.setItem("draggy_settings", JSON.stringify({ ...saved, voiceModel: model }));
     }, SHOTS_MODEL);
     await app.openWorkspace(page, "default");
-    await app.clickText(page, "Talk");
+    await app.clickText(page, T("talk"), { exact: true });
     await app.sleep(2500);
-    await app.waitFor(() => app.inPage(page, () => {
+    await app.waitFor(() => app.inPage(page, (words) => {
       const body = document.body.innerText;
-      const loading = /Loading voice model|Downloading|Preparing/.test(body);
+      const loading = body.includes(words.loading) || /Downloading|Preparing/.test(body);
       const hasError = /Failed to fetch|Download failed|Could not start/.test(body);
-      return !loading && !hasError && /Listening|Speaking|Thinking/.test(body) && /Show chat/.test(body);
-    }), { timeout: 240_000, every: 1000, label: "Talk to finish loading and become live" });
+      return !loading && !hasError && words.live.some((word) => body.includes(word)) && body.includes(words.showChat);
+    }, { loading: T("loadingSpeechModel"), live: [T("voiceListening"), T("voiceSpeaking"), T("voiceThinking")], showChat: T("talkShowChat") }), { timeout: 240_000, every: 1000, label: "Talk to finish loading and become live" });
     await app.sleep(2500);
     await shoot(page, "app-talk");
   });
 }
 
-(async () => {
+async function takeLanguage(lang) {
+  LANG = lang;
   const exe = flag("--exe", undefined);
   const port = Number(flag("--port", process.env.DRAGGY_CDP_PORT || 9222));
   const scratchProfile = {
@@ -347,28 +399,32 @@ async function run(page) {
     exe,
     port,
     scale: process.env.DRAGGY_SHOTS_SCALE || "1.6",
-    lang: LANGUAGE || "en-US",
+    lang: LOCALE[lang] || "en-US",
     prefix: scratchProfile.prefix,
     model: ONBOARDING ? "" : scratchProfile.model,
     env: ONBOARDING ? { DRAGGY_ONBOARDING: "1" } : {},
   });
   try {
-    log("data folder", session.scratch);
+    log("language", lang, "data folder", session.scratch);
     await app.sizeWindow(session.page, WIDTH, HEIGHT, session.child);
     if (ONBOARDING) {
       await runOnboarding(session.page);
     } else {
       const project = path.join(session.scratch, "weather-cli");
       app.writeDemoProject(project);
-      await app.seedProfile(session.page, { project, model: scratchProfile.model });
+      await app.seedProfile(session.page, { project, model: scratchProfile.model, language: lang });
       await run(session.page);
     }
-    log("done");
+    log("done", lang);
   } catch (error) {
     console.error("[shots] failed:", error.message);
     process.exitCode = 1;
-    await app.capturePng(session.page, WIDTH, HEIGHT).then((png) => fs.writeFileSync(path.join(OUT, "failure.png"), png)).catch(() => {});
+    await app.capturePng(session.page, WIDTH, HEIGHT).then((png) => fs.writeFileSync(path.join(OUT, `failure-${lang}.png`), png)).catch(() => {});
   } finally {
     await session.close();
   }
+}
+
+(async () => {
+  for (const lang of LANGS) await takeLanguage(lang);
 })();

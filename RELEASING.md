@@ -92,11 +92,11 @@ colibri is pinned too. `core/crates/engine/src/colibri_runtime.rs` holds the rel
 
 ## Website updates
 
-The site at draggy.org lives in its own repository (`../draggy-website`) and describes the released app, so update it on release day, not before.
+The site at draggy.org lives in its own repository (`../draggy-website`) and the documentation at docs.draggy.org in another (`../draggy-docs`). Both describe the released app, so update them on release day, not before.
 
 Before running the workflow, make sure:
 - the documentation and site pages reflect what changed, in English, French, Spanish, and Russian;
-- screenshots match the release interface. The screenshot scripts that older notes name are not in this repository, so retake them by hand from a `npm run tauri:build` run;
+- screenshots and clips match the release interface. Retake them with `npm run shots` and `npm run clips` in `win/`, which write into the docs and website checkouts;
 - the privacy policy date is updated if network behavior changed, listing any new endpoints.
 
 For details on how updates apply after install, see the docs' [Installation](https://docs.draggy.org/installation) page.

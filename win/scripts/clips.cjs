@@ -27,14 +27,24 @@ const MODEL = path.basename(String(process.env.DRAGGY_SHOTS_MODEL || "Qwen3.6-35
 const FFMPEG = process.env.DRAGGY_FFMPEG || "ffmpeg";
 const WEBM_LIMIT = 1_500_000;
 const POSTER_LIMIT = 60_000;
-const VOICE_WAV = process.env.DRAGGY_CLIPS_WAV || "C:/clip-voice/question-pad.wav";
+// One spoken question per language, as C:/clip-voice/question-<lang>.wav. A language without one skips the voice clip.
+const VOICE_DIR = process.env.DRAGGY_CLIPS_WAV_DIR || "C:/clip-voice";
+const LANGS = (process.env.DRAGGY_CLIPS_LANGS || "en,fr,es,ru").split(",").filter(Boolean);
 const log = (...parts) => console.log("[clips]", ...parts);
 const wanted = (clip) => ONLY.length === 0 || ONLY.includes(clip);
+const voiceWav = (lang) => path.join(VOICE_DIR, `question-${lang}.wav`);
 
 // The fake microphone is a Chromium switch, passed to WebView2 with the launch.
-const voiceArgs = ONLY.includes("voice") && fs.existsSync(VOICE_WAV)
-  ? ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-audio-capture=${VOICE_WAV}`]
+const voiceArgs = (lang) => wanted("voice") && fs.existsSync(voiceWav(lang))
+  ? ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-audio-capture=${voiceWav(lang).split(path.sep).join("/")}`]
   : [];
+
+// The app's own strings, so the scenes find buttons by the label shown in the language being recorded.
+const STRINGS = app.appStrings();
+let LANG = "en";
+const T = (key) => STRINGS[LANG]?.[key] || STRINGS.en[key];
+// English keeps the plain names the site has always used; other languages add their code.
+const stemFor = (clip, tone) => (LANG === "en" ? `${clip}-${tone}` : `${clip}-${LANG}-${tone}`);
 
 /* ---------- the drawn pointer ---------- */
 
@@ -82,6 +92,12 @@ class Recorder {
     this.speed = SPEED;
     this.running = false;
     this.watchPane = false;
+    this.from = 0;
+  }
+
+  // Drops every frame so far: the clip opens here.
+  cut() {
+    this.from = this.frames.length;
   }
 
   async start(name) {
@@ -93,7 +109,14 @@ class Recorder {
     this.loop = (async () => {
       let last = Date.now();
       while (this.running) {
-        const image = await this.page.screenshot({ clip: { x: 0, y: 0, width: WIDTH, height: HEIGHT }, type: "jpeg", quality: 92 });
+        let image;
+        try {
+          image = await this.page.screenshot({ clip: { x: 0, y: 0, width: WIDTH, height: HEIGHT }, type: "jpeg", quality: 92 });
+        } catch (error) {
+          log("frame capture stopped:", error.message.split("\n")[0]);
+          this.running = false;
+          break;
+        }
         const now = Date.now();
         const index = this.frames.length;
         const id = String(index).padStart(5, "0");
@@ -231,7 +254,7 @@ class Recorder {
   async encode(clip, tone) {
     const kept = [];
     let owed = 0;
-    for (const f of this.frames) {
+    for (const f of this.frames.slice(this.from)) {
       const real = Math.max(20, f.real) / 1000;
       const seconds = f.fast ? real / this.speed : real;
       owed += seconds;
@@ -241,7 +264,7 @@ class Recorder {
     }
     if (kept.length && owed > 0) kept[kept.length - 1].seconds += owed;
 
-    const name = `${clip}-${tone}`;
+    const name = stemFor(clip, tone);
     const list = [];
     for (const f of kept) {
       const id = String(f.index).padStart(5, "0");
@@ -305,20 +328,32 @@ class Recorder {
 // Opens a workspace in a mode and starts a fresh conversation, whatever the app reopened on.
 async function openClip(page, id, mode) {
   await app.openWorkspace(page, id, mode);
-  await app.inPage(page, () => {
-    const start = [...document.querySelectorAll("button, a, [role=button]")].find((n) => /^New (chat|session)/.test(n.textContent.trim()));
+  await app.inPage(page, (labels) => {
+    const start = [...document.querySelectorAll("button, a, [role=button]")].find((n) => labels.some((label) => n.textContent.trim().startsWith(label)));
     start?.click();
-  });
+  }, [T("newDiscussion"), T("newSession")]);
   await app.sleep(1200);
 }
 
 const generating = (page) => app.generating(page);
-const approving = (page) => app.inPage(page, () => [...document.querySelectorAll("button")].some((n) => n.textContent.trim().startsWith("Allow once")));
+const buttonStarting = (label) => [...document.querySelectorAll("button")].find((n) => n.textContent.trim().startsWith(label));
+const approving = (page) => app.inPage(page, (label) => [...document.querySelectorAll("button")].some((n) => n.textContent.trim().startsWith(label)), T("allowOnce"));
 
-// Types a question like a person and sends it.
-async function ask(rec, text, rhythm = 1) {
+// Types a question like a person and sends it. The clip opens near the end of the typing: the first nine
+// tenths go in at once, out of shot, and the rest is typed on camera.
+async function ask(rec, text, { cut = true, rhythm = 1 } = {}) {
   await rec.clickOn(() => document.querySelector("[data-region=composer] form textarea"));
-  await rec.type(text, rhythm);
+  if (cut) {
+    const words = text.split(" ");
+    let head = "";
+    while (words.length > 1 && (head.length + words[0].length + 1) / text.length < 0.9) head += `${words.shift()} `;
+    if (head) await rec.page.keyboard.insertText(head);
+    await app.sleep(300);
+    rec.cut();
+    await rec.type(words.join(" "), rhythm);
+  } else {
+    await rec.type(text, rhythm);
+  }
   await app.sleep(450 + Math.random() * 350);
   await rec.clickOn(() => document.querySelector("[data-region=composer] form button[type=submit]"));
 }
@@ -337,11 +372,119 @@ async function work(rec, page, { allow = false } = {}) {
   }, { timeout: 900_000, every: 400, label: "the reply" });
 }
 
+// Waits out a reply, allowing the agent onto a site for the session each time it asks.
+async function workAllowingSites(rec, page) {
+  for (;;) {
+    await work(rec, page);
+    const consent = await app.inPage(page, (label) => [...document.querySelectorAll("button")].some((n) => n.textContent.trim().startsWith(label)), T("browserConsentSession"));
+    if (!consent) break;
+    rec.fast = false;
+    await app.sleep(900);
+    await rec.clickOn((label) => [...document.querySelectorAll("button")].find((n) => n.textContent.trim().startsWith(label)), T("browserConsentSession"));
+  }
+  rec.fast = false;
+}
+
 async function dump(page, name) {
   if (!DUMP) return;
   fs.mkdirSync(DUMP, { recursive: true });
-  fs.writeFileSync(path.join(DUMP, `${name}.html`), await page.evaluate("document.body.innerHTML"));
+  fs.writeFileSync(path.join(DUMP, `${name}-${LANG}.html`), await page.evaluate("document.body.innerHTML"));
 }
+
+// Settings: open it from the sidebar, then a section in its menu.
+async function openSettings(rec, section) {
+  await rec.clickOn((label) => [...document.querySelectorAll("button, a")].find((n) => n.offsetParent && n.textContent.trim().startsWith(label)), T("settings"));
+  await app.sleep(900);
+  await rec.clickOn((label) => [...document.querySelectorAll("button, a")].filter((n) => n.offsetParent && n.textContent.trim() === label).pop(), section);
+  await app.sleep(900);
+}
+
+// A month of shop orders, the file dropped on the chat in the attachment clip. One product comes back
+// far more than the others, mostly in one week, so there is something to find.
+function ordersCsv() {
+  const products = [["Linen tea towel", 12], ["Ceramic mug", 18], ["Oak cutting board", 46], ["Wool throw", 89], ["Beeswax candle", 15], ["Enamel teapot", 54]];
+  const rows = ["order_id,date,product,qty,unit_price,status"];
+  let seed = 7;
+  const next = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (let i = 0; i < 160; i += 1) {
+    const day = 1 + Math.floor(next() * 31);
+    const [product, price] = products[Math.floor(next() * products.length)];
+    const hot = product === "Enamel teapot" && day >= 13 && day <= 19;
+    const status = next() < (hot ? 0.55 : 0.06) ? "returned" : "delivered";
+    rows.push(`${10400 + i},2026-10-${String(day).padStart(2, "0")},${product},${1 + Math.floor(next() * 3)},${price}.00,${status}`);
+  }
+  return `${rows.join("\n")}\n`;
+}
+
+// Drops a file on the chat the way Explorer does, with a short drag in from the edge first.
+async function dropFile(rec, page, name, type, text) {
+  await rec.moveTo(1180, 520);
+  await app.sleep(300);
+  await rec.moveTo(760, 600);
+  await app.inPage(page, ({ name, type, text }) => {
+    // The form, not the textarea, so the file lands once on builds where both drop handlers ran.
+    const target = document.querySelector("[data-region=composer] form");
+    const data = new DataTransfer();
+    data.items.add(new File([text], name, { type }));
+    for (const kind of ["dragenter", "dragover", "drop"]) target.dispatchEvent(new DragEvent(kind, { bubbles: true, cancelable: true, dataTransfer: data }));
+  }, { name, type, text });
+  await app.sleep(1500);
+}
+
+/* ---------- what is typed, per language ---------- */
+
+const PROMPTS = {
+  en: {
+    hero: "what's new in node 24? check the release notes and give me the highlights",
+    research: "how long can I keep a sourdough starter in the fridge without feeding it? link where you read it",
+    code: "formatTemperature in src/format.ts should round to one decimal and add °C. can you change it and update tests/format.test.ts to match?",
+    approval: "run the tests and tell me if anything fails",
+    image: "draw a cozy reading nook by a rainy window, warm lamp light, in a soft watercolor style",
+    attach: "these are last month's orders. which product got returned the most, and was there a week where returns jumped?",
+    mcp: "how do I add middleware to a next.js 15 app? go by the current docs",
+    skills: "/headline-writer our public engineering blog post on moving CI from Jenkins to GitHub Actions. PR builds went from 25 minutes to 8 and we shut down three build servers. give me a few options and pick one",
+    browser: "what's the difference between a 401 and a 403? find it on mdn and link the page",
+    cloud: "open",
+  },
+  fr: {
+    hero: "quoi de neuf dans node 24 ? regarde les notes de version et résume l'essentiel",
+    research: "combien de temps je peux laisser un levain au frigo sans le nourrir ? mets les liens de tes sources",
+    code: "formatTemperature dans src/format.ts devrait arrondir à une décimale et ajouter °C. tu peux le changer et mettre tests/format.test.ts à jour ?",
+    approval: "lance les tests et dis-moi si quelque chose casse",
+    image: "dessine un coin lecture douillet près d'une fenêtre sous la pluie, avec la lumière chaude d'une lampe, à l'aquarelle",
+    attach: "voici les commandes du mois dernier. quel produit a été le plus retourné, et y a-t-il une semaine où les retours ont grimpé ?",
+    mcp: "comment ajouter un middleware dans une app next.js 15 ? appuie-toi sur la doc à jour",
+    skills: "/headline-writer l'article de notre blog technique public sur le passage de Jenkins à GitHub Actions. les builds de PR sont passés de 25 à 8 minutes et on a éteint trois serveurs de build. propose quelques titres et choisis-en un",
+    browser: "quelle différence entre une 401 et une 403 ? trouve ça sur mdn et mets le lien",
+    cloud: "open",
+  },
+  es: {
+    hero: "¿qué hay de nuevo en node 24? mira las notas de la versión y dime lo más importante",
+    research: "¿cuánto aguanta una masa madre en la nevera sin alimentarla? enlaza dónde lo leíste",
+    code: "formatTemperature en src/format.ts debería redondear a un decimal y añadir °C. ¿puedes cambiarlo y actualizar tests/format.test.ts?",
+    approval: "pasa los tests y dime si algo falla",
+    image: "dibuja un rincón de lectura acogedor junto a una ventana con lluvia, con luz cálida de lámpara, en acuarela suave",
+    attach: "estos son los pedidos del mes pasado. ¿qué producto se devolvió más y hubo alguna semana con un pico de devoluciones?",
+    mcp: "¿cómo añado un middleware a una app de next.js 15? guíate por la documentación actual",
+    skills: "/headline-writer el artículo de nuestro blog de ingeniería público sobre pasar de Jenkins a GitHub Actions. los builds de las PR bajaron de 25 a 8 minutos y apagamos tres servidores de build. dame algunas opciones y elige una",
+    browser: "¿qué diferencia hay entre un 401 y un 403? búscalo en mdn y enlaza la página",
+    cloud: "open",
+  },
+  ru: {
+    hero: "что нового в node 24? посмотри заметки к релизу и перескажи главное",
+    research: "сколько закваска может простоять в холодильнике без подкормки? дай ссылки, где ты это прочитал",
+    code: "formatTemperature в src/format.ts должна округлять до одного знака и добавлять °C. поменяешь её и обновишь tests/format.test.ts?",
+    approval: "запусти тесты и скажи, если что-то падает",
+    image: "нарисуй уютный уголок для чтения у окна в дождь, тёплый свет лампы, мягкой акварелью",
+    attach: "это заказы за прошлый месяц. какой товар возвращали чаще всего и была ли неделя, когда возвратов стало резко больше?",
+    mcp: "как добавить middleware в приложение на next.js 15? опирайся на свежую документацию",
+    skills: "/headline-writer статья для нашего открытого инженерного блога о переходе с Jenkins на GitHub Actions. сборки PR ускорились с 25 до 8 минут, и мы отключили три сервера сборки. предложи несколько заголовков и выбери один",
+    browser: "чем 401 отличается от 403? найди на mdn и дай ссылку",
+    cloud: "open",
+  },
+};
+const P = (clip) => PROMPTS[LANG]?.[clip] || PROMPTS.en[clip];
+const CSV_NAME = { en: "orders-october.csv", fr: "commandes-octobre.csv", es: "pedidos-octubre.csv", ru: "zakazy-oktyabr.csv" };
 
 /* ---------- the clips ---------- */
 
@@ -351,79 +494,118 @@ const CLIPS = {
     workspace: ["default", "chat"],
     speed: 8,
     async script(rec, page) {
-      await ask(rec, "what changed in python 3.13? check the official docs and list the main points");
-      // The agent asks before it clicks on the site: allow it for the session, then wait for the finished reply.
-      for (;;) {
-        await work(rec, page);
-        if (!(await approving(page))) break;
-        rec.fast = false;
-        await app.sleep(900);
-        await rec.clickOn(() => [...document.querySelectorAll("button")].find((n) => /^Allow for this session/.test(n.textContent.trim())));
-      }
-      rec.fast = false;
+      await ask(rec, P("hero"));
+      await workAllowingSites(rec, page);
       await app.sleep(2000);
     },
   },
+  // Research with sources, then a look at the steps and one of the pages it read.
   research: {
     workspace: ["default", "chat"],
     speed: 24,
     async script(rec, page) {
-      await ask(rec, "is sqlite safe to use from several threads? link where you found that");
-      await work(rec, page);
-      rec.fast = false;
+      await ask(rec, P("research"));
+      await workAllowingSites(rec, page);
       await app.sleep(900);
       await dump(page, "research");
-      // Open the steps, then the search results, then press one of the sources.
-      await rec.clickOn(() => [...document.querySelectorAll("[data-region=transcript] button[aria-expanded=false]")].find((n) => /worked|searched|read/i.test(n.textContent)));
+      await rec.clickOn(() => document.querySelector("[data-region=transcript] button[aria-expanded=false]"));
       await app.sleep(500);
       await rec.clickOn(() => document.querySelector("[data-region=transcript] a[href^=http]"));
       await app.sleep(1800);
     },
   },
+  // A project in Code mode: the agent reads the files, edits two of them and shows the diff.
   code: {
     workspace: ["weather", "code"],
     reset: true,
     async script(rec, page) {
-      await ask(rec, "make formatTemperature in src/format.ts round to 1 decimal and add °C, then fix tests/format.test.ts to match. just edit the files, dont run anything");
-      await work(rec, page);
+      await ask(rec, P("code"));
+      // AGENTS.md in the demo project asks for `npm test`, so the run stops on the approval card.
+      for (;;) {
+        await work(rec, page);
+        if (!(await approving(page))) break;
+        rec.fast = false;
+        await app.sleep(900);
+        await rec.clickOn(buttonStarting, T("allowOnce"));
+      }
       rec.fast = false;
       await app.sleep(2200);
     },
   },
+  // A command waits for the person: the card, the press, the result.
   approval: {
     workspace: ["weather", "code"],
     reset: true,
     async script(rec, page) {
-      await ask(rec, "run npm test in the terminal to verify the test suite");
+      await ask(rec, P("approval"));
       rec.fast = true;
       await app.waitFor(() => approving(page), { timeout: 150_000, every: 300, label: "the approval card" });
       rec.fast = false;
       await app.sleep(1400);
       await dump(page, "approval");
-      await rec.clickOn(() => [...document.querySelectorAll("button")].find((n) => /^Allow once/.test(n.textContent.trim())));
       for (;;) {
+        await rec.clickOn(buttonStarting, T("allowOnce"));
         rec.fast = true;
         await app.waitFor(async () => (await approving(page)) || !(await generating(page)), { timeout: 600_000, every: 400, label: "the reply" });
         rec.fast = false;
         if (!(await approving(page))) break;
         await app.sleep(900);
-        await rec.clickOn(() => [...document.querySelectorAll("button")].find((n) => /^Allow once/.test(n.textContent.trim())));
       }
       await app.sleep(1500);
     },
   },
-  voice: {
+  // A picture from the local image model, drawn in the chat.
+  image: {
+    workspace: ["default", "chat"],
+    speed: 10,
+    // A model that never called the image tool draws SVG instead; that take does not count.
+    check: (page) => app.inPage(page, () => Boolean(document.querySelector("[data-region=transcript] img"))),
+    async script(rec, page) {
+      await ask(rec, P("image"));
+      await work(rec, page);
+      rec.fast = false;
+      await app.sleep(2500);
+    },
+  },
+  // A file dropped on the chat and a question about it.
+  attach: {
     workspace: ["default", "chat"],
     async script(rec, page) {
-      await rec.clickOn(() => document.querySelector("[data-region=composer] form button[aria-label^='Voice input']"));
+      await dropFile(rec, page, CSV_NAME[LANG] || CSV_NAME.en, "text/csv", ordersCsv());
+      rec.cut();
+      await ask(rec, P("attach"), { cut: false, rhythm: 0.6 });
+      await work(rec, page);
+      rec.fast = false;
+      await app.sleep(2200);
+    },
+  },
+  // Voice: the question is spoken, written into the box, and sent.
+  voice: {
+    workspace: ["default", "chat"],
+    // A fresh profile downloads the speech model on first use; one unrecorded dictation loads it before the take.
+    async prepare(page) {
+      const mic = (label) => app.inPage(page, (l) => document.querySelector(`[data-region=composer] form button[aria-label^='${l}']`)?.click(), label);
+      const typed = () => app.inPage(page, () => document.querySelector("[data-region=composer] form textarea")?.value || "");
+      await mic(T("voiceInput"));
+      await app.sleep(4000);
+      await mic(T("voiceListening"));
+      await app.waitFor(async () => (await typed()).trim().length > 3, { timeout: 300_000, every: 500, label: "the speech model" });
+      await app.inPage(page, () => {
+        const box = document.querySelector("[data-region=composer] form textarea");
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(box, "");
+        box.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await app.sleep(800);
+    },
+    async script(rec, page) {
+      await rec.clickOn((label) => document.querySelector(`[data-region=composer] form button[aria-label^='${label}']`), T("voiceInput"));
       await app.sleep(1500);
       rec.fast = true;
-      await app.sleep(1600);
+      await app.sleep(5600);
       rec.fast = false;
-      await rec.clickOn(() => document.querySelector("[data-region=composer] form button[aria-label^='Listening']"));
+      await rec.clickOn((label) => document.querySelector(`[data-region=composer] form button[aria-label^='${label}']`), T("voiceListening"));
       await app.sleep(500);
       await app.waitFor(() => app.inPage(page, () => (document.querySelector("[data-region=composer] form textarea")?.value || "").trim().length > 3), { timeout: 30_000, every: 300, label: "the transcript" });
-      rec.fast = false;
       await app.sleep(700);
       await rec.clickOn(() => document.querySelector("[data-region=composer] form button[type=submit]"));
       await work(rec, page);
@@ -431,24 +613,76 @@ const CLIPS = {
       await app.sleep(2000);
     },
   },
+  // An MCP server switched on in Settings, then used in the next question.
+  mcp: {
+    workspace: ["default", "chat"],
+    speed: 12,
+    async prepare(page) {
+      await app.inPage(page, () => window.draggy?.mcp?.setEnabled?.("context7", false)).catch(() => {});
+    },
+    async script(rec, page) {
+      await openSettings(rec, T("extensions"));
+      const toggle = () => document.querySelector("[role=switch][aria-label='Context7 docs']");
+      if (await app.inPage(page, () => document.querySelector("[role=switch][aria-label='Context7 docs']")?.getAttribute("aria-checked") === "true")) {
+        await app.inPage(page, () => document.querySelector("[role=switch][aria-label='Context7 docs']").click());
+        await app.sleep(1500);
+      }
+      await rec.clickOn(toggle);
+      rec.fast = true;
+      await app.waitFor(() => app.inPage(page, () => /·\s*\d/.test(document.querySelector("[role=switch][aria-label='Context7 docs']")?.closest("div:has(> div > p), li, [class*=rounded]")?.innerText || "") || /2 tools|2 outils|2 herramientas|2 инструмент/.test(document.body.innerText)), { timeout: 120_000, every: 400, label: "Context7 running" }).catch(() => log("context7 status not seen"));
+      rec.fast = false;
+      await app.sleep(1200);
+      // The window's own Close button shares the label and comes first, so take the one under the title bar.
+      await rec.clickOn((label) => [...document.querySelectorAll("button")].find((n) => n.offsetParent && n.getAttribute("aria-label") === label && n.getBoundingClientRect().y > 30), T("closeDialog"));
+      await app.sleep(900);
+      await ask(rec, P("mcp"), { cut: false, rhythm: 0.6 });
+      await work(rec, page);
+      rec.fast = false;
+      await app.sleep(2200);
+    },
+  },
+  // A skill picked from the slash menu, used on the request after it.
+  skills: {
+    workspace: ["default", "chat"],
+    // Library skills start off, so switch this one on and reopen the chat to load the list again.
+    async prepare(page) {
+      await app.inPage(page, () => window.draggy.skills.setEnabled("headline-writer", true));
+      await openClip(page, "default", "chat");
+    },
+    async script(rec, page) {
+      await ask(rec, P("skills"));
+      await work(rec, page);
+      rec.fast = false;
+      await app.sleep(2200);
+    },
+  },
+  // Cloud models: the model menu leads to the providers, the accounts and the API keys.
+  cloud: {
+    workspace: ["default", "chat"],
+    async script(rec, page) {
+      await app.sleep(600);
+      await rec.clickOn(() => [...document.querySelectorAll("[data-region=composer] form button")].find((n) => /Qwen|qwen/.test(n.textContent)));
+      await app.sleep(1200);
+      await rec.clickOn(buttonStarting, T("providers"));
+      await app.sleep(2200);
+      await rec.clickOn((label) => [...document.querySelectorAll("button")].find((n) => n.offsetParent && n.textContent.trim() === label), T("addProvider"));
+      await app.sleep(900);
+      await rec.type(P("cloud"));
+      await app.sleep(1200);
+      await rec.clickOn(() => [...document.querySelectorAll("button, [role=option]")].find((n) => n.offsetParent && n.textContent.trim() === "OpenRouter"));
+      await app.sleep(2600);
+    },
+  },
+  // Draggy's own browser: a link in the answer opens beside the chat.
   browser: {
     workspace: ["default", "chat"],
     watchPane: true,
     speed: 20,
     async script(rec, page) {
-      await ask(rec, "whats the difference between a 401 and a 403? check mdn and link the page");
-      // The agent asks before it clicks on the site: allow it for the session, then wait for the reply.
-      for (;;) {
-        await work(rec, page);
-        if (!(await approving(page))) break;
-        rec.fast = false;
-        await app.sleep(900);
-        await rec.clickOn(() => [...document.querySelectorAll("button")].find((n) => /^Allow for this session/.test(n.textContent.trim())));
-      }
-      rec.fast = false;
+      await ask(rec, P("browser"));
+      await workAllowingSites(rec, page);
       await app.sleep(500);
       await dump(page, "browser");
-      // Press the link: Draggy's own browser opens on the page.
       const find = () => [...document.querySelectorAll("[data-region=transcript] a[href*='developer.mozilla.org'], [data-region=transcript] a[href^='http']")].pop();
       await rec.clickOn(find);
       await app.inPage(page, () => {
@@ -465,9 +699,7 @@ const CLIPS = {
         }
       }, { timeout: 40_000, every: 300, label: "the page" }).catch(() => log("pane never painted blank-free"));
       rec.fast = false;
-      log("pane text", JSON.stringify((await pane.evaluate("document.body ? document.body.innerText.slice(0, 160) : 'nobody'").catch(() => ""))));
       await app.sleep(700);
-      // Read down the page a little, the way a person would.
       for (let i = 0; i < 3; i += 1) {
         await pane.evaluate("window.scrollBy({ top: 260, behavior: 'smooth' })").catch(() => {});
         await app.sleep(900);
@@ -492,10 +724,10 @@ async function warmUp(page) {
     await app.sleep(3000);
     await app.waitFor(async () => !(await generating(page)), { timeout: 600_000, every: 1000, label: "the warm-up reply" });
     await app.sleep(1000);
-    const failed = await app.inPage(page, () => document.body.innerText.includes("too long to load") || document.body.innerText.includes("Retry"));
+    const failed = await app.inPage(page, (retry) => document.body.innerText.includes("too long to load") || [...document.querySelectorAll("button")].some((n) => n.textContent.trim() === retry), T("retry"));
     log("warm-up attempt", attempt, failed ? "failed" : "loaded");
     if (!failed) return;
-    await app.inPage(page, () => [...document.querySelectorAll("button")].find((n) => n.textContent.trim() === "Retry")?.click());
+    await app.inPage(page, (retry) => [...document.querySelectorAll("button")].find((n) => n.textContent.trim() === retry)?.click(), T("retry"));
     await app.sleep(3000);
     await app.waitFor(async () => !(await generating(page)), { timeout: 600_000, every: 1000, label: "the retry" });
     if (!(await app.inPage(page, () => document.body.innerText.includes("too long to load")))) return;
@@ -531,6 +763,7 @@ async function record(session, name, project) {
         }
       }
       await openClip(page, ...clip.workspace);
+      if (clip.prepare) await clip.prepare(page);
       await app.setDark(page, tone === "dark");
       await app.hideStarNotice(page);
       const rec = new Recorder(page, browser);
@@ -538,7 +771,7 @@ async function record(session, name, project) {
       rec.watchPane = Boolean(clip.watchPane);
       rec.speed = clip.speed || SPEED;
       speed = rec.speed;
-      await rec.start(`${name}-${tone}`);
+      await rec.start(stemFor(name, tone));
       await app.sleep(400);
       try {
         await clip.script(rec, page);
@@ -550,7 +783,8 @@ async function record(session, name, project) {
         const failedBadge = [...document.querySelectorAll("[data-region=transcript] button, [data-region=transcript] span")].some((n) => /\bfailed\b/i.test(n.textContent));
         return warning || failedBadge;
       });
-      if (hasErrors && take < 3) {
+      const missed = clip.check ? !(await clip.check(page)) : false;
+      if ((hasErrors || missed) && take < 3) {
         log(`${name}-${tone}: take ${take} showed failed steps, retrying...`);
         await dropNewChats(page, keep);
         continue;
@@ -561,45 +795,57 @@ async function record(session, name, project) {
       break;
     }
   }
-  fs.writeFileSync(path.join(OUT, `${name}.json`), JSON.stringify({ seconds: Math.round(seconds * 10) / 10, speed, model: MODEL }));
+  if (LANG === "en") fs.writeFileSync(path.join(OUT, `${name}.json`), JSON.stringify({ seconds: Math.round(seconds * 10) / 10, speed, model: MODEL }));
 }
 
-(async () => {
+const LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES", ru: "ru-RU" };
+
+// One app per language: the window language, the seeded sidebar and the fake mic all follow it.
+async function recordLanguage(lang) {
+  LANG = lang;
   const project = { path: "" };
   const session = await app.launch({
     exe: flag("--exe", undefined),
     port: Number(flag("--port", process.env.DRAGGY_CDP_PORT || 9222)),
     scale: "1",
+    lang: LOCALE[lang] || "en-US",
     prefix: "draggy-clips-",
     model: process.env.DRAGGY_SHOTS_MODEL || "Qwen3.6-35B-A3B-Q8_0.gguf",
-    extraArgs: [...voiceArgs, "--disable-features=CalculateNativeWinOcclusion"],
+    extraArgs: [...voiceArgs(lang), "--disable-features=CalculateNativeWinOcclusion"],
   });
   try {
-    log("data folder", session.scratch);
+    log("language", lang, "data folder", session.scratch);
     project.path = path.join(session.scratch, "weather-cli");
     app.writeDemoProject(project.path);
     await app.sizeWindow(session.page, WIDTH, HEIGHT, session.child);
-    await app.seedProfile(session.page, { project: project.path, model: MODEL });
+    await app.seedProfile(session.page, { project: project.path, model: MODEL, language: lang });
     await app.waitFor(() => app.inPage(session.page, () => Boolean(document.querySelector("[data-region=composer] form"))), { label: "the chat screen" });
     await app.sleep(2000);
+    const seeded = await chatIds(session.page);
     await warmUp(session.page);
+    await dropNewChats(session.page, seeded);
     for (const name of Object.keys(CLIPS)) {
       if (!wanted(name)) continue;
+      if (name === "voice" && !fs.existsSync(voiceWav(lang))) { log("no voice recording for", lang, "- skipped"); continue; }
       try {
         await record(session, name, project.path);
       } catch (error) {
-        console.error(`[clips] ${name} failed, skipping:`, error.message);
+        console.error(`[clips] ${lang} ${name} failed, skipping:`, error.message);
         process.exitCode = 1;
       }
     }
   } catch (error) {
-    console.error("[clips] failed:", error.message);
+    console.error(`[clips] ${lang} failed:`, error.message);
     process.exitCode = 1;
     if (DUMP && session?.page) {
-      await session.page.screenshot({ path: path.join(DUMP, "clips-fail.png") }).catch(() => {});
+      await session.page.screenshot({ path: path.join(DUMP, `clips-fail-${lang}.png`) }).catch(() => {});
       console.error("[clips] page says:", await session.page.evaluate("document.body.innerText.slice(0,2500)").catch(String));
     }
   } finally {
     if (session) await session.close();
   }
+}
+
+(async () => {
+  for (const lang of LANGS) await recordLanguage(lang);
 })();

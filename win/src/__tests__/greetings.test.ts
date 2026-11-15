@@ -53,7 +53,7 @@ describe("choosing one", () => {
 
   it("uses the whole set as chats come and go", () => {
     const seen = new Set<string>();
-    for (let i = 0; i < 2000; i++) seen.add(pickGreeting("en", `chat-${i}`));
+    for (let i = 0; i < 8000; i++) seen.add(pickGreeting("en", `chat-${i}`));
     expect(seen.size).toBe(GREETINGS.en.length);
   });
 
