@@ -2,4 +2,7 @@ blank_issues_enabled: false
 contact_links:
   - name: draggy.org
     url: https://draggy.org
-    about: Downloads, documentation and more about draggy.
+    about: Downloads and news about draggy.
+  - name: Documentation
+    url: https://docs.draggy.org
+    about: Guides, troubleshooting and the FAQ.
