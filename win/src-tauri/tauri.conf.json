@@ -39,7 +39,7 @@
       "../../LICENSE": "LICENSE",
       "../../NOTICE": "NOTICE",
       "../sandbox/target/release/draggy-sandbox.exe": "sandbox/draggy-sandbox.exe",
-      "../skills-library/**/*": "skills-library/"
+      "../skills-library/": "skills-library/"
     },
     "publisher": "The Draggy authors",
     "copyright": "Copyright © 2026 The Draggy authors",
