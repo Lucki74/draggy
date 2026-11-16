@@ -258,7 +258,8 @@ mod tests {
     #[test]
     fn the_library_ships_with_its_folders() {
         // A glob resource is flattened by the bundler, so each skill's SKILL.md would overwrite the last.
-        let conf: Value = serde_json::from_str(include_str!("../../tauri.conf.json")).expect("conf");
+        let conf: Value =
+            serde_json::from_str(include_str!("../../tauri.conf.json")).expect("conf");
         let resources = &conf["bundle"]["resources"];
         assert_eq!(resources["../skills-library/"], json!("skills-library/"));
         let map = resources.as_object().expect("map");
