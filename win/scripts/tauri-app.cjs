@@ -310,7 +310,7 @@ async function seedProfile(page, { project, model, language = "en" }) {
     for (const session of data.sessions) await window.draggy.db.saveChat(session);
     // The renderer reads settings from localStorage at boot, so a model saved only in the db leaves the page blank.
     const saved = JSON.parse(localStorage.getItem("draggy_settings") || "{}");
-    localStorage.setItem("draggy_settings", JSON.stringify({ ...saved, modelName: data.model, language: data.language }));
+    localStorage.setItem("draggy_settings", JSON.stringify({ ...saved, modelName: data.model, language: data.language, imageResolution: "512x512" }));
     // The window opened at ?onboarding=true and reload keeps the query, so drop it first.
     const clean = new URL(location.href);
     clean.search = "";
