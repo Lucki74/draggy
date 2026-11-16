@@ -13,3 +13,11 @@
 - A cloud model chosen as the default now opens with the app
 - A llama.cpp server left over from an earlier run no longer keeps an old context window
 - Web search during research waits for a provider to cool down instead of failing with no request
+- The browser pane opens when the agent visits a page
+- Voice chat no longer stops at "Loading voice model"
+
+**Security**
+
+- A web page the agent reads can no longer reach a service on your computer or local network through a public name that points there
+- More kinds of executable files are refused when the agent opens a file, including names that end in a dot, a space or a stream suffix
+- A script or installer the agent points to opens in its folder instead of running
