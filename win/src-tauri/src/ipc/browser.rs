@@ -161,12 +161,12 @@ async fn navigate(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let Some(webview) = front_webview(&app) else {
         return Ok(pages::failure("pane_unavailable", None));
     };
-    // The renderer shows the pane only once it has a page, so the loading state goes out first.
+    // The renderer shows the pane only once it has a page, so the load starts while the pane opens.
     emit_load_state(&app, &webview, url.as_str(), true, None).await;
-    if let Err(failed) = show(&app).await {
+    let (shown, reply) = tokio::join!(show(&app), load(&webview, &url));
+    if let Err(failed) = shown {
         return Ok(failed);
     }
-    let reply = load(&webview, &url).await;
     if reply.get("ok").and_then(Value::as_bool) == Some(false) {
         let code = reply
             .get("error")
@@ -308,6 +308,12 @@ async fn show(app: &AppHandle) -> Result<(), Value> {
         let ready = app.state::<Panes>().lock().shown();
         if ready {
             return Ok(());
+        }
+        // The pane mounts after the open event and misses earlier states, so the front page is resent.
+        if let Some(webview) = front_webview(app) {
+            let url = webview.url().map(|url| url.to_string()).unwrap_or_default();
+            let blank = url.is_empty() || url == BLANK;
+            emit_load_state(app, &webview, &url, blank, None).await;
         }
         if Instant::now() >= deadline {
             return Err(pages::failure("pane_unavailable", None));

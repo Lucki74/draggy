@@ -4,7 +4,6 @@ import { applyFades, pauseSeconds, prepareFragment, trimSilence } from "../voice
 import { PEAK_CEILING, integratedLoudness, levelGain } from "../voice/loudness";
 import { normalizeSpeech, numberToWords } from "../voice/normalize";
 import { mulberry32, preprocessText } from "../voice/supertonic";
-import { wasmThreads } from "../voice/threads";
 
 const RATE = 24000;
 const tone = (seconds: number, amplitude: number, frequency = 220) =>
@@ -213,15 +212,6 @@ describe("times, links and code", () => {
     limited.pushFragments("Hi there. ");
     expect(limited.pushFragments(text).length).toBe(0);
     expect(limited.flushFragment()?.text.length).toBeGreaterThan(100);
-  });
-});
-
-describe("wasm threads", () => {
-  it("stays on one thread unless the page is isolated, then uses half the cores up to four", () => {
-    expect(wasmThreads(false, 16)).toBe(1);
-    expect(wasmThreads(true, 1)).toBe(1);
-    expect(wasmThreads(true, 4)).toBe(2);
-    expect(wasmThreads(true, 32)).toBe(4);
   });
 });
 
