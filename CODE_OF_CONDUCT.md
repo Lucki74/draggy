@@ -59,7 +59,7 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
+reported to the community leaders responsible for enforcement
 privately through the [reporting form](https://github.com/Lucki74/draggy/security/advisories/new)
 linked in [SECURITY.md](SECURITY.md), or with GitHub's Report content option.
 All complaints will be reviewed and investigated promptly and fairly.
