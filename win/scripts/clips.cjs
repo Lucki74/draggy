@@ -443,7 +443,7 @@ const PROMPTS = {
     attach: "these are last month's orders. which product got returned the most, and was there a week where returns jumped?",
     mcp: "how do I add middleware to a next.js 15 app? go by the current docs",
     skills: "/headline-writer our public engineering blog post on moving CI from Jenkins to GitHub Actions. PR builds went from 25 minutes to 8 and we shut down three build servers. give me a few options and pick one",
-    browser: "what's the difference between a 401 and a 403? find it on mdn and link the page",
+    browser: "open the mdn page on 401 in the browser, what's the difference with a 403?",
     cloud: "open",
   },
   fr: {
@@ -455,7 +455,7 @@ const PROMPTS = {
     attach: "voici les commandes du mois dernier. quel produit a été le plus retourné, et y a-t-il une semaine où les retours ont grimpé ?",
     mcp: "comment ajouter un middleware dans une app next.js 15 ? appuie-toi sur la doc à jour",
     skills: "/headline-writer l'article de notre blog technique public sur le passage de Jenkins à GitHub Actions. les builds de PR sont passés de 25 à 8 minutes et on a éteint trois serveurs de build. propose quelques titres et choisis-en un",
-    browser: "quelle différence entre une 401 et une 403 ? trouve ça sur mdn et mets le lien",
+    browser: "ouvre la page mdn sur la 401 dans le navigateur, c'est quoi la différence avec une 403 ?",
     cloud: "open",
   },
   es: {
@@ -467,7 +467,7 @@ const PROMPTS = {
     attach: "estos son los pedidos del mes pasado. ¿qué producto se devolvió más y hubo alguna semana con un pico de devoluciones?",
     mcp: "¿cómo añado un middleware a una app de next.js 15? guíate por la documentación actual",
     skills: "/headline-writer el artículo de nuestro blog de ingeniería público sobre pasar de Jenkins a GitHub Actions. los builds de las PR bajaron de 25 a 8 minutos y apagamos tres servidores de build. dame algunas opciones y elige una",
-    browser: "¿qué diferencia hay entre un 401 y un 403? búscalo en mdn y enlaza la página",
+    browser: "abre la página de mdn sobre el 401 en el navegador, ¿qué diferencia hay con un 403?",
     cloud: "open",
   },
   ru: {
@@ -479,7 +479,7 @@ const PROMPTS = {
     attach: "это заказы за прошлый месяц. какой товар возвращали чаще всего и была ли неделя, когда возвратов стало резко больше?",
     mcp: "как добавить middleware в приложение на next.js 15? опирайся на свежую документацию",
     skills: "/headline-writer статья для нашего открытого инженерного блога о переходе с Jenkins на GitHub Actions. сборки PR ускорились с 25 до 8 минут, и мы отключили три сервера сборки. предложи несколько заголовков и выбери один",
-    browser: "чем 401 отличается от 403? найди на mdn и дай ссылку",
+    browser: "открой в браузере страницу mdn про 401, чем он отличается от 403?",
     cloud: "open",
   },
 };
@@ -584,7 +584,7 @@ const CLIPS = {
     workspace: ["default", "chat"],
     // A fresh profile downloads the speech model on first use; one unrecorded dictation loads it before the take.
     async prepare(page) {
-      const mic = (label) => app.inPage(page, (l) => document.querySelector(`[data-region=composer] form button[aria-label^='${l}']`)?.click(), label);
+      const mic = (label) => app.inPage(page, (l) => document.querySelector(`[data-region=composer] form button[aria-label^="${l}"]`)?.click(), label);
       const typed = () => app.inPage(page, () => document.querySelector("[data-region=composer] form textarea")?.value || "");
       await mic(T("voiceInput"));
       await app.sleep(4000);
@@ -598,12 +598,12 @@ const CLIPS = {
       await app.sleep(800);
     },
     async script(rec, page) {
-      await rec.clickOn((label) => document.querySelector(`[data-region=composer] form button[aria-label^='${label}']`), T("voiceInput"));
+      await rec.clickOn((label) => document.querySelector(`[data-region=composer] form button[aria-label^="${label}"]`), T("voiceInput"));
       await app.sleep(1500);
       rec.fast = true;
       await app.sleep(5600);
       rec.fast = false;
-      await rec.clickOn((label) => document.querySelector(`[data-region=composer] form button[aria-label^='${label}']`), T("voiceListening"));
+      await rec.clickOn((label) => document.querySelector(`[data-region=composer] form button[aria-label^="${label}"]`), T("voiceListening"));
       await app.sleep(500);
       await app.waitFor(() => app.inPage(page, () => (document.querySelector("[data-region=composer] form textarea")?.value || "").trim().length > 3), { timeout: 30_000, every: 300, label: "the transcript" });
       await app.sleep(700);
