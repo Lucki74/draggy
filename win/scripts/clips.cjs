@@ -198,15 +198,23 @@ class Recorder {
     await app.sleep(200);
   }
 
-  // Finds an element by a function run in the page and returns the centre of its box.
+  // Finds an element by a function run in the page and returns the centre of its box. It waits until the box
+  // stops moving, since a section that is still expanding pushes the target down after it is measured.
   async centre(finder, ...args) {
-    const box = await this.page.evaluate(`(() => {
+    const measure = () => this.page.evaluate(`(() => {
       const element = (${finder.toString()})(...${JSON.stringify(args)});
       if (!element) return null;
       element.scrollIntoView({ block: "nearest" });
       const r = element.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     })()`);
+    let box = await measure();
+    for (let i = 0; box && i < 20; i += 1) {
+      await app.sleep(100);
+      const next = await measure();
+      if (next && Math.abs(next.x - box.x) < 1 && Math.abs(next.y - box.y) < 1) break;
+      box = next;
+    }
     if (!box) throw new Error(`nothing found for ${finder}`);
     return box;
   }
@@ -215,6 +223,9 @@ class Recorder {
     const { x, y } = await this.centre(finder, ...args);
     // Aim a little off the centre of the target, as a hand does, then rest a beat before pressing.
     await this.moveTo(x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 6);
+    // If the target moved during the trip, follow it before pressing.
+    const after = await this.centre(finder, ...args);
+    if (Math.hypot(after.x - x, after.y - y) > 4) await this.moveTo(after.x, after.y, 220);
     await app.sleep(120 + Math.random() * 180);
     await this.click();
   }
