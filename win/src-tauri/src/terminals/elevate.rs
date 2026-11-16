@@ -22,7 +22,11 @@ pub fn batch_text(command: &str, cwd: &Path) -> String {
 
 /// What cmd runs as administrator: the batch file, its output and errors going to `out`.
 pub fn cmd_args(batch: &Path, out: &Path) -> String {
-    format!("/d /c \"\"{}\" > \"{}\" 2>&1\"", batch.display(), out.display())
+    format!(
+        "/d /c \"\"{}\" > \"{}\" 2>&1\"",
+        batch.display(),
+        out.display()
+    )
 }
 
 /// How the elevated run ended.
@@ -40,7 +44,8 @@ fn elevate_and_wait(args: &str, limit: std::time::Duration) -> Ended {
     use windows::Win32::Foundation::{CloseHandle, ERROR_CANCELLED, WAIT_OBJECT_0};
     use windows::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject};
     use windows::Win32::UI::Shell::{
-        SEE_MASK_FLAG_NO_UI, SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW,
+        SEE_MASK_FLAG_NO_UI, SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW,
+        ShellExecuteExW,
     };
     use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
     use windows::core::{HSTRING, PCWSTR, w};
@@ -168,7 +173,11 @@ pub async fn run_elevated(command: &str, cwd: &Path, timeout_ms: Option<f64>) ->
         Ended::Failed(error) => {
             let _ = fs::remove_dir_all(&dir);
             if let Some(diag) = diag() {
-                diag.error(SCOPE, "could not start the elevated shell", Some(json!({ "cmdLen": data["cmdLen"], "cmdHash": data["cmdHash"] })));
+                diag.error(
+                    SCOPE,
+                    "could not start the elevated shell",
+                    Some(json!({ "cmdLen": data["cmdLen"], "cmdHash": data["cmdHash"] })),
+                );
             }
             return refused(&error);
         }
@@ -226,6 +235,9 @@ mod tests {
     #[test]
     fn cmd_sends_the_output_to_the_file() {
         let args = cmd_args(Path::new("C:\\w\\run.cmd"), Path::new("C:\\w\\out.txt"));
-        assert_eq!(args, "/d /c \"\"C:\\w\\run.cmd\" > \"C:\\w\\out.txt\" 2>&1\"");
+        assert_eq!(
+            args,
+            "/d /c \"\"C:\\w\\run.cmd\" > \"C:\\w\\out.txt\" 2>&1\""
+        );
     }
 }
