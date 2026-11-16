@@ -5,10 +5,7 @@ use std::fs;
 use std::path::Path;
 use std::time::Instant;
 
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
 use draggy_tools::shell::{clip, timeout_for};
-use draggy_tools::spawn::hidden_command;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
@@ -23,23 +20,73 @@ pub fn batch_text(command: &str, cwd: &Path) -> String {
     format!("@echo off\r\ncd /d \"{}\"\r\n{command}\r\n", cwd.display())
 }
 
-/// The PowerShell line that starts the elevated shell and waits for it. The handle is taken first, or an elevated
-/// process reports no exit code and a failure reads as success.
-pub fn elevation_script(batch: &Path, out: &Path) -> String {
-    let args = format!(
-        "/d /c \"\"{}\" > \"{}\" 2>&1\"",
-        batch.display(),
-        out.display()
-    );
-    let quoted = args.replace('\'', "''");
-    format!(
-        "$ErrorActionPreference='Stop'; try {{ $p = Start-Process -FilePath 'cmd.exe' -ArgumentList '{quoted}' -Verb RunAs -PassThru -WindowStyle Hidden; $null = $p.Handle; $p.WaitForExit(); exit $p.ExitCode }} catch {{ exit {DECLINED} }}"
-    )
+/// What cmd runs as administrator: the batch file, its output and errors going to `out`.
+pub fn cmd_args(batch: &Path, out: &Path) -> String {
+    format!("/d /c \"\"{}\" > \"{}\" 2>&1\"", batch.display(), out.display())
 }
 
-fn encode(script: &str) -> String {
-    let bytes: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
-    STANDARD.encode(bytes)
+/// How the elevated run ended.
+enum Ended {
+    Exit(i64),
+    Declined,
+    TimedOut,
+    Failed(String),
+}
+
+/// Starts cmd through the UAC prompt with ShellExecuteEx and waits for it. No PowerShell in between,
+/// since a hidden PowerShell with an encoded command is what antivirus heuristics flag.
+#[cfg(windows)]
+fn elevate_and_wait(args: &str, limit: std::time::Duration) -> Ended {
+    use windows::Win32::Foundation::{CloseHandle, ERROR_CANCELLED, WAIT_OBJECT_0};
+    use windows::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject};
+    use windows::Win32::UI::Shell::{
+        SEE_MASK_FLAG_NO_UI, SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW,
+    };
+    use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
+    use windows::core::{HSTRING, PCWSTR, w};
+
+    let params = HSTRING::from(args);
+    let mut info = SHELLEXECUTEINFOW {
+        cbSize: u32::try_from(std::mem::size_of::<SHELLEXECUTEINFOW>()).unwrap_or(0),
+        fMask: SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI,
+        lpVerb: w!("runas"),
+        lpFile: w!("cmd.exe"),
+        lpParameters: PCWSTR(params.as_ptr()),
+        nShow: SW_HIDE.0,
+        ..Default::default()
+    };
+    // SAFETY: `info` and the strings it points to live until the call returns.
+    if let Err(error) = unsafe { ShellExecuteExW(&raw mut info) } {
+        if error.code() == ERROR_CANCELLED.to_hresult() {
+            return Ended::Declined;
+        }
+        return Ended::Failed(error.message());
+    }
+    let process = info.hProcess;
+    if process.is_invalid() {
+        return Ended::Failed("The administrator run did not start.".into());
+    }
+    let millis = u32::try_from(limit.as_millis()).unwrap_or(u32::MAX - 1);
+    // SAFETY: `process` is the handle ShellExecuteEx returned, closed once below.
+    let ended = unsafe {
+        if WaitForSingleObject(process, millis) == WAIT_OBJECT_0 {
+            let mut code = 0u32;
+            match GetExitCodeProcess(process, &raw mut code) {
+                Ok(()) => Ended::Exit(i64::from(code)),
+                Err(error) => Ended::Failed(error.message()),
+            }
+        } else {
+            Ended::TimedOut
+        }
+    };
+    // SAFETY: as above.
+    let _ = unsafe { CloseHandle(process) };
+    ended
+}
+
+#[cfg(not(windows))]
+fn elevate_and_wait(_args: &str, _limit: std::time::Duration) -> Ended {
+    Ended::Failed("Administrator rights are only available on Windows.".into())
 }
 
 fn refused(error: &str) -> Value {
@@ -108,36 +155,28 @@ pub async fn run_elevated(command: &str, cwd: &Path, timeout_ms: Option<f64>) ->
         let _ = fs::remove_dir_all(&dir);
         return refused("The administrator run could not start.");
     }
-    let encoded = encode(&elevation_script(&batch, &out));
+    let args = cmd_args(&batch, &out);
 
     let started = Instant::now();
-    let mut child = hidden_command(
-        "powershell.exe",
-        &[
-            "-NoProfile",
-            "-NonInteractive",
-            "-EncodedCommand",
-            encoded.as_str(),
-        ],
-        |_| {},
-    );
-    let waited = tokio::time::timeout(timeout_for(timeout_ms), child.output()).await;
-    let timed_out = waited.is_err();
-    let code = match waited {
-        Ok(Ok(finished)) => finished.status.code().map(i64::from),
-        Ok(Err(error)) => {
+    let ended = tokio::task::spawn_blocking(move || elevate_and_wait(&args, limit))
+        .await
+        .unwrap_or_else(|error| Ended::Failed(error.to_string()));
+    let (code, timed_out, declined_prompt) = match ended {
+        Ended::Exit(code) => (Some(code), false, false),
+        Ended::Declined => (Some(DECLINED), false, true),
+        Ended::TimedOut => (None, true, false),
+        Ended::Failed(error) => {
             let _ = fs::remove_dir_all(&dir);
             if let Some(diag) = diag() {
-                diag.error(SCOPE, "could not start the elevation shell", Some(json!({ "cmdLen": data["cmdLen"], "cmdHash": data["cmdHash"], "code": error.raw_os_error() })));
+                diag.error(SCOPE, "could not start the elevated shell", Some(json!({ "cmdLen": data["cmdLen"], "cmdHash": data["cmdHash"] })));
             }
-            return refused(&error.to_string());
+            return refused(&error);
         }
-        Err(_) => None,
     };
     let output = fs::read_to_string(&out).unwrap_or_default();
     let _ = fs::remove_dir_all(&dir);
 
-    let declined = code == Some(DECLINED) && output.is_empty();
+    let declined = declined_prompt || (code == Some(DECLINED) && output.is_empty());
     let clipped = clip(&output);
     let dur_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
     if let Some(diag) = diag() {
@@ -179,20 +218,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn encodes_the_script_as_utf16_base64() {
-        assert_eq!(encode("a"), "YQA=");
-    }
-
-    #[test]
     fn batch_runs_in_the_folder_then_the_command() {
         let text = batch_text("dir", Path::new("C:\\work"));
         assert_eq!(text, "@echo off\r\ncd /d \"C:\\work\"\r\ndir\r\n");
     }
 
     #[test]
-    fn script_waits_for_the_elevated_shell() {
-        let script = elevation_script(Path::new("C:\\w\\run.cmd"), Path::new("C:\\w\\out.txt"));
-        assert!(script.contains("$null = $p.Handle; $p.WaitForExit()"));
-        assert!(script.contains(&format!("catch {{ exit {DECLINED} }}")));
+    fn cmd_sends_the_output_to_the_file() {
+        let args = cmd_args(Path::new("C:\\w\\run.cmd"), Path::new("C:\\w\\out.txt"));
+        assert_eq!(args, "/d /c \"\"C:\\w\\run.cmd\" > \"C:\\w\\out.txt\" 2>&1\"");
     }
 }
