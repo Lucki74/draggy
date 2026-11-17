@@ -5,19 +5,28 @@ use std::collections::BTreeSet;
 
 use draggy_win::ipc::{Registry, pending::PENDING_CHANNELS};
 
-/// Channel strings passed as the first argument of `ipc.invoke(` or `ipc.send(`.
+/// Channel strings passed as the first argument of `ipc.invoke(` or `ipc.send(` in draggyApi.ts,
+/// and of `call(` in the startup splash, which has its own small client.
 fn renderer_channels() -> BTreeSet<String> {
-    let source = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../src/platform/draggyApi.ts"
-    ))
-    .expect("draggyApi.ts is readable");
+    let read = |file: &str| {
+        std::fs::read_to_string(format!("{}/../src/{file}", env!("CARGO_MANIFEST_DIR")))
+            .unwrap_or_else(|_| panic!("{file} is readable"))
+    };
+    let sources = [
+        (
+            read("platform/draggyApi.ts"),
+            &["ipc.invoke(", "ipc.send("][..],
+        ),
+        (read("splash/SplashScreen.tsx"), &["call("][..]),
+    ];
     let mut found = BTreeSet::new();
-    for call in ["ipc.invoke(", "ipc.send("] {
-        for part in source.split(call).skip(1) {
-            let rest = part.trim_start();
-            if let Some(name) = rest.strip_prefix('"').and_then(|r| r.split('"').next()) {
-                found.insert(name.to_owned());
+    for (source, calls) in &sources {
+        for call in *calls {
+            for part in source.split(call).skip(1) {
+                let rest = part.trim_start();
+                if let Some(name) = rest.strip_prefix('"').and_then(|r| r.split('"').next()) {
+                    found.insert(name.to_owned());
+                }
             }
         }
     }

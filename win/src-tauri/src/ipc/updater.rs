@@ -14,6 +14,8 @@ use super::{IpcError, Registry, emit};
 use crate::AppState;
 
 const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
+/// Per request, so a stalled connection fails the check instead of holding it forever.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const CHANNEL: &str = "updater-state";
 const DISABLED_IN_DEV: &str = "Updates are disabled in development.";
 const UNAVAILABLE: &str = "Update support is unavailable.";
@@ -84,6 +86,33 @@ async fn install(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
 
 /// Starts the launch check and the six-hour checks. Disabled in debug builds. Only the first call starts them.
 pub fn start(app: &AppHandle) {
+    start_with(app, Duration::ZERO);
+}
+
+/// The six-hour checks without the launch check, which the splash has already run.
+pub fn start_after_launch_check(app: &AppHandle) {
+    start_with(app, CHECK_INTERVAL);
+}
+
+/// The updater with a request timeout, and the exit hook the installer hand-off needs: on Windows the
+/// install ends the process itself, so nothing else would stop the children or write the exit marker.
+pub(crate) fn updater_with(
+    app: &AppHandle,
+    timeout: Duration,
+) -> tauri_plugin_updater::Result<tauri_plugin_updater::Updater> {
+    let exiting = app.clone();
+    app.updater_builder()
+        .timeout(timeout)
+        .on_before_exit(move || crate::shutdown(&exiting))
+        .build()
+}
+
+/// An update the splash found but the user started without, offered in the app like a found one.
+pub(crate) fn adopt(app: &AppHandle, update: Update) {
+    offer(app, update);
+}
+
+fn start_with(app: &AppHandle, first_delay: Duration) {
     if STARTED.swap(true, Ordering::SeqCst) {
         return;
     }
@@ -105,6 +134,7 @@ pub fn start(app: &AppHandle) {
     }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(first_delay).await;
         loop {
             check(&app).await;
             tokio::time::sleep(CHECK_INTERVAL).await;
@@ -140,7 +170,7 @@ async fn check(app: &AppHandle) {
         s.status = "checking";
         s.error = None;
     });
-    let updater = match app.updater() {
+    let updater = match updater_with(app, REQUEST_TIMEOUT) {
         Ok(updater) => updater,
         Err(error) => {
             warn(app, "silent check failed", Some(error.to_string()));
@@ -298,7 +328,7 @@ fn plan(status: &str, version: Option<&str>, current: &str) -> Plan {
 }
 
 /// Numeric MAJOR.MINOR.PATCH comparison. Pre-release tags are ignored; unparseable versions are never newer.
-fn is_newer(candidate: &str, current: &str) -> bool {
+pub(crate) fn is_newer(candidate: &str, current: &str) -> bool {
     match (core_version(candidate), core_version(current)) {
         (Some(a), Some(b)) => a > b,
         _ => false,
