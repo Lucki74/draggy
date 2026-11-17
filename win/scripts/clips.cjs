@@ -306,7 +306,7 @@ class Recorder {
     execFileSync(FFMPEG, [...base, "-vf", `fps=30,scale=1280:-2:flags=lanczos,${fade},format=yuv420p`, "-c:v", "libx264", "-preset", "slow", "-crf", "27", "-movflags", "+faststart", "-an", `${stem}.mp4`]);
     let width = 1280;
     for (const crf of [38, 42, 46, 50, 54]) {
-      execFileSync(FFMPEG, [...base, "-vf", `fps=24,scale=${width}:-2:flags=lanczos,${fade},format=yuv420p`, "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", String(crf), "-row-mt", "1", "-an", `${stem}.webm`]);
+      execFileSync(FFMPEG, [...base, "-vf", `fps=24,scale=${width}:-2:flags=lanczos,${fade},scale=out_range=tv,format=yuv420p`, "-color_range", "tv", "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", String(crf), "-row-mt", "1", "-an", `${stem}.webm`]);
       if (size(`${stem}.webm`) <= WEBM_LIMIT) break;
       if (crf === 46) width = 960;
     }
