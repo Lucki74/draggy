@@ -1876,6 +1876,11 @@ declare global {
         onState: (callback: (state: UpdaterState) => void) => Unsubscribe;
       };
 
+      /** The startup splash, which hands over to this window once it has painted. */
+      startup: {
+        ready: () => Promise<void>;
+      };
+
       browserBar: {
         action: (
           name: "back" | "forward" | "reload" | "stop" | "navigate" | "external" | "popout",

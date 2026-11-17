@@ -129,6 +129,11 @@ export default defineConfig({
     sourcemap: false,
     chunkSizeWarningLimit: 900,
     rollupOptions: {
+      /** The startup splash is its own page, so it loads without the app's bundle. */
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        splash: path.resolve(__dirname, "splash.html"),
+      },
       output: {
         manualChunks(id: string) {
           if (!id.includes("node_modules")) return;

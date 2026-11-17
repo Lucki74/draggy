@@ -219,23 +219,18 @@ pub fn invocation(
         || find(env, shell).ok_or_else(|| format!("{shell} is not installed on this computer."));
     Ok(match shell {
         "pwsh" | "powershell" => {
-            // UTF-8 output, Bypass so npm's .ps1 shims run, and the native exit code passed on.
+            // UTF-8 output and the native exit code passed on. The policy goes in the environment so npm's .ps1 shims run
+            // without a Bypass switch on the command line, which antivirus heuristics flag.
             let script = format!(
                 "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; {command}\nif ($?) {{ exit 0 }} elseif ($LASTEXITCODE) {{ exit $LASTEXITCODE }} else {{ exit 1 }}"
             );
-            let args = [
-                "-NoLogo",
-                "-NoProfile",
-                "-NonInteractive",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-            ];
+            let args = ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command"];
             let mut args: Vec<String> = args.iter().map(|arg| (*arg).to_string()).collect();
             args.push(script);
             Invocation {
                 file: installed()?,
                 args,
+                env: vec![("PSExecutionPolicyPreference".into(), "Bypass".into())],
                 ..base
             }
         }
@@ -418,16 +413,18 @@ mod tests {
         let env = env_with(&[dir.path().to_path_buf()], vec![]);
         let run = invocation(&env, "npm test", Some("pwsh"), None, false, &[]).expect("pwsh");
         assert_eq!(
-            &run.args[..5],
-            [
-                "-NoLogo",
-                "-NoProfile",
-                "-NonInteractive",
-                "-ExecutionPolicy",
-                "Bypass"
-            ]
+            &run.args[..4],
+            ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command"]
         );
-        assert!(run.args[6].contains("npm test\nif ($?) { exit 0 }"));
+        assert!(!run.args.iter().any(|arg| arg.contains("Bypass")));
+        assert_eq!(
+            run.env,
+            [(
+                "PSExecutionPolicyPreference".to_string(),
+                "Bypass".to_string()
+            )]
+        );
+        assert!(run.args[4].contains("npm test\nif ($?) { exit 0 }"));
     }
 
     #[test]

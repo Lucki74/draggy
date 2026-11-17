@@ -122,6 +122,13 @@ Operational events write to `app.log` in the application data folder, while deta
 - Inference speed depends on available CPU and GPU memory bandwidth.
 - Large models depend on drive speed. A hard disk or USB drive is usually too slow to be useful.
 
+## Related repositories
+
+- [Lucki74/draggy-website](https://github.com/Lucki74/draggy-website): the source of [draggy.org](https://draggy.org)
+- [Lucki74/draggy-docs](https://github.com/Lucki74/draggy-docs): the source of [docs.draggy.org](https://docs.draggy.org)
+
+Report a problem with the website or the docs in its own repository.
+
 ## License
 
 Draggy is licensed under the [Apache License 2.0](LICENSE). You can use, modify, share, and distribute it, including in commercial projects, provided you retain the [NOTICE](NOTICE) attribution file.

@@ -32,14 +32,18 @@ body:
       options:
         - Chat
         - Code projects
-        - Browser
+        - Plans and background tasks
+        - Browser pane
+        - Web search and research
         - Document search
-        - Voice mode (beta)
-        - MCP extensions
-        - Command execution
-        - Model loading / GGUF
-        - Settings
-        - Updates
+        - Image generation
+        - Voice and talk
+        - Extensions (MCP and skills)
+        - Commands and permissions
+        - Cloud providers and sign-in
+        - Local models and engines
+        - Settings and appearance
+        - Installation and updates
         - Other
 
   - type: checkboxes

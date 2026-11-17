@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { copyText, createFileProgressTracker, plainPreview } from "../utils";
+import { copyText, createFileProgressTracker, isBinary, plainPreview } from "../utils";
 
 describe("tracking a multi-file download", () => {
   it("reports a simple single-file download plainly", () => {
@@ -118,5 +118,17 @@ describe("copying text", () => {
     vi.stubGlobal("navigator", {});
 
     await expect(copyText("npm test")).resolves.toBe(false);
+  });
+});
+
+describe("telling binary data from text", () => {
+  it("keeps long messages in Russian and Chinese as text", () => {
+    expect(isBinary("это заказы за прошлый месяц. какой товар возвращали чаще всего и была ли неделя?")).toBe(false);
+    expect(isBinary("这是上个月的订单。哪个产品退货最多，有没有哪一周退货突然增加了？请列出具体的数字和日期。")).toBe(false);
+  });
+
+  it("flags control characters and replacement characters", () => {
+    expect(isBinary("PK archive")).toBe(true);
+    expect(isBinary("broken � bytes")).toBe(true);
   });
 });

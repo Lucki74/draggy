@@ -35,6 +35,10 @@ Typecheck, lint, and run the test suite. CI runs the same command for every pull
 
 Tests run with no GPU and no Tauri window, so keep new logic testable by keeping it isolated from hardware and from the window shell.
 
+## Website and documentation
+
+The website and the docs have their own repositories: [Lucki74/draggy-website](https://github.com/Lucki74/draggy-website) for draggy.org and [Lucki74/draggy-docs](https://github.com/Lucki74/draggy-docs) for docs.draggy.org. Send changes to those pages there.
+
 ## Architecture and code boundaries
 
 The [documentation](https://docs.draggy.org/development) describes the folder layout and the two boundaries that matter most:

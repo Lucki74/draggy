@@ -103,7 +103,7 @@ fn pane_capability_grants_nothing() {
 }
 
 #[test]
-fn only_the_main_and_pane_capabilities_name_a_webview() {
+fn only_the_main_pane_and_splash_capabilities_name_a_webview() {
     let all = capabilities();
     let named: Vec<_> = all
         .iter()
@@ -112,6 +112,33 @@ fn only_the_main_and_pane_capabilities_name_a_webview() {
         .collect();
     assert_eq!(
         named,
-        ["browser-pane.json", "browser-popout-bar.json", "main.json"]
+        [
+            "browser-pane.json",
+            "browser-popout-bar.json",
+            "main.json",
+            "splash.json"
+        ]
     );
+}
+
+/// The splash reads its state and skips; `ipc_invoke` limits it to splash channels, and it gets no
+/// send, stage, opener or dialog.
+#[test]
+fn splash_capability_is_the_splash_webview_only() {
+    let all = capabilities();
+    let splash = by_name(&all, "splash.json");
+    assert_eq!(strings(splash, "webviews"), ["splash"]);
+    assert!(strings(splash, "windows").is_empty());
+    let permissions = strings(splash, "permissions");
+    for denied in [
+        "allow-ipc-send",
+        "allow-ipc-stage",
+        "opener:default",
+        "dialog:default",
+    ] {
+        assert!(
+            !permissions.iter().any(|p| p == denied),
+            "splash.json grants {denied}"
+        );
+    }
 }
