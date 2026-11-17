@@ -13,6 +13,7 @@ import { SETTINGS_KEY } from "./storage";
 import { safeJsonParse } from "./utils";
 import { applyAccent } from "./app/accent";
 import { resolveTheme } from "./app/settings";
+import { ReadySignal } from "./app/ReadySignal";
 import type { AppSettings } from "./types";
 import { installGlobalHandlers } from "./logger";
 
@@ -55,7 +56,10 @@ createRoot(document.getElementById("root")!).render(
         <ComponentGallery />
       </Suspense>
     ) : (
-      <App />
+      <>
+        <ReadySignal />
+        <App />
+      </>
     )}
   </StrictMode>,
 );

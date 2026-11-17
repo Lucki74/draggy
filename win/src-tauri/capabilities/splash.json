@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "splash",
+  "description": "What the startup splash may call: its own state and skip channels, events, and dragging the window.",
+  "webviews": ["splash"],
+  "permissions": [
+    "core:default",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-ipc-invoke",
+    "core:window:allow-minimize",
+    "core:window:allow-start-dragging"
+  ]
+}
