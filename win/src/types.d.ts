@@ -759,6 +759,8 @@ export interface ApiSettings {
   sendReasoning: boolean;
   sampling: ApiSampling;
   extraEngineArgs: string;
+  allowedOrigins: string[];
+  ollamaNoKey: boolean;
 }
 
 /** A change to the API setup. Fields left out keep their saved value, and a `null` in `sampling` clears that default. */

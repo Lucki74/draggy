@@ -38,8 +38,9 @@ use axum::Router;
 use axum::body::{Body, Bytes, to_bytes};
 use axum::extract::{Request, State};
 use axum::http::header::{
-    AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_TYPE, HOST as HOST_HEADER, ORIGIN,
-    RETRY_AFTER, X_CONTENT_TYPE_OPTIONS,
+    ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
+    ACCESS_CONTROL_MAX_AGE, AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_TYPE, HOST as HOST_HEADER,
+    ORIGIN, RETRY_AFTER, VARY, X_CONTENT_TYPE_OPTIONS,
 };
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -362,8 +363,20 @@ pub fn same_key(given: &str, expected: &str) -> bool {
 
 /// Whether a request may be answered at all. `None` lets it through, otherwise the refusal to send.
 pub fn check_request(headers: &HeaderMap, port: u16, key: &str) -> Option<Refusal> {
-    // A browser always sends Origin on a cross-site request, and no legitimate client is a web page.
-    if headers.contains_key(ORIGIN) {
+    check_access(headers, port, key, &ApiSettings::default(), "")
+}
+
+/// `check_request` with the settings: an Origin listed in `allowed_origins` passes, and `/api/` needs no key when
+/// `ollama_no_key` is set.
+pub fn check_access(
+    headers: &HeaderMap,
+    port: u16,
+    key: &str,
+    settings: &ApiSettings,
+    path: &str,
+) -> Option<Refusal> {
+    // A browser sends Origin on a cross-site request, and only a page the user listed may call.
+    if headers.contains_key(ORIGIN) && allowed_origin(headers, settings).is_none() {
         return Some(Refusal {
             status: StatusCode::FORBIDDEN,
             message: "Requests from web pages are not accepted.",
@@ -380,6 +393,10 @@ pub fn check_request(headers: &HeaderMap, port: u16, key: &str) -> Option<Refusa
             status: StatusCode::FORBIDDEN,
             message: "This endpoint only answers on 127.0.0.1.",
         });
+    }
+
+    if settings.ollama_no_key && path.starts_with("/api/") {
+        return None;
     }
 
     let authorization = headers
@@ -981,8 +998,73 @@ impl Frames {
     }
 }
 
+/// The Origin header when it is exactly one the user listed.
+fn allowed_origin(headers: &HeaderMap, settings: &ApiSettings) -> Option<String> {
+    let origin = headers.get(ORIGIN).map(header_text)?;
+    settings
+        .allowed_origins
+        .contains(&origin)
+        .then_some(origin)
+}
+
+fn host_matches(headers: &HeaderMap, port: u16) -> bool {
+    let host = headers
+        .get(HOST_HEADER)
+        .map(header_text)
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    host == format!("127.0.0.1:{port}") || host == format!("localhost:{port}")
+}
+
+fn with_cors(response: &mut Response, origin: &str) {
+    if let Ok(value) = HeaderValue::from_str(origin) {
+        response.headers_mut().insert(ACCESS_CONTROL_ALLOW_ORIGIN, value);
+        response.headers_mut().append(VARY, HeaderValue::from_static("Origin"));
+    }
+}
+
+/// Answers a preflight: 204 for a listed origin on this host, 403 for anything else. The key is not asked for.
+fn preflight(headers: &HeaderMap, port: u16, settings: &ApiSettings) -> Response {
+    let origin = allowed_origin(headers, settings);
+    let (Some(origin), true) = (origin, host_matches(headers, port)) else {
+        let mut response = error_response(
+            StatusCode::FORBIDDEN,
+            "Requests from web pages are not accepted.",
+            "authentication_error",
+        );
+        response.headers_mut().append(VARY, HeaderValue::from_static("Origin"));
+        return response;
+    };
+    let mut response = StatusCode::NO_CONTENT.into_response();
+    let out = response.headers_mut();
+    out.insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, OPTIONS"));
+    out.insert(
+        ACCESS_CONTROL_ALLOW_HEADERS,
+        HeaderValue::from_static("authorization, content-type, x-api-key, anthropic-version, openai-beta"),
+    );
+    out.insert(ACCESS_CONTROL_MAX_AGE, HeaderValue::from_static("600"));
+    with_cors(&mut response, &origin);
+    response
+}
+
 async fn handle<B: Backend, E: Env>(
     State(shared): State<Arc<Shared<B, E>>>,
+    request: Request,
+) -> Response {
+    let settings = shared.env.settings();
+    if request.method() == Method::OPTIONS {
+        return preflight(request.headers(), shared.port, &settings);
+    }
+    let origin = allowed_origin(request.headers(), &settings);
+    let mut response = handle_request(shared, request).await;
+    if let Some(origin) = origin {
+        with_cors(&mut response, &origin);
+    }
+    response
+}
+
+async fn handle_request<B: Backend, E: Env>(
+    shared: Arc<Shared<B, E>>,
     request: Request,
 ) -> Response {
     let (parts, body) = request.into_parts();
@@ -995,7 +1077,7 @@ async fn handle<B: Backend, E: Env>(
         _ => None,
     };
     let counting = path == "/v1/messages/count_tokens";
-    if let Some(refusal) = check_request(&parts.headers, shared.port, &key) {
+    if let Some(refusal) = check_access(&parts.headers, shared.port, &key, &settings, &path) {
         tracing::debug!(target: "net.api", status = refusal.status.as_u16(), "request refused");
         return shaped_error(dialect, refusal.status, refusal.message, "authentication_error");
     }

@@ -31,6 +31,8 @@ const OFF: ApiServerStatus = {
     sendReasoning: false,
     sampling: {},
     extraEngineArgs: "",
+    allowedOrigins: [],
+    ollamaNoKey: false,
   },
 };
 
@@ -211,6 +213,23 @@ describe("the local API setting", () => {
       fireEvent.blur(prompt);
     });
     expect(configure).toHaveBeenCalledWith({ systemPrompt: "Be brief." });
+  });
+
+  it("saves the allowed origins one per line and the Ollama key switch", async () => {
+    current = ON;
+    await show();
+
+    const origins = screen.getByLabelText(t("apiAllowedOrigins"));
+    await act(async () => {
+      fireEvent.change(origins, { target: { value: "https://a.com\n\n  https://b.com " } });
+      fireEvent.blur(origins);
+    });
+    expect(configure).toHaveBeenCalledWith({ allowedOrigins: ["https://a.com", "https://b.com"] });
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText(t("apiOllamaNoKey")));
+    });
+    expect(configure).toHaveBeenCalledWith({ ollamaNoKey: true });
   });
 
   it("clears a sampling default when emptied", async () => {

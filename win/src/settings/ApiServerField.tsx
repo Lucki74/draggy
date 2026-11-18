@@ -456,6 +456,32 @@ export default function ApiServerField({ t, models = [] }: ApiServerFieldProps) 
         </Row>
       </Group>
 
+      <Group title={t("apiSectionAccess")}>
+        <Block>
+          <TextArea
+            label={t("apiAllowedOrigins")}
+            value={settings.allowedOrigins.join("\n")}
+            mono
+            rows={3}
+            onCommit={(text) =>
+              configure({
+                allowedOrigins: text
+                  .split("\n")
+                  .map((line) => line.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+        </Block>
+        <Row label={t("apiOllamaNoKey")}>
+          <Toggle
+            label={t("apiOllamaNoKey")}
+            checked={settings.ollamaNoKey}
+            onChange={(ollamaNoKey) => configure({ ollamaNoKey })}
+          />
+        </Row>
+      </Group>
+
       <Group title={t("apiSectionEngine")}>
         <Block>
           <TextArea

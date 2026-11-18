@@ -143,6 +143,8 @@ export function installFakeDraggyApi(): FakeApi {
           sendReasoning: false,
           sampling: {},
           extraEngineArgs: "",
+          allowedOrigins: [],
+          ollamaNoKey: false,
         },
       }),
       configure: async () => ({}),

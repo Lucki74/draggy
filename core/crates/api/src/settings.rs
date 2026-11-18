@@ -56,6 +56,10 @@ pub struct ApiSettings {
     pub send_reasoning: bool,
     pub sampling: Sampling,
     pub extra_engine_args: String,
+    /// Browser origins that may call the API, matched exactly. Never `*`.
+    pub allowed_origins: Vec<String>,
+    /// Let the Ollama routes under `/api/` skip the key.
+    pub ollama_no_key: bool,
 }
 
 impl Default for ApiSettings {
@@ -73,6 +77,8 @@ impl Default for ApiSettings {
             send_reasoning: true,
             sampling: Sampling::default(),
             extra_engine_args: String::new(),
+            allowed_origins: Vec::new(),
+            ollama_no_key: false,
         }
     }
 }
@@ -112,6 +118,8 @@ impl ApiSettings {
                 value.get("extraEngineArgs").and_then(Value::as_str).unwrap_or(""),
                 ENGINE_ARGS_LIMIT,
             ),
+            allowed_origins: origins(value.get("allowedOrigins")),
+            ollama_no_key: flag(value, "ollamaNoKey", defaults.ollama_no_key),
         }
     }
 
@@ -154,6 +162,8 @@ impl ApiSettings {
             "sendReasoning": self.send_reasoning,
             "sampling": sampling,
             "extraEngineArgs": self.extra_engine_args,
+            "allowedOrigins": self.allowed_origins,
+            "ollamaNoKey": self.ollama_no_key,
         })
     }
 
@@ -258,6 +268,31 @@ fn aliases(value: Option<&Value>) -> BTreeMap<String, String> {
         }
         out.insert(name, target);
         if out.len() >= ALIAS_LIMIT {
+            break;
+        }
+    }
+    out
+}
+
+/// Most origins kept, and the longest one.
+const ORIGIN_LIMIT: usize = 32;
+const ORIGIN_LENGTH: usize = 256;
+
+/// The origins a list holds, each trimmed. An entry with a `*`, white space or no scheme is dropped, so no wildcard
+/// can be saved, and repeats are removed.
+fn origins(value: Option<&Value>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for item in value.and_then(Value::as_array).into_iter().flatten() {
+        let origin = item.as_str().unwrap_or("").trim().trim_end_matches('/');
+        let valid = !origin.is_empty()
+            && origin.len() <= ORIGIN_LENGTH
+            && origin.contains("://")
+            && !origin.contains('*')
+            && !origin.chars().any(char::is_whitespace);
+        if valid && !out.iter().any(|seen| seen == origin) {
+            out.push(origin.to_owned());
+        }
+        if out.len() >= ORIGIN_LIMIT {
             break;
         }
     }
