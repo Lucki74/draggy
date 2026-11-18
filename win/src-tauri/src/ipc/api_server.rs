@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+use draggy_api::log::{LogEntry, Ring};
 use draggy_api::settings::ApiSettings;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -47,12 +48,15 @@ static PREPARING: Mutex<Option<HashMap<String, Prepared>>> = Mutex::new(None);
 static KEY: Mutex<String> = Mutex::new(String::new());
 static SERVER: Mutex<Option<(u16, tauri::async_runtime::JoinHandle<()>)>> = Mutex::new(None);
 static SETTINGS: Mutex<Option<ApiSettings>> = Mutex::new(None);
+static LOG: Mutex<Ring> = Mutex::new(Ring::new());
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
 pub fn register_all(registry: &mut Registry) {
     register!(registry, "api-server:status" => status);
     register!(registry, "api-server:configure" => configure);
     register!(registry, "api-server:regenerate-key" => regenerate_key);
+    register!(registry, "api-server:log" => request_log);
+    register!(registry, "api-server:clear-log" => clear_log);
     register!(registry, "api-server:ready" => ready);
     register!(registry, "api-server:text" => text);
     register!(registry, "api-server:model" => model);
@@ -115,6 +119,17 @@ async fn regenerate_key(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcE
     store_key(&app, &key);
     *KEY.lock().unwrap_or_else(|p| p.into_inner()) = key;
     Ok(status_value(&app))
+}
+
+async fn request_log(_app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+    let cap = current_settings().log_size as usize;
+    let entries = LOG.lock().unwrap_or_else(|p| p.into_inner()).newest_first(cap);
+    Ok(Value::Array(entries.iter().map(LogEntry::to_value).collect()))
+}
+
+async fn clear_log(_app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+    LOG.lock().unwrap_or_else(|p| p.into_inner()).clear();
+    Ok(json!({ "success": true }))
 }
 
 async fn ready(_app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
@@ -554,6 +569,11 @@ impl Env for Keys {
 
     fn settings(&self) -> ApiSettings {
         current_settings()
+    }
+
+    fn record(&self, entry: LogEntry) {
+        let cap = current_settings().log_size as usize;
+        LOG.lock().unwrap_or_else(|p| p.into_inner()).push(entry, cap);
     }
 
     fn default_mode(&self) -> Mode {

@@ -746,6 +746,19 @@ export interface ApiSampling {
 }
 
 /** What the API page sets besides the switch, port and mode. Saved checked, so values are already in range. */
+export interface ApiLogEntry {
+  time: number;
+  method: string;
+  path: string;
+  model: string;
+  mode: string;
+  status: number;
+  durationMs: number;
+  promptTokens: number;
+  completionTokens: number;
+  client: string;
+}
+
 export interface ApiSettings {
   maxParallel: number;
   queueWaitSecs: number;
@@ -761,6 +774,8 @@ export interface ApiSettings {
   extraEngineArgs: string;
   allowedOrigins: string[];
   ollamaNoKey: boolean;
+  logRequests: boolean;
+  logSize: number;
 }
 
 /** A change to the API setup. Fields left out keep their saved value, and a `null` in `sampling` clears that default. */
@@ -1679,6 +1694,8 @@ declare global {
         status: () => Promise<ApiServerStatus>;
         configure: (config: ApiServerConfig) => Promise<ApiServerStatus>;
         regenerateKey: () => Promise<ApiServerStatus>;
+        log: () => Promise<ApiLogEntry[]>;
+        clearLog: () => Promise<{ success: boolean }>;
         /** Tells the main process this window can answer requests. */
         ready: () => void;
         onRequest: (callback: (message: { id: string; request: ApiCompletionRequest; defaultModel?: string; webTools?: boolean }) => void) => Unsubscribe;

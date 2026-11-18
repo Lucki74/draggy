@@ -33,6 +33,8 @@ const OFF: ApiServerStatus = {
     extraEngineArgs: "",
     allowedOrigins: [],
     ollamaNoKey: false,
+    logRequests: true,
+    logSize: 50,
   },
 };
 
@@ -44,6 +46,11 @@ const configure = vi.fn(async (next: ApiServerConfig) => {
   current = next.enabled === false ? OFF : { ...ON, mode: next.mode ?? current.mode, port: next.port ?? current.port, settings: { ...current.settings, ...next, sampling: { ...current.settings.sampling, ...next.sampling } } as ApiServerStatus["settings"], baseUrl: `http://127.0.0.1:${next.port ?? current.port}/v1` };
   return current;
 });
+const ENTRIES = [
+  { time: 1700000000, method: "POST", path: "/v1/chat/completions", model: "qwen3", mode: "model", status: 200, durationMs: 120, promptTokens: 5, completionTokens: 7, client: "curl/8" },
+];
+const log = vi.fn(async () => ENTRIES);
+const clearLog = vi.fn(async () => ({ success: true }));
 const regenerateKey = vi.fn(async () => {
   current = { ...current, key: "draggy-new-key" };
   return current;
@@ -55,7 +62,7 @@ beforeEach(() => {
   configure.mockClear();
   regenerateKey.mockClear();
   (window as unknown as { draggy: unknown }).draggy = {
-    apiServer: { status, configure, regenerateKey },
+    apiServer: { status, configure, regenerateKey, log, clearLog },
   };
 });
 
@@ -230,6 +237,44 @@ describe("the local API setting", () => {
       fireEvent.click(screen.getByLabelText(t("apiOllamaNoKey")));
     });
     expect(configure).toHaveBeenCalledWith({ ollamaNoKey: true });
+  });
+
+  it("shows the request log and copies a curl line without the key", async () => {
+    current = ON;
+    const writeText = vi.fn(async (_text: string) => undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    await show();
+
+    expect(screen.getByText("POST /v1/chat/completions")).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText(t("apiLogCopyCurl")));
+    });
+    const line = String(writeText.mock.calls[0]?.[0]);
+    expect(line).toContain("http://127.0.0.1:11500/v1/chat/completions");
+    expect(line).toContain("$DRAGGY_API_KEY");
+    expect(line).toContain("-d '{}'");
+    expect(line).not.toContain("draggy-secret-key");
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText(t("apiLogClear")));
+    });
+    expect(clearLog).toHaveBeenCalled();
+    expect(screen.queryByText("POST /v1/chat/completions")).toBeNull();
+  });
+
+  it("saves the log switch and size", async () => {
+    current = ON;
+    await show();
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText(t("apiLogEnable")));
+    });
+    expect(configure).toHaveBeenCalledWith({ logRequests: false });
+    const size = screen.getByLabelText(t("apiLogSize"));
+    await act(async () => {
+      fireEvent.change(size, { target: { value: "100" } });
+      fireEvent.blur(size);
+    });
+    expect(configure).toHaveBeenCalledWith({ logSize: 100 });
   });
 
   it("clears a sampling default when emptied", async () => {

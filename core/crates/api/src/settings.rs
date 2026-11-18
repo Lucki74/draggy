@@ -11,6 +11,8 @@ pub const MAX_PARALLEL_RANGE: (u64, u64) = (1, 16);
 pub const QUEUE_WAIT_RANGE: (u64, u64) = (0, 600);
 pub const REQUEST_TIMEOUT_RANGE: (u64, u64) = (10, 3600);
 pub const MAX_BODY_MB_RANGE: (u64, u64) = (1, 64);
+pub const LOG_SIZE_RANGE: (u64, u64) = (10, 500);
+pub const DEFAULT_LOG_SIZE: u64 = 50;
 pub const DEFAULT_MAX_PARALLEL: u64 = 2;
 pub const DEFAULT_QUEUE_WAIT_SECS: u64 = 60;
 pub const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 600;
@@ -60,6 +62,9 @@ pub struct ApiSettings {
     pub allowed_origins: Vec<String>,
     /// Let the Ollama routes under `/api/` skip the key.
     pub ollama_no_key: bool,
+    /// Keep a short in-memory list of recent requests.
+    pub log_requests: bool,
+    pub log_size: u64,
 }
 
 impl Default for ApiSettings {
@@ -79,6 +84,8 @@ impl Default for ApiSettings {
             extra_engine_args: String::new(),
             allowed_origins: Vec::new(),
             ollama_no_key: false,
+            log_requests: true,
+            log_size: DEFAULT_LOG_SIZE,
         }
     }
 }
@@ -120,6 +127,8 @@ impl ApiSettings {
             ),
             allowed_origins: origins(value.get("allowedOrigins")),
             ollama_no_key: flag(value, "ollamaNoKey", defaults.ollama_no_key),
+            log_requests: flag(value, "logRequests", defaults.log_requests),
+            log_size: whole(value, "logSize", LOG_SIZE_RANGE, DEFAULT_LOG_SIZE),
         }
     }
 
@@ -164,6 +173,8 @@ impl ApiSettings {
             "extraEngineArgs": self.extra_engine_args,
             "allowedOrigins": self.allowed_origins,
             "ollamaNoKey": self.ollama_no_key,
+            "logRequests": self.log_requests,
+            "logSize": self.log_size,
         })
     }
 
@@ -378,6 +389,15 @@ pub fn strip_reasoning(value: &mut Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_log_settings_default_and_clamp() {
+        let s = ApiSettings::default();
+        assert!(s.log_requests);
+        assert_eq!(s.log_size, 50);
+        assert_eq!(ApiSettings::from_value(&json!({"logSize": 1})).log_size, 10);
+        assert_eq!(ApiSettings::from_value(&json!({"logSize": 9999, "logRequests": false})).log_size, 500);
+    }
 
     #[test]
     fn empty_input_gives_the_defaults() {

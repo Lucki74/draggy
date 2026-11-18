@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import { StatusDot } from "../ui/StatusDot";
+import ApiLog from "./ApiLog";
 import { Block, Group, Row, Toggle } from "./Controls";
 import type { ApiSampling, ApiServerConfig, ApiServerStatus } from "../types";
 import { copyText } from "../utils";
@@ -491,6 +492,28 @@ export default function ApiServerField({ t, models = [] }: ApiServerFieldProps) 
             rows={3}
             onCommit={(extraEngineArgs) => configure({ extraEngineArgs })}
           />
+        </Block>
+      </Group>
+
+      <Group title={t("apiSectionLog")}>
+        <Row label={t("apiLogEnable")}>
+          <Toggle
+            label={t("apiLogEnable")}
+            checked={settings.logRequests}
+            onChange={(logRequests) => configure({ logRequests })}
+          />
+        </Row>
+        <Row label={t("apiLogSize")}>
+          <NumberInput
+            label={t("apiLogSize")}
+            value={settings.logSize}
+            min={10}
+            max={500}
+            onCommit={(value) => value !== null && configure({ logSize: value })}
+          />
+        </Row>
+        <Block>
+          <ApiLog t={t} baseUrl={status.baseUrl} enabled={settings.logRequests} />
         </Block>
       </Group>
     </div>

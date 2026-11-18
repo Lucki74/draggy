@@ -55,6 +55,7 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
 use tokio_util::sync::{CancellationToken, DropGuard};
 
 use crate::dialect::{self, Dialect};
+use crate::log::{LogEntry, Note, Tokens, client_of};
 use crate::ollama;
 use crate::messages;
 use crate::routes;
@@ -218,6 +219,11 @@ pub trait Env: Send + Sync + 'static {
     }
 
     /// The settings now in force, read for every request so a change applies without a restart.
+    /// Keeps one served request in the log. Called only while `logRequests` is on.
+    fn record(&self, entry: LogEntry) {
+        let _ = entry;
+    }
+
     fn settings(&self) -> ApiSettings {
         ApiSettings::default()
     }
@@ -1050,16 +1056,45 @@ fn preflight(headers: &HeaderMap, port: u16, settings: &ApiSettings) -> Response
 
 async fn handle<B: Backend, E: Env>(
     State(shared): State<Arc<Shared<B, E>>>,
-    request: Request,
+    mut request: Request,
 ) -> Response {
     let settings = shared.env.settings();
     if request.method() == Method::OPTIONS {
         return preflight(request.headers(), shared.port, &settings);
     }
     let origin = allowed_origin(request.headers(), &settings);
+    let started = std::time::Instant::now();
+    let note = Note::default();
+    request.extensions_mut().insert(note.clone());
+    let method = request.method().to_string();
+    let path = routed_path(request.uri().path());
+    let client = client_of(
+        request
+            .headers()
+            .get(axum::http::header::USER_AGENT)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or(""),
+    );
+    let env = shared.env.clone();
     let mut response = handle_request(shared, request).await;
     if let Some(origin) = origin {
         with_cors(&mut response, &origin);
+    }
+    if settings.log_requests {
+        let (model, mode) = note.read();
+        let tokens = response.extensions().get::<Tokens>().copied().unwrap_or(Tokens(0, 0));
+        env.record(LogEntry {
+            time: env.now_unix(),
+            method,
+            path,
+            model,
+            mode: mode.to_owned(),
+            status: response.status().as_u16(),
+            duration_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+            prompt_tokens: tokens.0,
+            completion_tokens: tokens.1,
+            client,
+        });
     }
     response
 }
@@ -1179,6 +1214,10 @@ async fn handle_request<B: Backend, E: Env>(
     } else {
         route(&parsed, shared.env.default_mode())
     };
+    if let Some(note) = parts.extensions.get::<Note>() {
+        let model = parsed.get("model").and_then(Value::as_str).unwrap_or("");
+        note.set(model, if mode == Mode::Model { "model" } else { "agent" });
+    }
     if oversize && mode != Mode::Model {
         tracing::debug!(target: "net.api", status = 413, "body rejected");
         return error_response(
@@ -1594,8 +1633,13 @@ fn dialect_response(
                 }
                 reply
             });
+        let tokens = serde_json::from_slice::<Value>(bytes).map_or((0, 0), |chat| dialect::usage_of(&chat));
         return match reply {
-            Some(reply) => json_response(status, reply.to_string()),
+            Some(reply) => {
+                let mut response = json_response(status, reply.to_string());
+                response.extensions_mut().insert(Tokens(tokens.0, tokens.1));
+                response
+            }
             None => shaped_error(
                 Some(dialect),
                 StatusCode::BAD_GATEWAY,
@@ -1649,7 +1693,10 @@ pub(crate) fn buffered_response(
                 if strip {
                     settings::strip_reasoning(&mut value);
                 }
-                json_response(status, value.to_string())
+                let (prompt, completion) = dialect::usage_of(&value);
+                let mut response = json_response(status, value.to_string());
+                response.extensions_mut().insert(Tokens(prompt, completion));
+                response
             }
             Err(_) => error_response(
                 StatusCode::BAD_GATEWAY,

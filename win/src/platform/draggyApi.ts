@@ -171,6 +171,8 @@ export function createDraggyApi(ipc: IpcLike): NonNullable<Window["draggy"]> {
       status: () => ipc.invoke("api-server:status"),
       configure: (config) => ipc.invoke("api-server:configure", config),
       regenerateKey: () => ipc.invoke("api-server:regenerate-key"),
+      log: () => ipc.invoke("api-server:log"),
+      clearLog: () => ipc.invoke("api-server:clear-log"),
       ready: () => ipc.send("api-server:ready"),
       onRequest: (callback) => subscribe("api-server:request", callback),
       onAbort: (callback) => subscribe("api-server:abort", callback),
