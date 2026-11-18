@@ -31,7 +31,7 @@ use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use axum::Router;
@@ -53,6 +53,8 @@ use subtle::ConstantTimeEq;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
 use tokio_util::sync::{CancellationToken, DropGuard};
 
+use crate::settings::{self, ApiSettings};
+
 /// The only address the reference listens on.
 pub const HOST: &str = "127.0.0.1";
 
@@ -62,19 +64,10 @@ pub const DEFAULT_PORT: u16 = 11500;
 /// Largest body an agent-mode request may have. A conversation, not a file upload.
 pub const MAX_BODY_BYTES: usize = 1024 * 1024;
 
-/// Largest body a model-mode request may have, so inline images fit. The chat gateway takes the same.
-pub const MAX_MODEL_BODY_BYTES: usize = 32 * 1024 * 1024;
-
 /// The model name that always selects agent mode.
 pub const AGENT_MODEL: &str = "draggy-agent";
 
-/// How long a request waits for a free slot before it is told to retry.
-pub const QUEUE_WAIT: Duration = Duration::from_secs(60);
-
 const RETRY_AFTER_SECONDS: &str = "10";
-
-/// Replies generated at once. Past this a request waits for a slot.
-pub const MAX_CONCURRENT: usize = 2;
 
 const REPLY_FAILED: &str = "The reply failed.";
 const SERVER_ERROR: &str = "The server hit an error.";
@@ -183,9 +176,14 @@ pub trait Env: Send + Sync + 'static {
         Mode::Agent
     }
 
+    /// The settings now in force, read for every request so a change applies without a restart.
+    fn settings(&self) -> ApiSettings {
+        ApiSettings::default()
+    }
+
     /// How long a request waits for a free slot.
     fn queue_wait(&self) -> Duration {
-        QUEUE_WAIT
+        self.settings().queue_wait()
     }
 }
 
@@ -293,7 +291,7 @@ pub fn router<B: Backend, E: Env>(port: u16, backend: B, env: E) -> Router {
         backend: Arc::new(backend),
         env: Arc::new(env),
         port,
-        slots: Arc::new(Semaphore::new(MAX_CONCURRENT)),
+        slots: Arc::new(Slots::new(settings::DEFAULT_MAX_PARALLEL as usize)),
     });
     Router::<Arc<Shared<B, E>>>::new()
         .fallback(handle::<B, E>)
@@ -824,7 +822,56 @@ struct Shared<B, E> {
     backend: Arc<B>,
     env: Arc<E>,
     port: u16,
-    slots: Arc<Semaphore>,
+    slots: Arc<Slots>,
+}
+
+/// The reply slots, whose number can change while requests hold some.
+struct Slots {
+    semaphore: Arc<Semaphore>,
+    /// The size now wanted, and slots still held that must be dropped instead of reused.
+    state: Mutex<(usize, usize)>,
+}
+
+impl Slots {
+    fn new(size: usize) -> Self {
+        Self {
+            semaphore: Arc::new(Semaphore::new(size)),
+            state: Mutex::new((size, 0)),
+        }
+    }
+
+    fn resize(&self, size: usize) {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let (current, debt) = *state;
+        if size > current {
+            let cancelled = debt.min(size - current);
+            self.semaphore.add_permits(size - current - cancelled);
+            *state = (size, debt - cancelled);
+        } else if size < current {
+            let wanted = current - size;
+            let forgotten = self.semaphore.forget_permits(wanted);
+            *state = (size, debt + (wanted - forgotten));
+        }
+    }
+}
+
+/// A held slot. Given back on drop, or retired when the slots have shrunk.
+struct Permit {
+    inner: Option<OwnedSemaphorePermit>,
+    slots: Arc<Slots>,
+}
+
+impl Drop for Permit {
+    fn drop(&mut self) {
+        let Some(permit) = self.inner.take() else {
+            return;
+        };
+        let mut state = self.slots.state.lock().unwrap_or_else(|e| e.into_inner());
+        if state.1 > 0 {
+            state.1 -= 1;
+            permit.forget();
+        }
+    }
 }
 
 /// What a streamed reply still has to send, and the state that outlives the handler.
@@ -896,6 +943,7 @@ async fn handle<B: Backend, E: Env>(
 ) -> Response {
     let (parts, body) = request.into_parts();
     let key = shared.env.api_key();
+    let settings = shared.env.settings();
     if let Some(refusal) = check_request(&parts.headers, shared.port, &key) {
         tracing::debug!(target: "net.api", status = refusal.status.as_u16(), "request refused");
         return error_response(refusal.status, refusal.message, "authentication_error");
@@ -912,7 +960,7 @@ async fn handle<B: Backend, E: Env>(
             "invalid_request_error",
         );
     }
-    let bytes = match to_bytes(body, MAX_MODEL_BODY_BYTES).await {
+    let bytes = match to_bytes(body, settings.max_body_bytes()).await {
         Ok(bytes) => bytes,
         Err(error) => {
             let too_large = error.into_inner().is::<LengthLimitError>();
@@ -929,7 +977,7 @@ async fn handle<B: Backend, E: Env>(
     let oversize = bytes.len() > MAX_BODY_BYTES;
 
     let text = String::from_utf8_lossy(&bytes);
-    let parsed = match serde_json::from_str::<Value>(&text) {
+    let mut parsed = match serde_json::from_str::<Value>(&text) {
         Ok(parsed) => parsed,
         Err(_) => {
             let (status, message) = if oversize {
@@ -942,6 +990,14 @@ async fn handle<B: Backend, E: Env>(
         }
     };
 
+    let renamed = parsed
+        .get("model")
+        .and_then(Value::as_str)
+        .and_then(|name| settings::resolve_alias(name, &settings.aliases))
+        .map(str::to_owned);
+    if let Some(name) = renamed {
+        parsed["model"] = Value::String(name);
+    }
     let mode = route(&parsed, shared.env.default_mode());
     if oversize && mode != Mode::Model {
         tracing::debug!(target: "net.api", status = 413, "body rejected");
@@ -960,13 +1016,15 @@ async fn handle<B: Backend, E: Env>(
                 "invalid_request_error",
             );
         }
+        settings::prepend_system(&mut parsed, &settings.system_prompt);
         let permit = match take_slot(&shared).await {
             Ok(permit) => permit,
             Err(busy) => return busy,
         };
-        return forward_model(&shared, parsed, permit).await;
+        return forward_model(&shared, parsed, permit, &settings).await;
     }
 
+    settings::prepend_system(&mut parsed, &settings.system_prompt);
     match read_completion_request(&parsed) {
         Ok(request) => {
             let permit = match take_slot(&shared).await {
@@ -986,20 +1044,25 @@ async fn handle<B: Backend, E: Env>(
 /// Waits for a free slot, and answers 429 with `Retry-After` when none comes in time.
 async fn take_slot<B: Backend, E: Env>(
     shared: &Shared<B, E>,
-) -> Result<OwnedSemaphorePermit, Response> {
+) -> Result<Permit, Response> {
     let wait = shared.env.queue_wait();
     let slots = shared.slots.clone();
+    slots.resize(shared.env.settings().max_parallel);
+    let semaphore = slots.semaphore.clone();
     // A zero wait answers at once instead of waiting for a timer.
     let permit = if wait.is_zero() {
-        slots.try_acquire_owned().ok()
+        semaphore.try_acquire_owned().ok()
     } else {
-        tokio::time::timeout(wait, slots.acquire_owned())
+        tokio::time::timeout(wait, semaphore.acquire_owned())
             .await
             .ok()
             .and_then(Result::ok)
     };
     match permit {
-        Some(permit) => Ok(permit),
+        Some(inner) => Ok(Permit {
+            inner: Some(inner),
+            slots,
+        }),
         None => {
             let mut response =
                 error_response(StatusCode::TOO_MANY_REQUESTS, BUSY, "rate_limit_error");
@@ -1039,7 +1102,7 @@ async fn models_response<B: Backend, E: Env>(shared: &Shared<B, E>) -> Response 
 async fn complete<B: Backend, E: Env>(
     shared: &Shared<B, E>,
     request: CompletionRequest,
-    permit: OwnedSemaphorePermit,
+    permit: Permit,
 ) -> Response {
     let stream = request.stream;
     let chars: usize = request
@@ -1178,11 +1241,14 @@ fn error_response(status: StatusCode, message: &str, kind: &str) -> Response {
 async fn forward_model<B: Backend, E: Env>(
     shared: &Shared<B, E>,
     mut body: Value,
-    permit: OwnedSemaphorePermit,
+    permit: Permit,
+    settings: &ApiSettings,
 ) -> Response {
     let stream = body.get("stream") == Some(&Value::Bool(true));
     let include_usage = body.pointer("/stream_options/include_usage") == Some(&Value::Bool(true));
     alias_max_tokens(&mut body);
+    settings::apply_sampling(&mut body, &settings.sampling);
+    let strip = !settings.send_reasoning;
     let requested = body
         .get("model")
         .and_then(Value::as_str)
@@ -1219,7 +1285,7 @@ async fn forward_model<B: Backend, E: Env>(
         }
         let _ = guard.disarm();
         drop(permit);
-        return buffered_response(status, &bytes, &id, &model, created);
+        return buffered_response(status, &bytes, &id, &model, created, strip);
     }
 
     let relay = Relay {
@@ -1230,6 +1296,7 @@ async fn forward_model<B: Backend, E: Env>(
         created,
         model,
         include_usage,
+        strip,
         last_usage: None,
         usage_sent: false,
         finished: false,
@@ -1276,12 +1343,16 @@ fn buffered_response(
     id: &str,
     model: &str,
     created: i64,
+    strip: bool,
 ) -> Response {
     let parsed = serde_json::from_slice::<Value>(bytes);
     if status.is_success() {
         return match parsed {
             Ok(mut value) => {
                 patch_completion(&mut value, id, model, created);
+                if strip {
+                    settings::strip_reasoning(&mut value);
+                }
                 json_response(status, value.to_string())
             }
             Err(_) => error_response(
@@ -1362,11 +1433,12 @@ struct Relay {
     created: i64,
     model: String,
     include_usage: bool,
+    strip: bool,
     last_usage: Option<Value>,
     usage_sent: bool,
     finished: bool,
     cancel: Option<DropGuard>,
-    permit: Option<OwnedSemaphorePermit>,
+    permit: Option<Permit>,
 }
 
 impl Relay {
@@ -1401,6 +1473,9 @@ impl Relay {
             return;
         };
         self.patch(&mut value);
+        if self.strip {
+            settings::strip_reasoning(&mut value);
+        }
         let mut out: String = lines
             .iter()
             .filter(|line| !line.starts_with("data:") && !line.is_empty())

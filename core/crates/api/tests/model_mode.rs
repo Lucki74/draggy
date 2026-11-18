@@ -12,6 +12,7 @@ use draggy_api::server::{
     Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Env, ForwardReply, Mode,
     ModelEntry, Reply, Sink, router,
 };
+use draggy_api::settings::ApiSettings;
 use futures_util::stream;
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
@@ -26,6 +27,7 @@ const PATH: &str = "/v1/chat/completions";
 struct TestEnv {
     mode: Mode,
     wait: Duration,
+    settings: ApiSettings,
 }
 
 impl Env for TestEnv {
@@ -48,12 +50,17 @@ impl Env for TestEnv {
     fn queue_wait(&self) -> Duration {
         self.wait
     }
+
+    fn settings(&self) -> ApiSettings {
+        self.settings.clone()
+    }
 }
 
 fn env() -> TestEnv {
     TestEnv {
         mode: Mode::Agent,
         wait: Duration::from_millis(100),
+        settings: ApiSettings::default(),
     }
 }
 
@@ -378,6 +385,7 @@ async fn a_plain_request_follows_the_default_mode() {
     let model_first = TestEnv {
         mode: Mode::Model,
         wait: Duration::from_millis(100),
+        settings: ApiSettings::default(),
     };
 
     let (_, _, text) = send(
@@ -457,6 +465,7 @@ async fn a_request_waits_for_a_free_slot_and_is_then_answered() {
     let waiting = TestEnv {
         mode: Mode::Agent,
         wait: Duration::from_secs(5),
+        settings: ApiSettings::default(),
     };
     let app = router(DEFAULT_PORT, backend.clone(), waiting);
 
@@ -505,4 +514,97 @@ async fn a_request_that_waits_too_long_gets_429_with_retry_after() {
     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
     assert!(headers.contains_key("retry-after"));
     assert_eq!(json_of(&text)["error"]["type"], "rate_limit_error");
+}
+
+fn with_settings(patch: Value) -> TestEnv {
+    TestEnv {
+        settings: ApiSettings::default().patched(&patch),
+        ..env()
+    }
+}
+
+fn plain() -> Value {
+    json!({"model": "gpt-4o", "messages": [{"role": "user", "content": "hi"}], "tools": [{"type": "function"}]})
+}
+
+#[tokio::test]
+async fn an_alias_is_applied_before_routing() {
+    let backend = Forwarding::json(&completion());
+    let env = with_settings(json!({"aliases": {"gpt-4o": "qwen"}}));
+
+    send(router(DEFAULT_PORT, backend.clone(), env), post(&plain())).await;
+
+    assert_eq!(backend.asked.lock().unwrap().clone(), vec!["qwen".to_owned()]);
+}
+
+#[tokio::test]
+async fn the_system_prompt_and_sampling_defaults_reach_the_model() {
+    let backend = Forwarding::json(&completion());
+    let env = with_settings(json!({
+        "systemPrompt": "Be brief.",
+        "sampling": {"temperature": 0.3, "top_k": 20}
+    }));
+    let mut sent = plain();
+    sent["temperature"] = json!(1.0);
+
+    send(router(DEFAULT_PORT, backend.clone(), env), post(&sent)).await;
+
+    let seen = backend.forwarded();
+    assert_eq!(seen[0]["messages"][0], json!({"role": "system", "content": "Be brief."}));
+    assert_eq!(seen[0]["temperature"], json!(1.0));
+    assert_eq!(seen[0]["top_k"], json!(20));
+}
+
+#[tokio::test]
+async fn reasoning_is_stripped_from_a_whole_reply_when_off() {
+    let reply = json!({"choices": [{"message": {"role": "assistant", "content": "ok", "reasoning_content": "hm"}}]});
+    let backend = Forwarding::json(&reply);
+
+    let (_, _, text) = send(
+        router(DEFAULT_PORT, backend.clone(), with_settings(json!({"sendReasoning": false}))),
+        post(&plain()),
+    )
+    .await;
+    assert!(json_of(&text)["choices"][0]["message"].get("reasoning_content").is_none());
+
+    let (_, _, text) = send(app(&backend), post(&plain())).await;
+    assert_eq!(json_of(&text)["choices"][0]["message"]["reasoning_content"], "hm");
+}
+
+#[tokio::test]
+async fn reasoning_is_stripped_from_streamed_deltas_when_off() {
+    let backend = Forwarding::replying(&[
+        "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"hm\",\"content\":\"a\"}}]}
+
+",
+        "data: [DONE]
+
+",
+    ]);
+    let mut sent = plain();
+    sent["stream"] = json!(true);
+
+    let (_, _, text) = send(
+        router(DEFAULT_PORT, backend, with_settings(json!({"sendReasoning": false}))),
+        post(&sent),
+    )
+    .await;
+    let (chunks, done) = read_stream(&text);
+
+    assert!(done);
+    assert_eq!(chunks[0]["choices"][0]["delta"], json!({"content": "a"}));
+}
+
+#[tokio::test]
+async fn a_body_past_the_configured_limit_is_refused() {
+    let backend = Forwarding::json(&completion());
+    let mut sent = plain();
+    sent["pad"] = json!("x".repeat(1024 * 1024 + 10));
+
+    let (status, _, _) = send(app(&backend), post(&sent)).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let env = with_settings(json!({"maxBodyMb": 1}));
+    let (status, _, _) = send(router(DEFAULT_PORT, backend, env), post(&sent)).await;
+    assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
 }
