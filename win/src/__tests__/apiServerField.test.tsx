@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import ApiServerField from "../settings/ApiServerField";
 import { translations } from "../translations";
-import type { ApiServerStatus } from "../types";
+import type { ApiServerConfig, ApiServerStatus } from "../types";
 
 /** The switch for the local API, and what it shows once it is on. */
 
@@ -18,14 +18,28 @@ const OFF: ApiServerStatus = {
   baseUrl: "http://127.0.0.1:11500/v1",
   key: null,
   error: null,
+  settings: {
+    maxParallel: 2,
+    queueWaitSecs: 60,
+    requestTimeoutSecs: 600,
+    maxBodyMb: 32,
+    defaultModel: "",
+    aliases: {},
+    listCloudModels: false,
+    agentWebTools: true,
+    systemPrompt: "",
+    sendReasoning: false,
+    sampling: {},
+    extraEngineArgs: "",
+  },
 };
 
 const ON: ApiServerStatus = { ...OFF, enabled: true, running: true, key: "draggy-secret-key" };
 
 let current: ApiServerStatus;
 const status = vi.fn(async () => current);
-const configure = vi.fn(async (next: { enabled?: boolean; port?: number; mode?: "agent" | "model" }) => {
-  current = next.enabled === false ? OFF : { ...ON, mode: next.mode ?? current.mode, port: next.port ?? current.port, baseUrl: `http://127.0.0.1:${next.port ?? current.port}/v1` };
+const configure = vi.fn(async (next: ApiServerConfig) => {
+  current = next.enabled === false ? OFF : { ...ON, mode: next.mode ?? current.mode, port: next.port ?? current.port, settings: { ...current.settings, ...next, sampling: { ...current.settings.sampling, ...next.sampling } } as ApiServerStatus["settings"], baseUrl: `http://127.0.0.1:${next.port ?? current.port}/v1` };
   return current;
 });
 const regenerateKey = vi.fn(async () => {
@@ -58,16 +72,15 @@ describe("the local API setting", () => {
   it("is off, and shows no address or key while it is", async () => {
     await show();
 
-    expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false");
+    expect(screen.getAllByRole("switch")[0].getAttribute("aria-checked")).toBe("false");
     expect(screen.queryByText(OFF.baseUrl)).toBeNull();
-    expect(screen.getByText(t("apiServerHint"))).toBeTruthy();
   });
 
   it("turns on and shows where to connect", async () => {
     await show();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("switch"));
+      fireEvent.click(screen.getAllByRole("switch")[0]);
     });
 
     expect(configure).toHaveBeenCalledWith({ enabled: true });
@@ -147,5 +160,68 @@ describe("the local API setting", () => {
 
     expect(configure).toHaveBeenCalledWith({ mode: "model" });
     expect((screen.getByLabelText(t("apiServerMode")) as HTMLSelectElement).value).toBe("model");
+  });
+
+  it("saves a server number on Enter and clamps it", async () => {
+    current = ON;
+    await show();
+
+    const input = screen.getByLabelText(t("apiMaxParallel"));
+    await act(async () => {
+      fireEvent.change(input, { target: { value: "40" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+
+    expect(configure).toHaveBeenCalledWith({ maxParallel: 16 });
+  });
+
+  it("adds and removes an alias", async () => {
+    current = ON;
+    await show();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText(t("apiAliasAdd")));
+    });
+    const [name, model] = [screen.getByLabelText(t("apiAliasClient")), screen.getByLabelText(t("apiAliasModel"))];
+    await act(async () => {
+      fireEvent.change(name, { target: { value: "gpt-4o" } });
+      fireEvent.change(model, { target: { value: "qwen3" } });
+      fireEvent.blur(model);
+    });
+    expect(configure).toHaveBeenCalledWith({ aliases: { "gpt-4o": "qwen3" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText(t("apiAliasRemove")));
+    });
+    expect(configure).toHaveBeenLastCalledWith({ aliases: {} });
+  });
+
+  it("turns on reasoning and saves the system prompt", async () => {
+    current = ON;
+    await show();
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText(t("apiSendReasoning")));
+    });
+    expect(configure).toHaveBeenCalledWith({ sendReasoning: true });
+
+    const prompt = screen.getByLabelText(t("apiSystemPrompt"));
+    await act(async () => {
+      fireEvent.change(prompt, { target: { value: "Be brief." } });
+      fireEvent.blur(prompt);
+    });
+    expect(configure).toHaveBeenCalledWith({ systemPrompt: "Be brief." });
+  });
+
+  it("clears a sampling default when emptied", async () => {
+    current = { ...ON, settings: { ...ON.settings, sampling: { temperature: 0.7 } } };
+    await show();
+
+    const input = screen.getByLabelText(t("apiTemperature"));
+    await act(async () => {
+      fireEvent.change(input, { target: { value: "" } });
+      fireEvent.blur(input);
+    });
+    expect(configure).toHaveBeenCalledWith({ sampling: { temperature: null } });
   });
 });

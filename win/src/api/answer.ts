@@ -18,6 +18,8 @@ export interface AnswerDependencies {
   /** What is installed, to tell a real model name from a client's default. */
   installed: string[] | null;
   settings: AppSettings;
+  /** False gives the agent no tools. */
+  webTools?: boolean;
   t: (key: string) => string;
   signal: AbortSignal;
   /** Text as it arrives, for a streamed reply. Only ever appended to. */
@@ -83,7 +85,7 @@ export async function answerApiRequest(
     hasFolder: false,
     hasSkills: false,
     hasGit: false,
-    allowedGroups: ["web"],
+    allowedGroups: deps.webTools === false ? [] : ["web"],
   };
 
   let sent = "";

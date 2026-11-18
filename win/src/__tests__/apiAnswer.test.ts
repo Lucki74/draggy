@@ -102,6 +102,14 @@ describe("what an outside caller gets", () => {
     expect(seen.request?.environment.projectRoot).toBeUndefined();
   });
 
+  it("gets no web tools when they are turned off", async () => {
+    const { run, seen } = fakeRun();
+
+    await answerApiRequest(request(), { ...deps({ webTools: false }), run });
+
+    expect(seen.request?.environment.allowedGroups).toEqual([]);
+  });
+
   it("can only run what does not need the user's approval", async () => {
     const { run, seen } = fakeRun();
 

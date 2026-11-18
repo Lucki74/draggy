@@ -25,7 +25,7 @@ export function useApiBridge(input: BridgeInput): void {
 
     const running = new Map<string, AbortController>();
 
-    const stopRequests = bridge.onRequest(({ id, request }) => {
+    const stopRequests = bridge.onRequest(({ id, request, defaultModel, webTools }) => {
       const controller = new AbortController();
       running.set(id, controller);
 
@@ -38,7 +38,8 @@ export function useApiBridge(input: BridgeInput): void {
           const { model, settings, t } = latest.current;
 
           const result = await answerApiRequest(request, {
-            model,
+            model: defaultModel?.trim() || model,
+            webTools: webTools !== false,
             installed,
             settings,
             t,
@@ -57,14 +58,14 @@ export function useApiBridge(input: BridgeInput): void {
     });
 
     // A model-mode request is forwarded by the main process, which only needs the model loaded.
-    const stopPrepares = bridge.onPrepare(({ id, model: requested }) => {
+    const stopPrepares = bridge.onPrepare(({ id, model: requested, defaultModel }) => {
       void (async () => {
         try {
           const installed = await listInstalledModels()
             .then((models) => models.map((model) => model.name))
             .catch(swallowed("api", "best effort, the screen works without it", null));
           const { model, settings } = latest.current;
-          const chosen = pickModel(requested, model, installed);
+          const chosen = pickModel(requested, defaultModel?.trim() || model, installed);
           if (!chosen) throw new Error("No model is selected in Draggy yet.");
           await warmModel(chosen, "", 0, settings.fixedContextSize ?? null);
           bridge.prepared(id, chosen);
