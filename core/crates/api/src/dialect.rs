@@ -9,6 +9,7 @@ use futures_util::stream::{self, Stream, StreamExt};
 use serde_json::{Map, Value, json};
 use tokio_util::sync::DropGuard;
 
+use crate::search::Search;
 use crate::server::{ByteStream, Permit, split_event};
 use crate::{messages, ollama, responses};
 
@@ -64,6 +65,10 @@ pub struct Opts {
     pub meta: Map<String, Value>,
     /// What to keep of a Responses exchange once it is done.
     pub keep: Option<Keep>,
+    /// How many built-in web searches the request allows, when it asks for them.
+    pub web_search: Option<u32>,
+    /// The searches that were run for this reply, shown before its answer.
+    pub searches: Vec<Search>,
 }
 
 /// The chat so far and the request's input items, kept with the response that answers them.
@@ -98,8 +103,8 @@ pub fn translator(dialect: Dialect, chat_id: &str, model: &str, created: i64) ->
 /// Like `translator`, with what the request asked for.
 pub fn translator_with(dialect: Dialect, chat_id: &str, model: &str, created: i64, opts: &Opts) -> Box<dyn Translator> {
     match dialect {
-        Dialect::Responses => Box::new(responses::Stream::new(chat_id, model, created).with_meta(opts.meta.clone())),
-        Dialect::Messages => Box::new(messages::Stream::new(chat_id, model)),
+        Dialect::Responses => Box::new(responses::Stream::new(chat_id, model, created).with_opts(opts)),
+        Dialect::Messages => Box::new(messages::Stream::new(chat_id, model).with_opts(opts)),
         Dialect::OllamaChat => Box::new(ollama::Stream::new(false, model, created)),
         Dialect::OllamaGenerate => Box::new(ollama::Stream::new(true, model, created)),
     }
@@ -257,8 +262,8 @@ pub fn whole_reply_with(dialect: Dialect, chat: &Value, ids: (&str, &str, i64), 
     let (chat_id, model, created) = ids;
     chat.get("choices")?;
     Some(match dialect {
-        Dialect::Responses => responses::from_chat_with(chat, chat_id, model, created, &opts.meta),
-        Dialect::Messages => messages::from_chat(chat, chat_id, model),
+        Dialect::Responses => responses::from_chat_with(chat, chat_id, model, created, opts),
+        Dialect::Messages => messages::from_chat_with(chat, chat_id, model, opts),
         Dialect::OllamaChat => ollama::from_chat(false, chat, model, created),
         Dialect::OllamaGenerate => ollama::from_chat(true, chat, model, created),
     })

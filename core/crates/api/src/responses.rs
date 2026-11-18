@@ -6,7 +6,8 @@ use std::collections::BTreeMap;
 
 use serde_json::{Map, Value, json};
 
-use crate::dialect::{Event, Translator, id_suffix, read_answer, usage_of};
+use crate::dialect::{Event, Opts, Translator, id_suffix, read_answer, usage_of};
+use crate::search::Search;
 
 /// The chat request for a Responses request body.
 pub fn to_chat(body: &Value) -> Result<Value, String> {
@@ -377,14 +378,14 @@ fn response_object(
 
 /// A whole chat completion as a Response object.
 pub fn from_chat(chat: &Value, chat_id: &str, model: &str, created: i64) -> Value {
-    from_chat_with(chat, chat_id, model, created, &Map::new())
+    from_chat_with(chat, chat_id, model, created, &Opts::default())
 }
 
 /// Like `from_chat`, with fields to add to the object.
-pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, created: i64, meta: &Map<String, Value>) -> Value {
+pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, created: i64, opts: &Opts) -> Value {
     let suffix = id_suffix(chat_id);
     let answer = read_answer(chat, suffix);
-    let mut output = Vec::new();
+    let mut output: Vec<Value> = opts.searches.iter().map(|search| search_item(suffix, search)).collect();
     if !answer.text.is_empty() || answer.calls.is_empty() {
         output.push(message_item(&format!("msg_{suffix}"), &answer.text));
     }
@@ -405,8 +406,22 @@ pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, created: i64, me
         output,
         usage_json(answer.input_tokens, answer.output_tokens),
     );
-    merge(&mut response, meta);
+    merge(&mut response, &opts.meta);
     response
+}
+
+fn search_item(suffix: &str, search: &Search) -> Value {
+    let sources: Vec<Value> = search
+        .hits
+        .iter()
+        .map(|hit| json!({"type": "url", "url": hit.url, "title": hit.title}))
+        .collect();
+    json!({
+        "id": format!("ws_{suffix}_{}", search.id),
+        "type": "web_search_call",
+        "status": if search.error.is_some() { "failed" } else { "completed" },
+        "action": {"type": "search", "query": search.query, "sources": sources},
+    })
 }
 
 fn merge(response: &mut Value, meta: &Map<String, Value>) {
@@ -445,13 +460,15 @@ pub struct Stream {
     usage: (u64, u64),
     ended: bool,
     meta: Map<String, Value>,
+    searches: Vec<Search>,
     response: Option<Value>,
 }
 
 impl Stream {
-    /// Adds fields to every Response object of the stream.
-    pub fn with_meta(mut self, meta: Map<String, Value>) -> Self {
-        self.meta = meta;
+    /// Adds fields to every Response object of the stream, and the searches that came before its answer.
+    pub fn with_opts(mut self, opts: &Opts) -> Self {
+        self.meta = opts.meta.clone();
+        self.searches = opts.searches.clone();
         self
     }
 
@@ -472,6 +489,7 @@ impl Stream {
             usage: (0, 0),
             ended: false,
             meta: Map::new(),
+            searches: Vec::new(),
             response: None,
         }
     }
@@ -499,6 +517,24 @@ impl Stream {
         merge(&mut response, &self.meta);
         self.emit(out, "response.created", json!({"response": response}));
         self.emit(out, "response.in_progress", json!({"response": response}));
+        for search in std::mem::take(&mut self.searches) {
+            self.add_search(out, &search);
+        }
+    }
+
+    fn add_search(&mut self, out: &mut Vec<Event>, search: &Search) {
+        let index = self.next_index;
+        self.next_index += 1;
+        let item = search_item(&self.suffix, search);
+        let item_id = item["id"].clone();
+        let pending = json!({"id": item_id, "type": "web_search_call", "status": "in_progress"});
+        self.emit(out, "response.output_item.added", json!({"output_index": index, "item": pending}));
+        for step in ["in_progress", "searching", "completed"] {
+            let name = format!("response.web_search_call.{step}");
+            self.emit(out, &name, json!({"output_index": index, "item_id": item_id}));
+        }
+        self.emit(out, "response.output_item.done", json!({"output_index": index, "item": item}));
+        self.output.insert(index, item);
     }
 
     fn add_text(&mut self, out: &mut Vec<Event>, delta: &str) {

@@ -60,6 +60,7 @@ use crate::ollama;
 use crate::messages;
 use crate::responses;
 use crate::routes;
+use crate::search::{self, Failure, Hit, Plan};
 use crate::settings::{self, ApiSettings};
 use crate::store::{Store, Stored};
 
@@ -134,6 +135,20 @@ pub trait Backend: Send + Sync + 'static {
         cancel: CancellationToken,
     ) -> impl Future<Output = Result<ForwardReply, BackendError>> + Send {
         let _ = (body, cancel);
+        async {
+            Err(BackendError {
+                message: NOT_AVAILABLE.to_owned(),
+            })
+        }
+    }
+
+    /// Searches the web for the built-in web search tool of the Responses and Messages routes.
+    fn web_search(
+        &self,
+        query: &str,
+        cancel: CancellationToken,
+    ) -> impl Future<Output = Result<Vec<Hit>, BackendError>> + Send {
+        let _ = (query, cancel);
         async {
             Err(BackendError {
                 message: NOT_AVAILABLE.to_owned(),
@@ -1198,6 +1213,7 @@ async fn handle_request<B: Backend, E: Env>(
         {
             return json_response(StatusCode::OK, reply.to_string());
         }
+        opts.web_search = search::requested(dialect, &parsed);
         let converted = if dialect == Dialect::Responses {
             match responses_chat(&shared, &parsed, &mut opts) {
                 Ok(chat) => Ok(chat),
@@ -1577,7 +1593,7 @@ async fn forward_model<B: Backend, E: Env>(
     settings: &ApiSettings,
     route: (Option<Dialect>, Opts),
 ) -> Response {
-    let (dialect, opts) = route;
+    let (dialect, mut opts) = route;
     let stream = body.get("stream") == Some(&Value::Bool(true));
     let include_usage = body.pointer("/stream_options/include_usage") == Some(&Value::Bool(true));
     alias_max_tokens(&mut body);
@@ -1601,9 +1617,35 @@ async fn forward_model<B: Backend, E: Env>(
     };
     body["model"] = Value::String(model.clone());
 
-    let reply = match shared.backend.forward(body, cancel.clone()).await {
-        Ok(reply) => reply,
-        Err(error) => return model_failure(&error, dialect),
+    let mut searched = None;
+    if let (Some(max), Some(_)) = (opts.web_search, dialect) {
+        let plan = Plan { max, enabled: settings.agent_web_tools };
+        match search::rounds(shared.backend.as_ref(), body.clone(), &plan, &cancel).await {
+            Ok(rounded) => {
+                opts.searches = rounded.searches;
+                searched = Some(rounded.chat);
+            }
+            Err(Failure::Backend(error)) => return model_failure(&error, dialect),
+            Err(Failure::Upstream(status, bytes)) => {
+                let status = StatusCode::from_u16(status).unwrap_or(StatusCode::BAD_GATEWAY);
+                let id = completion_id(shared.env.as_ref());
+                let created = shared.env.now_unix();
+                let ids = (id.as_str(), model.as_str(), created);
+                let asked = (started.elapsed(), &opts);
+                return dialect_response(dialect.unwrap_or(Dialect::Messages), status, &bytes, ids, asked, |_| {});
+            }
+        }
+    }
+
+    let reply = match searched {
+        Some(chat) => ForwardReply {
+            status: 200,
+            body: if stream { search::as_stream(&chat) } else { search::as_bytes(&chat) },
+        },
+        None => match shared.backend.forward(body, cancel.clone()).await {
+            Ok(reply) => reply,
+            Err(error) => return model_failure(&error, dialect),
+        },
     };
     let id = completion_id(shared.env.as_ref());
     let created = shared.env.now_unix();

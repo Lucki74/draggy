@@ -4,7 +4,8 @@
 
 use serde_json::{Map, Value, json};
 
-use crate::dialect::{Event, Translator, id_suffix, read_answer, usage_of};
+use crate::dialect::{Event, Opts, Translator, id_suffix, read_answer, usage_of};
+use crate::search::Search;
 
 /// The chat request for a Messages request body.
 pub fn to_chat(body: &Value) -> Result<Value, String> {
@@ -245,9 +246,18 @@ fn message_id(chat_id: &str) -> String {
 
 /// A whole chat completion as a Message object.
 pub fn from_chat(chat: &Value, chat_id: &str, model: &str) -> Value {
+    from_chat_with(chat, chat_id, model, &Opts::default())
+}
+
+/// Like `from_chat`, with the searches that were run before the answer.
+pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, opts: &Opts) -> Value {
     let suffix = id_suffix(chat_id);
     let answer = read_answer(chat, suffix);
     let mut content: Vec<Value> = Vec::new();
+    for search in &opts.searches {
+        let (call, result) = search_blocks(suffix, search);
+        content.extend([call, result]);
+    }
     if !answer.text.is_empty() || answer.calls.is_empty() {
         content.push(json!({"type": "text", "text": answer.text}));
     }
@@ -266,8 +276,39 @@ pub fn from_chat(chat: &Value, chat_id: &str, model: &str) -> Value {
         "content": content,
         "stop_reason": stop_reason(&answer.finish, !answer.calls.is_empty()),
         "stop_sequence": null,
-        "usage": {"input_tokens": answer.input_tokens, "output_tokens": answer.output_tokens},
+        "usage": usage_json(answer.input_tokens, answer.output_tokens, opts.searches.len()),
     })
+}
+
+fn usage_json(input: u64, output: u64, searches: usize) -> Value {
+    let mut usage = json!({"input_tokens": input, "output_tokens": output});
+    if searches > 0 {
+        usage["server_tool_use"] = json!({"web_search_requests": searches});
+    }
+    usage
+}
+
+/// The server tool call and its result, as blocks of a Message.
+fn search_blocks(suffix: &str, search: &Search) -> (Value, Value) {
+    let id = format!("srvtoolu_{suffix}_{}", search.id);
+    let call = json!({"type": "server_tool_use", "id": id, "name": "web_search", "input": {"query": search.query}});
+    let content = match &search.error {
+        Some(code) => json!({"type": "web_search_tool_result_error", "error_code": code}),
+        None => Value::Array(
+            search
+                .hits
+                .iter()
+                .map(|hit| {
+                    json!({
+                        "type": "web_search_result", "url": hit.url, "title": hit.title,
+                        "encrypted_content": "", "page_age": null,
+                    })
+                })
+                .collect(),
+        ),
+    };
+    let result = json!({"type": "web_search_tool_result", "tool_use_id": id, "content": content});
+    (call, result)
 }
 
 #[derive(PartialEq, Eq)]
@@ -289,9 +330,18 @@ pub struct Stream {
     finish: Option<String>,
     usage: (u64, u64),
     ended: bool,
+    searches: Vec<Search>,
+    searched: usize,
 }
 
 impl Stream {
+    /// Adds the searches that came before the answer.
+    pub fn with_opts(mut self, opts: &Opts) -> Self {
+        self.searched = opts.searches.len();
+        self.searches = opts.searches.clone();
+        self
+    }
+
     pub fn new(chat_id: &str, model: &str) -> Self {
         Self {
             id: message_id(chat_id),
@@ -305,6 +355,8 @@ impl Stream {
             finish: None,
             usage: (0, 0),
             ended: false,
+            searches: Vec::new(),
+            searched: 0,
         }
     }
 
@@ -319,6 +371,31 @@ impl Stream {
             "usage": {"input_tokens": 0, "output_tokens": 0},
         });
         out.push(Event::new("message_start", json!({"type": "message_start", "message": message})));
+        for search in std::mem::take(&mut self.searches) {
+            let (call, result) = search_blocks(&self.suffix, &search);
+            let input = call["input"].to_string();
+            let mut call_start = call;
+            call_start["input"] = json!({});
+            self.whole_block(out, call_start, Some(json!({"type": "input_json_delta", "partial_json": input})));
+            self.whole_block(out, result, None);
+        }
+    }
+
+    /// A block that arrives complete: its start, an optional delta, and its stop.
+    fn whole_block(&mut self, out: &mut Vec<Event>, block: Value, delta: Option<Value>) {
+        let index = self.index;
+        out.push(Event::new(
+            "content_block_start",
+            json!({"type": "content_block_start", "index": index, "content_block": block}),
+        ));
+        if let Some(delta) = delta {
+            out.push(Event::new(
+                "content_block_delta",
+                json!({"type": "content_block_delta", "index": index, "delta": delta}),
+            ));
+        }
+        out.push(Event::new("content_block_stop", json!({"type": "content_block_stop", "index": index})));
+        self.index += 1;
     }
 
     fn close(&mut self, out: &mut Vec<Event>) {
@@ -438,7 +515,7 @@ impl Translator for Stream {
             json!({
                 "type": "message_delta",
                 "delta": {"stop_reason": reason, "stop_sequence": null},
-                "usage": {"input_tokens": self.usage.0, "output_tokens": self.usage.1},
+                "usage": usage_json(self.usage.0, self.usage.1, self.searched),
             }),
         ));
         out.push(Event::new("message_stop", json!({"type": "message_stop"})));

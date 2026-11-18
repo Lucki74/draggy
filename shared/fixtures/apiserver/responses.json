@@ -2024,6 +2024,499 @@
         "op": "stream"
       },
       "name": "a stream cut by the length"
+    },
+    {
+      "expected": {
+        "created_at": 100,
+        "error": null,
+        "id": "resp_abc",
+        "incomplete_details": null,
+        "model": "local",
+        "object": "response",
+        "output": [
+          {
+            "action": {
+              "query": "rust news",
+              "sources": [
+                {
+                  "title": "Rust",
+                  "type": "url",
+                  "url": "https://rust-lang.org"
+                }
+              ],
+              "type": "search"
+            },
+            "id": "ws_abc_1",
+            "status": "completed",
+            "type": "web_search_call"
+          },
+          {
+            "action": {
+              "query": "x",
+              "sources": [],
+              "type": "search"
+            },
+            "id": "ws_abc_2",
+            "status": "failed",
+            "type": "web_search_call"
+          },
+          {
+            "content": [
+              {
+                "annotations": [],
+                "text": "Hi",
+                "type": "output_text"
+              }
+            ],
+            "id": "msg_abc",
+            "role": "assistant",
+            "status": "completed",
+            "type": "message"
+          }
+        ],
+        "parallel_tool_calls": true,
+        "status": "completed",
+        "tool_choice": "auto",
+        "tools": [],
+        "usage": {
+          "input_tokens": 4,
+          "input_tokens_details": {
+            "cached_tokens": 0
+          },
+          "output_tokens": 2,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 6
+        }
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "Hi",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 4,
+            "total_tokens": 6
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "searches": [
+            {
+              "hits": [
+                {
+                  "snippet": "s",
+                  "title": "Rust",
+                  "url": "https://rust-lang.org"
+                }
+              ],
+              "id": "1",
+              "query": "rust news"
+            },
+            {
+              "error": "unavailable",
+              "hits": [],
+              "id": "2",
+              "query": "x"
+            }
+          ]
+        }
+      },
+      "name": "web searches before a whole reply"
+    },
+    {
+      "expected": [
+        {
+          "data": {
+            "response": {
+              "created_at": 100,
+              "error": null,
+              "id": "resp_abc",
+              "incomplete_details": null,
+              "model": "local",
+              "object": "response",
+              "output": [],
+              "parallel_tool_calls": true,
+              "status": "in_progress",
+              "tool_choice": "auto",
+              "tools": [],
+              "usage": null
+            },
+            "sequence_number": 0,
+            "type": "response.created"
+          },
+          "event": "response.created"
+        },
+        {
+          "data": {
+            "response": {
+              "created_at": 100,
+              "error": null,
+              "id": "resp_abc",
+              "incomplete_details": null,
+              "model": "local",
+              "object": "response",
+              "output": [],
+              "parallel_tool_calls": true,
+              "status": "in_progress",
+              "tool_choice": "auto",
+              "tools": [],
+              "usage": null
+            },
+            "sequence_number": 1,
+            "type": "response.in_progress"
+          },
+          "event": "response.in_progress"
+        },
+        {
+          "data": {
+            "item": {
+              "id": "ws_abc_1",
+              "status": "in_progress",
+              "type": "web_search_call"
+            },
+            "output_index": 0,
+            "sequence_number": 2,
+            "type": "response.output_item.added"
+          },
+          "event": "response.output_item.added"
+        },
+        {
+          "data": {
+            "item_id": "ws_abc_1",
+            "output_index": 0,
+            "sequence_number": 3,
+            "type": "response.web_search_call.in_progress"
+          },
+          "event": "response.web_search_call.in_progress"
+        },
+        {
+          "data": {
+            "item_id": "ws_abc_1",
+            "output_index": 0,
+            "sequence_number": 4,
+            "type": "response.web_search_call.searching"
+          },
+          "event": "response.web_search_call.searching"
+        },
+        {
+          "data": {
+            "item_id": "ws_abc_1",
+            "output_index": 0,
+            "sequence_number": 5,
+            "type": "response.web_search_call.completed"
+          },
+          "event": "response.web_search_call.completed"
+        },
+        {
+          "data": {
+            "item": {
+              "action": {
+                "query": "rust news",
+                "sources": [
+                  {
+                    "title": "Rust",
+                    "type": "url",
+                    "url": "https://rust-lang.org"
+                  }
+                ],
+                "type": "search"
+              },
+              "id": "ws_abc_1",
+              "status": "completed",
+              "type": "web_search_call"
+            },
+            "output_index": 0,
+            "sequence_number": 6,
+            "type": "response.output_item.done"
+          },
+          "event": "response.output_item.done"
+        },
+        {
+          "data": {
+            "item": {
+              "id": "ws_abc_2",
+              "status": "in_progress",
+              "type": "web_search_call"
+            },
+            "output_index": 1,
+            "sequence_number": 7,
+            "type": "response.output_item.added"
+          },
+          "event": "response.output_item.added"
+        },
+        {
+          "data": {
+            "item_id": "ws_abc_2",
+            "output_index": 1,
+            "sequence_number": 8,
+            "type": "response.web_search_call.in_progress"
+          },
+          "event": "response.web_search_call.in_progress"
+        },
+        {
+          "data": {
+            "item_id": "ws_abc_2",
+            "output_index": 1,
+            "sequence_number": 9,
+            "type": "response.web_search_call.searching"
+          },
+          "event": "response.web_search_call.searching"
+        },
+        {
+          "data": {
+            "item_id": "ws_abc_2",
+            "output_index": 1,
+            "sequence_number": 10,
+            "type": "response.web_search_call.completed"
+          },
+          "event": "response.web_search_call.completed"
+        },
+        {
+          "data": {
+            "item": {
+              "action": {
+                "query": "x",
+                "sources": [],
+                "type": "search"
+              },
+              "id": "ws_abc_2",
+              "status": "failed",
+              "type": "web_search_call"
+            },
+            "output_index": 1,
+            "sequence_number": 11,
+            "type": "response.output_item.done"
+          },
+          "event": "response.output_item.done"
+        },
+        {
+          "data": {
+            "item": {
+              "content": [],
+              "id": "msg_abc_2",
+              "role": "assistant",
+              "status": "in_progress",
+              "type": "message"
+            },
+            "output_index": 2,
+            "sequence_number": 12,
+            "type": "response.output_item.added"
+          },
+          "event": "response.output_item.added"
+        },
+        {
+          "data": {
+            "content_index": 0,
+            "item_id": "msg_abc_2",
+            "output_index": 2,
+            "part": {
+              "annotations": [],
+              "text": "",
+              "type": "output_text"
+            },
+            "sequence_number": 13,
+            "type": "response.content_part.added"
+          },
+          "event": "response.content_part.added"
+        },
+        {
+          "data": {
+            "content_index": 0,
+            "delta": "Hi",
+            "item_id": "msg_abc_2",
+            "output_index": 2,
+            "sequence_number": 14,
+            "type": "response.output_text.delta"
+          },
+          "event": "response.output_text.delta"
+        },
+        {
+          "data": {
+            "content_index": 0,
+            "item_id": "msg_abc_2",
+            "output_index": 2,
+            "sequence_number": 15,
+            "text": "Hi",
+            "type": "response.output_text.done"
+          },
+          "event": "response.output_text.done"
+        },
+        {
+          "data": {
+            "content_index": 0,
+            "item_id": "msg_abc_2",
+            "output_index": 2,
+            "part": {
+              "annotations": [],
+              "text": "Hi",
+              "type": "output_text"
+            },
+            "sequence_number": 16,
+            "type": "response.content_part.done"
+          },
+          "event": "response.content_part.done"
+        },
+        {
+          "data": {
+            "item": {
+              "content": [
+                {
+                  "annotations": [],
+                  "text": "Hi",
+                  "type": "output_text"
+                }
+              ],
+              "id": "msg_abc_2",
+              "role": "assistant",
+              "status": "completed",
+              "type": "message"
+            },
+            "output_index": 2,
+            "sequence_number": 17,
+            "type": "response.output_item.done"
+          },
+          "event": "response.output_item.done"
+        },
+        {
+          "data": {
+            "response": {
+              "created_at": 100,
+              "error": null,
+              "id": "resp_abc",
+              "incomplete_details": null,
+              "model": "local",
+              "object": "response",
+              "output": [
+                {
+                  "action": {
+                    "query": "rust news",
+                    "sources": [
+                      {
+                        "title": "Rust",
+                        "type": "url",
+                        "url": "https://rust-lang.org"
+                      }
+                    ],
+                    "type": "search"
+                  },
+                  "id": "ws_abc_1",
+                  "status": "completed",
+                  "type": "web_search_call"
+                },
+                {
+                  "action": {
+                    "query": "x",
+                    "sources": [],
+                    "type": "search"
+                  },
+                  "id": "ws_abc_2",
+                  "status": "failed",
+                  "type": "web_search_call"
+                },
+                {
+                  "content": [
+                    {
+                      "annotations": [],
+                      "text": "Hi",
+                      "type": "output_text"
+                    }
+                  ],
+                  "id": "msg_abc_2",
+                  "role": "assistant",
+                  "status": "completed",
+                  "type": "message"
+                }
+              ],
+              "parallel_tool_calls": true,
+              "status": "completed",
+              "tool_choice": "auto",
+              "tools": [],
+              "usage": {
+                "input_tokens": 4,
+                "input_tokens_details": {
+                  "cached_tokens": 0
+                },
+                "output_tokens": 2,
+                "output_tokens_details": {
+                  "reasoning_tokens": 0
+                },
+                "total_tokens": 6
+              }
+            },
+            "sequence_number": 18,
+            "type": "response.completed"
+          },
+          "event": "response.completed"
+        }
+      ],
+      "input": {
+        "chatId": "chatcmpl-abc",
+        "chunks": [
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "Hi"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {},
+                "finish_reason": "stop",
+                "index": 0
+              }
+            ],
+            "usage": {
+              "completion_tokens": 2,
+              "prompt_tokens": 4
+            }
+          }
+        ],
+        "created": 100,
+        "end": "finish",
+        "model": "local",
+        "op": "stream",
+        "opts": {
+          "searches": [
+            {
+              "hits": [
+                {
+                  "snippet": "s",
+                  "title": "Rust",
+                  "url": "https://rust-lang.org"
+                }
+              ],
+              "id": "1",
+              "query": "rust news"
+            },
+            {
+              "error": "unavailable",
+              "hits": [],
+              "id": "2",
+              "query": "x"
+            }
+          ]
+        }
+      },
+      "name": "web searches before a stream"
     }
   ],
   "description": "OpenAI Responses requests turned into chat bodies, chat replies turned into Response objects, and chat streams turned into Responses events. Rust only."

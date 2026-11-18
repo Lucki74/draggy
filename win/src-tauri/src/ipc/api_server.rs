@@ -8,6 +8,7 @@ use draggy_api::settings::ApiSettings;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use draggy_api::search::Hit;
 use draggy_api::server::{
     Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Embedded, Env, ForwardReply, HOST,
     Mode, ModelEntry, Reply, Sink, Usage,
@@ -454,6 +455,16 @@ impl Backend for Bridge {
         cancel: CancellationToken,
     ) -> Result<ForwardReply, BackendError> {
         self.post_gateway("chat", body, cancel).await
+    }
+
+    async fn web_search(&self, query: &str, cancel: CancellationToken) -> Result<Vec<Hit>, BackendError> {
+        let searched = tokio::select! {
+            () = cancel.cancelled() => return Err(BackendError { message: "The request was cancelled.".to_owned() }),
+            searched = super::web::search_hits(&self.0, query) => searched,
+        };
+        searched
+            .map(|hits| hits.into_iter().map(|(title, url, snippet)| Hit { title, url, snippet }).collect())
+            .map_err(|message| BackendError { message })
     }
 
     async fn forward_completions(

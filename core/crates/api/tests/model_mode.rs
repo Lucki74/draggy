@@ -1,6 +1,7 @@
 //! Model mode through the router: bodies that go to the model, what comes back, and the wait for a slot. A fake
 //! backend stands in for the chat gateway.
 
+use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
@@ -12,6 +13,7 @@ use draggy_api::server::{
     Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Env, ForwardReply, Mode,
     ModelEntry, Reply, Sink, router,
 };
+use draggy_api::search::Hit;
 use draggy_api::settings::ApiSettings;
 use futures_util::stream;
 use http_body_util::BodyExt;
@@ -73,6 +75,9 @@ struct Forwarding {
     forwarded: Arc<Mutex<Vec<Value>>>,
     asked: Arc<Mutex<Vec<String>>>,
     agent_calls: Arc<Mutex<usize>>,
+    /// Replies handed out first, one per forward, before `chunks` is used.
+    queue: Arc<Mutex<VecDeque<String>>>,
+    searched: Arc<Mutex<Vec<String>>>,
 }
 
 impl Forwarding {
@@ -84,7 +89,21 @@ impl Forwarding {
             forwarded: Arc::default(),
             asked: Arc::default(),
             agent_calls: Arc::default(),
+            queue: Arc::default(),
+            searched: Arc::default(),
         }
+    }
+
+    /// Answers the first forwards with these chat replies, in order.
+    fn then(self, replies: &[Value]) -> Self {
+        let mut queue = self.queue.lock().unwrap_or_else(PoisonError::into_inner);
+        queue.extend(replies.iter().map(Value::to_string));
+        drop(queue);
+        self
+    }
+
+    fn searched(&self) -> Vec<String> {
+        self.searched.lock().unwrap_or_else(PoisonError::into_inner).clone()
     }
 
     fn json(body: &Value) -> Self {
@@ -138,6 +157,15 @@ impl Backend for Forwarding {
         })
     }
 
+    async fn web_search(&self, query: &str, _cancel: CancellationToken) -> Result<Vec<Hit>, BackendError> {
+        self.searched.lock().unwrap_or_else(PoisonError::into_inner).push(query.to_owned());
+        Ok(vec![Hit {
+            title: format!("About {query}"),
+            url: "https://example.com/a".to_owned(),
+            snippet: "A snippet.".to_owned(),
+        }])
+    }
+
     async fn forward(
         &self,
         body: Value,
@@ -151,11 +179,11 @@ impl Backend for Forwarding {
             let mut release = release.clone();
             let _ = release.wait_for(|open| *open).await;
         }
-        let chunks: Vec<Result<Bytes, BackendError>> = self
-            .chunks
-            .iter()
-            .map(|chunk| Ok(Bytes::from(chunk.clone())))
-            .collect();
+        let queued = self.queue.lock().unwrap_or_else(PoisonError::into_inner).pop_front();
+        let chunks: Vec<Result<Bytes, BackendError>> = match queued {
+            Some(reply) => vec![Ok(Bytes::from(reply))],
+            None => self.chunks.iter().map(|chunk| Ok(Bytes::from(chunk.clone()))).collect(),
+        };
         let body: ByteStream = Box::pin(stream::iter(chunks));
         Ok(ForwardReply {
             status: self.status,
@@ -807,4 +835,128 @@ async fn one_model_is_read_by_id() {
     assert_eq!(found, StatusCode::OK);
     assert!(text.contains("\"id\":\"local-model\""));
     assert_eq!(missing, StatusCode::NOT_FOUND);
+}
+
+fn searching(query: &str) -> Value {
+    let arguments = json!({"query": query}).to_string();
+    let call = json!({"id": "call_s", "type": "function", "function": {"name": "web_search", "arguments": arguments}});
+    json!({
+        "id": "chatcmpl-s", "object": "chat.completion",
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": null, "tool_calls": [call]}, "finish_reason": "tool_calls"}],
+        "usage": {"prompt_tokens": 5, "completion_tokens": 2, "total_tokens": 7},
+    })
+}
+
+fn answering(text: &str) -> Value {
+    json!({
+        "id": "chatcmpl-a", "object": "chat.completion",
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": text}, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": 9, "completion_tokens": 3, "total_tokens": 12},
+    })
+}
+
+fn sse_events(text: &str) -> Vec<(String, Value)> {
+    text.split("\n\n")
+        .filter_map(|frame| {
+            let name = frame.lines().find_map(|line| line.strip_prefix("event: "))?;
+            let data = frame.lines().find_map(|line| line.strip_prefix("data: "))?;
+            Some((name.to_owned(), json_of(data)))
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn responses_web_search_runs_and_is_reported() {
+    let backend = Forwarding::replying(&[]).then(&[searching("rust news"), answering("Done.")]);
+    let sent = json!({"model": "m", "input": "news?", "tools": [{"type": "web_search_preview"}]});
+    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let (status, _, text) = send(app(&backend), request).await;
+
+    assert_eq!(status, StatusCode::OK);
+    let reply = json_of(&text);
+    assert_eq!(reply["output"][0]["type"], "web_search_call");
+    assert_eq!(reply["output"][0]["action"]["query"], "rust news");
+    assert_eq!(reply["output"][0]["action"]["sources"][0]["url"], "https://example.com/a");
+    assert_eq!(reply["output"][1]["content"][0]["text"], "Done.");
+    assert_eq!(reply["usage"]["input_tokens"], 14);
+    assert_eq!(backend.searched(), ["rust news"]);
+    let second = &backend.forwarded()[1]["messages"];
+    assert_eq!(second[1]["tool_calls"][0]["id"], "call_s");
+    assert_eq!(second[2]["role"], "tool");
+    assert!(second[2]["content"].as_str().unwrap_or_default().contains("https://example.com/a"));
+}
+
+#[tokio::test]
+async fn responses_web_search_streams_its_items_first() {
+    let backend = Forwarding::replying(&[]).then(&[searching("q"), answering("Done.")]);
+    let sent = json!({"model": "m", "input": "x", "stream": true, "tools": [{"type": "web_search"}]});
+    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let (_, _, text) = send(app(&backend), request).await;
+
+    let names: Vec<String> = sse_events(&text).into_iter().map(|(name, _)| name).collect();
+    let searching_at = names.iter().position(|n| n == "response.web_search_call.searching");
+    let text_at = names.iter().position(|n| n == "response.output_text.delta");
+    assert!(searching_at.is_some() && searching_at < text_at, "{names:?}");
+    assert_eq!(names.last().map(String::as_str), Some("response.completed"));
+}
+
+#[tokio::test]
+async fn messages_web_search_adds_server_blocks() {
+    let backend = Forwarding::replying(&[]).then(&[searching("q"), answering("Done.")]);
+    let sent = json!({
+        "model": "m", "max_tokens": 50, "messages": [{"role": "user", "content": "x"}],
+        "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
+    });
+    let request = post_to("/v1/messages", ("x-api-key", KEY.to_owned()), &sent);
+    let (_, _, text) = send(app(&backend), request).await;
+
+    let reply = json_of(&text);
+    assert_eq!(reply["content"][0]["type"], "server_tool_use");
+    assert_eq!(reply["content"][1]["type"], "web_search_tool_result");
+    assert_eq!(reply["content"][1]["content"][0]["title"], "About q");
+    assert_eq!(reply["content"][2]["text"], "Done.");
+    assert_eq!(reply["usage"]["server_tool_use"]["web_search_requests"], 1);
+}
+
+#[tokio::test]
+async fn max_uses_and_the_setting_stop_a_search() {
+    let sent = json!({
+        "model": "m", "max_tokens": 50, "messages": [{"role": "user", "content": "x"}],
+        "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 1}],
+    });
+    let backend = Forwarding::replying(&[]).then(&[searching("a"), searching("b"), answering("Done.")]);
+    let request = post_to("/v1/messages", ("x-api-key", KEY.to_owned()), &sent);
+    let (_, _, text) = send(app(&backend), request).await;
+    assert_eq!(backend.searched(), ["a"]);
+    // After the one allowed search the tool is no longer offered.
+    assert!(backend.forwarded()[1].get("tools").is_none());
+    assert_eq!(json_of(&text)["content"].as_array().map(Vec::len), Some(3));
+
+    let backend = Forwarding::replying(&[]).then(&[searching("a"), answering("Done.")]);
+    let router = router(DEFAULT_PORT, backend.clone(), with_settings(json!({"agentWebTools": false})));
+    let request = post_to("/v1/messages", ("x-api-key", KEY.to_owned()), &sent);
+    let (_, _, text) = send(router, request).await;
+    assert!(backend.searched().is_empty());
+    assert_eq!(json_of(&text)["content"][1]["content"]["error_code"], "unavailable");
+}
+
+#[tokio::test]
+async fn a_client_function_call_beats_a_search() {
+    let call = json!({"id": "c1", "type": "function", "function": {"name": "mine", "arguments": "{}"}});
+    let mut mixed = searching("q");
+    if let Some(calls) = mixed["choices"][0]["message"]["tool_calls"].as_array_mut() {
+        calls.push(call);
+    }
+    let backend = Forwarding::replying(&[]).then(&[mixed]);
+    let sent = json!({
+        "model": "m", "input": "x",
+        "tools": [{"type": "web_search"}, {"type": "function", "name": "mine", "parameters": {"type": "object"}}],
+    });
+    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let (_, _, text) = send(app(&backend), request).await;
+
+    let output = json_of(&text)["output"].clone();
+    assert_eq!(output.as_array().map(Vec::len), Some(1), "{output}");
+    assert_eq!(output[0]["name"], "mine");
+    assert!(backend.searched().is_empty());
 }

@@ -117,6 +117,19 @@ async fn run_search(app: &AppHandle, query: &str) -> Outcome {
     outcome
 }
 
+/// The results of one search as title, link and snippet. An error when no provider answered.
+pub(crate) async fn search_hits(app: &AppHandle, query: &str) -> Result<Vec<(String, String, String)>, String> {
+    let outcome = run_search(app, query).await;
+    match outcome.status {
+        Status::Ok | Status::Empty => Ok(outcome
+            .results
+            .into_iter()
+            .map(|result| (result.title, result.url, result.snippet))
+            .collect()),
+        _ => Err("No search provider answered.".to_owned()),
+    }
+}
+
 async fn search_web(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let outcome = run_search(&app, &text(args.first())).await;
     Ok(Value::Array(

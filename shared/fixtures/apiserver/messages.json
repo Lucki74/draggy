@@ -1410,6 +1410,352 @@
         "op": "stream"
       },
       "name": "a stream cut by the length"
+    },
+    {
+      "expected": {
+        "content": [
+          {
+            "id": "srvtoolu_abc_1",
+            "input": {
+              "query": "rust news"
+            },
+            "name": "web_search",
+            "type": "server_tool_use"
+          },
+          {
+            "content": [
+              {
+                "encrypted_content": "",
+                "page_age": null,
+                "title": "Rust",
+                "type": "web_search_result",
+                "url": "https://rust-lang.org"
+              }
+            ],
+            "tool_use_id": "srvtoolu_abc_1",
+            "type": "web_search_tool_result"
+          },
+          {
+            "id": "srvtoolu_abc_2",
+            "input": {
+              "query": "x"
+            },
+            "name": "web_search",
+            "type": "server_tool_use"
+          },
+          {
+            "content": {
+              "error_code": "unavailable",
+              "type": "web_search_tool_result_error"
+            },
+            "tool_use_id": "srvtoolu_abc_2",
+            "type": "web_search_tool_result"
+          },
+          {
+            "text": "Hi",
+            "type": "text"
+          }
+        ],
+        "id": "msg_abc",
+        "model": "local",
+        "role": "assistant",
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "type": "message",
+        "usage": {
+          "input_tokens": 4,
+          "output_tokens": 2,
+          "server_tool_use": {
+            "web_search_requests": 2
+          }
+        }
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "Hi",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 4,
+            "total_tokens": 6
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "searches": [
+            {
+              "hits": [
+                {
+                  "snippet": "s",
+                  "title": "Rust",
+                  "url": "https://rust-lang.org"
+                }
+              ],
+              "id": "1",
+              "query": "rust news"
+            },
+            {
+              "error": "unavailable",
+              "hits": [],
+              "id": "2",
+              "query": "x"
+            }
+          ]
+        }
+      },
+      "name": "web searches before a whole reply"
+    },
+    {
+      "expected": [
+        {
+          "data": {
+            "message": {
+              "content": [],
+              "id": "msg_abc",
+              "model": "local",
+              "role": "assistant",
+              "stop_reason": null,
+              "stop_sequence": null,
+              "type": "message",
+              "usage": {
+                "input_tokens": 0,
+                "output_tokens": 0
+              }
+            },
+            "type": "message_start"
+          },
+          "event": "message_start"
+        },
+        {
+          "data": {
+            "content_block": {
+              "id": "srvtoolu_abc_1",
+              "input": {},
+              "name": "web_search",
+              "type": "server_tool_use"
+            },
+            "index": 0,
+            "type": "content_block_start"
+          },
+          "event": "content_block_start"
+        },
+        {
+          "data": {
+            "delta": {
+              "partial_json": "{\"query\":\"rust news\"}",
+              "type": "input_json_delta"
+            },
+            "index": 0,
+            "type": "content_block_delta"
+          },
+          "event": "content_block_delta"
+        },
+        {
+          "data": {
+            "index": 0,
+            "type": "content_block_stop"
+          },
+          "event": "content_block_stop"
+        },
+        {
+          "data": {
+            "content_block": {
+              "content": [
+                {
+                  "encrypted_content": "",
+                  "page_age": null,
+                  "title": "Rust",
+                  "type": "web_search_result",
+                  "url": "https://rust-lang.org"
+                }
+              ],
+              "tool_use_id": "srvtoolu_abc_1",
+              "type": "web_search_tool_result"
+            },
+            "index": 1,
+            "type": "content_block_start"
+          },
+          "event": "content_block_start"
+        },
+        {
+          "data": {
+            "index": 1,
+            "type": "content_block_stop"
+          },
+          "event": "content_block_stop"
+        },
+        {
+          "data": {
+            "content_block": {
+              "id": "srvtoolu_abc_2",
+              "input": {},
+              "name": "web_search",
+              "type": "server_tool_use"
+            },
+            "index": 2,
+            "type": "content_block_start"
+          },
+          "event": "content_block_start"
+        },
+        {
+          "data": {
+            "delta": {
+              "partial_json": "{\"query\":\"x\"}",
+              "type": "input_json_delta"
+            },
+            "index": 2,
+            "type": "content_block_delta"
+          },
+          "event": "content_block_delta"
+        },
+        {
+          "data": {
+            "index": 2,
+            "type": "content_block_stop"
+          },
+          "event": "content_block_stop"
+        },
+        {
+          "data": {
+            "content_block": {
+              "content": {
+                "error_code": "unavailable",
+                "type": "web_search_tool_result_error"
+              },
+              "tool_use_id": "srvtoolu_abc_2",
+              "type": "web_search_tool_result"
+            },
+            "index": 3,
+            "type": "content_block_start"
+          },
+          "event": "content_block_start"
+        },
+        {
+          "data": {
+            "index": 3,
+            "type": "content_block_stop"
+          },
+          "event": "content_block_stop"
+        },
+        {
+          "data": {
+            "content_block": {
+              "text": "",
+              "type": "text"
+            },
+            "index": 4,
+            "type": "content_block_start"
+          },
+          "event": "content_block_start"
+        },
+        {
+          "data": {
+            "delta": {
+              "text": "Hi",
+              "type": "text_delta"
+            },
+            "index": 4,
+            "type": "content_block_delta"
+          },
+          "event": "content_block_delta"
+        },
+        {
+          "data": {
+            "index": 4,
+            "type": "content_block_stop"
+          },
+          "event": "content_block_stop"
+        },
+        {
+          "data": {
+            "delta": {
+              "stop_reason": "end_turn",
+              "stop_sequence": null
+            },
+            "type": "message_delta",
+            "usage": {
+              "input_tokens": 4,
+              "output_tokens": 2,
+              "server_tool_use": {
+                "web_search_requests": 2
+              }
+            }
+          },
+          "event": "message_delta"
+        },
+        {
+          "data": {
+            "type": "message_stop"
+          },
+          "event": "message_stop"
+        }
+      ],
+      "input": {
+        "chatId": "chatcmpl-abc",
+        "chunks": [
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "Hi"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {},
+                "finish_reason": "stop",
+                "index": 0
+              }
+            ],
+            "usage": {
+              "completion_tokens": 2,
+              "prompt_tokens": 4
+            }
+          }
+        ],
+        "created": 100,
+        "end": "finish",
+        "model": "local",
+        "op": "stream",
+        "opts": {
+          "searches": [
+            {
+              "hits": [
+                {
+                  "snippet": "s",
+                  "title": "Rust",
+                  "url": "https://rust-lang.org"
+                }
+              ],
+              "id": "1",
+              "query": "rust news"
+            },
+            {
+              "error": "unavailable",
+              "hits": [],
+              "id": "2",
+              "query": "x"
+            }
+          ]
+        }
+      },
+      "name": "web searches before a stream"
     }
   ],
   "description": "Anthropic Messages requests turned into chat bodies, chat replies turned into Message objects, and chat streams turned into Messages events. Rust only."

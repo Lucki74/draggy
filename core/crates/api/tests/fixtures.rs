@@ -8,8 +8,9 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, Uri};
 use axum::response::Response;
-use draggy_api::dialect::{self, Dialect};
+use draggy_api::dialect::{self, Dialect, Opts};
 use draggy_api::ollama;
+use draggy_api::search::{Hit, Search};
 use draggy_api::server::{
     Backend, BackendError, CompletionRequest, Env, ModelEntry, Reply, Sink, Usage, check_request,
     chunk_line,
@@ -99,9 +100,11 @@ fn run_dialect(dialect: Dialect, input: &Value) -> Value {
     let (id, model, created) = (text(&input["chatId"]), text(&input["model"]), input["created"].as_i64().unwrap_or(0));
     match input["op"].as_str() {
         Some("request") => dialect::to_chat(dialect, &input["body"]).unwrap_or_else(|error| json!({ "error": error })),
-        Some("response") => dialect::whole_reply(dialect, &input["chat"], id, model, created).unwrap_or(Value::Null),
+        Some("response") => {
+            dialect::whole_reply_with(dialect, &input["chat"], (id, model, created), &opts_of(&input["opts"])).unwrap_or(Value::Null)
+        }
         Some("stream") => {
-            let mut translator = dialect::translator(dialect, id, model, created);
+            let mut translator = dialect::translator_with(dialect, id, model, created, &opts_of(&input["opts"]));
             let mut events = Vec::new();
             for chunk in input["chunks"].as_array().into_iter().flatten() {
                 events.extend(translator.feed(chunk));
@@ -114,6 +117,29 @@ fn run_dialect(dialect: Dialect, input: &Value) -> Value {
         }
         other => panic!("unknown op {other:?}"),
     }
+}
+
+/// The options a case sets: `searches` as `{id, query, hits: [{title, url, snippet}], error}`.
+fn opts_of(value: &Value) -> Opts {
+    let mut opts = Opts::default();
+    for search in value["searches"].as_array().into_iter().flatten() {
+        opts.searches.push(Search {
+            id: text(&search["id"]).to_owned(),
+            query: text(&search["query"]).to_owned(),
+            hits: search["hits"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|hit| Hit {
+                    title: text(&hit["title"]).to_owned(),
+                    url: text(&hit["url"]).to_owned(),
+                    snippet: text(&hit["snippet"]).to_owned(),
+                })
+                .collect(),
+            error: search["error"].as_str().map(str::to_owned),
+        });
+    }
+    opts
 }
 
 /// Ollama cases: `request`, `response` and `stream` as the other dialects, plus the small pure routes. Durations are masked.
