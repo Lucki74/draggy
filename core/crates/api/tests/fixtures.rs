@@ -9,7 +9,8 @@ use axum::body::Body;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, Uri};
 use axum::response::Response;
 use draggy_api::server::{
-    Backend, BackendError, CompletionRequest, Env, Reply, Sink, Usage, check_request, chunk_line,
+    Backend, BackendError, CompletionRequest, Env, ModelEntry, Reply, Sink, Usage, check_request,
+    chunk_line,
     completion_body, generate_key, models_body, read_completion_request, router, same_key,
 };
 use draggy_testkit::{cases, files};
@@ -87,6 +88,7 @@ fn run(file: &str, input: &Value) -> Value {
 
 fn in_runtime<F: Future>(future: F) -> F::Output {
     tokio::runtime::Builder::new_current_thread()
+        .enable_time()
         .build()
         .unwrap_or_else(|error| panic!("cannot build a runtime: {error}"))
         .block_on(future)
@@ -495,13 +497,17 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 impl Backend for FixtureBackend {
-    async fn list_models(&self) -> Result<Vec<String>, BackendError> {
+    async fn list_models(&self) -> Result<Vec<ModelEntry>, BackendError> {
         if self.models_fail {
             return Err(BackendError {
                 message: "disk".to_owned(),
             });
         }
-        Ok(self.models.clone())
+        Ok(self
+            .models
+            .iter()
+            .map(|name| ModelEntry::local(name))
+            .collect())
     }
 
     async fn generate(
@@ -545,5 +551,10 @@ impl Env for FixtureEnv {
 
     fn fill_random(&self, buffer: &mut [u8]) {
         buffer.fill(0xab);
+    }
+
+    // The fixtures keep the old instant 429 by not waiting at all.
+    fn queue_wait(&self) -> std::time::Duration {
+        std::time::Duration::ZERO
     }
 }

@@ -15,35 +15,42 @@
 //! # Reference quirks kept
 //!
 //! - An array body passes the object check and fails on `messages`, not on the body.
-//! - The busy check runs before the body is read, and the count rises after it parses, so a burst can briefly pass the limit.
+//! - A request that is refused for its body never waits for a slot. Slots are taken only once the body is accepted.
 //! - A part with no `type`, or a falsy one, is read as text, and its `text` is converted as `String()` converts it.
 //! - Bodies decode as UTF-8 with replacement characters, as `Buffer.toString` does.
 //! - Header bytes are read as Latin-1, as Node decodes them, and the Bearer whitespace is JavaScript's `\s`.
 //! - A reply holds its slot until generate settles, even after its client has left, so abandoned replies still count.
+//!
+//! # Model mode
+//!
+//! A request with `tools`, `response_format`, a non-text part or a tool message goes to `Backend::forward` as the
+//! client wrote it, apart from `model`. `draggy-agent` always gets agent mode, and the rest follow `Env::default_mode`.
+//! A request waits up to `Env::queue_wait` for a slot, then gets 429 with `Retry-After`.
 
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 use axum::Router;
 use axum::body::{Body, Bytes, to_bytes};
 use axum::extract::{Request, State};
 use axum::http::header::{
     AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_TYPE, HOST as HOST_HEADER, ORIGIN,
-    X_CONTENT_TYPE_OPTIONS,
+    RETRY_AFTER, X_CONTENT_TYPE_OPTIONS,
 };
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use futures_util::stream;
+use futures_util::stream::{self, Stream, StreamExt};
 use http_body_util::LengthLimitError;
 use serde::Serialize;
 use serde_json::Value;
 use subtle::ConstantTimeEq;
-use tokio::sync::mpsc;
+use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
 use tokio_util::sync::{CancellationToken, DropGuard};
 
 /// The only address the reference listens on.
@@ -52,22 +59,35 @@ pub const HOST: &str = "127.0.0.1";
 /// The port used when the caller does not choose one.
 pub const DEFAULT_PORT: u16 = 11500;
 
-/// Largest request body accepted. A conversation, not a file upload.
+/// Largest body an agent-mode request may have. A conversation, not a file upload.
 pub const MAX_BODY_BYTES: usize = 1024 * 1024;
 
-/// Replies generated at once. Past this a client is asked to wait.
+/// Largest body a model-mode request may have, so inline images fit. The chat gateway takes the same.
+pub const MAX_MODEL_BODY_BYTES: usize = 32 * 1024 * 1024;
+
+/// The model name that always selects agent mode.
+pub const AGENT_MODEL: &str = "draggy-agent";
+
+/// How long a request waits for a free slot before it is told to retry.
+pub const QUEUE_WAIT: Duration = Duration::from_secs(60);
+
+const RETRY_AFTER_SECONDS: &str = "10";
+
+/// Replies generated at once. Past this a request waits for a slot.
 pub const MAX_CONCURRENT: usize = 2;
 
 const REPLY_FAILED: &str = "The reply failed.";
 const SERVER_ERROR: &str = "The server hit an error.";
 const INVALID_JSON: &str = "The body is not valid JSON.";
+const TOO_LARGE: &str = "The request is too large.";
+const NOT_AVAILABLE: &str = "Model mode is not available here.";
 const BUSY: &str = "Draggy is already answering other requests. Try again shortly.";
 const DONE_FRAME: &str = "data: [DONE]\n\n";
 
 /// Produces replies and names the models that can be asked for. The app supplies the local engine.
 pub trait Backend: Send + Sync + 'static {
-    /// The names of the models that can be asked for.
-    fn list_models(&self) -> impl Future<Output = Result<Vec<String>, BackendError>> + Send;
+    /// The models that can be asked for.
+    fn list_models(&self) -> impl Future<Output = Result<Vec<ModelEntry>, BackendError>> + Send;
 
     /// Makes one reply. Text goes out through `sink` as it is made, and the model name once it is known.
     fn generate(
@@ -76,6 +96,75 @@ pub trait Backend: Send + Sync + 'static {
         sink: Sink,
         cancel: CancellationToken,
     ) -> impl Future<Output = Result<Reply, BackendError>> + Send;
+
+    /// Maps the model a client named to one that can answer, and gets it ready. A default such as "gpt-4o" maps to
+    /// the model in use.
+    fn prepare_model(
+        &self,
+        requested: &str,
+        cancel: CancellationToken,
+    ) -> impl Future<Output = Result<String, BackendError>> + Send {
+        let _ = (requested, cancel);
+        async {
+            Err(BackendError {
+                message: NOT_AVAILABLE.to_owned(),
+            })
+        }
+    }
+
+    /// Sends a model-mode body, with `model` already set, to the model and returns its answer as it comes.
+    fn forward(
+        &self,
+        body: Value,
+        cancel: CancellationToken,
+    ) -> impl Future<Output = Result<ForwardReply, BackendError>> + Send {
+        let _ = (body, cancel);
+        async {
+            Err(BackendError {
+                message: NOT_AVAILABLE.to_owned(),
+            })
+        }
+    }
+}
+
+/// Raw bytes of a model's answer. An error ends the stream.
+pub type ByteStream = Pin<Box<dyn Stream<Item = Result<Bytes, BackendError>> + Send>>;
+
+/// The model's answer to a forwarded body: its status and its bytes, SSE when the client asked for a stream.
+pub struct ForwardReply {
+    pub status: u16,
+    pub body: ByteStream,
+}
+
+/// One model as `GET /v1/models` lists it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelEntry {
+    pub id: String,
+    pub owned_by: String,
+    pub context_length: Option<u64>,
+    /// Words such as `tools` and `vision`.
+    pub capabilities: Vec<String>,
+}
+
+impl ModelEntry {
+    /// A model on this computer, with nothing else known about it.
+    pub fn local(id: &str) -> Self {
+        Self {
+            id: id.to_owned(),
+            owned_by: "local".to_owned(),
+            context_length: None,
+            capabilities: Vec::new(),
+        }
+    }
+}
+
+/// Which path answers a request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    /// Draggy's agent loop with web tools.
+    Agent,
+    /// The model itself, with the client's body passed on.
+    Model,
 }
 
 /// The key, the clock and the random bytes. The app reads them from its settings and the OS.
@@ -88,6 +177,16 @@ pub trait Env: Send + Sync + 'static {
 
     /// Fills `buffer` with random bytes, used for completion ids.
     fn fill_random(&self, buffer: &mut [u8]);
+
+    /// The mode for a plain request that asks for neither.
+    fn default_mode(&self) -> Mode {
+        Mode::Agent
+    }
+
+    /// How long a request waits for a free slot.
+    fn queue_wait(&self) -> Duration {
+        QUEUE_WAIT
+    }
 }
 
 /// One finished reply.
@@ -177,6 +276,8 @@ pub enum CompletionError {
     BadContent(usize),
     #[error("messages needs at least one user message.")]
     NoUser,
+    #[error("messages[{0}].role must be system, developer, user, assistant or tool.")]
+    BadModelRole(usize),
 }
 
 /// A refusal to answer: the status and the message to send with it.
@@ -192,7 +293,7 @@ pub fn router<B: Backend, E: Env>(port: u16, backend: B, env: E) -> Router {
         backend: Arc::new(backend),
         env: Arc::new(env),
         port,
-        active: Arc::new(AtomicUsize::new(0)),
+        slots: Arc::new(Semaphore::new(MAX_CONCURRENT)),
     });
     Router::<Arc<Shared<B, E>>>::new()
         .fallback(handle::<B, E>)
@@ -608,6 +709,12 @@ pub fn completion_body(id: &str, model: &str, created: i64, content: &str, usage
 
 /// The list of models, in the shape `GET /v1/models` answers with.
 pub fn models_body(names: &[String], created: i64) -> String {
+    let entries: Vec<ModelEntry> = names.iter().map(|name| ModelEntry::local(name)).collect();
+    entries_body(&entries, created)
+}
+
+/// The list of models with what is known about each.
+pub fn entries_body(entries: &[ModelEntry], created: i64) -> String {
     #[derive(Serialize)]
     struct List<'a> {
         object: &'static str,
@@ -618,20 +725,91 @@ pub fn models_body(names: &[String], created: i64) -> String {
         id: &'a str,
         object: &'static str,
         created: i64,
-        owned_by: &'static str,
+        owned_by: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        context_length: Option<u64>,
+        #[serde(skip_serializing_if = "<[String]>::is_empty")]
+        capabilities: &'a [String],
     }
     to_json(&List {
         object: "list",
-        data: names
+        data: entries
             .iter()
-            .map(|name| Entry {
-                id: name,
+            .map(|entry| Entry {
+                id: &entry.id,
                 object: "model",
                 created,
-                owned_by: "local",
+                owned_by: &entry.owned_by,
+                context_length: entry.context_length,
+                capabilities: &entry.capabilities,
             })
             .collect(),
     })
+}
+
+/// Which path answers a body. `draggy-agent` forces the agent, and anything the agent cannot carry goes to the model.
+pub fn route(body: &Value, default: Mode) -> Mode {
+    if body.get("model").and_then(Value::as_str) == Some(AGENT_MODEL) {
+        return Mode::Agent;
+    }
+    if needs_model(body) { Mode::Model } else { default }
+}
+
+fn needs_model(body: &Value) -> bool {
+    let has_tools = body
+        .get("tools")
+        .and_then(Value::as_array)
+        .is_some_and(|tools| !tools.is_empty());
+    let has_format = body.get("response_format").is_some_and(|f| !f.is_null());
+    if has_tools || has_format {
+        return true;
+    }
+    body.get("messages")
+        .and_then(Value::as_array)
+        .is_some_and(|messages| messages.iter().any(message_needs_model))
+}
+
+fn message_needs_model(message: &Value) -> bool {
+    if message.get("role").and_then(Value::as_str) == Some("tool") {
+        return true;
+    }
+    if message.get("tool_calls").is_some_and(|calls| !calls.is_null()) {
+        return true;
+    }
+    message
+        .get("content")
+        .and_then(Value::as_array)
+        .is_some_and(|parts| parts.iter().any(is_non_text_part))
+}
+
+/// A light check of a model-mode body. Everything else in it is the model's to judge.
+pub fn check_model_body(body: &Value) -> Result<(), CompletionError> {
+    if !body.is_object() {
+        return Err(CompletionError::NotObject);
+    }
+    let messages = match body.get("messages").and_then(Value::as_array) {
+        Some(messages) if !messages.is_empty() => messages,
+        _ => return Err(CompletionError::NoMessages),
+    };
+    for (index, message) in messages.iter().enumerate() {
+        match message.get("role").and_then(Value::as_str) {
+            Some("system" | "developer" | "user" | "assistant" | "tool") => {}
+            _ => return Err(CompletionError::BadModelRole(index)),
+        }
+    }
+    Ok(())
+}
+
+/// Clients that speak the newer name get the older one too, as engines read that one.
+fn alias_max_tokens(body: &mut Value) {
+    let Some(object) = body.as_object_mut() else {
+        return;
+    };
+    let unset = object.get("max_tokens").is_none_or(Value::is_null);
+    if unset && let Some(limit) = object.get("max_completion_tokens").filter(|v| !v.is_null()) {
+        let limit = limit.clone();
+        object.insert("max_tokens".to_owned(), limit);
+    }
 }
 
 /// Encodes a value the server builds itself, which cannot fail for these shapes.
@@ -646,23 +824,7 @@ struct Shared<B, E> {
     backend: Arc<B>,
     env: Arc<E>,
     port: u16,
-    active: Arc<AtomicUsize>,
-}
-
-/// Counts one reply in progress, and gives the slot back when dropped.
-struct ActiveGuard(Arc<AtomicUsize>);
-
-impl ActiveGuard {
-    fn enter(counter: Arc<AtomicUsize>) -> Self {
-        counter.fetch_add(1, Ordering::SeqCst);
-        Self(counter)
-    }
-}
-
-impl Drop for ActiveGuard {
-    fn drop(&mut self) {
-        self.0.fetch_sub(1, Ordering::SeqCst);
-    }
+    slots: Arc<Semaphore>,
 }
 
 /// What a streamed reply still has to send, and the state that outlives the handler.
@@ -750,16 +912,28 @@ async fn handle<B: Backend, E: Env>(
             "invalid_request_error",
         );
     }
-    if shared.active.load(Ordering::SeqCst) >= MAX_CONCURRENT {
-        return error_response(StatusCode::TOO_MANY_REQUESTS, BUSY, "rate_limit_error");
-    }
-
-    let bytes = match to_bytes(body, MAX_BODY_BYTES).await {
+    let bytes = match to_bytes(body, MAX_MODEL_BODY_BYTES).await {
         Ok(bytes) => bytes,
         Err(error) => {
             let too_large = error.into_inner().is::<LengthLimitError>();
             let (status, message) = if too_large {
-                (StatusCode::PAYLOAD_TOO_LARGE, "The request is too large.")
+                (StatusCode::PAYLOAD_TOO_LARGE, TOO_LARGE)
+            } else {
+                (StatusCode::BAD_REQUEST, INVALID_JSON)
+            };
+            tracing::debug!(target: "net.api", status = status.as_u16(), "body rejected");
+            return error_response(status, message, "invalid_request_error");
+        }
+    };
+    // Past the agent's limit only a model-mode body is read at all.
+    let oversize = bytes.len() > MAX_BODY_BYTES;
+
+    let text = String::from_utf8_lossy(&bytes);
+    let parsed = match serde_json::from_str::<Value>(&text) {
+        Ok(parsed) => parsed,
+        Err(_) => {
+            let (status, message) = if oversize {
+                (StatusCode::PAYLOAD_TOO_LARGE, TOO_LARGE)
             } else {
                 (StatusCode::BAD_REQUEST, INVALID_JSON)
             };
@@ -768,21 +942,39 @@ async fn handle<B: Backend, E: Env>(
         }
     };
 
-    let text = String::from_utf8_lossy(&bytes);
-    let parsed = match serde_json::from_str::<Value>(&text) {
-        Ok(parsed) => parsed,
-        Err(_) => {
-            tracing::debug!(target: "net.api", status = 400, "body rejected");
+    let mode = route(&parsed, shared.env.default_mode());
+    if oversize && mode != Mode::Model {
+        tracing::debug!(target: "net.api", status = 413, "body rejected");
+        return error_response(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            TOO_LARGE,
+            "invalid_request_error",
+        );
+    }
+
+    if mode == Mode::Model {
+        if let Err(error) = check_model_body(&parsed) {
             return error_response(
                 StatusCode::BAD_REQUEST,
-                INVALID_JSON,
+                &error.to_string(),
                 "invalid_request_error",
             );
         }
-    };
+        let permit = match take_slot(&shared).await {
+            Ok(permit) => permit,
+            Err(busy) => return busy,
+        };
+        return forward_model(&shared, parsed, permit).await;
+    }
 
     match read_completion_request(&parsed) {
-        Ok(request) => complete(&shared, request).await,
+        Ok(request) => {
+            let permit = match take_slot(&shared).await {
+                Ok(permit) => permit,
+                Err(busy) => return busy,
+            };
+            complete(&shared, request, permit).await
+        }
         Err(error) => error_response(
             StatusCode::BAD_REQUEST,
             &error.to_string(),
@@ -791,9 +983,48 @@ async fn handle<B: Backend, E: Env>(
     }
 }
 
+/// Waits for a free slot, and answers 429 with `Retry-After` when none comes in time.
+async fn take_slot<B: Backend, E: Env>(
+    shared: &Shared<B, E>,
+) -> Result<OwnedSemaphorePermit, Response> {
+    let wait = shared.env.queue_wait();
+    let slots = shared.slots.clone();
+    // A zero wait answers at once instead of waiting for a timer.
+    let permit = if wait.is_zero() {
+        slots.try_acquire_owned().ok()
+    } else {
+        tokio::time::timeout(wait, slots.acquire_owned())
+            .await
+            .ok()
+            .and_then(Result::ok)
+    };
+    match permit {
+        Some(permit) => Ok(permit),
+        None => {
+            let mut response =
+                error_response(StatusCode::TOO_MANY_REQUESTS, BUSY, "rate_limit_error");
+            response
+                .headers_mut()
+                .insert(RETRY_AFTER, HeaderValue::from_static(RETRY_AFTER_SECONDS));
+            Err(response)
+        }
+    }
+}
+
 async fn models_response<B: Backend, E: Env>(shared: &Shared<B, E>) -> Response {
     match shared.backend.list_models().await {
-        Ok(names) => json_response(StatusCode::OK, models_body(&names, shared.env.now_unix())),
+        Ok(mut entries) => {
+            entries.push(ModelEntry {
+                id: AGENT_MODEL.to_owned(),
+                owned_by: "draggy".to_owned(),
+                context_length: None,
+                capabilities: Vec::new(),
+            });
+            json_response(
+                StatusCode::OK,
+                entries_body(&entries, shared.env.now_unix()),
+            )
+        }
         Err(_) => {
             tracing::error!(target: "net.api", "model list failed");
             error_response(
@@ -808,6 +1039,7 @@ async fn models_response<B: Backend, E: Env>(shared: &Shared<B, E>) -> Response 
 async fn complete<B: Backend, E: Env>(
     shared: &Shared<B, E>,
     request: CompletionRequest,
+    permit: OwnedSemaphorePermit,
 ) -> Response {
     let stream = request.stream;
     let chars: usize = request
@@ -827,11 +1059,10 @@ async fn complete<B: Backend, E: Env>(
     let (tx, mut rx) = mpsc::unbounded_channel();
     let sink = Sink(tx.clone());
     // The slot is held until generate settles, even once the client has left, as the reference holds it.
-    let active = ActiveGuard::enter(shared.active.clone());
     let backend = shared.backend.clone();
     tokio::spawn(async move {
         let outcome = backend.generate(request, sink, cancel).await;
-        drop(active);
+        drop(permit);
         // Only a client that has left drops the receiver, and then nobody is waiting for the outcome.
         let _ = tx.send(Update::Finished(outcome));
     });
@@ -941,4 +1172,359 @@ fn json_response(status: StatusCode, body: String) -> Response {
 
 fn error_response(status: StatusCode, message: &str, kind: &str) -> Response {
     json_response(status, error_body(message, kind))
+}
+
+/// Sends a model-mode body to the model and gives its answer back, fixing only what a client trips on.
+async fn forward_model<B: Backend, E: Env>(
+    shared: &Shared<B, E>,
+    mut body: Value,
+    permit: OwnedSemaphorePermit,
+) -> Response {
+    let stream = body.get("stream") == Some(&Value::Bool(true));
+    let include_usage = body.pointer("/stream_options/include_usage") == Some(&Value::Bool(true));
+    alias_max_tokens(&mut body);
+    let requested = body
+        .get("model")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_owned();
+    tracing::debug!(target: "net.api", stream, "model request");
+
+    // Dropping the handler's future, or the stream below, cancels the request.
+    let cancel = CancellationToken::new();
+    let guard = cancel.clone().drop_guard();
+
+    let model = match shared.backend.prepare_model(&requested, cancel.clone()).await {
+        Ok(model) => model,
+        Err(error) => return model_failure(&error),
+    };
+    body["model"] = Value::String(model.clone());
+
+    let reply = match shared.backend.forward(body, cancel.clone()).await {
+        Ok(reply) => reply,
+        Err(error) => return model_failure(&error),
+    };
+    let id = completion_id(shared.env.as_ref());
+    let created = shared.env.now_unix();
+    let status = StatusCode::from_u16(reply.status).unwrap_or(StatusCode::BAD_GATEWAY);
+
+    if !(stream && status.is_success()) {
+        let mut bytes = Vec::new();
+        let mut upstream = reply.body;
+        while let Some(chunk) = upstream.next().await {
+            match chunk {
+                Ok(chunk) => bytes.extend_from_slice(&chunk),
+                Err(error) => return model_failure(&error),
+            }
+        }
+        let _ = guard.disarm();
+        drop(permit);
+        return buffered_response(status, &bytes, &id, &model, created);
+    }
+
+    let relay = Relay {
+        upstream: reply.body,
+        buffer: Vec::new(),
+        pending: VecDeque::new(),
+        id,
+        created,
+        model,
+        include_usage,
+        last_usage: None,
+        usage_sent: false,
+        finished: false,
+        cancel: Some(guard),
+        permit: Some(permit),
+    };
+    let body = Body::from_stream(stream::unfold(relay, next_relayed));
+    (
+        StatusCode::OK,
+        [
+            (CONTENT_TYPE, "text/event-stream"),
+            (CACHE_CONTROL, "no-store"),
+            (CONNECTION, "keep-alive"),
+            (X_CONTENT_TYPE_OPTIONS, "nosniff"),
+        ],
+        body,
+    )
+        .into_response()
+}
+
+fn model_failure(error: &BackendError) -> Response {
+    tracing::warn!(target: "net.api", "model request failed");
+    error_response(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        &failure_message(error),
+        "server_error",
+    )
+}
+
+/// The `type` OpenAI clients read from an error, by status.
+fn error_kind(status: StatusCode) -> &'static str {
+    match status.as_u16() {
+        401 | 403 => "authentication_error",
+        429 => "rate_limit_error",
+        400..=499 => "invalid_request_error",
+        _ => "server_error",
+    }
+}
+
+/// A whole answer. A success gets the fields a client expects, and an error gets the shape clients show.
+fn buffered_response(
+    status: StatusCode,
+    bytes: &[u8],
+    id: &str,
+    model: &str,
+    created: i64,
+) -> Response {
+    let parsed = serde_json::from_slice::<Value>(bytes);
+    if status.is_success() {
+        return match parsed {
+            Ok(mut value) => {
+                patch_completion(&mut value, id, model, created);
+                json_response(status, value.to_string())
+            }
+            Err(_) => error_response(
+                StatusCode::BAD_GATEWAY,
+                "The model's reply could not be read.",
+                "server_error",
+            ),
+        };
+    }
+    let kind = error_kind(status);
+    let value = match parsed {
+        Ok(mut value) if value.get("error").is_some_and(Value::is_object) => {
+            if let Some(error) = value.get_mut("error").and_then(Value::as_object_mut) {
+                if !error.get("message").is_some_and(Value::is_string) {
+                    error.insert("message".to_owned(), Value::String(REPLY_FAILED.to_owned()));
+                }
+                if !error.get("type").is_some_and(Value::is_string) {
+                    error.insert("type".to_owned(), Value::String(kind.to_owned()));
+                }
+            }
+            value
+        }
+        _ => {
+            let text = String::from_utf8_lossy(bytes);
+            let message = text.trim();
+            let message = if message.is_empty() || message.len() > 500 {
+                REPLY_FAILED
+            } else {
+                message
+            };
+            return json_response(status, error_body(message, kind));
+        }
+    };
+    json_response(status, value.to_string())
+}
+
+/// Fills in what a whole answer must carry. The model is the one asked for, and a missing finish reason reads `stop`.
+fn patch_completion(value: &mut Value, id: &str, model: &str, created: i64) {
+    let Some(object) = value.as_object_mut() else {
+        return;
+    };
+    if object.contains_key("error") && !object.contains_key("choices") {
+        return;
+    }
+    if !object.get("id").is_some_and(|v| v.as_str().is_some_and(|s| !s.is_empty())) {
+        object.insert("id".to_owned(), Value::String(id.to_owned()));
+    }
+    object.insert("object".to_owned(), Value::String("chat.completion".to_owned()));
+    object.insert("model".to_owned(), Value::String(model.to_owned()));
+    if !object.get("created").is_some_and(Value::is_number) {
+        object.insert("created".to_owned(), Value::from(created));
+    }
+    let Some(choices) = object.get_mut("choices").and_then(Value::as_array_mut) else {
+        return;
+    };
+    for choice in choices {
+        let Some(choice) = choice.as_object_mut() else {
+            continue;
+        };
+        if choice.get("finish_reason").is_none_or(Value::is_null) {
+            let calls = choice
+                .get("message")
+                .and_then(|message| message.get("tool_calls"))
+                .and_then(Value::as_array)
+                .is_some_and(|calls| !calls.is_empty());
+            let reason = if calls { "tool_calls" } else { "stop" };
+            choice.insert("finish_reason".to_owned(), Value::String(reason.to_owned()));
+        }
+    }
+}
+
+/// A model's stream on its way to the client: events are passed on, with `[DONE]` and a usage chunk made sure of.
+struct Relay {
+    upstream: ByteStream,
+    buffer: Vec<u8>,
+    pending: VecDeque<Bytes>,
+    id: String,
+    created: i64,
+    model: String,
+    include_usage: bool,
+    last_usage: Option<Value>,
+    usage_sent: bool,
+    finished: bool,
+    cancel: Option<DropGuard>,
+    permit: Option<OwnedSemaphorePermit>,
+}
+
+impl Relay {
+    fn take_events(&mut self, upstream_ended: bool) {
+        while let Some(event) = split_event(&mut self.buffer) {
+            self.event(&String::from_utf8_lossy(&event));
+        }
+        if upstream_ended && !self.buffer.is_empty() {
+            let rest = std::mem::take(&mut self.buffer);
+            self.event(&String::from_utf8_lossy(&rest));
+        }
+    }
+
+    fn event(&mut self, raw: &str) {
+        let lines: Vec<&str> = raw.split('\n').map(|l| l.trim_end_matches('\r')).collect();
+        let data: Vec<&str> = lines
+            .iter()
+            .filter_map(|line| line.strip_prefix("data:"))
+            .collect();
+        if data.len() != 1 {
+            if !raw.trim().is_empty() {
+                self.pending.push_back(Bytes::from(format!("{raw}\n\n")));
+            }
+            return;
+        }
+        let payload = data[0].trim();
+        if payload == "[DONE]" {
+            return;
+        }
+        let Ok(mut value) = serde_json::from_str::<Value>(payload) else {
+            self.pending.push_back(Bytes::from(format!("{raw}\n\n")));
+            return;
+        };
+        self.patch(&mut value);
+        let mut out: String = lines
+            .iter()
+            .filter(|line| !line.starts_with("data:") && !line.is_empty())
+            .map(|line| format!("{line}\n"))
+            .collect();
+        out.push_str(&format!("data: {value}\n\n"));
+        self.pending.push_back(Bytes::from(out));
+    }
+
+    fn patch(&mut self, value: &mut Value) {
+        let Some(object) = value.as_object_mut() else {
+            return;
+        };
+        if object.contains_key("error") && !object.contains_key("choices") {
+            return;
+        }
+        if !object.get("id").is_some_and(|v| v.as_str().is_some_and(|s| !s.is_empty())) {
+            object.insert("id".to_owned(), Value::String(self.id.clone()));
+        }
+        object.insert(
+            "object".to_owned(),
+            Value::String("chat.completion.chunk".to_owned()),
+        );
+        object.insert("model".to_owned(), Value::String(self.model.clone()));
+        if !object.get("created").is_some_and(Value::is_number) {
+            object.insert("created".to_owned(), Value::from(self.created));
+        }
+        if let Some(usage) = object.get("usage").filter(|usage| usage.is_object()) {
+            self.last_usage = Some(usage.clone());
+            let empty = object
+                .get("choices")
+                .and_then(Value::as_array)
+                .is_some_and(Vec::is_empty);
+            if empty {
+                self.usage_sent = true;
+            }
+        }
+    }
+
+    fn fail(&mut self, message: &str) {
+        tracing::warn!(target: "net.api", streamed = true, "model stream failed");
+        self.pending.push_back(Bytes::from(format!(
+            "data: {}\n\n",
+            error_body(message, "server_error")
+        )));
+        self.pending.push_back(Bytes::from(DONE_FRAME));
+        self.end();
+    }
+
+    /// The upstream is over: owe the client its usage chunk when it asked for one, then `[DONE]`.
+    fn finish(&mut self) {
+        if self.include_usage && !self.usage_sent {
+            let usage = self.last_usage.take().unwrap_or_else(|| {
+                serde_json::json!({"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+            });
+            let chunk = serde_json::json!({
+                "id": self.id,
+                "object": "chat.completion.chunk",
+                "created": self.created,
+                "model": self.model,
+                "choices": [],
+                "usage": usage,
+            });
+            self.pending
+                .push_back(Bytes::from(format!("data: {chunk}\n\n")));
+        }
+        self.pending.push_back(Bytes::from(DONE_FRAME));
+        self.end();
+    }
+
+    fn end(&mut self) {
+        self.finished = true;
+        if let Some(guard) = self.cancel.take() {
+            let _ = guard.disarm();
+        }
+        self.permit = None;
+    }
+}
+
+/// Cuts the first complete SSE event off the front of the buffer, whether lines end in LF or CRLF.
+fn split_event(buffer: &mut Vec<u8>) -> Option<Vec<u8>> {
+    let lf = buffer.windows(2).position(|w| w == b"\n\n").map(|i| (i, 2));
+    let crlf = buffer
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .map(|i| (i, 4));
+    let (at, width) = match (lf, crlf) {
+        (Some(a), Some(b)) => {
+            if a.0 <= b.0 {
+                a
+            } else {
+                b
+            }
+        }
+        (Some(a), None) => a,
+        (None, Some(b)) => b,
+        (None, None) => return None,
+    };
+    let event = buffer[..at].to_vec();
+    buffer.drain(..at + width);
+    Some(event)
+}
+
+async fn next_relayed(mut relay: Relay) -> Option<(Result<Bytes, Infallible>, Relay)> {
+    loop {
+        if let Some(frame) = relay.pending.pop_front() {
+            return Some((Ok(frame), relay));
+        }
+        if relay.finished {
+            return None;
+        }
+        match relay.upstream.next().await {
+            Some(Ok(bytes)) => {
+                relay.buffer.extend_from_slice(&bytes);
+                relay.take_events(false);
+            }
+            Some(Err(error)) => {
+                relay.take_events(true);
+                relay.fail(&failure_message(&error));
+            }
+            None => {
+                relay.take_events(true);
+                relay.finish();
+            }
+        }
+    }
 }

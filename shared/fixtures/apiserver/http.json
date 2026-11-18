@@ -46,6 +46,12 @@
               "object": "model",
               "created": 1700000000,
               "owned_by": "local"
+            },
+            {
+              "created": 1700000000,
+              "id": "draggy-agent",
+              "object": "model",
+              "owned_by": "draggy"
             }
           ]
         }
@@ -95,6 +101,12 @@
               "object": "model",
               "created": 1700000000,
               "owned_by": "local"
+            },
+            {
+              "created": 1700000000,
+              "id": "draggy-agent",
+              "object": "model",
+              "owned_by": "draggy"
             }
           ]
         }
@@ -1076,7 +1088,7 @@
             "authorization": "Bearer draggy-test-key-0123456789",
             "content-type": "application/json"
           },
-          "body": "{\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"tool\",\"content\":\"x\"}]}"
+          "body": "{\"model\":\"draggy-agent\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"tool\",\"content\":\"x\"}]}"
         }
       },
       "expected": {
@@ -1116,7 +1128,7 @@
             "authorization": "Bearer draggy-test-key-0123456789",
             "content-type": "application/json"
           },
-          "body": "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"x\"}}]}]}"
+          "body": "{\"model\":\"draggy-agent\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"x\"}}]}]}"
         }
       },
       "expected": {
@@ -1399,6 +1411,12 @@
               "object": "model",
               "created": 1700000000,
               "owned_by": "local"
+            },
+            {
+              "created": 1700000000,
+              "id": "draggy-agent",
+              "object": "model",
+              "owned_by": "draggy"
             }
           ]
         }
@@ -1448,6 +1466,12 @@
               "object": "model",
               "created": 1700000000,
               "owned_by": "local"
+            },
+            {
+              "created": 1700000000,
+              "id": "draggy-agent",
+              "object": "model",
+              "owned_by": "draggy"
             }
           ]
         }
@@ -1497,6 +1521,12 @@
               "object": "model",
               "created": 1700000000,
               "owned_by": "local"
+            },
+            {
+              "created": 1700000000,
+              "id": "draggy-agent",
+              "object": "model",
+              "owned_by": "draggy"
             }
           ]
         }
