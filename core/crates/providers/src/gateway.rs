@@ -27,6 +27,9 @@ use crate::types::{
 };
 
 pub const ENGINE_PATH: &str = "/v1/chat/completions";
+
+/// The engine route that answers legacy text completions.
+pub const COMPLETIONS_PATH: &str = "/v1/completions";
 const MAX_RETRIES: u64 = 2;
 // A provider asking for a longer wait than this has a turn fail now rather than sit silent for minutes.
 const MAX_WAIT_MS: f64 = 60_000.0;
@@ -434,9 +437,12 @@ impl<K: KvStore, S: Keystore, H: HttpClient> Gateway<'_, K, S, H> {
             return Ok(());
         }
         // The reference compares the URL's host, which keeps a port, so `chat:8080` is not the chat endpoint.
-        let is_chat = Url::parse(&request.url)
-            .is_ok_and(|url| url.host_str() == Some("chat") && url.port().is_none());
-        if request.method != "POST" || !is_chat {
+        let host = Url::parse(&request.url)
+            .ok()
+            .filter(|url| url.port().is_none())
+            .and_then(|url| url.host_str().map(str::to_owned));
+        let completions = host.as_deref() == Some("completions");
+        if request.method != "POST" || !(completions || host.as_deref() == Some("chat")) {
             send_reply(sink, error_reply(404, "Unknown gateway endpoint.", &cors));
             return Ok(());
         }
@@ -444,11 +450,16 @@ impl<K: KvStore, S: Keystore, H: HttpClient> Gateway<'_, K, S, H> {
         let cid = request.request_id.as_deref().filter(|id| !id.is_empty());
         let model = requested_model(&request.body);
         // A remote reference never reaches the engine, whether or not its provider exists.
+        if completions && model.starts_with('@') {
+            send_reply(sink, error_reply(400, "Completions need a local model.", &cors));
+            return Ok(());
+        }
         if model.starts_with('@') {
             self.route_remote(&model, &request.body, &cors, cid, sink);
             return Ok(());
         }
-        self.passthrough(request, &cors, cid, sink)
+        let path = if completions { COMPLETIONS_PATH } else { ENGINE_PATH };
+        self.passthrough(request, &cors, cid, path, sink)
             .inspect_err(|_| {
                 warn!(target: "providers.gateway", "engine unreachable");
             })
@@ -472,9 +483,10 @@ impl<K: KvStore, S: Keystore, H: HttpClient> Gateway<'_, K, S, H> {
         request: &GatewayRequest,
         cors: &BTreeMap<String, String>,
         cid: Option<&str>,
+        path: &str,
         sink: &mut dyn ReplySink,
     ) -> Result<(), TransportError> {
-        let url = format!("http://127.0.0.1:{}{ENGINE_PATH}", (self.engine_port)());
+        let url = format!("http://127.0.0.1:{}{path}", (self.engine_port)());
         let mut headers = BTreeMap::from([(
             "content-type".to_owned(),
             request
@@ -1116,6 +1128,33 @@ mod tests {
             engine.sent.borrow()[1].0,
             "http://127.0.0.1:12/v1/chat/completions"
         );
+    }
+
+    #[test]
+    fn completions_go_to_the_engine_route_and_refuse_cloud_models() {
+        let registry = registry();
+        let engine = Engine {
+            reachable: true,
+            sent: RefCell::new(Vec::new()),
+        };
+        let allowed = |_: &str| true;
+        let engine_port = || 9_u16;
+        let clock = || 0_u64;
+        let gateway = Gateway {
+            registry: &registry,
+            http: &engine,
+            sleeper: &Immediate,
+            accounts: &[],
+            allowed_origin: &allowed,
+            engine_port: &engine_port,
+            clock: &clock,
+        };
+        let local = "{\"model\":\"m.gguf\"}";
+        assert!(gateway.handle(&request("POST", "draggy-ai://completions", None, local)).is_ok());
+        assert_eq!(engine.sent.borrow()[0].0, "http://127.0.0.1:9/v1/completions");
+        let cloud = gateway.handle(&request("POST", "draggy-ai://completions", None, "{\"model\":\"@a/b\"}"));
+        assert_eq!(cloud.map(|r| r.status), Ok(400));
+        assert_eq!(engine.sent.borrow().len(), 1);
     }
 
     #[test]

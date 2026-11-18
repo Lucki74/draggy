@@ -8,9 +8,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use draggy_api::server::{
-    Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Env, ForwardReply, HOST,
+    Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Embedded, Env, ForwardReply, HOST,
     Mode, ModelEntry, Reply, Sink, Usage,
 };
+use draggy_engine::binary_manager::find_llama_binary;
 use draggy_providers::registry::Keystore;
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
@@ -19,6 +20,8 @@ use tokio_util::sync::CancellationToken;
 
 use super::{IpcError, Registry, emit};
 use crate::AppState;
+use crate::engines::{EngineSetup, embed_server, host_platform};
+use super::library::DEFAULT_EMBED_MODEL;
 use crate::ipc::providers::adapters::AppKeys;
 
 const CONFIG_KEY: &str = "apiServer";
@@ -435,6 +438,57 @@ impl Backend for Bridge {
         body: Value,
         cancel: CancellationToken,
     ) -> Result<ForwardReply, BackendError> {
+        self.post_gateway("chat", body, cancel).await
+    }
+
+    async fn forward_completions(
+        &self,
+        body: Value,
+        cancel: CancellationToken,
+    ) -> Result<ForwardReply, BackendError> {
+        self.post_gateway("completions", body, cancel).await
+    }
+
+    async fn embed(
+        &self,
+        model: &str,
+        inputs: Vec<Value>,
+        cancel: CancellationToken,
+    ) -> Result<Embedded, BackendError> {
+        let state = self.0.state::<AppState>();
+        let engines = std::sync::Arc::clone(&state.engines);
+        let chosen = if !model.is_empty() && embed_server::model_present(&engines.models_dir, model) {
+            model.to_owned()
+        } else {
+            DEFAULT_EMBED_MODEL.to_owned()
+        };
+        let binary = find_llama_binary(&host_platform(), Some(&engines.user_data));
+        let work = async {
+            let cores = engines.topology().await;
+            let setup = EngineSetup::new(&engines).await;
+            engines
+                .embed
+                .embed_values(binary, &engines.models_dir, cores, &chosen, &inputs, &setup)
+                .await
+        };
+        tokio::select! {
+            () = cancel.cancelled() => Err(BackendError { message: GONE.to_owned() }),
+            done = work => match done {
+                Ok(vectors) => Ok(Embedded { model: chosen.clone(), vectors }),
+                Err(message) => Err(BackendError { message }),
+            },
+        }
+    }
+}
+
+impl Bridge {
+    /// Posts a body to a route of the chat gateway and hands back its answer as it comes.
+    async fn post_gateway(
+        &self,
+        route: &str,
+        body: Value,
+        cancel: CancellationToken,
+    ) -> Result<ForwardReply, BackendError> {
         let Some(gateway) = self.0.try_state::<crate::chat_gateway::ChatGateway>() else {
             return Err(BackendError {
                 message: GATEWAY_DOWN.to_owned(),
@@ -442,7 +496,7 @@ impl Backend for Bridge {
         };
         let info = gateway.info().clone();
         let sent = reqwest::Client::new()
-            .post(format!("{}/chat", info.url))
+            .post(format!("{}/{route}", info.url))
             .bearer_auth(&info.token)
             .header("content-type", "application/json")
             .body(body.to_string())

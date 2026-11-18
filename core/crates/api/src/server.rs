@@ -55,6 +55,7 @@ use tokio_util::sync::{CancellationToken, DropGuard};
 
 use crate::dialect::{self, Dialect};
 use crate::messages;
+use crate::routes;
 use crate::settings::{self, ApiSettings};
 
 /// The only address the reference listens on.
@@ -120,6 +121,42 @@ pub trait Backend: Send + Sync + 'static {
             })
         }
     }
+
+    /// Like `forward`, for a legacy text completion body. The answer is the engine's own `/v1/completions` reply.
+    fn forward_completions(
+        &self,
+        body: Value,
+        cancel: CancellationToken,
+    ) -> impl Future<Output = Result<ForwardReply, BackendError>> + Send {
+        let _ = (body, cancel);
+        async {
+            Err(BackendError {
+                message: NOT_AVAILABLE.to_owned(),
+            })
+        }
+    }
+
+    /// Vectors for `inputs`, each a string or an array of token ids, from the embedding model nearest `model`.
+    fn embed(
+        &self,
+        model: &str,
+        inputs: Vec<Value>,
+        cancel: CancellationToken,
+    ) -> impl Future<Output = Result<Embedded, BackendError>> + Send {
+        let _ = (model, inputs, cancel);
+        async {
+            Err(BackendError {
+                message: "Embeddings are not available here.".to_owned(),
+            })
+        }
+    }
+}
+
+/// Vectors in the order of the inputs, and the model that made them.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Embedded {
+    pub model: String,
+    pub vectors: Vec<Vec<f32>>,
 }
 
 /// Raw bytes of a model's answer. An error ends the stream.
@@ -806,7 +843,7 @@ pub fn check_model_body(body: &Value) -> Result<(), CompletionError> {
 }
 
 /// Clients that speak the newer name get the older one too, as engines read that one.
-fn alias_max_tokens(body: &mut Value) {
+pub(crate) fn alias_max_tokens(body: &mut Value) {
     let Some(object) = body.as_object_mut() else {
         return;
     };
@@ -825,9 +862,9 @@ fn to_json<T: Serialize>(value: &T) -> String {
     })
 }
 
-struct Shared<B, E> {
-    backend: Arc<B>,
-    env: Arc<E>,
+pub(crate) struct Shared<B, E> {
+    pub(crate) backend: Arc<B>,
+    pub(crate) env: Arc<E>,
     port: u16,
     slots: Arc<Slots>,
 }
@@ -971,7 +1008,8 @@ async fn handle<B: Backend, E: Env>(
     {
         return model_response(&shared, id, &settings).await;
     }
-    if parts.method != Method::POST || (path != "/v1/chat/completions" && dialect.is_none()) {
+    let posted = matches!(path.as_str(), "/v1/chat/completions" | "/v1/embeddings" | "/v1/completions");
+    if parts.method != Method::POST || (!posted && dialect.is_none()) {
         return error_response(
             StatusCode::NOT_FOUND,
             "Only /v1/chat/completions and /v1/models are served here.",
@@ -1044,6 +1082,12 @@ async fn handle<B: Backend, E: Env>(
         );
     }
 
+    match path.as_str() {
+        "/v1/embeddings" => return routes::embeddings(&shared, &parsed).await,
+        "/v1/completions" => return routes::completions(&shared, parsed, &settings).await,
+        _ => {}
+    }
+
     if mode == Mode::Model {
         if let Err(error) = check_model_body(&parsed) {
             return shaped_error(
@@ -1079,7 +1123,8 @@ async fn handle<B: Backend, E: Env>(
 }
 
 /// Waits for a free slot, and answers 429 with `Retry-After` when none comes in time.
-async fn take_slot<B: Backend, E: Env>(
+#[allow(clippy::result_large_err)]
+pub(crate) async fn take_slot<B: Backend, E: Env>(
     shared: &Shared<B, E>,
     dialect: Option<Dialect>,
 ) -> Result<Permit, Response> {
@@ -1276,7 +1321,7 @@ async fn next_frame(mut frames: Frames) -> Option<(Result<Bytes, Infallible>, Fr
 }
 
 /// The message to send for a failed reply. An empty message reads as no message at all.
-fn failure_message(error: &BackendError) -> String {
+pub(crate) fn failure_message(error: &BackendError) -> String {
     if error.message.is_empty() {
         REPLY_FAILED.to_owned()
     } else {
@@ -1284,14 +1329,14 @@ fn failure_message(error: &BackendError) -> String {
     }
 }
 
-fn completion_id<E: Env>(env: &E) -> String {
+pub(crate) fn completion_id<E: Env>(env: &E) -> String {
     let mut random = [0u8; 12];
     env.fill_random(&mut random);
     let hex: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
     format!("chatcmpl-{hex}")
 }
 
-fn json_response(status: StatusCode, body: String) -> Response {
+pub(crate) fn json_response(status: StatusCode, body: String) -> Response {
     (
         status,
         [
@@ -1304,12 +1349,12 @@ fn json_response(status: StatusCode, body: String) -> Response {
         .into_response()
 }
 
-fn error_response(status: StatusCode, message: &str, kind: &str) -> Response {
+pub(crate) fn error_response(status: StatusCode, message: &str, kind: &str) -> Response {
     json_response(status, error_body(message, kind))
 }
 
 /// An error in the shape the route's clients read.
-fn shaped_error(dialect: Option<Dialect>, status: StatusCode, message: &str, kind: &str) -> Response {
+pub(crate) fn shaped_error(dialect: Option<Dialect>, status: StatusCode, message: &str, kind: &str) -> Response {
     json_response(status, dialect::error_json(dialect, status, message, kind))
 }
 
@@ -1392,7 +1437,7 @@ async fn forward_model<B: Backend, E: Env>(
     sse_response(Body::from_stream(stream::unfold(relay, next_relayed)))
 }
 
-fn sse_response(body: Body) -> Response {
+pub(crate) fn sse_response(body: Body) -> Response {
     (
         StatusCode::OK,
         [
@@ -1437,7 +1482,7 @@ fn dialect_response(
     )
 }
 
-fn model_failure(error: &BackendError, dialect: Option<Dialect>) -> Response {
+pub(crate) fn model_failure(error: &BackendError, dialect: Option<Dialect>) -> Response {
     tracing::warn!(target: "net.api", "model request failed");
     shaped_error(
         dialect,
@@ -1448,7 +1493,7 @@ fn model_failure(error: &BackendError, dialect: Option<Dialect>) -> Response {
 }
 
 /// The `type` OpenAI clients read from an error, by status.
-fn error_kind(status: StatusCode) -> &'static str {
+pub(crate) fn error_kind(status: StatusCode) -> &'static str {
     match status.as_u16() {
         401 | 403 => "authentication_error",
         429 => "rate_limit_error",
@@ -1458,7 +1503,7 @@ fn error_kind(status: StatusCode) -> &'static str {
 }
 
 /// A whole answer. A success gets the fields a client expects, and an error gets the shape clients show.
-fn buffered_response(
+pub(crate) fn buffered_response(
     status: StatusCode,
     bytes: &[u8],
     id: &str,

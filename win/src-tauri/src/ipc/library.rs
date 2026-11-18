@@ -25,7 +25,8 @@ use crate::engines::embed_server;
 use crate::engines::{Engines, host_platform};
 use chunk::{CANDIDATE_DEPTH, Chunk, fuse, normalise, rank_chunks};
 use scan::FileInfo;
-use store::{DEFAULT_EMBED_MODEL, DEFAULT_WORKSPACE, FileRow, Hit, MAX_INDEXED_CHUNKS, Store};
+pub(super) use store::DEFAULT_EMBED_MODEL;
+use store::{DEFAULT_WORKSPACE, FileRow, Hit, MAX_INDEXED_CHUNKS, Store};
 
 const EMBED_BATCH: usize = 16;
 const NOT_AVAILABLE: &str = "embedding model not available";
