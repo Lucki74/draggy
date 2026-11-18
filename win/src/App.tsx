@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import StartupScreen from "./StartupScreen";
 import Onboarding, { type SetupOutcome } from "./onboarding/Onboarding";
 import { useFirstDownload } from "./onboarding/useFirstDownload";
@@ -61,6 +61,8 @@ export default function App() {
     });
   }, [isSplashMode, setSettings]);
 
+  const handshakeDone = useRef(false);
+
   const handleSplashReady = useCallback((selectedModel: string) => {
     window.draggy?.bootFinished(selectedModel);
   }, []);
@@ -68,6 +70,18 @@ export default function App() {
   const handleUseProvider = useCallback(() => {
     window.draggy?.bootFinished("", "providers");
   }, []);
+
+  // Normal launch handshake: if a model is saved but state is empty, initiate boot handshake.
+  useEffect(() => {
+    if (isSplashMode || onboarding) return;
+    if (handshakeDone.current) return;
+    if (model || openSettingsOn) return;
+    const savedModel = settings.modelName;
+    if (!savedModel) return;
+    if (!window.draggy) return;
+    handshakeDone.current = true;
+    window.draggy.bootFinished(savedModel);
+  }, [isSplashMode, onboarding, model, openSettingsOn, settings.modelName]);
 
   const handleModelReady = useCallback(
     (selectedModel: string) => {
