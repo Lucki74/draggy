@@ -34,7 +34,7 @@ use crate::ipc::providers::adapters::{AppHttp, AppKeys, AppKv};
 const GATEWAY_URL: &str = "draggy-ai://chat";
 const UNKNOWN_URL: &str = "draggy-ai://unknown";
 const CHAT_PATH: &str = "/chat";
-const MAX_BODY_BYTES: usize = 32 * 1024 * 1024;
+const MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
 const QUEUE: usize = 32;
 // The main window is served from the asset scheme, so its origin is tauri.localhost, not draggy.localhost.
 const RENDERER_ORIGIN: &str = "http://tauri.localhost";

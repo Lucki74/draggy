@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+use draggy_api::settings::ApiSettings;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -23,7 +24,6 @@ use crate::ipc::providers::adapters::AppKeys;
 
 const CONFIG_KEY: &str = "apiServer";
 const KEY_OWNER: &str = "__draggy_api_server";
-const REPLY_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 const STARTING: &str = "Draggy is still starting. Try again in a moment.";
 const TOO_LONG: &str = "The reply took too long.";
 const GONE: &str = "The client went away.";
@@ -44,6 +44,7 @@ type Prepared = oneshot::Sender<Result<String, String>>;
 static PREPARING: Mutex<Option<HashMap<String, Prepared>>> = Mutex::new(None);
 static KEY: Mutex<String> = Mutex::new(String::new());
 static SERVER: Mutex<Option<(u16, tauri::async_runtime::JoinHandle<()>)>> = Mutex::new(None);
+static SETTINGS: Mutex<Option<ApiSettings>> = Mutex::new(None);
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
 pub fn register_all(registry: &mut Registry) {
@@ -72,12 +73,14 @@ pub fn stop_all() {
     drop(waiting);
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 struct Config {
     enabled: bool,
     port: u16,
     /// Plain requests go to the model alone instead of the agent.
     model_mode: bool,
+    /// Everything else the settings page sets, applied per request.
+    settings: ApiSettings,
 }
 
 async fn status(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
@@ -98,8 +101,9 @@ async fn configure(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
             .get("mode")
             .and_then(Value::as_str)
             .map_or(saved.model_mode, |mode| mode == "model"),
+        settings: saved.settings.patched(&input),
     };
-    save_config(&app, config);
+    save_config(&app, &config);
     apply(&app);
     Ok(status_value(&app))
 }
@@ -223,6 +227,7 @@ fn status_value(app: &AppHandle) -> Value {
         "running": running,
         "baseUrl": format!("http://{HOST}:{}/v1", config.port),
         "error": error,
+        "settings": config.settings.to_value(),
     });
     if config.enabled {
         status["key"] = json!(current_key());
@@ -238,6 +243,7 @@ fn apply(app: &AppHandle) {
     *LAST_ERROR.lock().unwrap_or_else(|p| p.into_inner()) = None;
     let config = read_config(app);
     MODEL_MODE.store(config.model_mode, Ordering::SeqCst);
+    *SETTINGS.lock().unwrap_or_else(|p| p.into_inner()) = Some(config.settings.clone());
     if !config.enabled {
         return;
     }
@@ -284,7 +290,13 @@ struct Bridge(AppHandle);
 impl Backend for Bridge {
     async fn list_models(&self) -> Result<Vec<ModelEntry>, BackendError> {
         let app = self.0.clone();
+        let with_cloud = current_settings().list_cloud_models;
         let listed = tauri::async_runtime::spawn_blocking(move || {
+            let cloud = if with_cloud {
+                crate::ipc::providers::cloud_models(&app)
+            } else {
+                Vec::new()
+            };
             let state = app.state::<AppState>();
             let projectors = crate::engines::locked(&state.engines.projectors);
             let mut cache = crate::engines::locked(&state.engines.capabilities);
@@ -301,6 +313,12 @@ impl Backend for Bridge {
                         context_length: entry.context_length.map(|length| length as u64),
                         capabilities: entry.capabilities,
                     })
+                    .chain(cloud.into_iter().map(|model| ModelEntry {
+                        id: model.id,
+                        owned_by: model.owned_by,
+                        context_length: model.context_length,
+                        capabilities: model.capabilities,
+                    }))
                     .collect::<Vec<ModelEntry>>()
             })
             .map_err(|_| BackendError {
@@ -326,6 +344,7 @@ impl Backend for Bridge {
                 message: STARTING.to_owned(),
             });
         }
+        let settings = current_settings();
         let id = new_id();
         let (finish, outcome) = oneshot::channel();
         PENDING
@@ -342,7 +361,12 @@ impl Backend for Bridge {
         emit(
             &self.0,
             "api-server:request",
-            json!({ "id": id, "request": request }),
+            json!({
+                "id": id,
+                "request": request,
+                "defaultModel": settings.default_model,
+                "webTools": settings.agent_web_tools,
+            }),
         );
 
         tokio::select! {
@@ -351,7 +375,7 @@ impl Backend for Bridge {
                 emit(&self.0, "api-server:abort", json!(id));
                 Err(BackendError { message: GONE.to_owned() })
             }
-            waited = tokio::time::timeout(REPLY_TIMEOUT, outcome) => match waited {
+            waited = tokio::time::timeout(settings.request_timeout(), outcome) => match waited {
                 Ok(Ok(result)) => result,
                 Ok(Err(_)) => Err(BackendError { message: FAILED.to_owned() }),
                 Err(_) => {
@@ -383,7 +407,7 @@ impl Backend for Bridge {
         emit(
             &self.0,
             "api-server:prepare",
-            json!({ "id": id, "model": requested }),
+            json!({ "id": id, "model": requested, "defaultModel": current_settings().default_model }),
         );
         let forget = || {
             if let Some(map) = PREPARING.lock().unwrap_or_else(|p| p.into_inner()).as_mut() {
@@ -428,7 +452,10 @@ impl Backend for Bridge {
             () = cancel.cancelled() => {
                 return Err(BackendError { message: GONE.to_owned() });
             }
-            sent = sent => sent.map_err(|_| BackendError { message: FAILED.to_owned() })?,
+            sent = tokio::time::timeout(current_settings().request_timeout(), sent) => match sent {
+                Ok(sent) => sent.map_err(|_| BackendError { message: FAILED.to_owned() })?,
+                Err(_) => return Err(BackendError { message: TOO_LONG.to_owned() }),
+            },
         };
         let status = response.status().as_u16();
         // Dropping the stream drops the response, which closes the call and stops the engine.
@@ -472,6 +499,10 @@ impl Env for Keys {
         let _ = getrandom::fill(buffer);
     }
 
+    fn settings(&self) -> ApiSettings {
+        current_settings()
+    }
+
     fn default_mode(&self) -> Mode {
         if MODEL_MODE.load(Ordering::SeqCst) {
             Mode::Model
@@ -479,6 +510,15 @@ impl Env for Keys {
             Mode::Agent
         }
     }
+}
+
+/// The settings the running server uses, as of the last save.
+fn current_settings() -> ApiSettings {
+    SETTINGS
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .clone()
+        .unwrap_or_default()
 }
 
 fn current_key() -> String {
@@ -534,13 +574,19 @@ fn read_config(app: &AppHandle) -> Config {
             .and_then(|value| value.get("mode"))
             .and_then(Value::as_str)
             == Some("model"),
+        settings: value
+            .as_ref()
+            .map_or_else(ApiSettings::default, ApiSettings::from_value),
     }
 }
 
-fn save_config(app: &AppHandle, config: Config) {
+fn save_config(app: &AppHandle, config: &Config) {
     let mode = if config.model_mode { "model" } else { "agent" };
-    let value =
-        json!({ "enabled": config.enabled, "port": config.port, "mode": mode }).to_string();
+    let mut value = config.settings.to_value();
+    value["enabled"] = json!(config.enabled);
+    value["port"] = json!(config.port);
+    value["mode"] = json!(mode);
+    let value = value.to_string();
     let Some(storage) = app.state::<AppState>().storage.handle() else {
         return;
     };

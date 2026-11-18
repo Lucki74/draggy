@@ -466,6 +466,71 @@ fn with_lister<T>(work: impl FnOnce(&mut Lister) -> T) -> T {
     work(&mut guard)
 }
 
+/// One provider reduced to what decides whether the API lists its models.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CloudSource {
+    pub id: String,
+    pub provider_type: String,
+    pub enabled: bool,
+    pub kind: String,
+    pub connected: bool,
+    pub pinned: Vec<String>,
+}
+
+/// A cloud model the chat gateway can route, named as it expects: `@instance/model`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CloudModel {
+    pub id: String,
+    pub owned_by: String,
+    pub context_length: Option<u64>,
+    pub capabilities: Vec<String>,
+}
+
+/// The pinned models of each enabled, connected, non-local provider. `known` supplies the window and capabilities
+/// where a listing has them.
+pub(crate) fn routable_cloud_models(
+    sources: &[CloudSource],
+    known: impl Fn(&str) -> Vec<draggy_providers::models::ModelInfo>,
+) -> Vec<CloudModel> {
+    let mut out = Vec::new();
+    for source in sources {
+        if !source.enabled || !source.connected || source.kind == "local" || source.pinned.is_empty() {
+            continue;
+        }
+        let infos = known(&source.id);
+        for model in &source.pinned {
+            let info = infos.iter().find(|info| info.id == *model);
+            out.push(CloudModel {
+                id: format!("@{}/{model}", source.id),
+                owned_by: source.provider_type.clone(),
+                context_length: info.and_then(|info| info.context_length),
+                capabilities: info.map(|info| info.capabilities.clone()).unwrap_or_default(),
+            });
+        }
+    }
+    out
+}
+
+/// The cloud models `/v1/models` lists. A provider whose listing fails still lists its pinned names.
+pub(crate) fn cloud_models(app: &AppHandle) -> Vec<CloudModel> {
+    let providers = store(app);
+    let sources: Vec<CloudSource> = providers
+        .list()
+        .into_iter()
+        .map(|view| CloudSource {
+            connected: view.kind == "account" || !view.needs_key || view.has_key,
+            id: view.id,
+            provider_type: view.provider_type,
+            enabled: view.enabled,
+            kind: view.kind,
+            pinned: view.pinned_models,
+        })
+        .collect();
+    routable_cloud_models(&sources, |id| {
+        with_lister(|lister| lister.list(&providers, id, false, now_ms())).unwrap_or_default()
+    })
+}
+
 fn forget(id: &str) {
     with_lister(|lister| lister.forget(Some(id)));
 }
@@ -533,6 +598,53 @@ fn now_ms() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn source(id: &str, kind: &str, enabled: bool, connected: bool, pinned: &[&str]) -> CloudSource {
+        CloudSource {
+            id: id.to_owned(),
+            provider_type: format!("{id}-type"),
+            enabled,
+            kind: kind.to_owned(),
+            connected,
+            pinned: pinned.iter().map(|m| (*m).to_owned()).collect(),
+        }
+    }
+
+    #[test]
+    fn cloud_models_come_from_enabled_connected_providers() {
+        let sources = [
+            source("a", "cloud", true, true, &["m1", "m2"]),
+            source("off", "cloud", false, true, &["x"]),
+            source("nokey", "cloud", true, false, &["x"]),
+            source("lan", "local", true, true, &["x"]),
+            source("empty", "cloud", true, true, &[]),
+        ];
+        let listed = routable_cloud_models(&sources, |_| Vec::new());
+        let ids: Vec<&str> = listed.iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(ids, ["@a/m1", "@a/m2"]);
+        assert_eq!(listed[0].owned_by, "a-type");
+    }
+
+    #[test]
+    fn cloud_models_carry_the_window_when_known() {
+        let sources = [source("a", "account", true, true, &["m1", "m2"])];
+        let listed = routable_cloud_models(&sources, |_| {
+            vec![draggy_providers::models::ModelInfo {
+                id: "m1".to_owned(),
+                reference: "@a/m1".to_owned(),
+                name: None,
+                context_length: Some(2000),
+                max_output_tokens: None,
+                capabilities: vec!["vision".to_owned()],
+                cloud: true,
+                pinned: true,
+                override_flags: None,
+            }]
+        });
+        assert_eq!(listed[0].context_length, Some(2000));
+        assert_eq!(listed[0].capabilities, ["vision"]);
+        assert_eq!(listed[1].context_length, None);
+    }
 
     fn entry(id: &str, auth: &str, key_optional: Option<bool>) -> CatalogEntry {
         CatalogEntry {
