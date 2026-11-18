@@ -7,7 +7,6 @@ use draggy_api::settings::ApiSettings;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use axum::body::Bytes;
 use draggy_api::server::{
     Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Env, ForwardReply, HOST,
     Mode, ModelEntry, Reply, Sink, Usage,
