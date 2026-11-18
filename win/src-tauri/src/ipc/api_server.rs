@@ -512,6 +512,11 @@ impl Env for Keys {
     }
 }
 
+/// The extra llama-server arguments saved in the API settings, applied at the next model load.
+pub(crate) fn extra_engine_args(app: &AppHandle) -> String {
+    read_config(app).settings.extra_engine_args
+}
+
 /// The settings the running server uses, as of the last save.
 fn current_settings() -> ApiSettings {
     SETTINGS

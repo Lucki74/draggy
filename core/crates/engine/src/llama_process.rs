@@ -86,6 +86,8 @@ pub struct StartRequest {
     pub speculative: bool,
     pub exact_context: bool,
     pub moe_stream: Option<MoeStream>,
+    /// Extra llama-server arguments as typed. Owned flags are dropped when the launch is built.
+    pub extra_args: String,
 }
 
 impl StartRequest {
@@ -107,6 +109,7 @@ impl StartRequest {
             speculative: true,
             exact_context: false,
             moe_stream: None,
+            extra_args: String::new(),
         }
     }
 }
@@ -777,7 +780,7 @@ where
         bytes: draft_path.as_deref().and_then(file_len),
         max: Some(tuning.max),
     });
-    let plan = plan_launch(
+    let mut plan = plan_launch(
         &LaunchInput {
             model: &model_text,
             model_bytes: bytes,
@@ -799,6 +802,11 @@ where
         },
         &supports,
     );
+    let extra = crate::llama_extra_args::sanitize(&request.extra_args);
+    for flag in &extra.dropped {
+        tracing::warn!(target: "engine.llama", flag = %flag, "extra argument dropped: Draggy sets it");
+    }
+    plan.args.extend(extra.args);
     if plan.draft_dropped_for_fit {
         tracing::info!(target: "engine.llama", model = %base, "draft model off: it would push layers off the gpu");
     }

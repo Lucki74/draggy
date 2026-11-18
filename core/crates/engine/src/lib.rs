@@ -12,6 +12,7 @@ pub mod hardware_probe;
 mod js;
 pub mod llama_args;
 pub mod llama_draft_stats;
+pub mod llama_extra_args;
 pub mod llama_flags;
 pub mod llama_health;
 pub mod llama_output;

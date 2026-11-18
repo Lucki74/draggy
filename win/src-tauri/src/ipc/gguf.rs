@@ -297,6 +297,7 @@ async fn start(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
         request.engine = Some(environment);
         request.exact_context = options.get("exactContext").is_some_and(truthy);
         request.moe_stream = sanitize_moe_stream(options.get("moeStream"));
+        request.extra_args = super::api_server::extra_engine_args(&app);
         request
     };
     let mut result = llama.start(build_request(binary)).await;
