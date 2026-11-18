@@ -13,6 +13,7 @@ use draggy_api::server::{
     Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Env, ForwardReply, Mode,
     ModelEntry, Reply, Sink, router,
 };
+use draggy_api::log::LogEntry;
 use draggy_api::search::Hit;
 use draggy_api::settings::ApiSettings;
 use futures_util::stream;
@@ -30,9 +31,14 @@ struct TestEnv {
     mode: Mode,
     wait: Duration,
     settings: ApiSettings,
+    logged: Arc<Mutex<Vec<LogEntry>>>,
 }
 
 impl Env for TestEnv {
+    fn record(&self, entry: LogEntry) {
+        self.logged.lock().unwrap_or_else(PoisonError::into_inner).push(entry);
+    }
+
     fn api_key(&self) -> String {
         KEY.to_owned()
     }
@@ -63,6 +69,7 @@ fn env() -> TestEnv {
         mode: Mode::Agent,
         wait: Duration::from_millis(100),
         settings: ApiSettings::default(),
+        logged: Arc::default(),
     }
 }
 
@@ -78,6 +85,8 @@ struct Forwarding {
     /// Replies handed out first, one per forward, before `chunks` is used.
     queue: Arc<Mutex<VecDeque<String>>>,
     searched: Arc<Mutex<Vec<String>>>,
+    /// What the tokenizer says a request takes, when it is asked.
+    counted: Option<u64>,
 }
 
 impl Forwarding {
@@ -91,7 +100,13 @@ impl Forwarding {
             agent_calls: Arc::default(),
             queue: Arc::default(),
             searched: Arc::default(),
+            counted: None,
         }
+    }
+
+    fn counting(mut self, tokens: u64) -> Self {
+        self.counted = Some(tokens);
+        self
     }
 
     /// Answers the first forwards with these chat replies, in order.
@@ -155,6 +170,10 @@ impl Backend for Forwarding {
         } else {
             requested.to_owned()
         })
+    }
+
+    async fn count_tokens(&self, _chat: &Value, _cancel: CancellationToken) -> Option<u64> {
+        self.counted
     }
 
     async fn web_search(&self, query: &str, _cancel: CancellationToken) -> Result<Vec<Hit>, BackendError> {
@@ -413,7 +432,8 @@ async fn a_plain_request_follows_the_default_mode() {
     let model_first = TestEnv {
         mode: Mode::Model,
         wait: Duration::from_millis(100),
-        settings: ApiSettings::default(),
+        settings: ApiSettings::default(),
+        logged: Arc::default(),
     };
 
     let (_, _, text) = send(
@@ -493,7 +513,8 @@ async fn a_request_waits_for_a_free_slot_and_is_then_answered() {
     let waiting = TestEnv {
         mode: Mode::Agent,
         wait: Duration::from_secs(5),
-        settings: ApiSettings::default(),
+        settings: ApiSettings::default(),
+        logged: Arc::default(),
     };
     let app = router(DEFAULT_PORT, backend.clone(), waiting);
 
@@ -976,4 +997,51 @@ async fn messages_stop_sequences_are_matched_here() {
     assert_eq!(reply["stop_reason"], "stop_sequence");
     assert_eq!(reply["stop_sequence"], "END");
     assert_eq!(reply["content"][0]["text"], "one ");
+}
+
+#[tokio::test]
+async fn count_tokens_uses_the_models_own_count_for_local_models() {
+    let backend = Forwarding::replying(&[]).counting(42);
+    let count = |model: &str| {
+        let sent = json!({"model": model, "messages": [{"role": "user", "content": "x"}]});
+        post_to("/v1/messages/count_tokens", ("x-api-key", KEY.to_owned()), &sent)
+    };
+    let (_, _, text) = send(app(&backend), count("local-model")).await;
+    assert_eq!(json_of(&text)["input_tokens"], 42);
+    let (_, _, text) = send(app(&backend), count("@cloud/model")).await;
+    assert_ne!(json_of(&text)["input_tokens"], 42);
+}
+
+#[tokio::test]
+async fn a_messages_stream_starts_with_the_counted_input() {
+    let chunk = r#"data: {"choices":[{"index":0,"delta":{"content":"Hi"},"finish_reason":null}]}
+
+"#;
+    let backend = Forwarding::replying(&[chunk]).counting(42);
+    let sent = json!({"model": "m", "max_tokens": 5, "stream": true, "messages": [{"role": "user", "content": "x"}]});
+    let request = post_to("/v1/messages", ("x-api-key", KEY.to_owned()), &sent);
+    let (_, _, text) = send(app(&backend), request).await;
+    let events = sse_events(&text);
+    assert_eq!(events[0].1["message"]["usage"]["input_tokens"], 42);
+    assert_eq!(events.last().map(|(name, _)| name.as_str()), Some("message_stop"));
+}
+
+#[tokio::test]
+async fn a_streamed_reply_is_logged_with_its_tokens() {
+    let chunks = [
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}\n\n",
+        "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":3,\"total_tokens\":10}}\n\n",
+        "data: [DONE]\n\n",
+    ];
+    let backend = Forwarding::replying(&chunks);
+    let environment = TestEnv { mode: Mode::Model, ..env() };
+    let log = environment.logged.clone();
+    let sent = json!({"model": "m", "stream": true, "messages": [{"role": "user", "content": "x"}]});
+    let (_, _, text) = send(router(DEFAULT_PORT, backend.clone(), environment), post(&sent)).await;
+
+    // The client did not ask for usage, so it is asked of the model and kept back.
+    assert_eq!(backend.forwarded()[0]["stream_options"]["include_usage"], true);
+    assert!(!text.contains("prompt_tokens"), "{text}");
+    let entries = log.lock().unwrap_or_else(PoisonError::into_inner).clone();
+    assert_eq!((entries[0].prompt_tokens, entries[0].completion_tokens), (7, 3));
 }

@@ -457,6 +457,24 @@ impl Backend for Bridge {
         self.post_gateway("chat", body, cancel).await
     }
 
+    async fn count_tokens(&self, chat: &Value, cancel: CancellationToken) -> Option<u64> {
+        let model = chat.get("model").and_then(Value::as_str).unwrap_or("");
+        if model.starts_with('@') {
+            return None;
+        }
+        let messages = chat.get("messages")?;
+        // The chat template first, so the count includes its markers; the plain text when it is not offered.
+        let templated = self.read_gateway("apply-template", json!({"messages": messages}), &cancel).await;
+        let prompt = templated
+            .as_ref()
+            .and_then(|reply| reply.get("prompt").and_then(Value::as_str))
+            .map_or_else(|| plain_text(messages), str::to_owned);
+        let counted = self.read_gateway("tokenize", json!({"content": prompt}), &cancel).await?;
+        let tokens = counted.get("tokens").and_then(Value::as_array)?.len() as u64;
+        let tools = chat.get("tools").map_or(0, |tools| tools.to_string().chars().count() as u64);
+        Some(tokens + tools.div_ceil(4))
+    }
+
     async fn web_search(&self, query: &str, cancel: CancellationToken) -> Result<Vec<Hit>, BackendError> {
         let searched = tokio::select! {
             () = cancel.cancelled() => return Err(BackendError { message: "The request was cancelled.".to_owned() }),
@@ -507,7 +525,38 @@ impl Backend for Bridge {
     }
 }
 
+/// The text of chat messages, for counting when the engine has no chat template to apply.
+fn plain_text(messages: &Value) -> String {
+    let mut text = String::new();
+    for message in messages.as_array().into_iter().flatten() {
+        match message.get("content") {
+            Some(Value::String(content)) => text.push_str(content),
+            Some(Value::Array(parts)) => {
+                for part in parts {
+                    text.push_str(part.get("text").and_then(Value::as_str).unwrap_or(""));
+                }
+            }
+            _ => {}
+        }
+        text.push('\n');
+    }
+    text
+}
+
 impl Bridge {
+    /// Posts a body to a gateway route and reads the JSON answer, or `None` when it is not a good one.
+    async fn read_gateway(&self, route: &str, body: Value, cancel: &CancellationToken) -> Option<Value> {
+        let mut reply = self.post_gateway(route, body, cancel.clone()).await.ok()?;
+        if reply.status != 200 {
+            return None;
+        }
+        let mut bytes = Vec::new();
+        while let Some(chunk) = futures_util::StreamExt::next(&mut reply.body).await {
+            bytes.extend_from_slice(&chunk.ok()?);
+        }
+        serde_json::from_slice(&bytes).ok()
+    }
+
     /// Posts a body to a route of the chat gateway and hands back its answer as it comes.
     async fn post_gateway(
         &self,

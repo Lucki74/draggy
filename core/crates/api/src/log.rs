@@ -92,6 +92,20 @@ impl Note {
     }
 }
 
+/// Token counts of a streamed reply, filled in as the stream learns them and read when it ends.
+#[derive(Debug, Clone, Default)]
+pub struct Counter(Arc<Mutex<(u64, u64)>>);
+
+impl Counter {
+    pub fn set(&self, prompt: u64, completion: u64) {
+        *self.0.lock().unwrap_or_else(PoisonError::into_inner) = (prompt, completion);
+    }
+
+    pub fn get(&self) -> (u64, u64) {
+        *self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
 /// Token counts of a whole reply, carried on the response so the log can read them.
 #[derive(Debug, Clone, Copy)]
 pub struct Tokens(pub u64, pub u64);

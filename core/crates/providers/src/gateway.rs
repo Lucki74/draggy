@@ -30,6 +30,10 @@ pub const ENGINE_PATH: &str = "/v1/chat/completions";
 
 /// The engine route that answers legacy text completions.
 pub const COMPLETIONS_PATH: &str = "/v1/completions";
+
+/// The engine routes that count tokens: the chat template is applied first, then the text is tokenized.
+pub const TOKENIZE_PATH: &str = "/tokenize";
+pub const TEMPLATE_PATH: &str = "/apply-template";
 const MAX_RETRIES: u64 = 2;
 // A provider asking for a longer wait than this has a turn fail now rather than sit silent for minutes.
 const MAX_WAIT_MS: f64 = 60_000.0;
@@ -441,24 +445,30 @@ impl<K: KvStore, S: Keystore, H: HttpClient> Gateway<'_, K, S, H> {
             .ok()
             .filter(|url| url.port().is_none())
             .and_then(|url| url.host_str().map(str::to_owned));
-        let completions = host.as_deref() == Some("completions");
-        if request.method != "POST" || !(completions || host.as_deref() == Some("chat")) {
+        let engine_path = match host.as_deref() {
+            Some("chat") => Some(ENGINE_PATH),
+            Some("completions") => Some(COMPLETIONS_PATH),
+            Some("tokenize") => Some(TOKENIZE_PATH),
+            Some("apply-template") => Some(TEMPLATE_PATH),
+            _ => None,
+        };
+        let Some(path) = engine_path.filter(|_| request.method == "POST") else {
             send_reply(sink, error_reply(404, "Unknown gateway endpoint.", &cors));
             return Ok(());
-        }
+        };
+        let local_only = path != ENGINE_PATH;
 
         let cid = request.request_id.as_deref().filter(|id| !id.is_empty());
         let model = requested_model(&request.body);
         // A remote reference never reaches the engine, whether or not its provider exists.
-        if completions && model.starts_with('@') {
-            send_reply(sink, error_reply(400, "Completions need a local model.", &cors));
+        if local_only && model.starts_with('@') {
+            send_reply(sink, error_reply(400, "This route needs a local model.", &cors));
             return Ok(());
         }
         if model.starts_with('@') {
             self.route_remote(&model, &request.body, &cors, cid, sink);
             return Ok(());
         }
-        let path = if completions { COMPLETIONS_PATH } else { ENGINE_PATH };
         self.passthrough(request, &cors, cid, path, sink)
             .inspect_err(|_| {
                 warn!(target: "providers.gateway", "engine unreachable");
@@ -1155,6 +1165,10 @@ mod tests {
         let cloud = gateway.handle(&request("POST", "draggy-ai://completions", None, "{\"model\":\"@a/b\"}"));
         assert_eq!(cloud.map(|r| r.status), Ok(400));
         assert_eq!(engine.sent.borrow().len(), 1);
+        assert!(gateway.handle(&request("POST", "draggy-ai://tokenize", None, "{\"content\":\"x\"}")).is_ok());
+        assert_eq!(engine.sent.borrow()[1].0, "http://127.0.0.1:9/tokenize");
+        assert!(gateway.handle(&request("POST", "draggy-ai://apply-template", None, "{\"messages\":[]}")).is_ok());
+        assert_eq!(engine.sent.borrow()[2].0, "http://127.0.0.1:9/apply-template");
     }
 
     #[test]

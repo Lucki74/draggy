@@ -55,7 +55,7 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
 use tokio_util::sync::{CancellationToken, DropGuard};
 
 use crate::dialect::{self, Dialect, Done, Keep, Opts};
-use crate::log::{LogEntry, Note, Tokens, client_of};
+use crate::log::{Counter, LogEntry, Note, Tokens, client_of};
 use crate::ollama;
 use crate::messages;
 use crate::responses;
@@ -140,6 +140,17 @@ pub trait Backend: Send + Sync + 'static {
                 message: NOT_AVAILABLE.to_owned(),
             })
         }
+    }
+
+    /// The number of tokens a chat request takes up, counted by the model's own tokenizer.
+    /// `None` when that is not known, such as for a cloud model, and the caller estimates.
+    fn count_tokens(
+        &self,
+        chat: &Value,
+        cancel: CancellationToken,
+    ) -> impl Future<Output = Option<u64>> + Send {
+        let _ = (chat, cancel);
+        async { None }
     }
 
     /// Searches the web for the built-in web search tool of the Responses and Messages routes.
@@ -1103,7 +1114,7 @@ async fn handle<B: Backend, E: Env>(
     if settings.log_requests {
         let (model, mode) = note.read();
         let tokens = response.extensions().get::<Tokens>().copied().unwrap_or(Tokens(0, 0));
-        env.record(LogEntry {
+        let entry = LogEntry {
             time: env.now_unix(),
             method,
             path,
@@ -1114,9 +1125,39 @@ async fn handle<B: Backend, E: Env>(
             prompt_tokens: tokens.0,
             completion_tokens: tokens.1,
             client,
-        });
+        };
+        let Some(counter) = response.extensions().get::<Counter>().cloned() else {
+            env.record(entry);
+            return response;
+        };
+        // A stream is logged once it has ended, with the counts and the time it took.
+        let pending = Pending { env, entry: Some(entry), started, counter };
+        let (head, body) = response.into_parts();
+        let body = Body::from_stream(stream::unfold((body.into_data_stream(), pending), |(mut body, pending)| async {
+            let chunk = body.next().await?;
+            Some((chunk, (body, pending)))
+        }));
+        return Response::from_parts(head, body);
     }
     response
+}
+
+/// A streamed reply's log entry, recorded when the stream is dropped: at its end or when the client leaves.
+struct Pending<E: Env> {
+    env: Arc<E>,
+    entry: Option<LogEntry>,
+    started: std::time::Instant,
+    counter: Counter,
+}
+
+impl<E: Env> Drop for Pending<E> {
+    fn drop(&mut self) {
+        if let Some(mut entry) = self.entry.take() {
+            (entry.prompt_tokens, entry.completion_tokens) = self.counter.get();
+            entry.duration_ms = u64::try_from(self.started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            self.env.record(entry);
+        }
+    }
 }
 
 async fn handle_request<B: Backend, E: Env>(
@@ -1235,7 +1276,7 @@ async fn handle_request<B: Backend, E: Env>(
             }
         }
         if counting {
-            let tokens = messages::count_tokens(&parsed);
+            let tokens = counted_input(&shared, parsed, &settings).await;
             return json_response(StatusCode::OK, json!({"input_tokens": tokens}).to_string());
         }
     }
@@ -1307,6 +1348,24 @@ async fn handle_request<B: Backend, E: Env>(
             "invalid_request_error",
         ),
     }
+}
+
+/// The input tokens of a counted request: the local model's own count, or the estimate when that is not available.
+async fn counted_input<B: Backend, E: Env>(shared: &Shared<B, E>, mut chat: Value, settings: &ApiSettings) -> u64 {
+    let estimate = messages::count_tokens(&chat);
+    let name = chat.get("model").and_then(Value::as_str).unwrap_or("");
+    let name = settings::resolve_alias(name, &settings.aliases).unwrap_or(name).to_owned();
+    if name.is_empty() || name.starts_with('@') {
+        return estimate;
+    }
+    settings::prepend_system(&mut chat, &settings.system_prompt);
+    let cancel = CancellationToken::new();
+    let _stop = cancel.clone().drop_guard();
+    match shared.backend.prepare_model(&name, cancel.clone()).await {
+        Ok(model) => chat["model"] = Value::String(model),
+        Err(_) => return estimate,
+    }
+    shared.backend.count_tokens(&chat, cancel).await.unwrap_or(estimate)
 }
 
 /// The chat request for a Responses body. A body that continues a kept response carries that chat first.
@@ -1620,6 +1679,16 @@ async fn forward_model<B: Backend, E: Env>(
         Err(error) => return model_failure(&error, dialect),
     };
     body["model"] = Value::String(model.clone());
+    if stream && dialect.is_none() {
+        body["stream_options"]["include_usage"] = Value::Bool(true);
+    }
+    if stream && dialect == Some(Dialect::Messages) {
+        opts.input_tokens = match shared.backend.count_tokens(&body, cancel.clone()).await {
+            Some(tokens) => tokens,
+            None => messages::count_tokens(&body),
+        };
+    }
+    let counter = Counter::default();
 
     let mut searched = None;
     if let (Some(max), Some(_)) = (opts.web_search, dialect) {
@@ -1689,8 +1758,11 @@ async fn forward_model<B: Backend, E: Env>(
                 }
             })
         });
-        let body = Body::from_stream(dialect::translated_stream(reply.body, translator, guard, permit, done));
-        return if dialect.is_ollama() { ndjson_response(body) } else { sse_response(body) };
+        let stream = dialect::translated_stream(reply.body, translator, guard, permit, done, counter.clone());
+        let body = Body::from_stream(stream);
+        let mut response = if dialect.is_ollama() { ndjson_response(body) } else { sse_response(body) };
+        response.extensions_mut().insert(counter);
+        return response;
     }
 
     let relay = Relay {
@@ -1707,8 +1779,11 @@ async fn forward_model<B: Backend, E: Env>(
         finished: false,
         cancel: Some(guard),
         permit: Some(permit),
+        counter: counter.clone(),
     };
-    sse_response(Body::from_stream(stream::unfold(relay, next_relayed)))
+    let mut response = sse_response(Body::from_stream(stream::unfold(relay, next_relayed)));
+    response.extensions_mut().insert(counter);
+    response
 }
 
 fn ndjson_response(body: Body) -> Response {
@@ -1908,6 +1983,7 @@ struct Relay {
     finished: bool,
     cancel: Option<DropGuard>,
     permit: Option<Permit>,
+    counter: Counter,
 }
 
 impl Relay {
@@ -1942,6 +2018,11 @@ impl Relay {
             return;
         };
         self.patch(&mut value);
+        let usage_only = value.get("usage").is_some()
+            && value.get("choices").and_then(Value::as_array).is_some_and(Vec::is_empty);
+        if usage_only && !self.include_usage {
+            return;
+        }
         if self.strip {
             settings::strip_reasoning(&mut value);
         }
@@ -1974,6 +2055,8 @@ impl Relay {
         }
         if let Some(usage) = object.get("usage").filter(|usage| usage.is_object()) {
             self.last_usage = Some(usage.clone());
+            let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+            self.counter.set(count("prompt_tokens"), count("completion_tokens"));
             let empty = object
                 .get("choices")
                 .and_then(Value::as_array)

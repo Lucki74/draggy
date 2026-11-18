@@ -403,6 +403,10 @@ impl Stream {
 }
 
 impl Translator for Stream {
+    fn usage(&self) -> Option<(u64, u64)> {
+        Some(self.usage).filter(|usage| *usage != (0, 0))
+    }
+
     fn feed(&mut self, chunk: &Value) -> Vec<Event> {
         let mut out = Vec::new();
         if let Some(delta) = chunk.pointer("/choices/0/delta") {

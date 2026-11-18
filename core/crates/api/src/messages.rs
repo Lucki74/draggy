@@ -374,6 +374,7 @@ impl Stream {
         self.searched = opts.searches.len();
         self.searches = opts.searches.clone();
         self.stop = opts.stop.clone();
+        self.usage = (opts.input_tokens, 0);
         self
     }
 
@@ -445,7 +446,7 @@ impl Stream {
         let message = json!({
             "id": self.id, "type": "message", "role": "assistant", "model": self.model,
             "content": [], "stop_reason": null, "stop_sequence": null,
-            "usage": {"input_tokens": 0, "output_tokens": 0},
+            "usage": {"input_tokens": self.usage.0, "output_tokens": 0},
         });
         out.push(Event::new("message_start", json!({"type": "message_start", "message": message})));
         for search in std::mem::take(&mut self.searches) {
@@ -573,6 +574,10 @@ impl Stream {
 }
 
 impl Translator for Stream {
+    fn usage(&self) -> Option<(u64, u64)> {
+        Some(self.usage).filter(|usage| *usage != (0, 0))
+    }
+
     fn feed(&mut self, chunk: &Value) -> Vec<Event> {
         let mut out = Vec::new();
         if self.ended || self.hit.is_some() {

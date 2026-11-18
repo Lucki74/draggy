@@ -9,6 +9,7 @@ use futures_util::stream::{self, Stream, StreamExt};
 use serde_json::{Map, Value, json};
 use tokio_util::sync::DropGuard;
 
+use crate::log::Counter;
 use crate::search::Search;
 use crate::server::{ByteStream, Permit, split_event};
 use crate::{messages, ollama, responses};
@@ -73,6 +74,8 @@ pub struct Opts {
     pub thinking: bool,
     /// Messages `stop_sequences`, matched here so the reply can report which one ended it.
     pub stop: Vec<String>,
+    /// The prompt's token count, when it was counted before the reply began.
+    pub input_tokens: u64,
 }
 
 /// The chat so far and the request's input items, kept with the response that answers them.
@@ -95,6 +98,10 @@ pub trait Translator: Send {
     fn fail(&mut self, message: &str) -> Vec<Event>;
     /// The finished response object, once `finish` has run, for dialects that have one.
     fn completed(&self) -> Option<Value> {
+        None
+    }
+    /// The token counts seen so far as (prompt, completion), when the upstream reported any.
+    fn usage(&self) -> Option<(u64, u64)> {
         None
     }
     /// A stop sequence was reached: the reply is over and the upstream can be dropped.
@@ -302,9 +309,16 @@ struct Translated {
     cancel: Option<DropGuard>,
     permit: Option<Permit>,
     done: Option<Done>,
+    counter: Counter,
 }
 
 impl Translated {
+    fn count(&self) {
+        if let Some((prompt, completion)) = self.translator.usage() {
+            self.counter.set(prompt, completion);
+        }
+    }
+
     fn push(&mut self, events: Vec<Event>) {
         self.pending
             .extend(events.iter().map(|event| Bytes::from(event.frame())));
@@ -347,6 +361,7 @@ impl Translated {
         }
         let events = self.translator.feed(&value);
         self.push(events);
+        self.count();
         if self.translator.stopped() {
             // Dropping the guard cancels the upstream request.
             self.cancel.take();
@@ -364,6 +379,7 @@ impl Translated {
     fn finish(&mut self) {
         let events = self.translator.finish();
         self.push(events);
+        self.count();
         self.end();
         if let Some(done) = self.done.take() {
             done(self.translator.completed());
@@ -420,6 +436,7 @@ pub(crate) fn translated_stream(
     cancel: DropGuard,
     permit: Permit,
     done: Option<Done>,
+    counter: Counter,
 ) -> impl Stream<Item = Result<Bytes, Infallible>> {
     stream::unfold(
         Translated {
@@ -431,6 +448,7 @@ pub(crate) fn translated_stream(
             cancel: Some(cancel),
             permit: Some(permit),
             done,
+            counter,
         },
         next_translated,
     )
