@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use serde_json::{Map, Value, json};
 
-use crate::dialect::{Event, Translator, read_answer, usage_of};
+use crate::dialect::{Event, Opts, Translator, read_answer, usage_of};
 use crate::server::ModelEntry;
 
 /// The version a client sees.
@@ -245,7 +245,14 @@ fn finish_request(object: &Map<String, Value>, messages: Vec<Value>) -> Value {
             chat.insert("max_tokens".to_owned(), json!(count));
         }
     }
-    Value::Object(chat)
+    let mut chat = Value::Object(chat);
+    let think = match object.get("think") {
+        Some(Value::Bool(on)) => Some(*on),
+        Some(Value::String(level)) => Some(level != "none"),
+        _ => None,
+    };
+    crate::dialect::set_thinking(&mut chat, think);
+    chat
 }
 
 /// The chat request for an `/api/chat` body.
@@ -318,8 +325,21 @@ fn call_values(chat: &Value) -> Vec<Value> {
 
 /// A whole chat completion as an Ollama reply. `total_duration` is left at zero.
 pub fn from_chat(generate: bool, chat: &Value, model: &str, created: i64) -> Value {
+    from_chat_with(generate, chat, model, created, &Opts::default())
+}
+
+/// Like `from_chat`, with the model's reasoning when the request asks for it.
+pub fn from_chat_with(generate: bool, chat: &Value, model: &str, created: i64, opts: &Opts) -> Value {
     let answer = read_answer(chat, "ollama");
-    closing((generate, model, created), Some(&answer.text), &call_values(chat), &answer.finish, (answer.input_tokens, answer.output_tokens), 0)
+    let mut reply = closing((generate, model, created), Some(&answer.text), &call_values(chat), &answer.finish, (answer.input_tokens, answer.output_tokens), 0);
+    if opts.thinking && !answer.reasoning.is_empty() {
+        if generate {
+            reply["thinking"] = json!(answer.reasoning);
+        } else {
+            reply["message"]["thinking"] = json!(answer.reasoning);
+        }
+    }
+    reply
 }
 
 /// The NDJSON stream of one reply.
@@ -332,9 +352,16 @@ pub struct Stream {
     finish: String,
     usage: (u64, u64),
     ended: bool,
+    thinking: bool,
 }
 
 impl Stream {
+    /// Sends the model's reasoning as `thinking` when the request asks for it.
+    pub fn with_opts(mut self, opts: &Opts) -> Self {
+        self.thinking = opts.thinking;
+        self
+    }
+
     pub fn new(generate: bool, model: &str, created: i64) -> Self {
         Self {
             generate,
@@ -345,7 +372,18 @@ impl Stream {
             finish: String::new(),
             usage: (0, 0),
             ended: false,
+            thinking: false,
         }
+    }
+
+    fn thought(&self, text: &str) -> Event {
+        let mut event = self.line("", &[]);
+        if self.generate {
+            event.data["thinking"] = json!(text);
+        } else {
+            event.data["message"]["thinking"] = json!(text);
+        }
+        event
     }
 
     fn line(&self, text: &str, calls: &[Value]) -> Event {
@@ -368,6 +406,12 @@ impl Translator for Stream {
     fn feed(&mut self, chunk: &Value) -> Vec<Event> {
         let mut out = Vec::new();
         if let Some(delta) = chunk.pointer("/choices/0/delta") {
+            let thought = ["reasoning_content", "reasoning"]
+                .iter()
+                .find_map(|key| delta.get(key).and_then(Value::as_str).filter(|t| !t.is_empty()));
+            if let Some(text) = thought.filter(|_| self.thinking) {
+                out.push(self.thought(text));
+            }
             if let Some(text) = delta.get("content").and_then(Value::as_str).filter(|text| !text.is_empty()) {
                 out.push(self.line(text, &[]));
             }

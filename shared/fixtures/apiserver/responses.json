@@ -23,6 +23,9 @@
     },
     {
       "expected": {
+        "chat_template_kwargs": {
+          "enable_thinking": true
+        },
         "max_tokens": 50,
         "messages": [
           {
@@ -2517,6 +2520,589 @@
         }
       },
       "name": "web searches before a stream"
+    },
+    {
+      "expected": {
+        "created_at": 100,
+        "error": null,
+        "id": "resp_abc",
+        "incomplete_details": null,
+        "model": "local",
+        "object": "response",
+        "output": [
+          {
+            "id": "rs_abc",
+            "summary": [
+              {
+                "text": "Hmm.",
+                "type": "summary_text"
+              }
+            ],
+            "type": "reasoning"
+          },
+          {
+            "content": [
+              {
+                "annotations": [],
+                "text": "Hi",
+                "type": "output_text"
+              }
+            ],
+            "id": "msg_abc",
+            "role": "assistant",
+            "status": "completed",
+            "type": "message"
+          }
+        ],
+        "parallel_tool_calls": true,
+        "status": "completed",
+        "tool_choice": "auto",
+        "tools": [],
+        "usage": {
+          "input_tokens": 4,
+          "input_tokens_details": {
+            "cached_tokens": 0
+          },
+          "output_tokens": 2,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 6
+        }
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "Hi",
+                "reasoning_content": "Hmm.",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 4,
+            "total_tokens": 6
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "thinking": true
+        }
+      },
+      "name": "reasoning before a whole reply"
+    },
+    {
+      "expected": {
+        "created_at": 100,
+        "error": null,
+        "id": "resp_abc",
+        "incomplete_details": null,
+        "model": "local",
+        "object": "response",
+        "output": [
+          {
+            "content": [
+              {
+                "annotations": [],
+                "text": "Hi",
+                "type": "output_text"
+              }
+            ],
+            "id": "msg_abc",
+            "role": "assistant",
+            "status": "completed",
+            "type": "message"
+          }
+        ],
+        "parallel_tool_calls": true,
+        "status": "completed",
+        "tool_choice": "auto",
+        "tools": [],
+        "usage": {
+          "input_tokens": 4,
+          "input_tokens_details": {
+            "cached_tokens": 0
+          },
+          "output_tokens": 2,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 6
+        }
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "Hi",
+                "reasoning_content": "Hmm.",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 4,
+            "total_tokens": 6
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "thinking": false
+        }
+      },
+      "name": "reasoning left out when it is off"
+    },
+    {
+      "expected": [
+        {
+          "data": {
+            "response": {
+              "created_at": 100,
+              "error": null,
+              "id": "resp_abc",
+              "incomplete_details": null,
+              "model": "local",
+              "object": "response",
+              "output": [],
+              "parallel_tool_calls": true,
+              "status": "in_progress",
+              "tool_choice": "auto",
+              "tools": [],
+              "usage": null
+            },
+            "sequence_number": 0,
+            "type": "response.created"
+          },
+          "event": "response.created"
+        },
+        {
+          "data": {
+            "response": {
+              "created_at": 100,
+              "error": null,
+              "id": "resp_abc",
+              "incomplete_details": null,
+              "model": "local",
+              "object": "response",
+              "output": [],
+              "parallel_tool_calls": true,
+              "status": "in_progress",
+              "tool_choice": "auto",
+              "tools": [],
+              "usage": null
+            },
+            "sequence_number": 1,
+            "type": "response.in_progress"
+          },
+          "event": "response.in_progress"
+        },
+        {
+          "data": {
+            "item": {
+              "id": "rs_abc_0",
+              "summary": [],
+              "type": "reasoning"
+            },
+            "output_index": 0,
+            "sequence_number": 2,
+            "type": "response.output_item.added"
+          },
+          "event": "response.output_item.added"
+        },
+        {
+          "data": {
+            "item_id": "rs_abc_0",
+            "output_index": 0,
+            "part": {
+              "text": "",
+              "type": "summary_text"
+            },
+            "sequence_number": 3,
+            "summary_index": 0,
+            "type": "response.reasoning_summary_part.added"
+          },
+          "event": "response.reasoning_summary_part.added"
+        },
+        {
+          "data": {
+            "delta": "Hm",
+            "item_id": "rs_abc_0",
+            "output_index": 0,
+            "sequence_number": 4,
+            "summary_index": 0,
+            "type": "response.reasoning_summary_text.delta"
+          },
+          "event": "response.reasoning_summary_text.delta"
+        },
+        {
+          "data": {
+            "delta": "m.",
+            "item_id": "rs_abc_0",
+            "output_index": 0,
+            "sequence_number": 5,
+            "summary_index": 0,
+            "type": "response.reasoning_summary_text.delta"
+          },
+          "event": "response.reasoning_summary_text.delta"
+        },
+        {
+          "data": {
+            "item_id": "rs_abc_0",
+            "output_index": 0,
+            "sequence_number": 6,
+            "summary_index": 0,
+            "text": "Hmm.",
+            "type": "response.reasoning_summary_text.done"
+          },
+          "event": "response.reasoning_summary_text.done"
+        },
+        {
+          "data": {
+            "item_id": "rs_abc_0",
+            "output_index": 0,
+            "part": {
+              "text": "Hmm.",
+              "type": "summary_text"
+            },
+            "sequence_number": 7,
+            "summary_index": 0,
+            "type": "response.reasoning_summary_part.done"
+          },
+          "event": "response.reasoning_summary_part.done"
+        },
+        {
+          "data": {
+            "item": {
+              "id": "rs_abc_0",
+              "summary": [
+                {
+                  "text": "Hmm.",
+                  "type": "summary_text"
+                }
+              ],
+              "type": "reasoning"
+            },
+            "output_index": 0,
+            "sequence_number": 8,
+            "type": "response.output_item.done"
+          },
+          "event": "response.output_item.done"
+        },
+        {
+          "data": {
+            "item": {
+              "content": [],
+              "id": "msg_abc_1",
+              "role": "assistant",
+              "status": "in_progress",
+              "type": "message"
+            },
+            "output_index": 1,
+            "sequence_number": 9,
+            "type": "response.output_item.added"
+          },
+          "event": "response.output_item.added"
+        },
+        {
+          "data": {
+            "content_index": 0,
+            "item_id": "msg_abc_1",
+            "output_index": 1,
+            "part": {
+              "annotations": [],
+              "text": "",
+              "type": "output_text"
+            },
+            "sequence_number": 10,
+            "type": "response.content_part.added"
+          },
+          "event": "response.content_part.added"
+        },
+        {
+          "data": {
+            "content_index": 0,
+            "delta": "Hi",
+            "item_id": "msg_abc_1",
+            "output_index": 1,
+            "sequence_number": 11,
+            "type": "response.output_text.delta"
+          },
+          "event": "response.output_text.delta"
+        },
+        {
+          "data": {
+            "content_index": 0,
+            "item_id": "msg_abc_1",
+            "output_index": 1,
+            "sequence_number": 12,
+            "text": "Hi",
+            "type": "response.output_text.done"
+          },
+          "event": "response.output_text.done"
+        },
+        {
+          "data": {
+            "content_index": 0,
+            "item_id": "msg_abc_1",
+            "output_index": 1,
+            "part": {
+              "annotations": [],
+              "text": "Hi",
+              "type": "output_text"
+            },
+            "sequence_number": 13,
+            "type": "response.content_part.done"
+          },
+          "event": "response.content_part.done"
+        },
+        {
+          "data": {
+            "item": {
+              "content": [
+                {
+                  "annotations": [],
+                  "text": "Hi",
+                  "type": "output_text"
+                }
+              ],
+              "id": "msg_abc_1",
+              "role": "assistant",
+              "status": "completed",
+              "type": "message"
+            },
+            "output_index": 1,
+            "sequence_number": 14,
+            "type": "response.output_item.done"
+          },
+          "event": "response.output_item.done"
+        },
+        {
+          "data": {
+            "response": {
+              "created_at": 100,
+              "error": null,
+              "id": "resp_abc",
+              "incomplete_details": null,
+              "model": "local",
+              "object": "response",
+              "output": [
+                {
+                  "id": "rs_abc_0",
+                  "summary": [
+                    {
+                      "text": "Hmm.",
+                      "type": "summary_text"
+                    }
+                  ],
+                  "type": "reasoning"
+                },
+                {
+                  "content": [
+                    {
+                      "annotations": [],
+                      "text": "Hi",
+                      "type": "output_text"
+                    }
+                  ],
+                  "id": "msg_abc_1",
+                  "role": "assistant",
+                  "status": "completed",
+                  "type": "message"
+                }
+              ],
+              "parallel_tool_calls": true,
+              "status": "completed",
+              "tool_choice": "auto",
+              "tools": [],
+              "usage": {
+                "input_tokens": 4,
+                "input_tokens_details": {
+                  "cached_tokens": 0
+                },
+                "output_tokens": 2,
+                "output_tokens_details": {
+                  "reasoning_tokens": 0
+                },
+                "total_tokens": 6
+              }
+            },
+            "sequence_number": 15,
+            "type": "response.completed"
+          },
+          "event": "response.completed"
+        }
+      ],
+      "input": {
+        "chatId": "chatcmpl-abc",
+        "chunks": [
+          {
+            "choices": [
+              {
+                "delta": {
+                  "reasoning_content": "Hm"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {
+                  "reasoning_content": "m."
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "Hi"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {},
+                "finish_reason": "stop",
+                "index": 0
+              }
+            ],
+            "usage": {
+              "completion_tokens": 2,
+              "prompt_tokens": 4
+            }
+          }
+        ],
+        "created": 100,
+        "end": "finish",
+        "model": "local",
+        "op": "stream",
+        "opts": {
+          "thinking": true
+        }
+      },
+      "name": "reasoning before a stream"
+    },
+    {
+      "expected": {
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "messages": [
+          {
+            "content": "x",
+            "role": "user"
+          }
+        ],
+        "model": "m",
+        "stream": false
+      },
+      "input": {
+        "body": {
+          "input": "x",
+          "model": "m",
+          "reasoning": {
+            "effort": "none"
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "model": "local",
+        "op": "request"
+      },
+      "name": "reasoning effort none turns thinking off"
+    },
+    {
+      "expected": {
+        "chat_template_kwargs": {
+          "enable_thinking": true
+        },
+        "messages": [
+          {
+            "content": "x",
+            "role": "user"
+          }
+        ],
+        "model": "m",
+        "stream": false
+      },
+      "input": {
+        "body": {
+          "input": "x",
+          "model": "m",
+          "reasoning": {
+            "effort": "high"
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "model": "local",
+        "op": "request"
+      },
+      "name": "reasoning effort high turns thinking on"
+    },
+    {
+      "expected": {
+        "messages": [
+          {
+            "content": "x",
+            "role": "user"
+          }
+        ],
+        "model": "m",
+        "stream": false
+      },
+      "input": {
+        "body": {
+          "input": [
+            {
+              "id": "rs_1",
+              "summary": [
+                {
+                  "text": "t",
+                  "type": "summary_text"
+                }
+              ],
+              "type": "reasoning"
+            },
+            {
+              "content": "x",
+              "role": "user",
+              "type": "message"
+            }
+          ],
+          "model": "m"
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "model": "local",
+        "op": "request"
+      },
+      "name": "reasoning items in input are ignored"
     }
   ],
   "description": "OpenAI Responses requests turned into chat bodies, chat replies turned into Response objects, and chat streams turned into Responses events. Rust only."

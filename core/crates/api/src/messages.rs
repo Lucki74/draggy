@@ -79,7 +79,14 @@ pub fn to_chat(body: &Value) -> Result<Value, String> {
     {
         chat.insert("stop".to_owned(), Value::Array(stop.clone()));
     }
-    Ok(Value::Object(chat))
+    let mut chat = Value::Object(chat);
+    let thinking = match body.pointer("/thinking/type").and_then(Value::as_str) {
+        Some("enabled" | "adaptive") => Some(true),
+        Some("disabled") => Some(false),
+        _ => None,
+    };
+    crate::dialect::set_thinking(&mut chat, thinking);
+    Ok(chat)
 }
 
 fn read_user(content: Option<&Value>, out: &mut Vec<Value>) {
@@ -174,7 +181,7 @@ fn read_assistant(content: Option<&Value>, out: &mut Vec<Value>) {
                     "arguments": block.get("input").cloned().unwrap_or_else(|| json!({})).to_string(),
                 },
             })),
-            // Thinking blocks are dropped.
+            // Thinking, redacted thinking and server tool blocks are dropped.
             _ => {}
         }
     }
@@ -258,6 +265,9 @@ pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, opts: &Opts) -> 
         let (call, result) = search_blocks(suffix, search);
         content.extend([call, result]);
     }
+    if opts.thinking && !answer.reasoning.is_empty() {
+        content.push(json!({"type": "thinking", "thinking": answer.reasoning, "signature": SIGNATURE}));
+    }
     if !answer.text.is_empty() || answer.calls.is_empty() {
         content.push(json!({"type": "text", "text": answer.text}));
     }
@@ -311,8 +321,12 @@ fn search_blocks(suffix: &str, search: &Search) -> (Value, Value) {
     (call, result)
 }
 
+/// The signature of a thinking block. Nothing checks it, but clients expect one.
+const SIGNATURE: &str = "draggy";
+
 #[derive(PartialEq, Eq)]
 enum Block {
+    Thinking,
     Text,
     Tool(u64),
 }
@@ -332,11 +346,13 @@ pub struct Stream {
     ended: bool,
     searches: Vec<Search>,
     searched: usize,
+    thinking: bool,
 }
 
 impl Stream {
-    /// Adds the searches that came before the answer.
+    /// Adds the searches that came before the answer, and whether reasoning is sent.
     pub fn with_opts(mut self, opts: &Opts) -> Self {
+        self.thinking = opts.thinking;
         self.searched = opts.searches.len();
         self.searches = opts.searches.clone();
         self
@@ -357,6 +373,7 @@ impl Stream {
             ended: false,
             searches: Vec::new(),
             searched: 0,
+            thinking: false,
         }
     }
 
@@ -400,6 +417,13 @@ impl Stream {
 
     fn close(&mut self, out: &mut Vec<Event>) {
         let Some(block) = self.open.take() else { return };
+        if block == Block::Thinking {
+            let delta = json!({"type": "signature_delta", "signature": SIGNATURE});
+            out.push(Event::new(
+                "content_block_delta",
+                json!({"type": "content_block_delta", "index": self.index, "delta": delta}),
+            ));
+        }
         if matches!(block, Block::Tool(_)) && !self.args_seen {
             let delta = json!({"type": "input_json_delta", "partial_json": "{}"});
             out.push(Event::new(
@@ -412,6 +436,25 @@ impl Stream {
             json!({"type": "content_block_stop", "index": self.index}),
         ));
         self.index += 1;
+    }
+
+    fn think(&mut self, out: &mut Vec<Event>, text: &str) {
+        if self.open != Some(Block::Thinking) {
+            self.close(out);
+            self.open = Some(Block::Thinking);
+            out.push(Event::new(
+                "content_block_start",
+                json!({
+                    "type": "content_block_start", "index": self.index,
+                    "content_block": {"type": "thinking", "thinking": "", "signature": ""},
+                }),
+            ));
+        }
+        let delta = json!({"type": "thinking_delta", "thinking": text});
+        out.push(Event::new(
+            "content_block_delta",
+            json!({"type": "content_block_delta", "index": self.index, "delta": delta}),
+        ));
     }
 
     fn text(&mut self, out: &mut Vec<Event>, text: &str) {
@@ -483,6 +526,12 @@ impl Translator for Stream {
             return out;
         };
         if let Some(delta) = choice.get("delta") {
+            let thought = ["reasoning_content", "reasoning"]
+                .iter()
+                .find_map(|key| delta.get(key).and_then(Value::as_str).filter(|t| !t.is_empty()));
+            if let Some(text) = thought.filter(|_| self.thinking) {
+                self.think(&mut out, text);
+            }
             if let Some(text) = delta.get("content").and_then(Value::as_str).filter(|t| !t.is_empty()) {
                 self.text(&mut out, text);
             }

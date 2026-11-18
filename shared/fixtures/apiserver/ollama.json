@@ -2,37 +2,6 @@
   "area": "apiserver",
   "cases": [
     {
-      "name": "chat request maps messages options and format",
-      "input": {
-        "op": "request",
-        "kind": "chat",
-        "body": {
-          "model": "qwen3:latest",
-          "messages": [
-            {
-              "role": "system",
-              "content": "Be brief."
-            },
-            {
-              "role": "user",
-              "content": "What is this?",
-              "images": [
-                "/9j/AAAA"
-              ]
-            }
-          ],
-          "format": "json",
-          "options": {
-            "temperature": 0.2,
-            "top_k": 40,
-            "num_predict": 64,
-            "num_ctx": 8192,
-            "stop": [
-              "END"
-            ]
-          }
-        }
-      },
       "expected": {
         "max_tokens": 64,
         "messages": [
@@ -69,57 +38,40 @@
         },
         "temperature": 0.2,
         "top_k": 40
-      }
-    },
-    {
-      "name": "chat request with tool calls and a schema",
+      },
       "input": {
-        "op": "request",
-        "kind": "chat",
         "body": {
-          "model": "m",
-          "stream": false,
-          "format": {
-            "type": "object"
-          },
-          "tools": [
-            {
-              "type": "function",
-              "function": {
-                "name": "f",
-                "parameters": {
-                  "type": "object"
-                }
-              }
-            }
-          ],
+          "format": "json",
           "messages": [
             {
-              "role": "user",
-              "content": "go"
+              "content": "Be brief.",
+              "role": "system"
             },
             {
-              "role": "assistant",
-              "content": "",
-              "tool_calls": [
-                {
-                  "function": {
-                    "name": "f",
-                    "arguments": {
-                      "a": 1
-                    }
-                  }
-                }
-              ]
-            },
-            {
-              "role": "tool",
-              "tool_name": "f",
-              "content": "done"
+              "content": "What is this?",
+              "images": [
+                "/9j/AAAA"
+              ],
+              "role": "user"
             }
-          ]
-        }
+          ],
+          "model": "qwen3:latest",
+          "options": {
+            "num_ctx": 8192,
+            "num_predict": 64,
+            "stop": [
+              "END"
+            ],
+            "temperature": 0.2,
+            "top_k": 40
+          }
+        },
+        "kind": "chat",
+        "op": "request"
       },
+      "name": "chat request maps messages options and format"
+    },
+    {
       "expected": {
         "messages": [
           {
@@ -169,41 +121,76 @@
             "type": "function"
           }
         ]
-      }
-    },
-    {
-      "name": "chat request rejects a bad role",
+      },
       "input": {
-        "op": "request",
-        "kind": "chat",
         "body": {
-          "model": "m",
+          "format": {
+            "type": "object"
+          },
           "messages": [
             {
-              "role": "robot",
-              "content": "x"
+              "content": "go",
+              "role": "user"
+            },
+            {
+              "content": "",
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": {
+                      "a": 1
+                    },
+                    "name": "f"
+                  }
+                }
+              ]
+            },
+            {
+              "content": "done",
+              "role": "tool",
+              "tool_name": "f"
+            }
+          ],
+          "model": "m",
+          "stream": false,
+          "tools": [
+            {
+              "function": {
+                "name": "f",
+                "parameters": {
+                  "type": "object"
+                }
+              },
+              "type": "function"
             }
           ]
-        }
+        },
+        "kind": "chat",
+        "op": "request"
       },
-      "expected": {
-        "error": "messages[].role must be system, user, assistant or tool."
-      }
+      "name": "chat request with tool calls and a schema"
     },
     {
-      "name": "generate request joins system and prompt",
-      "input": {
-        "op": "request",
-        "kind": "generate",
-        "body": {
-          "model": "m",
-          "system": "S",
-          "prompt": "P",
-          "images": [
-            "iVBORw0"
-          ]
-        }
+      "expected": {
+        "error": "messages[].role must be system, user, assistant or tool."
       },
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "content": "x",
+              "role": "robot"
+            }
+          ],
+          "model": "m"
+        },
+        "kind": "chat",
+        "op": "request"
+      },
+      "name": "chat request rejects a bad role"
+    },
+    {
       "expected": {
         "messages": [
           {
@@ -231,61 +218,42 @@
         "stream_options": {
           "include_usage": true
         }
-      }
+      },
+      "input": {
+        "body": {
+          "images": [
+            "iVBORw0"
+          ],
+          "model": "m",
+          "prompt": "P",
+          "system": "S"
+        },
+        "kind": "generate",
+        "op": "request"
+      },
+      "name": "generate request joins system and prompt"
     },
     {
-      "name": "empty generate only loads the model",
-      "input": {
-        "op": "load",
-        "kind": "generate",
-        "model": "m",
-        "created": 86400,
-        "body": {
-          "model": "m",
-          "prompt": ""
-        }
-      },
       "expected": {
         "created_at": "1970-01-02T00:00:00Z",
         "done": true,
         "done_reason": "load",
         "model": "m",
         "response": ""
-      }
+      },
+      "input": {
+        "body": {
+          "model": "m",
+          "prompt": ""
+        },
+        "created": 86400,
+        "kind": "generate",
+        "model": "m",
+        "op": "load"
+      },
+      "name": "empty generate only loads the model"
     },
     {
-      "name": "whole chat reply with a tool call",
-      "input": {
-        "op": "response",
-        "kind": "chat",
-        "model": "m",
-        "created": 1700000000,
-        "chat": {
-          "choices": [
-            {
-              "message": {
-                "role": "assistant",
-                "content": "",
-                "tool_calls": [
-                  {
-                    "id": "c1",
-                    "type": "function",
-                    "function": {
-                      "name": "f",
-                      "arguments": "{\"a\":1}"
-                    }
-                  }
-                ]
-              },
-              "finish_reason": "tool_calls"
-            }
-          ],
-          "usage": {
-            "prompt_tokens": 7,
-            "completion_tokens": 3
-          }
-        }
-      },
       "expected": {
         "created_at": "2023-11-14T22:13:20Z",
         "done": true,
@@ -309,31 +277,41 @@
         "model": "m",
         "prompt_eval_count": 7,
         "total_duration": 0
-      }
-    },
-    {
-      "name": "whole generate reply stopped by length",
+      },
       "input": {
-        "op": "response",
-        "kind": "generate",
-        "model": "m",
-        "created": 0,
         "chat": {
           "choices": [
             {
+              "finish_reason": "tool_calls",
               "message": {
+                "content": "",
                 "role": "assistant",
-                "content": "Hi"
-              },
-              "finish_reason": "length"
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"a\":1}",
+                      "name": "f"
+                    },
+                    "id": "c1",
+                    "type": "function"
+                  }
+                ]
+              }
             }
           ],
           "usage": {
-            "prompt_tokens": 2,
-            "completion_tokens": 1
+            "completion_tokens": 3,
+            "prompt_tokens": 7
           }
-        }
+        },
+        "created": 1700000000,
+        "kind": "chat",
+        "model": "m",
+        "op": "response"
       },
+      "name": "whole chat reply with a tool call"
+    },
+    {
       "expected": {
         "created_at": "1970-01-01T00:00:00Z",
         "done": true,
@@ -344,46 +322,31 @@
         "prompt_eval_count": 2,
         "response": "Hi",
         "total_duration": 0
-      }
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "length",
+              "message": {
+                "content": "Hi",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 1,
+            "prompt_tokens": 2
+          }
+        },
+        "created": 0,
+        "kind": "generate",
+        "model": "m",
+        "op": "response"
+      },
+      "name": "whole generate reply stopped by length"
     },
     {
-      "name": "chat stream of text then done",
-      "input": {
-        "op": "stream",
-        "kind": "chat",
-        "model": "m",
-        "created": 0,
-        "chunks": [
-          {
-            "choices": [
-              {
-                "delta": {
-                  "role": "assistant",
-                  "content": "Hel"
-                }
-              }
-            ]
-          },
-          {
-            "choices": [
-              {
-                "delta": {
-                  "content": "lo"
-                },
-                "finish_reason": "stop"
-              }
-            ]
-          },
-          {
-            "choices": [],
-            "usage": {
-              "prompt_tokens": 4,
-              "completion_tokens": 2
-            }
-          }
-        ],
-        "end": "finish"
-      },
       "expected": [
         {
           "created_at": "1970-01-01T00:00:00Z",
@@ -417,30 +380,15 @@
           "prompt_eval_count": 4,
           "total_duration": 0
         }
-      ]
-    },
-    {
-      "name": "chat stream with tool call before done",
+      ],
       "input": {
-        "op": "stream",
-        "kind": "chat",
-        "model": "m",
-        "created": 0,
         "chunks": [
           {
             "choices": [
               {
                 "delta": {
-                  "tool_calls": [
-                    {
-                      "index": 0,
-                      "id": "c",
-                      "function": {
-                        "name": "f",
-                        "arguments": "{\"a\":"
-                      }
-                    }
-                  ]
+                  "content": "Hel",
+                  "role": "assistant"
                 }
               }
             ]
@@ -449,22 +397,29 @@
             "choices": [
               {
                 "delta": {
-                  "tool_calls": [
-                    {
-                      "index": 0,
-                      "function": {
-                        "arguments": "1}"
-                      }
-                    }
-                  ]
+                  "content": "lo"
                 },
-                "finish_reason": "tool_calls"
+                "finish_reason": "stop"
               }
             ]
+          },
+          {
+            "choices": [],
+            "usage": {
+              "completion_tokens": 2,
+              "prompt_tokens": 4
+            }
           }
         ],
-        "end": "finish"
+        "created": 0,
+        "end": "finish",
+        "kind": "chat",
+        "model": "m",
+        "op": "stream"
       },
+      "name": "chat stream of text then done"
+    },
+    {
       "expected": [
         {
           "created_at": "1970-01-01T00:00:00Z",
@@ -499,15 +454,66 @@
           "prompt_eval_count": 0,
           "total_duration": 0
         }
-      ]
+      ],
+      "input": {
+        "chunks": [
+          {
+            "choices": [
+              {
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "function": {
+                        "arguments": "{\"a\":",
+                        "name": "f"
+                      },
+                      "id": "c",
+                      "index": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "function": {
+                        "arguments": "1}"
+                      },
+                      "index": 0
+                    }
+                  ]
+                },
+                "finish_reason": "tool_calls"
+              }
+            ]
+          }
+        ],
+        "created": 0,
+        "end": "finish",
+        "kind": "chat",
+        "model": "m",
+        "op": "stream"
+      },
+      "name": "chat stream with tool call before done"
     },
     {
-      "name": "generate stream failing midway",
+      "expected": [
+        {
+          "created_at": "1970-01-01T00:00:00Z",
+          "done": false,
+          "model": "m",
+          "response": "a"
+        },
+        {
+          "error": "boom"
+        }
+      ],
       "input": {
-        "op": "stream",
-        "kind": "generate",
-        "model": "m",
-        "created": 0,
         "chunks": [
           {
             "choices": [
@@ -519,34 +525,15 @@
             ]
           }
         ],
-        "end": "fail:boom"
+        "created": 0,
+        "end": "fail:boom",
+        "kind": "generate",
+        "model": "m",
+        "op": "stream"
       },
-      "expected": [
-        {
-          "created_at": "1970-01-01T00:00:00Z",
-          "done": false,
-          "model": "m",
-          "response": "a"
-        },
-        {
-          "error": "boom"
-        }
-      ]
+      "name": "generate stream failing midway"
     },
     {
-      "name": "tags list models with digests",
-      "input": {
-        "op": "tags",
-        "created": 1700000000,
-        "entries": [
-          {
-            "id": "qwen3:8b"
-          },
-          {
-            "id": "draggy-agent"
-          }
-        ]
-      },
       "expected": {
         "models": [
           {
@@ -580,23 +567,22 @@
             "size": 0
           }
         ]
-      }
-    },
-    {
-      "name": "show reports context and capabilities",
+      },
       "input": {
-        "op": "show",
+        "created": 1700000000,
         "entries": [
           {
-            "id": "qwen3:8b",
-            "contextLength": 32768,
-            "capabilities": [
-              "tools",
-              "vision"
-            ]
+            "id": "qwen3:8b"
+          },
+          {
+            "id": "draggy-agent"
           }
-        ]
+        ],
+        "op": "tags"
       },
+      "name": "tags list models with digests"
+    },
+    {
       "expected": {
         "capabilities": [
           "completion",
@@ -619,15 +605,337 @@
         "modelfile": "",
         "parameters": "",
         "template": ""
-      }
+      },
+      "input": {
+        "entries": [
+          {
+            "capabilities": [
+              "tools",
+              "vision"
+            ],
+            "contextLength": 32768,
+            "id": "qwen3:8b"
+          }
+        ],
+        "op": "show"
+      },
+      "name": "show reports context and capabilities"
     },
     {
-      "name": "time formats a Unix second",
+      "expected": "2023-11-14T22:13:20Z",
       "input": {
-        "op": "time",
-        "created": 1700000000
+        "created": 1700000000,
+        "op": "time"
       },
-      "expected": "2023-11-14T22:13:20Z"
+      "name": "time formats a Unix second"
+    },
+    {
+      "expected": {
+        "created_at": "1970-01-01T00:01:40Z",
+        "done": true,
+        "done_reason": "stop",
+        "eval_count": 2,
+        "load_duration": 0,
+        "message": {
+          "content": "Hi",
+          "role": "assistant",
+          "thinking": "Hmm."
+        },
+        "model": "local",
+        "prompt_eval_count": 4,
+        "total_duration": 0
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "Hi",
+                "reasoning_content": "Hmm.",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 4,
+            "total_tokens": 6
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "kind": "chat",
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "thinking": true
+        }
+      },
+      "name": "reasoning before a whole reply"
+    },
+    {
+      "expected": {
+        "created_at": "1970-01-01T00:01:40Z",
+        "done": true,
+        "done_reason": "stop",
+        "eval_count": 2,
+        "load_duration": 0,
+        "message": {
+          "content": "Hi",
+          "role": "assistant"
+        },
+        "model": "local",
+        "prompt_eval_count": 4,
+        "total_duration": 0
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "Hi",
+                "reasoning_content": "Hmm.",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 4,
+            "total_tokens": 6
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "kind": "chat",
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "thinking": false
+        }
+      },
+      "name": "reasoning left out when it is off"
+    },
+    {
+      "expected": [
+        {
+          "created_at": "1970-01-01T00:01:40Z",
+          "done": false,
+          "message": {
+            "content": "",
+            "role": "assistant",
+            "thinking": "Hm"
+          },
+          "model": "local"
+        },
+        {
+          "created_at": "1970-01-01T00:01:40Z",
+          "done": false,
+          "message": {
+            "content": "",
+            "role": "assistant",
+            "thinking": "m."
+          },
+          "model": "local"
+        },
+        {
+          "created_at": "1970-01-01T00:01:40Z",
+          "done": false,
+          "message": {
+            "content": "Hi",
+            "role": "assistant"
+          },
+          "model": "local"
+        },
+        {
+          "created_at": "1970-01-01T00:01:40Z",
+          "done": true,
+          "done_reason": "stop",
+          "eval_count": 2,
+          "load_duration": 0,
+          "message": {
+            "content": "",
+            "role": "assistant"
+          },
+          "model": "local",
+          "prompt_eval_count": 4,
+          "total_duration": 0
+        }
+      ],
+      "input": {
+        "chatId": "chatcmpl-abc",
+        "chunks": [
+          {
+            "choices": [
+              {
+                "delta": {
+                  "reasoning_content": "Hm"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {
+                  "reasoning_content": "m."
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "Hi"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {},
+                "finish_reason": "stop",
+                "index": 0
+              }
+            ],
+            "usage": {
+              "completion_tokens": 2,
+              "prompt_tokens": 4
+            }
+          }
+        ],
+        "created": 100,
+        "end": "finish",
+        "kind": "chat",
+        "model": "local",
+        "op": "stream",
+        "opts": {
+          "thinking": true
+        }
+      },
+      "name": "reasoning before a stream"
+    },
+    {
+      "expected": {
+        "created_at": "1970-01-01T00:01:40Z",
+        "done": true,
+        "done_reason": "stop",
+        "eval_count": 2,
+        "load_duration": 0,
+        "model": "local",
+        "prompt_eval_count": 4,
+        "response": "Hi",
+        "thinking": "Hmm.",
+        "total_duration": 0
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "Hi",
+                "reasoning_content": "Hmm.",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 4,
+            "total_tokens": 6
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "kind": "generate",
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "thinking": true
+        }
+      },
+      "name": "generate reasoning in a whole reply"
+    },
+    {
+      "expected": {
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "messages": [
+          {
+            "content": "x",
+            "role": "user"
+          }
+        ],
+        "model": "m",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "content": "x",
+              "role": "user"
+            }
+          ],
+          "model": "m",
+          "think": false
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "kind": "chat",
+        "model": "local",
+        "op": "request"
+      },
+      "name": "think false turns thinking off"
+    },
+    {
+      "expected": {
+        "chat_template_kwargs": {
+          "enable_thinking": true
+        },
+        "messages": [
+          {
+            "content": "x",
+            "role": "user"
+          }
+        ],
+        "model": "m",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "input": {
+        "body": {
+          "model": "m",
+          "prompt": "x",
+          "think": true
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "kind": "generate",
+        "model": "local",
+        "op": "request"
+      },
+      "name": "think true turns thinking on"
     }
   ]
 }

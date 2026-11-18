@@ -1594,6 +1594,7 @@ async fn forward_model<B: Backend, E: Env>(
     route: (Option<Dialect>, Opts),
 ) -> Response {
     let (dialect, mut opts) = route;
+    opts.thinking = settings.send_reasoning;
     let stream = body.get("stream") == Some(&Value::Bool(true));
     let include_usage = body.pointer("/stream_options/include_usage") == Some(&Value::Bool(true));
     alias_max_tokens(&mut body);

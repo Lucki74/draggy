@@ -69,6 +69,8 @@ pub struct Opts {
     pub web_search: Option<u32>,
     /// The searches that were run for this reply, shown before its answer.
     pub searches: Vec<Search>,
+    /// Whether the reply carries the model's reasoning, as the send-reasoning setting says.
+    pub thinking: bool,
 }
 
 /// The chat so far and the request's input items, kept with the response that answers them.
@@ -105,8 +107,8 @@ pub fn translator_with(dialect: Dialect, chat_id: &str, model: &str, created: i6
     match dialect {
         Dialect::Responses => Box::new(responses::Stream::new(chat_id, model, created).with_opts(opts)),
         Dialect::Messages => Box::new(messages::Stream::new(chat_id, model).with_opts(opts)),
-        Dialect::OllamaChat => Box::new(ollama::Stream::new(false, model, created)),
-        Dialect::OllamaGenerate => Box::new(ollama::Stream::new(true, model, created)),
+        Dialect::OllamaChat => Box::new(ollama::Stream::new(false, model, created).with_opts(opts)),
+        Dialect::OllamaGenerate => Box::new(ollama::Stream::new(true, model, created).with_opts(opts)),
     }
 }
 
@@ -117,6 +119,13 @@ pub fn to_chat(dialect: Dialect, body: &Value) -> Result<Value, String> {
         Dialect::Messages => messages::to_chat(body),
         Dialect::OllamaChat => ollama::chat_to_chat(body),
         Dialect::OllamaGenerate => ollama::generate_to_chat(body),
+    }
+}
+
+/// Turns thinking on or off for the chat template, when the client said which.
+pub fn set_thinking(chat: &mut Value, on: Option<bool>) {
+    if let Some(on) = on {
+        chat["chat_template_kwargs"] = json!({"enable_thinking": on});
     }
 }
 
@@ -137,6 +146,8 @@ pub struct Call {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Answer {
     pub text: String,
+    /// What the model thought before it answered, when the backend sends it.
+    pub reasoning: String,
     pub calls: Vec<Call>,
     pub finish: String,
     pub input_tokens: u64,
@@ -155,6 +166,11 @@ pub fn read_answer(chat: &Value, suffix: &str) -> Answer {
             .collect(),
         _ => String::new(),
     };
+    let reasoning = ["reasoning_content", "reasoning"]
+        .iter()
+        .find_map(|key| message.and_then(|m| m.get(key)).and_then(Value::as_str).filter(|text| !text.is_empty()))
+        .unwrap_or("")
+        .to_owned();
     let calls: Vec<Call> = message
         .and_then(|m| m.get("tool_calls"))
         .and_then(Value::as_array)
@@ -185,6 +201,7 @@ pub fn read_answer(chat: &Value, suffix: &str) -> Answer {
     let (input_tokens, output_tokens) = usage_of(chat);
     Answer {
         text,
+        reasoning,
         calls,
         finish,
         input_tokens,
@@ -264,8 +281,8 @@ pub fn whole_reply_with(dialect: Dialect, chat: &Value, ids: (&str, &str, i64), 
     Some(match dialect {
         Dialect::Responses => responses::from_chat_with(chat, chat_id, model, created, opts),
         Dialect::Messages => messages::from_chat_with(chat, chat_id, model, opts),
-        Dialect::OllamaChat => ollama::from_chat(false, chat, model, created),
-        Dialect::OllamaGenerate => ollama::from_chat(true, chat, model, created),
+        Dialect::OllamaChat => ollama::from_chat_with(false, chat, model, created, opts),
+        Dialect::OllamaGenerate => ollama::from_chat_with(true, chat, model, created, opts),
     })
 }
 

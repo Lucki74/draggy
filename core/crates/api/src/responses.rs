@@ -80,7 +80,10 @@ pub fn to_chat_after(body: &Value, prior: &[Value]) -> Result<Value, String> {
     if let Some(format) = read_format(object.get("text")) {
         chat.insert("response_format".to_owned(), format);
     }
-    Ok(Value::Object(chat))
+    let mut chat = Value::Object(chat);
+    let thinking = body.pointer("/reasoning/effort").and_then(Value::as_str).map(|effort| effort != "none");
+    crate::dialect::set_thinking(&mut chat, thinking);
+    Ok(chat)
 }
 
 /// The chat messages of `chat` that belong to the exchange: all but the request's own instructions.
@@ -386,6 +389,9 @@ pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, created: i64, op
     let suffix = id_suffix(chat_id);
     let answer = read_answer(chat, suffix);
     let mut output: Vec<Value> = opts.searches.iter().map(|search| search_item(suffix, search)).collect();
+    if opts.thinking && !answer.reasoning.is_empty() {
+        output.push(reasoning_item(&format!("rs_{suffix}"), &answer.reasoning));
+    }
     if !answer.text.is_empty() || answer.calls.is_empty() {
         output.push(message_item(&format!("msg_{suffix}"), &answer.text));
     }
@@ -410,6 +416,10 @@ pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, created: i64, op
     response
 }
 
+fn reasoning_item(item_id: &str, text: &str) -> Value {
+    json!({"id": item_id, "type": "reasoning", "summary": [{"type": "summary_text", "text": text}]})
+}
+
 fn search_item(suffix: &str, search: &Search) -> Value {
     let sources: Vec<Value> = search
         .hits
@@ -431,6 +441,12 @@ fn merge(response: &mut Value, meta: &Map<String, Value>) {
 }
 
 struct Text {
+    index: usize,
+    item_id: String,
+    text: String,
+}
+
+struct Reasoning {
     index: usize,
     item_id: String,
     text: String,
@@ -461,6 +477,8 @@ pub struct Stream {
     ended: bool,
     meta: Map<String, Value>,
     searches: Vec<Search>,
+    thinking: bool,
+    reasoning: Option<Reasoning>,
     response: Option<Value>,
 }
 
@@ -469,6 +487,7 @@ impl Stream {
     pub fn with_opts(mut self, opts: &Opts) -> Self {
         self.meta = opts.meta.clone();
         self.searches = opts.searches.clone();
+        self.thinking = opts.thinking;
         self
     }
 
@@ -490,6 +509,8 @@ impl Stream {
             ended: false,
             meta: Map::new(),
             searches: Vec::new(),
+            thinking: false,
+            reasoning: None,
             response: None,
         }
     }
@@ -537,8 +558,55 @@ impl Stream {
         self.output.insert(index, item);
     }
 
+    fn add_reasoning(&mut self, out: &mut Vec<Event>, delta: &str) {
+        if self.reasoning.is_none() {
+            let index = self.next_index;
+            self.next_index += 1;
+            let item_id = format!("rs_{}_{index}", self.suffix);
+            let item = json!({"id": item_id, "type": "reasoning", "summary": []});
+            self.emit(out, "response.output_item.added", json!({"output_index": index, "item": item}));
+            self.emit(
+                out,
+                "response.reasoning_summary_part.added",
+                json!({
+                    "item_id": item_id, "output_index": index, "summary_index": 0,
+                    "part": {"type": "summary_text", "text": ""},
+                }),
+            );
+            self.reasoning = Some(Reasoning { index, item_id, text: String::new() });
+        }
+        let Some(state) = self.reasoning.as_mut() else { return };
+        state.text.push_str(delta);
+        let (index, item_id) = (state.index, state.item_id.clone());
+        self.emit(
+            out,
+            "response.reasoning_summary_text.delta",
+            json!({"item_id": item_id, "output_index": index, "summary_index": 0, "delta": delta}),
+        );
+    }
+
+    fn close_reasoning(&mut self, out: &mut Vec<Event>) {
+        let Some(state) = self.reasoning.take() else { return };
+        let (index, item_id) = (state.index, state.item_id);
+        self.emit(
+            out,
+            "response.reasoning_summary_text.done",
+            json!({"item_id": item_id, "output_index": index, "summary_index": 0, "text": state.text}),
+        );
+        let part = json!({"type": "summary_text", "text": state.text});
+        self.emit(
+            out,
+            "response.reasoning_summary_part.done",
+            json!({"item_id": item_id, "output_index": index, "summary_index": 0, "part": part}),
+        );
+        let item = reasoning_item(&item_id, &state.text);
+        self.emit(out, "response.output_item.done", json!({"output_index": index, "item": item}));
+        self.output.insert(index, item);
+    }
+
     fn add_text(&mut self, out: &mut Vec<Event>, delta: &str) {
         if self.text.is_none() {
+            self.close_reasoning(out);
             let index = self.next_index;
             self.next_index += 1;
             let item_id = format!("msg_{}_{index}", self.suffix);
@@ -600,6 +668,7 @@ impl Stream {
             .and_then(Value::as_str)
             .unwrap_or("");
         if !self.calls.contains_key(&slot) {
+            self.close_reasoning(out);
             self.close_text(out);
             let index = self.next_index;
             self.next_index += 1;
@@ -675,6 +744,12 @@ impl Translator for Stream {
             return out;
         };
         if let Some(delta) = choice.get("delta") {
+            let thought = ["reasoning_content", "reasoning"]
+                .iter()
+                .find_map(|key| delta.get(key).and_then(Value::as_str).filter(|t| !t.is_empty()));
+            if let Some(text) = thought.filter(|_| self.thinking) {
+                self.add_reasoning(&mut out, text);
+            }
             if let Some(text) = delta.get("content").and_then(Value::as_str).filter(|t| !t.is_empty()) {
                 self.add_text(&mut out, text);
             }
@@ -700,6 +775,7 @@ impl Translator for Stream {
         }
         self.ended = true;
         self.start(&mut out);
+        self.close_reasoning(&mut out);
         self.close_text(&mut out);
         self.close_calls(&mut out);
         let incomplete = self.finish.as_deref() == Some("length");
