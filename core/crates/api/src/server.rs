@@ -54,12 +54,14 @@ use subtle::ConstantTimeEq;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
 use tokio_util::sync::{CancellationToken, DropGuard};
 
-use crate::dialect::{self, Dialect};
+use crate::dialect::{self, Dialect, Done, Keep, Opts};
 use crate::log::{LogEntry, Note, Tokens, client_of};
 use crate::ollama;
 use crate::messages;
+use crate::responses;
 use crate::routes;
 use crate::settings::{self, ApiSettings};
+use crate::store::{Store, Stored};
 
 /// The only address the reference listens on.
 pub const HOST: &str = "127.0.0.1";
@@ -339,6 +341,7 @@ pub fn router<B: Backend, E: Env>(port: u16, backend: B, env: E) -> Router {
         env: Arc::new(env),
         port,
         slots: Arc::new(Slots::new(settings::DEFAULT_MAX_PARALLEL as usize)),
+        store: Arc::default(),
     });
     Router::<Arc<Shared<B, E>>>::new()
         .fallback(handle::<B, E>)
@@ -891,6 +894,8 @@ pub(crate) struct Shared<B, E> {
     pub(crate) env: Arc<E>,
     port: u16,
     slots: Arc<Slots>,
+    /// The Responses kept for `previous_response_id` and the `GET` routes.
+    pub(crate) store: Arc<Mutex<Store>>,
 }
 
 /// The reply slots, whose number can change while requests hold some.
@@ -1044,7 +1049,7 @@ fn preflight(headers: &HeaderMap, port: u16, settings: &ApiSettings) -> Response
     };
     let mut response = StatusCode::NO_CONTENT.into_response();
     let out = response.headers_mut();
-    out.insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, OPTIONS"));
+    out.insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, DELETE, OPTIONS"));
     out.insert(
         ACCESS_CONTROL_ALLOW_HEADERS,
         HeaderValue::from_static("authorization, content-type, x-api-key, anthropic-version, openai-beta"),
@@ -1135,6 +1140,9 @@ async fn handle_request<B: Backend, E: Env>(
     {
         return response;
     }
+    if let Some(response) = routes::responses_route(&shared, &parts.method, &path, parts.uri.query()) {
+        return response;
+    }
     let posted = matches!(
         path.as_str(),
         "/v1/chat/completions" | "/v1/embeddings" | "/v1/completions" | "/api/show" | "/api/embed" | "/api/embeddings"
@@ -1178,6 +1186,7 @@ async fn handle_request<B: Backend, E: Env>(
     };
 
     // Responses and Messages bodies become chat bodies and always go to the model.
+    let mut opts = Opts::default();
     if let Some(dialect) = dialect {
         if dialect.is_ollama()
             && let Some(reply) = ollama::load_reply(
@@ -1189,7 +1198,18 @@ async fn handle_request<B: Backend, E: Env>(
         {
             return json_response(StatusCode::OK, reply.to_string());
         }
-        match dialect::to_chat(dialect, &parsed) {
+        let converted = if dialect == Dialect::Responses {
+            match responses_chat(&shared, &parsed, &mut opts) {
+                Ok(chat) => Ok(chat),
+                Err(other) => match *other {
+                    Ok(response) => return response,
+                    Err(message) => Err(message),
+                },
+            }
+        } else {
+            dialect::to_chat(dialect, &parsed)
+        };
+        match converted {
             Ok(chat) => parsed = chat,
             Err(message) => {
                 return shaped_error(Some(dialect), StatusCode::BAD_REQUEST, &message, "invalid_request_error");
@@ -1250,7 +1270,7 @@ async fn handle_request<B: Backend, E: Env>(
             Ok(permit) => permit,
             Err(busy) => return busy,
         };
-        return forward_model(&shared, parsed, permit, &settings, dialect).await;
+        return forward_model(&shared, parsed, permit, &settings, (dialect, opts)).await;
     }
 
     settings::prepend_system(&mut parsed, &settings.system_prompt);
@@ -1268,6 +1288,49 @@ async fn handle_request<B: Backend, E: Env>(
             "invalid_request_error",
         ),
     }
+}
+
+/// The chat request for a Responses body. A body that continues a kept response carries that chat first.
+/// `Err(Ok(_))` is an answer to send as it is.
+fn responses_chat<B: Backend, E: Env>(
+    shared: &Shared<B, E>,
+    body: &Value,
+    opts: &mut Opts,
+) -> Result<Value, Box<Result<Response, String>>> {
+    let previous = body.get("previous_response_id").and_then(Value::as_str).filter(|id| !id.is_empty());
+    let prior = match previous {
+        Some(id) => {
+            let store = shared.store.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            match store.get(id) {
+                Some(stored) => stored.messages.clone(),
+                None => {
+                    let message = format!("Previous response with id '{id}' not found.");
+                    return Err(Box::new(Ok(routes::not_found(&message, "previous_response_id", "previous_response_not_found"))));
+                }
+            }
+        }
+        None => Vec::new(),
+    };
+    let chat = responses::to_chat_after(body, &prior).map_err(|message| Box::new(Err(message)))?;
+    opts.meta = responses::meta(body);
+    if body.get("store") != Some(&Value::Bool(false)) {
+        opts.keep = Some(Keep {
+            messages: responses::kept_messages(body, &chat),
+            input: responses::input_items(body),
+        });
+    }
+    Ok(chat)
+}
+
+/// Keeps a finished response with the chat that led to it.
+fn remember(store: &Mutex<Store>, keep: Keep, response: Value) {
+    let Some(id) = response["id"].as_str().map(str::to_owned) else {
+        return;
+    };
+    let mut messages = keep.messages;
+    messages.extend(responses::assistant_messages(&response));
+    let stored = Stored { messages, input: keep.input, response };
+    store.lock().unwrap_or_else(std::sync::PoisonError::into_inner).put(&id, stored);
 }
 
 /// Waits for a free slot, and answers 429 with `Retry-After` when none comes in time.
@@ -1512,8 +1575,9 @@ async fn forward_model<B: Backend, E: Env>(
     mut body: Value,
     permit: Permit,
     settings: &ApiSettings,
-    dialect: Option<Dialect>,
+    route: (Option<Dialect>, Opts),
 ) -> Response {
+    let (dialect, opts) = route;
     let stream = body.get("stream") == Some(&Value::Bool(true));
     let include_usage = body.pointer("/stream_options/include_usage") == Some(&Value::Bool(true));
     alias_max_tokens(&mut body);
@@ -1557,14 +1621,29 @@ async fn forward_model<B: Backend, E: Env>(
         let _ = guard.disarm();
         drop(permit);
         if let Some(dialect) = dialect {
-            return dialect_response(dialect, status, &bytes, &id, &model, created, started.elapsed());
+            let store = shared.store.clone();
+            let keep = opts.keep.clone();
+            let kept = move |response: &Value| {
+                if let Some(keep) = keep {
+                    remember(&store, keep, response.clone());
+                }
+            };
+            return dialect_response(dialect, status, &bytes, (&id, &model, created), (started.elapsed(), &opts), kept);
         }
         return buffered_response(status, &bytes, &id, &model, created, strip);
     }
 
     if let Some(dialect) = dialect {
-        let translator = dialect::translator(dialect, &id, &model, created);
-        let body = Body::from_stream(dialect::translated_stream(reply.body, translator, guard, permit));
+        let translator = dialect::translator_with(dialect, &id, &model, created, &opts);
+        let store = shared.store.clone();
+        let done: Option<Done> = opts.keep.clone().map(|keep| -> Done {
+            Box::new(move |response| {
+                if let Some(response) = response {
+                    remember(&store, keep, response);
+                }
+            })
+        });
+        let body = Body::from_stream(dialect::translated_stream(reply.body, translator, guard, permit, done));
         return if dialect.is_ollama() { ndjson_response(body) } else { sse_response(body) };
     }
 
@@ -1618,15 +1697,15 @@ fn dialect_response(
     dialect: Dialect,
     status: StatusCode,
     bytes: &[u8],
-    chat_id: &str,
-    model: &str,
-    created: i64,
-    elapsed: std::time::Duration,
+    ids: (&str, &str, i64),
+    asked: (std::time::Duration, &Opts),
+    kept: impl FnOnce(&Value),
 ) -> Response {
+    let (elapsed, opts) = asked;
     if status.is_success() {
         let reply = serde_json::from_slice::<Value>(bytes)
             .ok()
-            .and_then(|chat| dialect::whole_reply(dialect, &chat, chat_id, model, created))
+            .and_then(|chat| dialect::whole_reply_with(dialect, &chat, ids, opts))
             .map(|mut reply| {
                 if dialect.is_ollama() {
                     reply["total_duration"] = Value::from(u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX));
@@ -1636,6 +1715,7 @@ fn dialect_response(
         let tokens = serde_json::from_slice::<Value>(bytes).map_or((0, 0), |chat| dialect::usage_of(&chat));
         return match reply {
             Some(reply) => {
+                kept(&reply);
                 let mut response = json_response(status, reply.to_string());
                 response.extensions_mut().insert(Tokens(tokens.0, tokens.1));
                 response

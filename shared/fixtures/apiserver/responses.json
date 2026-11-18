@@ -388,7 +388,14 @@
     },
     {
       "expected": {
-        "error": "previous_response_id is not supported. Send the whole conversation in input."
+        "messages": [
+          {
+            "content": "x",
+            "role": "user"
+          }
+        ],
+        "model": "m",
+        "stream": false
       },
       "input": {
         "body": {
@@ -398,7 +405,7 @@
         },
         "op": "request"
       },
-      "name": "previous_response_id is refused"
+      "name": "previous_response_id is left to the server"
     },
     {
       "expected": {

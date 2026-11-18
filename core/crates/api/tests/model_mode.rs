@@ -658,17 +658,90 @@ async fn responses_route_streams_events() {
     assert_eq!(backend.forwarded()[0]["stream_options"], json!({"include_usage": true}));
 }
 
+fn call_to(method: &str, path: &str) -> Request<Body> {
+    Request::builder()
+        .method(method)
+        .uri(path)
+        .header("host", format!("127.0.0.1:{DEFAULT_PORT}"))
+        .header("authorization", format!("Bearer {KEY}"))
+        .body(Body::empty())
+        .unwrap_or_else(|error| panic!("bad request: {error}"))
+}
+
 #[tokio::test]
-async fn responses_route_refuses_previous_response_id() {
+async fn an_unknown_previous_response_id_is_a_404() {
     let backend = Forwarding::json(&completion());
     let sent = json!({"model": "m", "input": "hi", "previous_response_id": "resp_1"});
 
     let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
     let (status, _, text) = send(app(&backend), request).await;
 
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(text.contains("previous_response_id"));
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let error = &json_of(&text)["error"];
+    assert_eq!(error["code"], "previous_response_not_found");
+    assert_eq!(error["param"], "previous_response_id");
     assert!(backend.forwarded().is_empty());
+}
+
+#[tokio::test]
+async fn a_response_is_kept_and_continued() {
+    let backend = Forwarding::json(&completion());
+    let app = app(&backend);
+    let first = json!({"model": "m", "instructions": "Old rules.", "input": "one"});
+    let auth = || ("authorization", format!("Bearer {KEY}"));
+    let (_, _, text) = send(app.clone(), post_to("/v1/responses", auth(), &first)).await;
+    let id = json_of(&text)["id"].as_str().unwrap_or_default().to_owned();
+
+    let second = json!({"model": "m", "input": "two", "previous_response_id": id, "instructions": "New rules."});
+    let (status, _, text) = send(app.clone(), post_to("/v1/responses", auth(), &second)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json_of(&text)["previous_response_id"], json!(id));
+    let sent = &backend.forwarded()[1]["messages"];
+    assert_eq!(
+        *sent,
+        json!([
+            {"role": "system", "content": "New rules."},
+            {"role": "user", "content": "one"},
+            {"role": "assistant", "content": "ok"},
+            {"role": "user", "content": "two"},
+        ])
+    );
+
+    let (status, _, text) = send(app.clone(), call_to("GET", &format!("/v1/responses/{id}"))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json_of(&text)["id"], json!(id));
+
+    let (_, _, text) = send(app.clone(), call_to("GET", &format!("/v1/responses/{id}/input_items"))).await;
+    let list = json_of(&text);
+    assert_eq!(list["object"], "list");
+    assert_eq!(list["data"][0]["content"][0]["text"], "two");
+
+    let (status, _, text) = send(app.clone(), call_to("DELETE", &format!("/v1/responses/{id}"))).await;
+    assert_eq!((status, json_of(&text)["deleted"].clone()), (StatusCode::OK, json!(true)));
+    let (status, _, _) = send(app, call_to("GET", &format!("/v1/responses/{id}"))).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn store_false_keeps_nothing_and_a_stream_is_kept() {
+    let chunk = json!({"id": "x", "choices": [{"index": 0, "delta": {"content": "Hi"}, "finish_reason": "stop"}]});
+    let frames = [format!("data: {chunk}\n\n"), "data: [DONE]\n\n".to_owned()];
+    let refs: Vec<&str> = frames.iter().map(String::as_str).collect();
+    let backend = Forwarding::replying(&refs);
+    let app = app(&backend);
+    let auth = || ("authorization", format!("Bearer {KEY}"));
+
+    let hidden = json!({"model": "m", "input": "hi", "stream": true, "store": false});
+    let (_, _, text) = send(app.clone(), post_to("/v1/responses", auth(), &hidden)).await;
+    let id = format!("resp_{}", "ab".repeat(12));
+    assert!(text.contains(&id));
+    let (status, _, _) = send(app.clone(), call_to("GET", &format!("/v1/responses/{id}"))).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let kept = json!({"model": "m", "input": "hi", "stream": true});
+    send(app.clone(), post_to("/v1/responses", auth(), &kept)).await;
+    let (_, _, text) = send(app, call_to("GET", &format!("/v1/responses/{id}"))).await;
+    assert_eq!(json_of(&text)["output"][0]["content"][0]["text"], "Hi");
 }
 
 #[tokio::test]

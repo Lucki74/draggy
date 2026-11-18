@@ -102,7 +102,7 @@ async fn a_preflight_needs_a_listed_origin_but_no_key() {
         let response = send(settings(), "OPTIONS", path, Some(SITE), false).await;
         assert_eq!(response.status(), StatusCode::NO_CONTENT, "{path}");
         assert_eq!(header(&response, "access-control-allow-origin"), Some(SITE));
-        assert_eq!(header(&response, "access-control-allow-methods"), Some("GET, POST, OPTIONS"));
+        assert_eq!(header(&response, "access-control-allow-methods"), Some("GET, POST, DELETE, OPTIONS"));
         assert_eq!(
             header(&response, "access-control-allow-headers"),
             Some("authorization, content-type, x-api-key, anthropic-version, openai-beta")

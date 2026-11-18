@@ -6,7 +6,7 @@ use std::convert::Infallible;
 use axum::body::Bytes;
 use axum::http::StatusCode;
 use futures_util::stream::{self, Stream, StreamExt};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 use tokio_util::sync::DropGuard;
 
 use crate::server::{ByteStream, Permit, split_event};
@@ -57,6 +57,25 @@ impl Event {
     }
 }
 
+/// What a request asks for beyond the chat body, read by the translators.
+#[derive(Debug, Clone, Default)]
+pub struct Opts {
+    /// Fields a Response object carries about its request, such as `previous_response_id`.
+    pub meta: Map<String, Value>,
+    /// What to keep of a Responses exchange once it is done.
+    pub keep: Option<Keep>,
+}
+
+/// The chat so far and the request's input items, kept with the response that answers them.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Keep {
+    pub messages: Vec<Value>,
+    pub input: Vec<Value>,
+}
+
+/// Called once a stream ends, with the finished response object when there is one.
+pub type Done = Box<dyn FnOnce(Option<Value>) + Send>;
+
 /// Turns the chunks of a chat stream into the events of one dialect.
 pub trait Translator: Send {
     /// One parsed chat chunk.
@@ -65,12 +84,21 @@ pub trait Translator: Send {
     fn finish(&mut self) -> Vec<Event>;
     /// The upstream failed.
     fn fail(&mut self, message: &str) -> Vec<Event>;
+    /// The finished response object, once `finish` has run, for dialects that have one.
+    fn completed(&self) -> Option<Value> {
+        None
+    }
 }
 
 /// A translator for `dialect`, with ids derived from the chat id.
 pub fn translator(dialect: Dialect, chat_id: &str, model: &str, created: i64) -> Box<dyn Translator> {
+    translator_with(dialect, chat_id, model, created, &Opts::default())
+}
+
+/// Like `translator`, with what the request asked for.
+pub fn translator_with(dialect: Dialect, chat_id: &str, model: &str, created: i64, opts: &Opts) -> Box<dyn Translator> {
     match dialect {
-        Dialect::Responses => Box::new(responses::Stream::new(chat_id, model, created)),
+        Dialect::Responses => Box::new(responses::Stream::new(chat_id, model, created).with_meta(opts.meta.clone())),
         Dialect::Messages => Box::new(messages::Stream::new(chat_id, model)),
         Dialect::OllamaChat => Box::new(ollama::Stream::new(false, model, created)),
         Dialect::OllamaGenerate => Box::new(ollama::Stream::new(true, model, created)),
@@ -221,9 +249,15 @@ pub fn upstream_message(bytes: &[u8]) -> String {
 
 /// A whole chat reply as the dialect's reply. `None` when the reply is not a chat completion.
 pub fn whole_reply(dialect: Dialect, chat: &Value, chat_id: &str, model: &str, created: i64) -> Option<Value> {
+    whole_reply_with(dialect, chat, (chat_id, model, created), &Opts::default())
+}
+
+/// Like `whole_reply`, with what the request asked for.
+pub fn whole_reply_with(dialect: Dialect, chat: &Value, ids: (&str, &str, i64), opts: &Opts) -> Option<Value> {
+    let (chat_id, model, created) = ids;
     chat.get("choices")?;
     Some(match dialect {
-        Dialect::Responses => responses::from_chat(chat, chat_id, model, created),
+        Dialect::Responses => responses::from_chat_with(chat, chat_id, model, created, &opts.meta),
         Dialect::Messages => messages::from_chat(chat, chat_id, model),
         Dialect::OllamaChat => ollama::from_chat(false, chat, model, created),
         Dialect::OllamaGenerate => ollama::from_chat(true, chat, model, created),
@@ -239,6 +273,7 @@ struct Translated {
     finished: bool,
     cancel: Option<DropGuard>,
     permit: Option<Permit>,
+    done: Option<Done>,
 }
 
 impl Translated {
@@ -297,6 +332,9 @@ impl Translated {
         let events = self.translator.finish();
         self.push(events);
         self.end();
+        if let Some(done) = self.done.take() {
+            done(self.translator.completed());
+        }
     }
 
     fn end(&mut self) {
@@ -348,6 +386,7 @@ pub(crate) fn translated_stream(
     translator: Box<dyn Translator>,
     cancel: DropGuard,
     permit: Permit,
+    done: Option<Done>,
 ) -> impl Stream<Item = Result<Bytes, Infallible>> {
     stream::unfold(
         Translated {
@@ -358,6 +397,7 @@ pub(crate) fn translated_stream(
             finished: false,
             cancel: Some(cancel),
             permit: Some(permit),
+            done,
         },
         next_translated,
     )

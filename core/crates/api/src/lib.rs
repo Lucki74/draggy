@@ -8,3 +8,4 @@ pub mod responses;
 mod routes;
 pub mod server;
 pub mod settings;
+mod store;

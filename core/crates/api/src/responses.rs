@@ -1,6 +1,6 @@
 //! OpenAI Responses API on top of chat completions: the request in, and the reply or stream out.
 //!
-//! Not supported: `previous_response_id`, stored responses, built-in tools such as web search, and reasoning items.
+//! Not supported: built-in tools such as web search, and reasoning items.
 
 use std::collections::BTreeMap;
 
@@ -10,24 +10,28 @@ use crate::dialect::{Event, Translator, id_suffix, read_answer, usage_of};
 
 /// The chat request for a Responses request body.
 pub fn to_chat(body: &Value) -> Result<Value, String> {
-    let object = body
-        .as_object()
-        .ok_or_else(|| "The body must be a JSON object.".to_owned())?;
-    if object.get("previous_response_id").is_some_and(|v| !v.is_null()) {
-        return Err(
-            "previous_response_id is not supported. Send the whole conversation in input."
-                .to_owned(),
-        );
-    }
+    to_chat_after(body, &[])
+}
 
-    let mut messages: Vec<Value> = Vec::new();
-    if let Some(text) = object
+/// The instructions of a request, when it has any.
+fn instructions(object: &Map<String, Value>) -> Option<&str> {
+    object
         .get("instructions")
         .and_then(Value::as_str)
         .filter(|text| !text.trim().is_empty())
-    {
+}
+
+/// The chat request for a body that continues the chat `prior`. Instructions are the request's own and come first.
+pub fn to_chat_after(body: &Value, prior: &[Value]) -> Result<Value, String> {
+    let object = body
+        .as_object()
+        .ok_or_else(|| "The body must be a JSON object.".to_owned())?;
+
+    let mut messages: Vec<Value> = Vec::new();
+    if let Some(text) = instructions(object) {
         messages.push(json!({"role": "system", "content": text}));
     }
+    messages.extend(prior.iter().cloned());
     match object.get("input") {
         Some(Value::String(text)) => messages.push(json!({"role": "user", "content": text})),
         Some(Value::Array(items)) => {
@@ -76,6 +80,85 @@ pub fn to_chat(body: &Value) -> Result<Value, String> {
         chat.insert("response_format".to_owned(), format);
     }
     Ok(Value::Object(chat))
+}
+
+/// The chat messages of `chat` that belong to the exchange: all but the request's own instructions.
+pub fn kept_messages(body: &Value, chat: &Value) -> Vec<Value> {
+    let skip = usize::from(body.as_object().and_then(instructions).is_some());
+    chat["messages"].as_array().map_or_else(Vec::new, |all| all.iter().skip(skip).cloned().collect())
+}
+
+/// The fields a Response object carries about its request.
+pub fn meta(body: &Value) -> Map<String, Value> {
+    let mut meta = Map::new();
+    let previous = body.get("previous_response_id").filter(|id| id.is_string());
+    meta.insert("previous_response_id".to_owned(), previous.cloned().unwrap_or(Value::Null));
+    meta.insert("instructions".to_owned(), body.get("instructions").filter(|v| v.is_string()).cloned().unwrap_or(Value::Null));
+    meta.insert("store".to_owned(), json!(body.get("store") != Some(&Value::Bool(false))));
+    meta
+}
+
+/// The input items of a request, each with an id, as `GET /v1/responses/{id}/input_items` lists them.
+pub fn input_items(body: &Value) -> Vec<Value> {
+    let entries = match body.get("input") {
+        Some(Value::String(text)) => vec![json!({"type": "message", "role": "user", "content": text})],
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|item| match item {
+                Value::String(text) => json!({"type": "message", "role": "user", "content": text}),
+                other => other.clone(),
+            })
+            .collect(),
+        _ => Vec::new(),
+    };
+    entries
+        .into_iter()
+        .enumerate()
+        .map(|(index, mut item)| {
+            let is_message = item.get("type").is_none_or(|kind| kind == "message");
+            if is_message && let Some(text) = item.get("content").and_then(Value::as_str).map(str::to_owned) {
+                let kind = if item["role"] == "assistant" { "output_text" } else { "input_text" };
+                item["content"] = json!([{"type": kind, "text": text}]);
+            }
+            if is_message && item.get("type").is_none() {
+                item["type"] = json!("message");
+            }
+            if item.get("id").is_none_or(Value::is_null) {
+                let prefix = if is_message { "msg" } else { "item" };
+                item["id"] = json!(format!("{prefix}_in_{index}"));
+            }
+            item
+        })
+        .collect()
+}
+
+/// The chat messages that a finished response adds to the conversation: its text and its function calls.
+pub fn assistant_messages(response: &Value) -> Vec<Value> {
+    let mut text = String::new();
+    let mut calls: Vec<Value> = Vec::new();
+    for item in response["output"].as_array().into_iter().flatten() {
+        match item["type"].as_str() {
+            Some("message") => {
+                for part in item["content"].as_array().into_iter().flatten() {
+                    text.push_str(part["text"].as_str().unwrap_or(""));
+                }
+            }
+            Some("function_call") => calls.push(json!({
+                "id": item["call_id"], "type": "function",
+                "function": {"name": item["name"], "arguments": item["arguments"]},
+            })),
+            _ => {}
+        }
+    }
+    if text.is_empty() && calls.is_empty() {
+        return Vec::new();
+    }
+    let content = if text.is_empty() && !calls.is_empty() { Value::Null } else { json!(text) };
+    let mut message = json!({"role": "assistant", "content": content});
+    if !calls.is_empty() {
+        message["tool_calls"] = Value::Array(calls);
+    }
+    vec![message]
 }
 
 fn read_item(item: &Value, out: &mut Vec<Value>) {
@@ -294,6 +377,11 @@ fn response_object(
 
 /// A whole chat completion as a Response object.
 pub fn from_chat(chat: &Value, chat_id: &str, model: &str, created: i64) -> Value {
+    from_chat_with(chat, chat_id, model, created, &Map::new())
+}
+
+/// Like `from_chat`, with fields to add to the object.
+pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, created: i64, meta: &Map<String, Value>) -> Value {
     let suffix = id_suffix(chat_id);
     let answer = read_answer(chat, suffix);
     let mut output = Vec::new();
@@ -309,14 +397,22 @@ pub fn from_chat(chat: &Value, chat_id: &str, model: &str, created: i64) -> Valu
         ));
     }
     let status = if answer.finish == "length" { "incomplete" } else { "completed" };
-    response_object(
+    let mut response = response_object(
         &format!("resp_{suffix}"),
         model,
         created,
         status,
         output,
         usage_json(answer.input_tokens, answer.output_tokens),
-    )
+    );
+    merge(&mut response, meta);
+    response
+}
+
+fn merge(response: &mut Value, meta: &Map<String, Value>) {
+    for (key, value) in meta {
+        response[key] = value.clone();
+    }
 }
 
 struct Text {
@@ -348,9 +444,17 @@ pub struct Stream {
     finish: Option<String>,
     usage: (u64, u64),
     ended: bool,
+    meta: Map<String, Value>,
+    response: Option<Value>,
 }
 
 impl Stream {
+    /// Adds fields to every Response object of the stream.
+    pub fn with_meta(mut self, meta: Map<String, Value>) -> Self {
+        self.meta = meta;
+        self
+    }
+
     pub fn new(chat_id: &str, model: &str, created: i64) -> Self {
         let suffix = id_suffix(chat_id).to_owned();
         Self {
@@ -367,6 +471,8 @@ impl Stream {
             finish: None,
             usage: (0, 0),
             ended: false,
+            meta: Map::new(),
+            response: None,
         }
     }
 
@@ -382,7 +488,7 @@ impl Stream {
             return;
         }
         self.started = true;
-        let response = response_object(
+        let mut response = response_object(
             &self.id,
             &self.model,
             self.created,
@@ -390,6 +496,7 @@ impl Stream {
             Vec::new(),
             Value::Null,
         );
+        merge(&mut response, &self.meta);
         self.emit(out, "response.created", json!({"response": response}));
         self.emit(out, "response.in_progress", json!({"response": response}));
     }
@@ -560,7 +667,7 @@ impl Translator for Stream {
         self.close_text(&mut out);
         self.close_calls(&mut out);
         let incomplete = self.finish.as_deref() == Some("length");
-        let response = response_object(
+        let mut response = response_object(
             &self.id,
             &self.model,
             self.created,
@@ -568,9 +675,15 @@ impl Translator for Stream {
             self.output.values().cloned().collect(),
             usage_json(self.usage.0, self.usage.1),
         );
+        merge(&mut response, &self.meta);
         let name = if incomplete { "response.incomplete" } else { "response.completed" };
         self.emit(&mut out, name, json!({"response": response}));
+        self.response = Some(response);
         out
+    }
+
+    fn completed(&self) -> Option<Value> {
+        self.response.clone()
     }
 
     fn fail(&mut self, message: &str) -> Vec<Event> {
@@ -588,6 +701,7 @@ impl Translator for Stream {
             self.output.values().cloned().collect(),
             Value::Null,
         );
+        merge(&mut response, &self.meta);
         response["error"] = json!({"code": "server_error", "message": message});
         self.emit(&mut out, "response.failed", json!({"response": response}));
         out
