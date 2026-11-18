@@ -26,6 +26,8 @@
 //! A request with `tools`, `response_format`, a non-text part or a tool message goes to `Backend::forward` as the
 //! client wrote it, apart from `model`. `draggy-agent` always gets agent mode, and the rest follow `Env::default_mode`.
 //! A request waits up to `Env::queue_wait` for a slot, then gets 429 with `Retry-After`.
+//!
+//! Token counts come from the model's tokenizer through `Backend::count_tokens`, and are estimated when it cannot.
 
 use std::collections::VecDeque;
 use std::convert::Infallible;

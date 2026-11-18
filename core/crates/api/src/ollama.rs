@@ -1,5 +1,6 @@
 //! Ollama's HTTP API on top of chat completions.
-//! Not supported: thinking output, `suffix`, raw prompts, templates, `context` and keep-alive (ignored), `num_ctx` (ignored).
+//! Thinking output is supported.
+//! Not supported: `suffix`, raw prompts, templates, `context` and keep-alive (ignored), `num_ctx` (ignored).
 
 use std::time::Instant;
 

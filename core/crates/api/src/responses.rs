@@ -1,6 +1,7 @@
 //! OpenAI Responses API on top of chat completions: the request in, and the reply or stream out.
 //!
-//! Not supported: built-in tools such as web search, and reasoning items.
+//! Web search, reasoning summaries and `previous_response_id` state are supported.
+//! Not supported: other built-in tools (file search, computer use, code interpreter, MCP, image generation).
 
 use std::collections::BTreeMap;
 

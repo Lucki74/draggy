@@ -1,6 +1,7 @@
 //! Anthropic Messages API on top of chat completions: the request in, and the reply or stream out.
 //!
-//! Not supported: thinking blocks (dropped both ways), server tools such as web search, citations and documents.
+//! Thinking blocks, web search and stop sequences are supported; thinking blocks in the history are dropped.
+//! Not supported: other server tools, citations and documents.
 
 use serde_json::{Map, Value, json};
 
