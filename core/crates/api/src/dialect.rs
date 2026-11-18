@@ -71,6 +71,8 @@ pub struct Opts {
     pub searches: Vec<Search>,
     /// Whether the reply carries the model's reasoning, as the send-reasoning setting says.
     pub thinking: bool,
+    /// Messages `stop_sequences`, matched here so the reply can report which one ended it.
+    pub stop: Vec<String>,
 }
 
 /// The chat so far and the request's input items, kept with the response that answers them.
@@ -94,6 +96,10 @@ pub trait Translator: Send {
     /// The finished response object, once `finish` has run, for dialects that have one.
     fn completed(&self) -> Option<Value> {
         None
+    }
+    /// A stop sequence was reached: the reply is over and the upstream can be dropped.
+    fn stopped(&self) -> bool {
+        false
     }
 }
 
@@ -341,6 +347,11 @@ impl Translated {
         }
         let events = self.translator.feed(&value);
         self.push(events);
+        if self.translator.stopped() {
+            // Dropping the guard cancels the upstream request.
+            self.cancel.take();
+            self.finish();
+        }
     }
 
     fn fail(&mut self, message: &str) {

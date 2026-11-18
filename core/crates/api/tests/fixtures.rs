@@ -122,6 +122,7 @@ fn run_dialect(dialect: Dialect, input: &Value) -> Value {
 /// The options a case sets: `searches` as `{id, query, hits: [{title, url, snippet}], error}`.
 fn opts_of(value: &Value) -> Opts {
     let mut opts = Opts { thinking: value["thinking"] == true, ..Opts::default() };
+    opts.stop = value["stop"].as_array().into_iter().flatten().map(|s| text(s).to_owned()).collect();
     for search in value["searches"].as_array().into_iter().flatten() {
         opts.searches.push(Search {
             id: text(&search["id"]).to_owned(),

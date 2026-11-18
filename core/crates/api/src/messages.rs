@@ -72,13 +72,6 @@ pub fn to_chat(body: &Value) -> Result<Value, String> {
             chat.insert(to.to_owned(), value.clone());
         }
     }
-    if let Some(stop) = object
-        .get("stop_sequences")
-        .and_then(Value::as_array)
-        .filter(|stop| !stop.is_empty())
-    {
-        chat.insert("stop".to_owned(), Value::Array(stop.clone()));
-    }
     let mut chat = Value::Object(chat);
     let thinking = match body.pointer("/thinking/type").and_then(Value::as_str) {
         Some("enabled" | "adaptive") => Some(true),
@@ -228,6 +221,20 @@ fn read_choice(choice: Option<&Value>) -> Option<Value> {
     }
 }
 
+/// The non-empty `stop_sequences` of a Messages request.
+pub fn stop_sequences(body: &Value) -> Vec<String> {
+    let list = body.get("stop_sequences").and_then(Value::as_array);
+    let strings = list.into_iter().flatten().filter_map(Value::as_str);
+    strings.filter(|s| !s.is_empty()).map(str::to_owned).collect()
+}
+
+/// The first stop sequence found in `text`: where it starts and which one it is.
+fn find_stop<'a>(text: &str, stop: &'a [String]) -> Option<(usize, &'a str)> {
+    stop.iter()
+        .filter_map(|seq| text.find(seq.as_str()).map(|at| (at, seq.as_str())))
+        .min_by_key(|(at, _)| *at)
+}
+
 /// A rough token count of a chat request: its messages and tools at four characters a token.
 pub fn count_tokens(chat: &Value) -> u64 {
     let chars: usize = ["messages", "tools"]
@@ -259,7 +266,14 @@ pub fn from_chat(chat: &Value, chat_id: &str, model: &str) -> Value {
 /// Like `from_chat`, with the searches that were run before the answer.
 pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, opts: &Opts) -> Value {
     let suffix = id_suffix(chat_id);
-    let answer = read_answer(chat, suffix);
+    let mut answer = read_answer(chat, suffix);
+    let mut stopped = None;
+    if let Some((at, seq)) = find_stop(&answer.text, &opts.stop) {
+        answer.text.truncate(at);
+        answer.calls.clear();
+        answer.output_tokens = (answer.text.chars().count() as u64).div_ceil(4).max(1);
+        stopped = Some(seq);
+    }
     let mut content: Vec<Value> = Vec::new();
     for search in &opts.searches {
         let (call, result) = search_blocks(suffix, search);
@@ -284,8 +298,8 @@ pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, opts: &Opts) -> 
         "role": "assistant",
         "model": model,
         "content": content,
-        "stop_reason": stop_reason(&answer.finish, !answer.calls.is_empty()),
-        "stop_sequence": null,
+        "stop_reason": if stopped.is_some() { "stop_sequence" } else { stop_reason(&answer.finish, !answer.calls.is_empty()) },
+        "stop_sequence": stopped,
         "usage": usage_json(answer.input_tokens, answer.output_tokens, opts.searches.len()),
     })
 }
@@ -347,6 +361,10 @@ pub struct Stream {
     searches: Vec<Search>,
     searched: usize,
     thinking: bool,
+    stop: Vec<String>,
+    held: String,
+    sent: usize,
+    hit: Option<String>,
 }
 
 impl Stream {
@@ -355,6 +373,7 @@ impl Stream {
         self.thinking = opts.thinking;
         self.searched = opts.searches.len();
         self.searches = opts.searches.clone();
+        self.stop = opts.stop.clone();
         self
     }
 
@@ -374,7 +393,48 @@ impl Stream {
             searches: Vec::new(),
             searched: 0,
             thinking: false,
+            stop: Vec::new(),
+            held: String::new(),
+            sent: 0,
+            hit: None,
         }
+    }
+
+    /// Text from the model. With stop sequences, a tail that could still start one is held back.
+    fn push_text(&mut self, out: &mut Vec<Event>, text: &str) {
+        if self.stop.is_empty() {
+            self.text(out, text);
+            return;
+        }
+        self.held.push_str(text);
+        if let Some((at, seq)) = find_stop(&self.held, &self.stop) {
+            self.hit = Some(seq.to_owned());
+            self.held.truncate(at);
+            self.flush(out);
+            return;
+        }
+        let held = &self.held;
+        let keep = held
+            .char_indices()
+            .map(|(i, _)| i)
+            .find(|&i| self.stop.iter().any(|s| s.starts_with(&held[i..])))
+            .unwrap_or(held.len());
+        let ready = self.held[..keep].to_owned();
+        self.held.drain(..keep);
+        if !ready.is_empty() {
+            self.sent += ready.chars().count();
+            self.text(out, &ready);
+        }
+    }
+
+    /// Sends the held text, which can no longer turn into a stop sequence.
+    fn flush(&mut self, out: &mut Vec<Event>) {
+        if self.held.is_empty() {
+            return;
+        }
+        let rest = std::mem::take(&mut self.held);
+        self.sent += rest.chars().count();
+        self.text(out, &rest);
     }
 
     fn start(&mut self, out: &mut Vec<Event>) {
@@ -515,7 +575,7 @@ impl Stream {
 impl Translator for Stream {
     fn feed(&mut self, chunk: &Value) -> Vec<Event> {
         let mut out = Vec::new();
-        if self.ended {
+        if self.ended || self.hit.is_some() {
             return out;
         }
         self.start(&mut out);
@@ -533,7 +593,10 @@ impl Translator for Stream {
                 self.think(&mut out, text);
             }
             if let Some(text) = delta.get("content").and_then(Value::as_str).filter(|t| !t.is_empty()) {
-                self.text(&mut out, text);
+                self.push_text(&mut out, text);
+            }
+            if self.hit.is_none() && delta.get("tool_calls").is_some() {
+                self.flush(&mut out);
             }
             for call in delta
                 .get("tool_calls")
@@ -557,13 +620,20 @@ impl Translator for Stream {
         }
         self.ended = true;
         self.start(&mut out);
+        self.flush(&mut out);
         self.close(&mut out);
-        let reason = stop_reason(self.finish.as_deref().unwrap_or("stop"), self.calls > 0);
+        let reason = match self.hit {
+            Some(_) => "stop_sequence",
+            None => stop_reason(self.finish.as_deref().unwrap_or("stop"), self.calls > 0),
+        };
+        if self.hit.is_some() {
+            self.usage.1 = (self.sent as u64).div_ceil(4).max(1);
+        }
         out.push(Event::new(
             "message_delta",
             json!({
                 "type": "message_delta",
-                "delta": {"stop_reason": reason, "stop_sequence": null},
+                "delta": {"stop_reason": reason, "stop_sequence": self.hit},
                 "usage": usage_json(self.usage.0, self.usage.1, self.searched),
             }),
         ));

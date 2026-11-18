@@ -1214,6 +1214,9 @@ async fn handle_request<B: Backend, E: Env>(
             return json_response(StatusCode::OK, reply.to_string());
         }
         opts.web_search = search::requested(dialect, &parsed);
+        if dialect == Dialect::Messages {
+            opts.stop = messages::stop_sequences(&parsed);
+        }
         let converted = if dialect == Dialect::Responses {
             match responses_chat(&shared, &parsed, &mut opts) {
                 Ok(chat) => Ok(chat),

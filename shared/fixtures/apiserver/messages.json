@@ -45,9 +45,6 @@
           }
         ],
         "model": "m",
-        "stop": [
-          "END"
-        ],
         "stream": true,
         "stream_options": {
           "include_usage": true
@@ -2176,6 +2173,404 @@
         "op": "request"
       },
       "name": "thinking blocks in history are dropped"
+    },
+    {
+      "expected": {
+        "content": [
+          {
+            "text": "one ",
+            "type": "text"
+          }
+        ],
+        "id": "msg_abc",
+        "model": "local",
+        "role": "assistant",
+        "stop_reason": "stop_sequence",
+        "stop_sequence": "two",
+        "type": "message",
+        "usage": {
+          "input_tokens": 4,
+          "output_tokens": 1
+        }
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "one two END three",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 9,
+            "prompt_tokens": 4,
+            "total_tokens": 13
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "stop": [
+            "END",
+            "two"
+          ]
+        }
+      },
+      "name": "stop sequence cuts a whole reply"
+    },
+    {
+      "expected": {
+        "content": [
+          {
+            "text": "one two END three",
+            "type": "text"
+          }
+        ],
+        "id": "msg_abc",
+        "model": "local",
+        "role": "assistant",
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "type": "message",
+        "usage": {
+          "input_tokens": 4,
+          "output_tokens": 9
+        }
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "one two END three",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 9,
+            "prompt_tokens": 4,
+            "total_tokens": 13
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "stop": [
+            "nope"
+          ]
+        }
+      },
+      "name": "stop sequence unmatched leaves a whole reply"
+    },
+    {
+      "expected": [
+        {
+          "data": {
+            "message": {
+              "content": [],
+              "id": "msg_abc",
+              "model": "local",
+              "role": "assistant",
+              "stop_reason": null,
+              "stop_sequence": null,
+              "type": "message",
+              "usage": {
+                "input_tokens": 0,
+                "output_tokens": 0
+              }
+            },
+            "type": "message_start"
+          },
+          "event": "message_start"
+        },
+        {
+          "data": {
+            "content_block": {
+              "text": "",
+              "type": "text"
+            },
+            "index": 0,
+            "type": "content_block_start"
+          },
+          "event": "content_block_start"
+        },
+        {
+          "data": {
+            "delta": {
+              "text": "one tw",
+              "type": "text_delta"
+            },
+            "index": 0,
+            "type": "content_block_delta"
+          },
+          "event": "content_block_delta"
+        },
+        {
+          "data": {
+            "delta": {
+              "text": "o ",
+              "type": "text_delta"
+            },
+            "index": 0,
+            "type": "content_block_delta"
+          },
+          "event": "content_block_delta"
+        },
+        {
+          "data": {
+            "index": 0,
+            "type": "content_block_stop"
+          },
+          "event": "content_block_stop"
+        },
+        {
+          "data": {
+            "delta": {
+              "stop_reason": "stop_sequence",
+              "stop_sequence": "END"
+            },
+            "type": "message_delta",
+            "usage": {
+              "input_tokens": 0,
+              "output_tokens": 2
+            }
+          },
+          "event": "message_delta"
+        },
+        {
+          "data": {
+            "type": "message_stop"
+          },
+          "event": "message_stop"
+        }
+      ],
+      "input": {
+        "chatId": "chatcmpl-abc",
+        "chunks": [
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "one tw"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "o EN"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "D three"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {},
+                "finish_reason": "stop",
+                "index": 0
+              }
+            ],
+            "usage": {
+              "completion_tokens": 9,
+              "prompt_tokens": 4
+            }
+          }
+        ],
+        "created": 100,
+        "end": "finish",
+        "model": "local",
+        "op": "stream",
+        "opts": {
+          "stop": [
+            "END"
+          ]
+        }
+      },
+      "name": "stop sequence split across chunks"
+    },
+    {
+      "expected": [
+        {
+          "data": {
+            "message": {
+              "content": [],
+              "id": "msg_abc",
+              "model": "local",
+              "role": "assistant",
+              "stop_reason": null,
+              "stop_sequence": null,
+              "type": "message",
+              "usage": {
+                "input_tokens": 0,
+                "output_tokens": 0
+              }
+            },
+            "type": "message_start"
+          },
+          "event": "message_start"
+        },
+        {
+          "data": {
+            "content_block": {
+              "text": "",
+              "type": "text"
+            },
+            "index": 0,
+            "type": "content_block_start"
+          },
+          "event": "content_block_start"
+        },
+        {
+          "data": {
+            "delta": {
+              "text": "one ",
+              "type": "text_delta"
+            },
+            "index": 0,
+            "type": "content_block_delta"
+          },
+          "event": "content_block_delta"
+        },
+        {
+          "data": {
+            "delta": {
+              "text": "EN",
+              "type": "text_delta"
+            },
+            "index": 0,
+            "type": "content_block_delta"
+          },
+          "event": "content_block_delta"
+        },
+        {
+          "data": {
+            "index": 0,
+            "type": "content_block_stop"
+          },
+          "event": "content_block_stop"
+        },
+        {
+          "data": {
+            "delta": {
+              "stop_reason": "end_turn",
+              "stop_sequence": null
+            },
+            "type": "message_delta",
+            "usage": {
+              "input_tokens": 4,
+              "output_tokens": 9
+            }
+          },
+          "event": "message_delta"
+        },
+        {
+          "data": {
+            "type": "message_stop"
+          },
+          "event": "message_stop"
+        }
+      ],
+      "input": {
+        "chatId": "chatcmpl-abc",
+        "chunks": [
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "one EN"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {},
+                "finish_reason": "stop",
+                "index": 0
+              }
+            ],
+            "usage": {
+              "completion_tokens": 9,
+              "prompt_tokens": 4
+            }
+          }
+        ],
+        "created": 100,
+        "end": "finish",
+        "model": "local",
+        "op": "stream",
+        "opts": {
+          "stop": [
+            "END"
+          ]
+        }
+      },
+      "name": "stop sequence prefix is released at the end"
+    },
+    {
+      "expected": {
+        "max_tokens": 5,
+        "messages": [
+          {
+            "content": "x",
+            "role": "user"
+          }
+        ],
+        "model": "m",
+        "stream": false
+      },
+      "input": {
+        "body": {
+          "max_tokens": 5,
+          "messages": [
+            {
+              "content": "x",
+              "role": "user"
+            }
+          ],
+          "model": "m",
+          "stop_sequences": [
+            "END"
+          ]
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "model": "local",
+        "op": "request"
+      },
+      "name": "stop sequence request sends no stop upstream"
     }
   ],
   "description": "Anthropic Messages requests turned into chat bodies, chat replies turned into Message objects, and chat streams turned into Messages events. Rust only."

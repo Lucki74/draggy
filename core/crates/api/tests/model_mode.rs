@@ -960,3 +960,20 @@ async fn a_client_function_call_beats_a_search() {
     assert_eq!(output[0]["name"], "mine");
     assert!(backend.searched().is_empty());
 }
+
+#[tokio::test]
+async fn messages_stop_sequences_are_matched_here() {
+    let backend = Forwarding::replying(&[]).then(&[answering("one END two")]);
+    let sent = json!({
+        "model": "m", "max_tokens": 50, "stop_sequences": ["END"],
+        "messages": [{"role": "user", "content": "x"}],
+    });
+    let request = post_to("/v1/messages", ("x-api-key", KEY.to_owned()), &sent);
+    let (_, _, text) = send(app(&backend), request).await;
+
+    assert!(backend.forwarded()[0].get("stop").is_none());
+    let reply = json_of(&text);
+    assert_eq!(reply["stop_reason"], "stop_sequence");
+    assert_eq!(reply["stop_sequence"], "END");
+    assert_eq!(reply["content"][0]["text"], "one ");
+}
