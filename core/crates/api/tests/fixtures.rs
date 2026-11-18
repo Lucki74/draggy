@@ -9,6 +9,7 @@ use axum::body::Body;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, Uri};
 use axum::response::Response;
 use draggy_api::dialect::{self, Dialect};
+use draggy_api::ollama;
 use draggy_api::server::{
     Backend, BackendError, CompletionRequest, Env, ModelEntry, Reply, Sink, Usage, check_request,
     chunk_line,
@@ -46,6 +47,7 @@ fixture_tests! {
     ops => "ops.json",
     responses => "responses.json",
     messages => "messages.json",
+    ollama => "ollama.json",
 }
 
 #[test]
@@ -87,6 +89,7 @@ fn run(file: &str, input: &Value) -> Value {
         "ops.json" => in_runtime(run_steps(input)),
         "responses.json" => run_dialect(Dialect::Responses, input),
         "messages.json" => run_dialect(Dialect::Messages, input),
+        "ollama.json" => run_ollama(input),
         other => panic!("no Rust runner for {other}"),
     }
 }
@@ -110,6 +113,43 @@ fn run_dialect(dialect: Dialect, input: &Value) -> Value {
             Value::Array(events.iter().map(|e| json!({ "event": e.name, "data": e.data })).collect())
         }
         other => panic!("unknown op {other:?}"),
+    }
+}
+
+/// Ollama cases: `request`, `response` and `stream` as the other dialects, plus the small pure routes. Durations are masked.
+fn run_ollama(input: &Value) -> Value {
+    let generate = text(&input["kind"]) == "generate";
+    let dialect = if generate { Dialect::OllamaGenerate } else { Dialect::OllamaChat };
+    let (model, created) = (text(&input["model"]), input["created"].as_i64().unwrap_or(0));
+    let entries = || -> Vec<ModelEntry> {
+        input["entries"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|entry| ModelEntry {
+                id: text(&entry["id"]).to_owned(),
+                owned_by: "local".to_owned(),
+                context_length: entry["contextLength"].as_u64(),
+                capabilities: strings(&entry["capabilities"]),
+            })
+            .collect()
+    };
+    let mask = |mut value: Value| {
+        if value.get("total_duration").is_some() {
+            value["total_duration"] = json!(0);
+        }
+        value
+    };
+    match input["op"].as_str() {
+        Some("load") => ollama::load_reply(generate, &input["body"], model, created).unwrap_or(Value::Null),
+        Some("tags") => ollama::tags(&entries(), created),
+        Some("show") => ollama::show(&entries()[0]),
+        Some("time") => json!(ollama::iso_time(created)),
+        Some("stream") => {
+            let events = run_dialect(dialect, input);
+            Value::Array(events.as_array().into_iter().flatten().map(|e| mask(e["data"].clone())).collect())
+        }
+        _ => mask(run_dialect(dialect, input)),
     }
 }
 

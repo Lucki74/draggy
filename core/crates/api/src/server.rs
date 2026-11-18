@@ -55,6 +55,7 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
 use tokio_util::sync::{CancellationToken, DropGuard};
 
 use crate::dialect::{self, Dialect};
+use crate::ollama;
 use crate::messages;
 use crate::routes;
 use crate::settings::{self, ApiSettings};
@@ -1074,12 +1075,16 @@ async fn handle_request<B: Backend, E: Env>(
     let dialect = match path.as_str() {
         "/v1/responses" => Some(Dialect::Responses),
         "/v1/messages" | "/v1/messages/count_tokens" => Some(Dialect::Messages),
+        "/api/chat" => Some(Dialect::OllamaChat),
+        "/api/generate" => Some(Dialect::OllamaGenerate),
         _ => None,
     };
+    // Errors on any Ollama path use Ollama's shape.
+    let shape = if path.starts_with("/api/") { Some(Dialect::OllamaChat) } else { dialect };
     let counting = path == "/v1/messages/count_tokens";
     if let Some(refusal) = check_access(&parts.headers, shared.port, &key, &settings, &path) {
         tracing::debug!(target: "net.api", status = refusal.status.as_u16(), "request refused");
-        return shaped_error(dialect, refusal.status, refusal.message, "authentication_error");
+        return shaped_error(shape, refusal.status, refusal.message, "authentication_error");
     }
 
     if parts.method == Method::GET && path == "/v1/models" {
@@ -1090,9 +1095,18 @@ async fn handle_request<B: Backend, E: Env>(
     {
         return model_response(&shared, id, &settings).await;
     }
-    let posted = matches!(path.as_str(), "/v1/chat/completions" | "/v1/embeddings" | "/v1/completions");
+    if parts.method == Method::GET
+        && let Some(response) = routes::ollama_get(&shared, &path).await
+    {
+        return response;
+    }
+    let posted = matches!(
+        path.as_str(),
+        "/v1/chat/completions" | "/v1/embeddings" | "/v1/completions" | "/api/show" | "/api/embed" | "/api/embeddings"
+    );
     if parts.method != Method::POST || (!posted && dialect.is_none()) {
-        return error_response(
+        return shaped_error(
+            shape,
             StatusCode::NOT_FOUND,
             "Only /v1/chat/completions and /v1/models are served here.",
             "invalid_request_error",
@@ -1108,7 +1122,7 @@ async fn handle_request<B: Backend, E: Env>(
                 (StatusCode::BAD_REQUEST, INVALID_JSON)
             };
             tracing::debug!(target: "net.api", status = status.as_u16(), "body rejected");
-            return shaped_error(dialect, status, message, "invalid_request_error");
+            return shaped_error(shape, status, message, "invalid_request_error");
         }
     };
     // Past the agent's limit only a model-mode body is read at all.
@@ -1124,12 +1138,22 @@ async fn handle_request<B: Backend, E: Env>(
                 (StatusCode::BAD_REQUEST, INVALID_JSON)
             };
             tracing::debug!(target: "net.api", status = status.as_u16(), "body rejected");
-            return shaped_error(dialect, status, message, "invalid_request_error");
+            return shaped_error(shape, status, message, "invalid_request_error");
         }
     };
 
     // Responses and Messages bodies become chat bodies and always go to the model.
     if let Some(dialect) = dialect {
+        if dialect.is_ollama()
+            && let Some(reply) = ollama::load_reply(
+                dialect == Dialect::OllamaGenerate,
+                &parsed,
+                parsed.get("model").and_then(Value::as_str).unwrap_or(""),
+                shared.env.now_unix(),
+            )
+        {
+            return json_response(StatusCode::OK, reply.to_string());
+        }
         match dialect::to_chat(dialect, &parsed) {
             Ok(chat) => parsed = chat,
             Err(message) => {
@@ -1167,13 +1191,16 @@ async fn handle_request<B: Backend, E: Env>(
     match path.as_str() {
         "/v1/embeddings" => return routes::embeddings(&shared, &parsed).await,
         "/v1/completions" => return routes::completions(&shared, parsed, &settings).await,
+        "/api/show" => return routes::ollama_show(&shared, &parsed, &settings).await,
+        "/api/embed" => return routes::ollama_embed(&shared, &parsed, false).await,
+        "/api/embeddings" => return routes::ollama_embed(&shared, &parsed, true).await,
         _ => {}
     }
 
     if mode == Mode::Model {
         if let Err(error) = check_model_body(&parsed) {
             return shaped_error(
-                dialect,
+                shape,
                 StatusCode::BAD_REQUEST,
                 &error.to_string(),
                 "invalid_request_error",
@@ -1459,6 +1486,7 @@ async fn forward_model<B: Backend, E: Env>(
         .unwrap_or("")
         .to_owned();
     tracing::debug!(target: "net.api", stream, "model request");
+    let started = std::time::Instant::now();
 
     // Dropping the handler's future, or the stream below, cancels the request.
     let cancel = CancellationToken::new();
@@ -1490,7 +1518,7 @@ async fn forward_model<B: Backend, E: Env>(
         let _ = guard.disarm();
         drop(permit);
         if let Some(dialect) = dialect {
-            return dialect_response(dialect, status, &bytes, &id, &model, created);
+            return dialect_response(dialect, status, &bytes, &id, &model, created, started.elapsed());
         }
         return buffered_response(status, &bytes, &id, &model, created, strip);
     }
@@ -1498,7 +1526,7 @@ async fn forward_model<B: Backend, E: Env>(
     if let Some(dialect) = dialect {
         let translator = dialect::translator(dialect, &id, &model, created);
         let body = Body::from_stream(dialect::translated_stream(reply.body, translator, guard, permit));
-        return sse_response(body);
+        return if dialect.is_ollama() { ndjson_response(body) } else { sse_response(body) };
     }
 
     let relay = Relay {
@@ -1517,6 +1545,19 @@ async fn forward_model<B: Backend, E: Env>(
         permit: Some(permit),
     };
     sse_response(Body::from_stream(stream::unfold(relay, next_relayed)))
+}
+
+fn ndjson_response(body: Body) -> Response {
+    (
+        StatusCode::OK,
+        [
+            (CONTENT_TYPE, "application/x-ndjson"),
+            (CACHE_CONTROL, "no-store"),
+            (X_CONTENT_TYPE_OPTIONS, "nosniff"),
+        ],
+        body,
+    )
+        .into_response()
 }
 
 pub(crate) fn sse_response(body: Body) -> Response {
@@ -1541,11 +1582,18 @@ fn dialect_response(
     chat_id: &str,
     model: &str,
     created: i64,
+    elapsed: std::time::Duration,
 ) -> Response {
     if status.is_success() {
         let reply = serde_json::from_slice::<Value>(bytes)
             .ok()
-            .and_then(|chat| dialect::whole_reply(dialect, &chat, chat_id, model, created));
+            .and_then(|chat| dialect::whole_reply(dialect, &chat, chat_id, model, created))
+            .map(|mut reply| {
+                if dialect.is_ollama() {
+                    reply["total_duration"] = Value::from(u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX));
+                }
+                reply
+            });
         return match reply {
             Some(reply) => json_response(status, reply.to_string()),
             None => shaped_error(

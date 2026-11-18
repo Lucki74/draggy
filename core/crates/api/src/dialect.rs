@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use tokio_util::sync::DropGuard;
 
 use crate::server::{ByteStream, Permit, split_event};
-use crate::{messages, responses};
+use crate::{messages, ollama, responses};
 
 /// The wire format a client speaks on a translated route.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,6 +19,17 @@ pub enum Dialect {
     Responses,
     /// Anthropic `POST /v1/messages`.
     Messages,
+    /// Ollama `POST /api/chat`.
+    OllamaChat,
+    /// Ollama `POST /api/generate`.
+    OllamaGenerate,
+}
+
+impl Dialect {
+    /// Ollama answers streams as newline-delimited JSON, not server-sent events.
+    pub fn is_ollama(self) -> bool {
+        matches!(self, Dialect::OllamaChat | Dialect::OllamaGenerate)
+    }
 }
 
 /// One server-sent event, ready to be framed.
@@ -36,8 +47,12 @@ impl Event {
         }
     }
 
-    /// The SSE text: an `event:` line, a `data:` line and a blank line.
+    /// The SSE text: an `event:` line, a `data:` line and a blank line. A nameless event is one NDJSON line.
     pub fn frame(&self) -> String {
+        if self.name.is_empty() {
+            return format!("{}
+", self.data);
+        }
         format!("event: {}\ndata: {}\n\n", self.name, self.data)
     }
 }
@@ -57,6 +72,8 @@ pub fn translator(dialect: Dialect, chat_id: &str, model: &str, created: i64) ->
     match dialect {
         Dialect::Responses => Box::new(responses::Stream::new(chat_id, model, created)),
         Dialect::Messages => Box::new(messages::Stream::new(chat_id, model)),
+        Dialect::OllamaChat => Box::new(ollama::Stream::new(false, model, created)),
+        Dialect::OllamaGenerate => Box::new(ollama::Stream::new(true, model, created)),
     }
 }
 
@@ -65,6 +82,8 @@ pub fn to_chat(dialect: Dialect, body: &Value) -> Result<Value, String> {
     match dialect {
         Dialect::Responses => responses::to_chat(body),
         Dialect::Messages => messages::to_chat(body),
+        Dialect::OllamaChat => ollama::chat_to_chat(body),
+        Dialect::OllamaGenerate => ollama::generate_to_chat(body),
     }
 }
 
@@ -161,6 +180,9 @@ fn str_at(value: &Value, pointer: &str) -> String {
 
 /// An error body in the shape of the dialect: Anthropic's for Messages, otherwise OpenAI's.
 pub fn error_json(dialect: Option<Dialect>, status: StatusCode, message: &str, kind: &str) -> String {
+    if dialect.is_some_and(Dialect::is_ollama) {
+        return json!({"error": message}).to_string();
+    }
     if dialect == Some(Dialect::Messages) {
         let kind = match status.as_u16() {
             400 => "invalid_request_error",
@@ -203,6 +225,8 @@ pub fn whole_reply(dialect: Dialect, chat: &Value, chat_id: &str, model: &str, c
     Some(match dialect {
         Dialect::Responses => responses::from_chat(chat, chat_id, model, created),
         Dialect::Messages => messages::from_chat(chat, chat_id, model),
+        Dialect::OllamaChat => ollama::from_chat(false, chat, model, created),
+        Dialect::OllamaGenerate => ollama::from_chat(true, chat, model, created),
     })
 }
 
