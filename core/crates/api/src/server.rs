@@ -48,11 +48,13 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use futures_util::stream::{self, Stream, StreamExt};
 use http_body_util::LengthLimitError;
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 use subtle::ConstantTimeEq;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
 use tokio_util::sync::{CancellationToken, DropGuard};
 
+use crate::dialect::{self, Dialect};
+use crate::messages;
 use crate::settings::{self, ApiSettings};
 
 /// The only address the reference listens on.
@@ -347,13 +349,18 @@ pub fn check_request(headers: &HeaderMap, port: u16, key: &str) -> Option<Refusa
         .get(AUTHORIZATION)
         .map(header_text)
         .unwrap_or_default();
-    match bearer_token(&authorization) {
-        Some(token) if same_key(token, key) => None,
-        _ => Some(Refusal {
-            status: StatusCode::UNAUTHORIZED,
-            message: "Missing or wrong API key.",
-        }),
+    if bearer_token(&authorization).is_some_and(|token| same_key(token, key)) {
+        return None;
     }
+    // Anthropic clients send the key in x-api-key.
+    let api_key = headers.get("x-api-key").map(header_text).unwrap_or_default();
+    if same_key(api_key.trim_matches(is_js_space), key) {
+        return None;
+    }
+    Some(Refusal {
+        status: StatusCode::UNAUTHORIZED,
+        message: "Missing or wrong API key.",
+    })
 }
 
 /// A header value as the reference reads it. Node decodes header bytes as Latin-1, one character per byte.
@@ -856,7 +863,7 @@ impl Slots {
 }
 
 /// A held slot. Given back on drop, or retired when the slots have shrunk.
-struct Permit {
+pub(crate) struct Permit {
     inner: Option<OwnedSemaphorePermit>,
     slots: Arc<Slots>,
 }
@@ -944,16 +951,27 @@ async fn handle<B: Backend, E: Env>(
     let (parts, body) = request.into_parts();
     let key = shared.env.api_key();
     let settings = shared.env.settings();
+    let path = routed_path(parts.uri.path());
+    let dialect = match path.as_str() {
+        "/v1/responses" => Some(Dialect::Responses),
+        "/v1/messages" | "/v1/messages/count_tokens" => Some(Dialect::Messages),
+        _ => None,
+    };
+    let counting = path == "/v1/messages/count_tokens";
     if let Some(refusal) = check_request(&parts.headers, shared.port, &key) {
         tracing::debug!(target: "net.api", status = refusal.status.as_u16(), "request refused");
-        return error_response(refusal.status, refusal.message, "authentication_error");
+        return shaped_error(dialect, refusal.status, refusal.message, "authentication_error");
     }
 
-    let path = routed_path(parts.uri.path());
     if parts.method == Method::GET && path == "/v1/models" {
         return models_response(&shared).await;
     }
-    if parts.method != Method::POST || path != "/v1/chat/completions" {
+    if parts.method == Method::GET
+        && let Some(id) = path.strip_prefix("/v1/models/").filter(|id| !id.is_empty() && !id.contains('/'))
+    {
+        return model_response(&shared, id, &settings).await;
+    }
+    if parts.method != Method::POST || (path != "/v1/chat/completions" && dialect.is_none()) {
         return error_response(
             StatusCode::NOT_FOUND,
             "Only /v1/chat/completions and /v1/models are served here.",
@@ -970,7 +988,7 @@ async fn handle<B: Backend, E: Env>(
                 (StatusCode::BAD_REQUEST, INVALID_JSON)
             };
             tracing::debug!(target: "net.api", status = status.as_u16(), "body rejected");
-            return error_response(status, message, "invalid_request_error");
+            return shaped_error(dialect, status, message, "invalid_request_error");
         }
     };
     // Past the agent's limit only a model-mode body is read at all.
@@ -986,9 +1004,23 @@ async fn handle<B: Backend, E: Env>(
                 (StatusCode::BAD_REQUEST, INVALID_JSON)
             };
             tracing::debug!(target: "net.api", status = status.as_u16(), "body rejected");
-            return error_response(status, message, "invalid_request_error");
+            return shaped_error(dialect, status, message, "invalid_request_error");
         }
     };
+
+    // Responses and Messages bodies become chat bodies and always go to the model.
+    if let Some(dialect) = dialect {
+        match dialect::to_chat(dialect, &parsed) {
+            Ok(chat) => parsed = chat,
+            Err(message) => {
+                return shaped_error(Some(dialect), StatusCode::BAD_REQUEST, &message, "invalid_request_error");
+            }
+        }
+        if counting {
+            let tokens = messages::count_tokens(&parsed);
+            return json_response(StatusCode::OK, json!({"input_tokens": tokens}).to_string());
+        }
+    }
 
     let renamed = parsed
         .get("model")
@@ -998,7 +1030,11 @@ async fn handle<B: Backend, E: Env>(
     if let Some(name) = renamed {
         parsed["model"] = Value::String(name);
     }
-    let mode = route(&parsed, shared.env.default_mode());
+    let mode = if dialect.is_some() {
+        Mode::Model
+    } else {
+        route(&parsed, shared.env.default_mode())
+    };
     if oversize && mode != Mode::Model {
         tracing::debug!(target: "net.api", status = 413, "body rejected");
         return error_response(
@@ -1010,24 +1046,25 @@ async fn handle<B: Backend, E: Env>(
 
     if mode == Mode::Model {
         if let Err(error) = check_model_body(&parsed) {
-            return error_response(
+            return shaped_error(
+                dialect,
                 StatusCode::BAD_REQUEST,
                 &error.to_string(),
                 "invalid_request_error",
             );
         }
         settings::prepend_system(&mut parsed, &settings.system_prompt);
-        let permit = match take_slot(&shared).await {
+        let permit = match take_slot(&shared, dialect).await {
             Ok(permit) => permit,
             Err(busy) => return busy,
         };
-        return forward_model(&shared, parsed, permit, &settings).await;
+        return forward_model(&shared, parsed, permit, &settings, dialect).await;
     }
 
     settings::prepend_system(&mut parsed, &settings.system_prompt);
     match read_completion_request(&parsed) {
         Ok(request) => {
-            let permit = match take_slot(&shared).await {
+            let permit = match take_slot(&shared, None).await {
                 Ok(permit) => permit,
                 Err(busy) => return busy,
             };
@@ -1044,6 +1081,7 @@ async fn handle<B: Backend, E: Env>(
 /// Waits for a free slot, and answers 429 with `Retry-After` when none comes in time.
 async fn take_slot<B: Backend, E: Env>(
     shared: &Shared<B, E>,
+    dialect: Option<Dialect>,
 ) -> Result<Permit, Response> {
     let wait = shared.env.queue_wait();
     let slots = shared.slots.clone();
@@ -1065,7 +1103,7 @@ async fn take_slot<B: Backend, E: Env>(
         }),
         None => {
             let mut response =
-                error_response(StatusCode::TOO_MANY_REQUESTS, BUSY, "rate_limit_error");
+                shaped_error(dialect, StatusCode::TOO_MANY_REQUESTS, BUSY, "rate_limit_error");
             response
                 .headers_mut()
                 .insert(RETRY_AFTER, HeaderValue::from_static(RETRY_AFTER_SECONDS));
@@ -1096,6 +1134,39 @@ async fn models_response<B: Backend, E: Env>(shared: &Shared<B, E>) -> Response 
                 "server_error",
             )
         }
+    }
+}
+
+/// One model of `GET /v1/models`, by id. An alias finds the model it names.
+async fn model_response<B: Backend, E: Env>(
+    shared: &Shared<B, E>,
+    id: &str,
+    settings: &ApiSettings,
+) -> Response {
+    let Ok(mut entries) = shared.backend.list_models().await else {
+        return error_response(StatusCode::INTERNAL_SERVER_ERROR, SERVER_ERROR, "server_error");
+    };
+    entries.push(ModelEntry {
+        id: AGENT_MODEL.to_owned(),
+        owned_by: "draggy".to_owned(),
+        context_length: None,
+        capabilities: Vec::new(),
+    });
+    let wanted = settings::resolve_alias(id, &settings.aliases).unwrap_or(id);
+    match entries.iter().find(|entry| entry.id == wanted) {
+        Some(entry) => {
+            let list = entries_body(std::slice::from_ref(entry), shared.env.now_unix());
+            let one = serde_json::from_str::<Value>(&list)
+                .ok()
+                .and_then(|list| list.pointer("/data/0").cloned())
+                .unwrap_or(Value::Null);
+            json_response(StatusCode::OK, one.to_string())
+        }
+        None => error_response(
+            StatusCode::NOT_FOUND,
+            &format!("The model '{id}' does not exist."),
+            "invalid_request_error",
+        ),
     }
 }
 
@@ -1237,12 +1308,18 @@ fn error_response(status: StatusCode, message: &str, kind: &str) -> Response {
     json_response(status, error_body(message, kind))
 }
 
+/// An error in the shape the route's clients read.
+fn shaped_error(dialect: Option<Dialect>, status: StatusCode, message: &str, kind: &str) -> Response {
+    json_response(status, dialect::error_json(dialect, status, message, kind))
+}
+
 /// Sends a model-mode body to the model and gives its answer back, fixing only what a client trips on.
 async fn forward_model<B: Backend, E: Env>(
     shared: &Shared<B, E>,
     mut body: Value,
     permit: Permit,
     settings: &ApiSettings,
+    dialect: Option<Dialect>,
 ) -> Response {
     let stream = body.get("stream") == Some(&Value::Bool(true));
     let include_usage = body.pointer("/stream_options/include_usage") == Some(&Value::Bool(true));
@@ -1262,13 +1339,13 @@ async fn forward_model<B: Backend, E: Env>(
 
     let model = match shared.backend.prepare_model(&requested, cancel.clone()).await {
         Ok(model) => model,
-        Err(error) => return model_failure(&error),
+        Err(error) => return model_failure(&error, dialect),
     };
     body["model"] = Value::String(model.clone());
 
     let reply = match shared.backend.forward(body, cancel.clone()).await {
         Ok(reply) => reply,
-        Err(error) => return model_failure(&error),
+        Err(error) => return model_failure(&error, dialect),
     };
     let id = completion_id(shared.env.as_ref());
     let created = shared.env.now_unix();
@@ -1280,12 +1357,21 @@ async fn forward_model<B: Backend, E: Env>(
         while let Some(chunk) = upstream.next().await {
             match chunk {
                 Ok(chunk) => bytes.extend_from_slice(&chunk),
-                Err(error) => return model_failure(&error),
+                Err(error) => return model_failure(&error, dialect),
             }
         }
         let _ = guard.disarm();
         drop(permit);
+        if let Some(dialect) = dialect {
+            return dialect_response(dialect, status, &bytes, &id, &model, created);
+        }
         return buffered_response(status, &bytes, &id, &model, created, strip);
+    }
+
+    if let Some(dialect) = dialect {
+        let translator = dialect::translator(dialect, &id, &model, created);
+        let body = Body::from_stream(dialect::translated_stream(reply.body, translator, guard, permit));
+        return sse_response(body);
     }
 
     let relay = Relay {
@@ -1303,7 +1389,10 @@ async fn forward_model<B: Backend, E: Env>(
         cancel: Some(guard),
         permit: Some(permit),
     };
-    let body = Body::from_stream(stream::unfold(relay, next_relayed));
+    sse_response(Body::from_stream(stream::unfold(relay, next_relayed)))
+}
+
+fn sse_response(body: Body) -> Response {
     (
         StatusCode::OK,
         [
@@ -1317,9 +1406,41 @@ async fn forward_model<B: Backend, E: Env>(
         .into_response()
 }
 
-fn model_failure(error: &BackendError) -> Response {
+/// A whole answer for a Responses or Messages client.
+fn dialect_response(
+    dialect: Dialect,
+    status: StatusCode,
+    bytes: &[u8],
+    chat_id: &str,
+    model: &str,
+    created: i64,
+) -> Response {
+    if status.is_success() {
+        let reply = serde_json::from_slice::<Value>(bytes)
+            .ok()
+            .and_then(|chat| dialect::whole_reply(dialect, &chat, chat_id, model, created));
+        return match reply {
+            Some(reply) => json_response(status, reply.to_string()),
+            None => shaped_error(
+                Some(dialect),
+                StatusCode::BAD_GATEWAY,
+                "The model's reply could not be read.",
+                "server_error",
+            ),
+        };
+    }
+    shaped_error(
+        Some(dialect),
+        status,
+        &dialect::upstream_message(bytes),
+        error_kind(status),
+    )
+}
+
+fn model_failure(error: &BackendError, dialect: Option<Dialect>) -> Response {
     tracing::warn!(target: "net.api", "model request failed");
-    error_response(
+    shaped_error(
+        dialect,
         StatusCode::INTERNAL_SERVER_ERROR,
         &failure_message(error),
         "server_error",
@@ -1556,7 +1677,7 @@ impl Relay {
 }
 
 /// Cuts the first complete SSE event off the front of the buffer, whether lines end in LF or CRLF.
-fn split_event(buffer: &mut Vec<u8>) -> Option<Vec<u8>> {
+pub(crate) fn split_event(buffer: &mut Vec<u8>) -> Option<Vec<u8>> {
     let lf = buffer.windows(2).position(|w| w == b"\n\n").map(|i| (i, 2));
     let crlf = buffer
         .windows(4)

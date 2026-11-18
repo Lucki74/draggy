@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, Uri};
 use axum::response::Response;
+use draggy_api::dialect::{self, Dialect};
 use draggy_api::server::{
     Backend, BackendError, CompletionRequest, Env, ModelEntry, Reply, Sink, Usage, check_request,
     chunk_line,
@@ -43,6 +44,8 @@ fixture_tests! {
     bodies => "bodies.json",
     http => "http.json",
     ops => "ops.json",
+    responses => "responses.json",
+    messages => "messages.json",
 }
 
 #[test]
@@ -82,7 +85,31 @@ fn run(file: &str, input: &Value) -> Value {
         "bodies.json" => run_bodies(input),
         "http.json" => in_runtime(serve(input)),
         "ops.json" => in_runtime(run_steps(input)),
+        "responses.json" => run_dialect(Dialect::Responses, input),
+        "messages.json" => run_dialect(Dialect::Messages, input),
         other => panic!("no Rust runner for {other}"),
+    }
+}
+
+/// A request, a whole reply or a stream, translated for one dialect. A stream ends with `finish` or `fail:<message>`.
+fn run_dialect(dialect: Dialect, input: &Value) -> Value {
+    let (id, model, created) = (text(&input["chatId"]), text(&input["model"]), input["created"].as_i64().unwrap_or(0));
+    match input["op"].as_str() {
+        Some("request") => dialect::to_chat(dialect, &input["body"]).unwrap_or_else(|error| json!({ "error": error })),
+        Some("response") => dialect::whole_reply(dialect, &input["chat"], id, model, created).unwrap_or(Value::Null),
+        Some("stream") => {
+            let mut translator = dialect::translator(dialect, id, model, created);
+            let mut events = Vec::new();
+            for chunk in input["chunks"].as_array().into_iter().flatten() {
+                events.extend(translator.feed(chunk));
+            }
+            events.extend(match text(&input["end"]).strip_prefix("fail:") {
+                Some(message) => translator.fail(message),
+                None => translator.finish(),
+            });
+            Value::Array(events.iter().map(|e| json!({ "event": e.name, "data": e.data })).collect())
+        }
+        other => panic!("unknown op {other:?}"),
     }
 }
 

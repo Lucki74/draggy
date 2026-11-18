@@ -608,3 +608,130 @@ async fn a_body_past_the_configured_limit_is_refused() {
     let (status, _, _) = send(router(DEFAULT_PORT, backend, env), post(&sent)).await;
     assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
 }
+
+fn post_to(path: &str, key_header: (&str, String), body: &Value) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(path)
+        .header("host", format!("127.0.0.1:{DEFAULT_PORT}"))
+        .header(key_header.0, key_header.1)
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap_or_else(|error| panic!("bad request: {error}"))
+}
+
+#[tokio::test]
+async fn responses_route_translates_the_body_and_the_reply() {
+    let backend = Forwarding::json(&completion());
+    let sent = json!({"model": "gpt-4o", "instructions": "Be brief.", "input": "hi", "store": true});
+
+    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let (status, _, text) = send(app(&backend), request).await;
+    let reply: Value = serde_json::from_str(&text).unwrap_or_default();
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(reply["object"], "response");
+    assert_eq!(reply["output"][0]["content"][0]["text"], "ok");
+    assert_eq!(reply["usage"]["total_tokens"], 4);
+    let forwarded = backend.forwarded();
+    assert_eq!(forwarded[0]["messages"][0], json!({"role": "system", "content": "Be brief."}));
+    assert_eq!(forwarded[0]["model"], "local-model");
+}
+
+#[tokio::test]
+async fn responses_route_streams_events() {
+    let chunk = json!({"id": "x", "choices": [{"index": 0, "delta": {"content": "Hi"}, "finish_reason": "stop"}]});
+    let usage = json!({"id": "x", "choices": [], "usage": {"prompt_tokens": 2, "completion_tokens": 1}});
+    let frames = [format!("data: {chunk}\n\n"), format!("data: {usage}\n\n"), "data: [DONE]\n\n".to_owned()];
+    let refs: Vec<&str> = frames.iter().map(String::as_str).collect();
+    let backend = Forwarding::replying(&refs);
+    let sent = json!({"model": "m", "input": "hi", "stream": true});
+
+    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let (status, _, text) = send(app(&backend), request).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(text.starts_with("event: response.created\n"));
+    assert!(text.contains("event: response.output_text.delta\n"));
+    assert!(text.trim_end().ends_with('}'));
+    assert!(text.contains("event: response.completed\n"));
+    assert_eq!(backend.forwarded()[0]["stream_options"], json!({"include_usage": true}));
+}
+
+#[tokio::test]
+async fn responses_route_refuses_previous_response_id() {
+    let backend = Forwarding::json(&completion());
+    let sent = json!({"model": "m", "input": "hi", "previous_response_id": "resp_1"});
+
+    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let (status, _, text) = send(app(&backend), request).await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(text.contains("previous_response_id"));
+    assert!(backend.forwarded().is_empty());
+}
+
+#[tokio::test]
+async fn messages_route_takes_x_api_key_and_answers_in_the_anthropic_shape() {
+    let backend = Forwarding::json(&completion());
+    let sent = json!({"model": "claude-sonnet-4", "max_tokens": 10, "messages": [{"role": "user", "content": "hi"}]});
+
+    let request = post_to("/v1/messages", ("x-api-key", KEY.to_owned()), &sent);
+    let (status, _, text) = send(app(&backend), request).await;
+    let reply: Value = serde_json::from_str(&text).unwrap_or_default();
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(reply["type"], "message");
+    assert_eq!(reply["content"][0], json!({"type": "text", "text": "ok"}));
+    assert_eq!(reply["stop_reason"], "end_turn");
+    assert_eq!(reply["usage"], json!({"input_tokens": 3, "output_tokens": 1}));
+    assert_eq!(backend.asked.lock().unwrap_or_else(PoisonError::into_inner).clone(), vec!["claude-sonnet-4"]);
+}
+
+#[tokio::test]
+async fn messages_route_errors_use_the_anthropic_shape() {
+    let backend = Forwarding::json(&completion());
+
+    let request = post_to("/v1/messages", ("x-api-key", "wrong".to_owned()), &json!({}));
+    let (status, _, text) = send(app(&backend), request).await;
+    let reply: Value = serde_json::from_str(&text).unwrap_or_default();
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(reply["type"], "error");
+    assert_eq!(reply["error"]["type"], "authentication_error");
+}
+
+#[tokio::test]
+async fn count_tokens_estimates_without_calling_the_model() {
+    let backend = Forwarding::json(&completion());
+    let sent = json!({"model": "m", "messages": [{"role": "user", "content": "hello there"}]});
+
+    let request = post_to("/v1/messages/count_tokens", ("x-api-key", KEY.to_owned()), &sent);
+    let (status, _, text) = send(app(&backend), request).await;
+    let reply: Value = serde_json::from_str(&text).unwrap_or_default();
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(reply["input_tokens"].as_u64().unwrap_or(0) > 0);
+    assert!(backend.forwarded().is_empty());
+}
+
+#[tokio::test]
+async fn one_model_is_read_by_id() {
+    let backend = Forwarding::json(&completion());
+    let get = |id: &str| {
+        Request::builder()
+            .method("GET")
+            .uri(format!("/v1/models/{id}"))
+            .header("host", format!("127.0.0.1:{DEFAULT_PORT}"))
+            .header("authorization", format!("Bearer {KEY}"))
+            .body(Body::empty())
+            .unwrap_or_else(|error| panic!("bad request: {error}"))
+    };
+
+    let (found, _, text) = send(app(&backend), get("local-model")).await;
+    let (missing, _, _) = send(app(&backend), get("nope")).await;
+
+    assert_eq!(found, StatusCode::OK);
+    assert!(text.contains("\"id\":\"local-model\""));
+    assert_eq!(missing, StatusCode::NOT_FOUND);
+}
