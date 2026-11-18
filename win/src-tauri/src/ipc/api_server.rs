@@ -468,7 +468,7 @@ impl Backend for Bridge {
                     chunk = response.chunk() => chunk,
                 };
                 match chunk {
-                    Ok(Some(bytes)) => Some((Ok(Bytes::from(bytes)), (Some(response), cancel))),
+                    Ok(Some(bytes)) => Some((Ok(bytes), (Some(response), cancel))),
                     Ok(None) => None,
                     Err(_) => Some((
                         Err(BackendError { message: FAILED.to_owned() }),
