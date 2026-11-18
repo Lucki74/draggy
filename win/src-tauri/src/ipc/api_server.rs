@@ -6,8 +6,10 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use axum::body::Bytes;
 use draggy_api::server::{
-    Backend, BackendError, CompletionRequest, DEFAULT_PORT, Env, HOST, Reply, Sink, Usage,
+    Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Env, ForwardReply, HOST,
+    Mode, ModelEntry, Reply, Sink, Usage,
 };
 use draggy_providers::registry::Keystore;
 use serde_json::{Value, json};
@@ -26,6 +28,8 @@ const STARTING: &str = "Draggy is still starting. Try again in a moment.";
 const TOO_LONG: &str = "The reply took too long.";
 const GONE: &str = "The client went away.";
 const FAILED: &str = "The reply failed.";
+const GATEWAY_DOWN: &str = "The model gateway is not running.";
+const PREPARE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
 /// One request waiting on the renderer. The sink takes the text as it arrives; `finish` takes the outcome.
 struct Pending {
@@ -35,6 +39,9 @@ struct Pending {
 
 static PENDING: Mutex<Option<HashMap<String, Pending>>> = Mutex::new(None);
 static READY: AtomicBool = AtomicBool::new(false);
+static MODEL_MODE: AtomicBool = AtomicBool::new(false);
+type Prepared = oneshot::Sender<Result<String, String>>;
+static PREPARING: Mutex<Option<HashMap<String, Prepared>>> = Mutex::new(None);
 static KEY: Mutex<String> = Mutex::new(String::new());
 static SERVER: Mutex<Option<(u16, tauri::async_runtime::JoinHandle<()>)>> = Mutex::new(None);
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -48,6 +55,7 @@ pub fn register_all(registry: &mut Registry) {
     register!(registry, "api-server:model" => model);
     register!(registry, "api-server:done" => done);
     register!(registry, "api-server:failed" => failed);
+    register!(registry, "api-server:prepared" => prepared);
 }
 
 /// Starts the server if the saved settings turn it on. Called once at launch.
@@ -68,6 +76,8 @@ pub fn stop_all() {
 struct Config {
     enabled: bool,
     port: u16,
+    /// Plain requests go to the model alone instead of the agent.
+    model_mode: bool,
 }
 
 async fn status(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
@@ -76,12 +86,18 @@ async fn status(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
 
 async fn configure(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let input = args.first().cloned().unwrap_or(Value::Null);
+    // A call that names only some fields keeps the saved rest.
+    let saved = read_config(&app);
     let config = Config {
         enabled: input
             .get("enabled")
             .and_then(Value::as_bool)
-            .unwrap_or(false),
-        port: port_from(input.get("port")),
+            .unwrap_or(saved.enabled),
+        port: input.get("port").map_or(saved.port, |port| port_from(Some(port))),
+        model_mode: input
+            .get("mode")
+            .and_then(Value::as_str)
+            .map_or(saved.model_mode, |mode| mode == "model"),
     };
     save_config(&app, config);
     apply(&app);
@@ -139,6 +155,25 @@ async fn done(_app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     Ok(json!({ "success": true }))
 }
 
+async fn prepared(_app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let id = arg_text(&args, 0);
+    let model = arg_text(&args, 1);
+    let message = arg_text(&args, 2);
+    let waiting = PREPARING
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .as_mut()
+        .and_then(|map| map.remove(&id));
+    if let Some(waiting) = waiting {
+        let _ = waiting.send(if message.is_empty() {
+            Ok(model)
+        } else {
+            Err(message)
+        });
+    }
+    Ok(json!({ "success": true }))
+}
+
 async fn failed(_app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let id = arg_text(&args, 0);
     let message = arg_text(&args, 1);
@@ -184,6 +219,7 @@ fn status_value(app: &AppHandle) -> Value {
         "success": true,
         "enabled": config.enabled,
         "port": config.port,
+        "mode": if config.model_mode { "model" } else { "agent" },
         "running": running,
         "baseUrl": format!("http://{HOST}:{}/v1", config.port),
         "error": error,
@@ -201,6 +237,7 @@ fn apply(app: &AppHandle) {
     }
     *LAST_ERROR.lock().unwrap_or_else(|p| p.into_inner()) = None;
     let config = read_config(app);
+    MODEL_MODE.store(config.model_mode, Ordering::SeqCst);
     if !config.enabled {
         return;
     }
@@ -245,7 +282,7 @@ fn apply(app: &AppHandle) {
 struct Bridge(AppHandle);
 
 impl Backend for Bridge {
-    async fn list_models(&self) -> Result<Vec<String>, BackendError> {
+    async fn list_models(&self) -> Result<Vec<ModelEntry>, BackendError> {
         let app = self.0.clone();
         let listed = tauri::async_runtime::spawn_blocking(move || {
             let state = app.state::<AppState>();
@@ -258,8 +295,13 @@ impl Backend for Bridge {
             )
             .map(|list| {
                 list.into_iter()
-                    .map(|entry| entry.filename)
-                    .collect::<Vec<String>>()
+                    .map(|entry| ModelEntry {
+                        id: entry.filename,
+                        owned_by: "local".to_owned(),
+                        context_length: entry.context_length.map(|length| length as u64),
+                        capabilities: entry.capabilities,
+                    })
+                    .collect::<Vec<ModelEntry>>()
             })
             .map_err(|_| BackendError {
                 message: "The models could not be listed.".to_owned(),
@@ -320,6 +362,96 @@ impl Backend for Bridge {
             }
         }
     }
+
+    async fn prepare_model(
+        &self,
+        requested: &str,
+        cancel: CancellationToken,
+    ) -> Result<String, BackendError> {
+        if !READY.load(Ordering::SeqCst) {
+            return Err(BackendError {
+                message: STARTING.to_owned(),
+            });
+        }
+        let id = new_id();
+        let (reply, outcome) = oneshot::channel();
+        PREPARING
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get_or_insert_with(HashMap::new)
+            .insert(id.clone(), reply);
+        emit(
+            &self.0,
+            "api-server:prepare",
+            json!({ "id": id, "model": requested }),
+        );
+        let forget = || {
+            if let Some(map) = PREPARING.lock().unwrap_or_else(|p| p.into_inner()).as_mut() {
+                map.remove(&id);
+            }
+        };
+        tokio::select! {
+            () = cancel.cancelled() => {
+                forget();
+                Err(BackendError { message: GONE.to_owned() })
+            }
+            waited = tokio::time::timeout(PREPARE_TIMEOUT, outcome) => match waited {
+                Ok(Ok(Ok(model))) => Ok(model),
+                Ok(Ok(Err(message))) => Err(BackendError { message }),
+                Ok(Err(_)) => Err(BackendError { message: FAILED.to_owned() }),
+                Err(_) => {
+                    forget();
+                    Err(BackendError { message: TOO_LONG.to_owned() })
+                }
+            }
+        }
+    }
+
+    async fn forward(
+        &self,
+        body: Value,
+        cancel: CancellationToken,
+    ) -> Result<ForwardReply, BackendError> {
+        let Some(gateway) = self.0.try_state::<crate::chat_gateway::ChatGateway>() else {
+            return Err(BackendError {
+                message: GATEWAY_DOWN.to_owned(),
+            });
+        };
+        let info = gateway.info().clone();
+        let sent = reqwest::Client::new()
+            .post(format!("{}/chat", info.url))
+            .bearer_auth(&info.token)
+            .header("content-type", "application/json")
+            .body(body.to_string())
+            .send();
+        let response = tokio::select! {
+            () = cancel.cancelled() => {
+                return Err(BackendError { message: GONE.to_owned() });
+            }
+            sent = sent => sent.map_err(|_| BackendError { message: FAILED.to_owned() })?,
+        };
+        let status = response.status().as_u16();
+        // Dropping the stream drops the response, which closes the call and stops the engine.
+        let stream: ByteStream = Box::pin(futures_util::stream::unfold(
+            (Some(response), cancel),
+            |(response, cancel)| async move {
+                let mut response = response?;
+                let chunk = tokio::select! {
+                    () = cancel.cancelled() => return None,
+                    chunk = response.chunk() => chunk,
+                };
+                match chunk {
+                    Ok(Some(bytes)) => Some((Ok(Bytes::from(bytes)), (Some(response), cancel))),
+                    Ok(None) => None,
+                    Err(_) => Some((
+                        Err(BackendError { message: FAILED.to_owned() }),
+                        (None, cancel),
+                    )),
+                }
+            },
+        ));
+        Ok(ForwardReply { status, body: stream })
+    }
 }
 
 /// Reads the key and the clock for each request. The key is the one in memory, never the keystore.
@@ -338,6 +470,14 @@ impl Env for Keys {
 
     fn fill_random(&self, buffer: &mut [u8]) {
         let _ = getrandom::fill(buffer);
+    }
+
+    fn default_mode(&self) -> Mode {
+        if MODEL_MODE.load(Ordering::SeqCst) {
+            Mode::Model
+        } else {
+            Mode::Agent
+        }
     }
 }
 
@@ -389,11 +529,18 @@ fn read_config(app: &AppHandle) -> Config {
             .and_then(Value::as_bool)
             .unwrap_or(false),
         port: port_from(value.as_ref().and_then(|value| value.get("port"))),
+        model_mode: value
+            .as_ref()
+            .and_then(|value| value.get("mode"))
+            .and_then(Value::as_str)
+            == Some("model"),
     }
 }
 
 fn save_config(app: &AppHandle, config: Config) {
-    let value = json!({ "enabled": config.enabled, "port": config.port }).to_string();
+    let mode = if config.model_mode { "model" } else { "agent" };
+    let value =
+        json!({ "enabled": config.enabled, "port": config.port, "mode": mode }).to_string();
     let Some(storage) = app.state::<AppState>().storage.handle() else {
         return;
     };

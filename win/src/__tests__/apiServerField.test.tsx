@@ -13,6 +13,7 @@ const OFF: ApiServerStatus = {
   success: true,
   enabled: false,
   port: 11500,
+  mode: "agent",
   running: false,
   baseUrl: "http://127.0.0.1:11500/v1",
   key: null,
@@ -23,8 +24,8 @@ const ON: ApiServerStatus = { ...OFF, enabled: true, running: true, key: "draggy
 
 let current: ApiServerStatus;
 const status = vi.fn(async () => current);
-const configure = vi.fn(async (next: { enabled?: boolean; port?: number }) => {
-  current = next.enabled === false ? OFF : { ...ON, port: next.port ?? current.port, baseUrl: `http://127.0.0.1:${next.port ?? current.port}/v1` };
+const configure = vi.fn(async (next: { enabled?: boolean; port?: number; mode?: "agent" | "model" }) => {
+  current = next.enabled === false ? OFF : { ...ON, mode: next.mode ?? current.mode, port: next.port ?? current.port, baseUrl: `http://127.0.0.1:${next.port ?? current.port}/v1` };
   return current;
 });
 const regenerateKey = vi.fn(async () => {
@@ -131,5 +132,20 @@ describe("the local API setting", () => {
     await show();
 
     expect(screen.getByRole("status").textContent).toContain("Port 11500 is already in use.");
+  });
+
+  it("answers with the agent by default and saves a change to the model alone", async () => {
+    current = ON;
+    await show();
+
+    const choice = screen.getByLabelText(t("apiServerMode")) as HTMLSelectElement;
+    expect(choice.value).toBe("agent");
+
+    await act(async () => {
+      fireEvent.change(choice, { target: { value: "model" } });
+    });
+
+    expect(configure).toHaveBeenCalledWith({ mode: "model" });
+    expect((screen.getByLabelText(t("apiServerMode")) as HTMLSelectElement).value).toBe("model");
   });
 });

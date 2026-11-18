@@ -121,6 +121,23 @@ export default function ApiServerField({ t }: ApiServerFieldProps) {
             />
           </label>
 
+          <label className="block">
+            <span className="text-[12px] font-medium leading-4 text-text-secondary">
+              {t("apiServerMode")}
+            </span>
+            <select
+              value={status.mode}
+              onChange={(event) =>
+                void apply(() => api.configure({ mode: event.target.value === "model" ? "model" : "agent" }))
+              }
+              className="mt-1 h-8 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              <option value="agent">{t("apiServerModeAgent")}</option>
+              <option value="model">{t("apiServerModeModel")}</option>
+            </select>
+          </label>
+          <p className="-mt-1 text-[12px] leading-4 text-text-tertiary">{t("apiServerModeHint")}</p>
+
           {status.key && (
             <label className="block">
               <span className="text-[12px] font-medium leading-4 text-text-secondary">

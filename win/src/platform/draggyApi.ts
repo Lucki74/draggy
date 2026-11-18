@@ -174,6 +174,8 @@ export function createDraggyApi(ipc: IpcLike): NonNullable<Window["draggy"]> {
       ready: () => ipc.send("api-server:ready"),
       onRequest: (callback) => subscribe("api-server:request", callback),
       onAbort: (callback) => subscribe("api-server:abort", callback),
+      onPrepare: (callback) => subscribe("api-server:prepare", callback),
+      prepared: (id, model, message) => ipc.send("api-server:prepared", id, model, message ?? ""),
       text: (id, text) => ipc.send("api-server:text", id, text),
       model: (id, model) => ipc.send("api-server:model", id, model),
       done: (id, result) => ipc.send("api-server:done", id, result),

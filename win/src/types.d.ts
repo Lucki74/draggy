@@ -723,6 +723,8 @@ export interface ApiServerStatus {
   success: boolean;
   enabled: boolean;
   port: number;
+  /** What answers a request that asks for neither: the agent with web tools, or the model alone. */
+  mode: "agent" | "model";
   running: boolean;
   baseUrl: string;
   /** Only while enabled. */
@@ -1636,12 +1638,16 @@ declare global {
 
       apiServer: {
         status: () => Promise<ApiServerStatus>;
-        configure: (config: { enabled?: boolean; port?: number }) => Promise<ApiServerStatus>;
+        configure: (config: { enabled?: boolean; port?: number; mode?: "agent" | "model" }) => Promise<ApiServerStatus>;
         regenerateKey: () => Promise<ApiServerStatus>;
         /** Tells the main process this window can answer requests. */
         ready: () => void;
         onRequest: (callback: (message: { id: string; request: ApiCompletionRequest }) => void) => Unsubscribe;
         onAbort: (callback: (id: string) => void) => Unsubscribe;
+        /** A model-mode request needs its model loaded. */
+        onPrepare: (callback: (message: { id: string; model: string }) => void) => Unsubscribe;
+        /** Answers `onPrepare` with the model that is loaded, or a message when it could not be. */
+        prepared: (id: string, model: string, message?: string) => void;
         text: (id: string, text: string) => void;
         model: (id: string, model: string) => void;
         done: (id: string, result: ApiCompletionResult) => void;

@@ -68,6 +68,11 @@ describe("which model answers", () => {
   it("trusts the name when the installed list could not be read", () => {
     expect(pickModel("qwen3:8b", "llama3.2:3b", null)).toBe("qwen3:8b");
   });
+
+  it("takes draggy-agent as no request and a provider model as it is named", () => {
+    expect(pickModel("draggy-agent", "llama3.2:3b", ["qwen3:8b"])).toBe("llama3.2:3b");
+    expect(pickModel("@acme/big-one", "llama3.2:3b", ["qwen3:8b"])).toBe("@acme/big-one");
+  });
 });
 
 describe("what an outside caller gets", () => {
