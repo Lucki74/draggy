@@ -21,7 +21,7 @@ A local AI assistant and coding agent for Windows, macOS and Linux. Free, open s
 > Only install Draggy from this repo, its [releases page](https://github.com/Lucki74/draggy/releases) or [draggy.org](https://draggy.org).
 > Builds aren't code signed yet, so there's no way to check a copy from anywhere else.
 
-Hi! Draggy is a desktop app that chats, browses the web and works in your project folders, with open models running on your own computer. Unlike its name, it's not draggy at all, the core is written in Rust!
+Draggy is a desktop app that chats, browses the web and works in your project folders, with open models running on your own computer. Despite the name it's not slow (the core is written in Rust).
 
 The models run locally through an embedded `llama.cpp` engine, with GGUF weights from Hugging Face. There's no account and no telemetry. Draggy only goes online for things you ask for or turn on:
 
@@ -63,7 +63,7 @@ Image generation is optional. You install it from Settings, under Models. The en
 
 Large models live in Settings, under Models, in the Large models panel. Draggy downloads colibri when you need it, plus a small private Python runtime on Windows. When a model runs below 3 tokens per second, Draggy switches to slow mode: fewer tool rounds per turn, thinking off unless you turn it on, and a notification when a long answer is ready.
 
-If you like Draggy, a star ⭐ on this repo really helps other people find it!
+If Draggy is useful to you, starring the repo helps other people find it.
 
 ## Building from source
 

@@ -1,6 +1,6 @@
 # Contributing to Draggy
 
-Thanks for checking this out! Draggy is a small project and I have pretty strong opinions about where it goes, so most of this file is about that.
+Draggy is a small project and I have pretty strong opinions about where it goes, so most of this file is about that.
 
 ## Open an issue first for big stuff
 
