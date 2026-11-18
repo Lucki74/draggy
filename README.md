@@ -4,7 +4,7 @@
 
 # Draggy
 
-A local AI assistant and coding agent for Windows, macOS, and Linux. Free, open source, no account.
+A local AI assistant and coding agent for Windows, macOS and Linux. Free, open source, no account.
 
 [![Website](https://img.shields.io/badge/Website-draggy.org-2b2b2b?style=flat&logo=vercel&logoColor=white)](https://draggy.org)
 [![Download](https://img.shields.io/badge/Download-installers-2b2b2b?style=flat&logo=github&logoColor=white)](https://github.com/Lucki74/draggy/releases)
@@ -18,63 +18,52 @@ A local AI assistant and coding agent for Windows, macOS, and Linux. Free, open 
 </div>
 
 > [!WARNING]
-> **Install from official sources only.** Draggy comes from this repository, its
-> [releases page](https://github.com/Lucki74/draggy/releases) and
-> [draggy.org](https://draggy.org). Builds are not code signed, so third-party
-> mirrors cannot be verified.
+> Only install Draggy from this repo, its [releases page](https://github.com/Lucki74/draggy/releases) or [draggy.org](https://draggy.org).
+> Builds aren't code signed yet, so there's no way to check a copy from anywhere else.
 
-Draggy is a desktop assistant that talks, browses, and works in project folders,
-running open models on your own computer.
+Hi! Draggy is a desktop app that chats, browses the web and works in your project folders, with open models running on your own computer. Unlike its name, it's not draggy at all, the core is written in Rust!
 
-It runs weights locally using an embedded `llama.cpp` engine with GGUF weights
-from Hugging Face. There is no account and no telemetry. The app only touches
-the network for things you ask for or switch on: model and engine downloads,
-update checks, ad-block lists, and the price refresh behind the cost counters.
-The price refresh can be turned off in Settings. Updates are always on in packaged builds.
-Available as a Tauri 2 application on Windows, a native SwiftUI app on macOS, and a native GTK 4 app on Linux.
+The models run locally through an embedded `llama.cpp` engine, with GGUF weights from Hugging Face. There's no account and no telemetry. Draggy only goes online for things you ask for or turn on:
 
-Compared with LM Studio, Jan or Ollama, the difference is the coding agent: it
-reads, edits and runs commands in a project folder, shows every change as a diff
-you can undo, and works under one of five permission modes. Large
-Mixture-of-Experts models that do not fit in memory can still run from your drive.
+- model and engine downloads
+- update checks
+- ad-block lists
+- the price refresh behind the cost counters (you can turn this one off in Settings)
 
-Documentation lives at [docs.draggy.org](https://docs.draggy.org):
-installation details, hardware requirements, features, troubleshooting, and
-architecture in English, French, Spanish, and Russian. Start with
-[Installation](https://docs.draggy.org/installation), or
-[Building and architecture](https://docs.draggy.org/development) to work on the code.
+Updates are always on in packaged builds. On Windows it's a Tauri 2 app, on macOS a native SwiftUI app and on Linux a native GTK 4 app.
 
-## Features
+If you've used LM Studio, Jan or Ollama, the big difference is the coding agent. It reads, edits and runs commands in a project folder, shows every change as a diff you can undo, and works under one of five permission modes. It can also run big Mixture-of-Experts models that don't fit in memory, straight from your drive.
+
+The full docs are at [docs.draggy.org](https://docs.draggy.org), in English, French, Spanish and Russian. Start with [Installation](https://docs.draggy.org/installation), or [Building and architecture](https://docs.draggy.org/development) if you want to work on the code.
+
+## What it can do
 
 - Local GGUF models via llama.cpp
-- GPU acceleration: CUDA, Metal, Vulkan, ROCm
-- Coding agent with undoable diffs
-- Sandboxed agent environment
+- GPU acceleration with CUDA, Metal, Vulkan or ROCm
+- A coding agent with undoable diffs
+- A sandboxed agent environment
 - A folder and bundled Python for every chat
 - Separate chat and code workspaces
-- Deep research mode
+- Deep research
 - Document generation
-- MCP servers, 572 built-in skills
+- MCP servers and 572 built-in skills
 - Large MoE models from disk
 - Voice chat, with a local or cloud voice
 - Image generation, local or through a cloud provider
 - Pictures in answers, opened in a viewer
-- OpenAI-compatible local server
+- An OpenAI-compatible local server
 - External runtimes and cloud APIs
 - Cost counters for cloud usage, with local turns priced at OpenRouter rates
 
-## Installing and requirements
+## Installing
 
-Installers for Windows (`.exe`), macOS (`.zip`), and Linux (`.deb`, `.rpm`) are available from [draggy.org](https://draggy.org) and the
-[Releases page](https://github.com/Lucki74/draggy/releases/latest). On first launch,
-Draggy suggests a model sized for your hardware and downloads it directly. See
-[Installation](https://docs.draggy.org/installation) for system requirements and platform setup details.
+You can get installers for Windows (`.exe`), macOS (`.zip`) and Linux (`.deb`, `.rpm`) from [draggy.org](https://draggy.org) or the [Releases page](https://github.com/Lucki74/draggy/releases/latest). The first time you open it, Draggy suggests a model that fits your hardware and downloads it for you. System requirements and setup per platform are in [Installation](https://docs.draggy.org/installation).
 
-Image generation is optional and installed from Settings, under Models. The engine is a separate download of 17 to 900 MB depending on the build, and a model needs about 2 GB of video memory for Stable Diffusion 1.5 or 6 GB for Z-Image Turbo. With less, the weights stay in system memory. A cloud image model from a connected provider can be picked in the same place and needs no engine.
+Image generation is optional. You install it from Settings, under Models. The engine is its own download, 17 to 900 MB depending on the build. Stable Diffusion 1.5 needs about 2 GB of video memory and Z-Image Turbo about 6 GB. With less, the weights stay in system memory. You can also pick a cloud image model from a provider you connected, and that one needs no engine at all.
 
-Large models are managed from Settings, under Models, in the Large models panel. Draggy downloads colibri on demand, along with a small private Python runtime on Windows. Below 3 tokens per second it switches to slow mode: fewer tool rounds per turn, thinking off unless you turn it on, and a notification when a long answer is ready.
+Large models live in Settings, under Models, in the Large models panel. Draggy downloads colibri when you need it, plus a small private Python runtime on Windows. When a model runs below 3 tokens per second, Draggy switches to slow mode: fewer tool rounds per turn, thinking off unless you turn it on, and a notification when a long answer is ready.
 
-If Draggy is useful to you, a star on this repository helps other people find it.
+If you like Draggy, a star ⭐ on this repo really helps other people find it!
 
 ## Building from source
 
@@ -90,13 +79,15 @@ If Draggy is useful to you, a star on this repository helps other people find it
 
 [![M8ven Score](https://m8ven.ai/badge/mcp/lucki74-draggy-1jbywd?v=cb3b9216ec8930f61be77210c1f8a9ce)](https://m8ven.ai/mcp/lucki74-draggy-1jbywd?s=readme)
 
+On Windows:
+
 ```bash
 cd win
 npm install
 npm run tauri:dev
 ```
 
-This starts Vite and the Tauri window with hot reload on Windows. The first run needs the Rust toolchain and the pinned `node.exe` sidecar; see [CONTRIBUTING.md](CONTRIBUTING.md).
+That starts Vite and the Tauri window with hot reload. The first run needs the Rust toolchain and the pinned `node.exe` sidecar, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### macOS (SwiftUI)
 ```bash
@@ -110,22 +101,22 @@ xcodebuild -scheme Draggy -configuration Debug
 cargo build --release -p draggy-linux
 ```
 
-See [Building and architecture](https://docs.draggy.org/development) for repository layout, [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, and [RELEASING.md](RELEASING.md) for release workflows.
+The repo layout is in [Building and architecture](https://docs.draggy.org/development). If you want to help, read [CONTRIBUTING.md](CONTRIBUTING.md) first, and [RELEASING.md](RELEASING.md) explains how builds get out.
 
-## Logging and diagnostics
+## Logs
 
-Operational events write to `app.log` in the application data folder, while detailed traces write to `debug.log`. Prompts and text payloads are hashed for privacy. See [Troubleshooting](https://docs.draggy.org/troubleshooting) for log locations across platforms.
+Draggy writes normal events to `app.log` in its data folder and detailed traces to `debug.log`. Prompts and other text are hashed in both, so your chats don't end up in a log. Where to find them on each system is in [Troubleshooting](https://docs.draggy.org/troubleshooting).
 
-## Known rough edges
+## Rough edges
 
-- Output quality depends on the selected model size and quantization.
-- Inference speed depends on available CPU and GPU memory bandwidth.
-- Large models depend on drive speed. A hard disk or USB drive is usually too slow to be useful.
+- Answers are only as good as the model you pick, its size and its quantization.
+- Speed depends on how much CPU and GPU memory bandwidth you have.
+- Large models depend on your drive. A hard disk or a USB drive is usually too slow to be useful.
 
 ## License
 
-Draggy is licensed under the [Apache License 2.0](LICENSE). You can use, modify, share, and distribute it, including in commercial projects, provided you retain the [NOTICE](NOTICE) attribution file.
+Draggy uses the [Apache License 2.0](LICENSE). You can use it, change it, share it and ship it, commercial projects included, as long as you keep the [NOTICE](NOTICE) file.
 
 ### Trademarks
 
-The license covers the code, not the Draggy name and logo. Provider logos shown in the app belong to their owners.
+The license covers the code, not the Draggy name and logo. Provider logos in the app belong to their owners.

@@ -1,8 +1,8 @@
-## Summary
-<!-- 1-2 sentences: what changed and why -->
+## What and why
+<!-- A sentence or two -->
 
 ## Changes
 - 
 
-## Context
-<!-- Risks, follow-ups, screenshots. Delete if empty. -->
+## Anything else
+<!-- Risks, follow-ups, screenshots. Delete if there's nothing. -->
