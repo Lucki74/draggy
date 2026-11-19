@@ -853,6 +853,7 @@ where
             "Nothing visibly changed on the page.".to_owned()
         };
         if let Some(map) = out.as_object_mut() {
+            map.insert("ok".into(), json!(true));
             map.insert(
                 "title".into(),
                 after.get("title").cloned().unwrap_or(Value::Null),

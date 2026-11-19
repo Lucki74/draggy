@@ -86,6 +86,15 @@ describe("browser tool failures", () => {
 
     expect(result).toContain('Clicked. Page: "Cart"');
   });
+
+  it("does not throw on a reply that is neither ok nor a failure", async () => {
+    stubBrowser({ browserClick: vi.fn().mockResolvedValue({ title: "Cart" }) });
+
+    const { context } = harness();
+    const result = await runTool("browser_click", { index: 0 }, context, ALL_ON);
+
+    expect(result).toContain("No answer from the browser.");
+  });
 });
 
 describe("browser snapshot and screenshot tools", () => {

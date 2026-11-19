@@ -9,7 +9,9 @@ const api = () => window.draggy;
 
 /** The failure line a browser tool hands the model: what happened and what to try next. */
 const browserFailure = (result: BrowserResult<object> | undefined) =>
-  result && !result.ok ? `${result.error.message} ${result.error.hint}` : "No answer from the browser.";
+  result && !result.ok && result.error
+    ? `${result.error.message} ${result.error.hint ?? ""}`.trim()
+    : "No answer from the browser.";
 
 const webEnabled = (environment: { webMode: string }) => environment.webMode !== "off";
 
