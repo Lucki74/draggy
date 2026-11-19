@@ -396,8 +396,10 @@ impl Client {
             _child: child,
             stdin,
             lines: BufReader::new(stdout).lines(),
+            // A chat turn answers Codex's tool calls itself; the utility calls refuse them in `events`.
             rpc: Rpc::new(RpcOptions {
                 timeout_ms: UTILITY_MS,
+                handles_requests: true,
                 ..RpcOptions::default()
             }),
         };
@@ -419,10 +421,26 @@ impl Client {
         self.stdin.flush().await.map_err(|_| STOPPED.to_owned())
     }
 
+    /// The pending events, with Codex's own requests refused, since only a chat turn answers those.
+    fn refuse_requests(&mut self) -> Vec<Event> {
+        let mut kept = Vec::new();
+        for event in self.rpc.take_events() {
+            match event {
+                Event::Request { id, method, .. } => {
+                    let message = format!("{method} is not handled");
+                    self.rpc.answer(id, Err((Some(-32601), message)));
+                }
+                other => kept.push(other),
+            }
+        }
+        kept
+    }
+
     /// The next batch of events, reading one line of output at a time until something happened.
     async fn events(&mut self) -> Result<Vec<Event>, String> {
         loop {
-            let events = self.rpc.take_events();
+            let events = self.refuse_requests();
+            self.flush().await?;
             if !events.is_empty() {
                 return Ok(events);
             }
@@ -433,7 +451,6 @@ impl Client {
                 .map_err(|_| STOPPED.to_owned())?
                 .ok_or_else(|| STOPPED.to_owned())?;
             self.rpc.feed(format!("{line}\n").as_bytes());
-            self.flush().await?;
         }
     }
 
