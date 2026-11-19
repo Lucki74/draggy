@@ -82,7 +82,10 @@ pub fn to_chat_after(body: &Value, prior: &[Value]) -> Result<Value, String> {
         chat.insert("response_format".to_owned(), format);
     }
     let mut chat = Value::Object(chat);
-    let thinking = body.pointer("/reasoning/effort").and_then(Value::as_str).map(|effort| effort != "none");
+    let thinking = body
+        .pointer("/reasoning/effort")
+        .and_then(Value::as_str)
+        .map(|effort| effort != "none");
     crate::dialect::set_thinking(&mut chat, thinking);
     Ok(chat)
 }
@@ -90,23 +93,39 @@ pub fn to_chat_after(body: &Value, prior: &[Value]) -> Result<Value, String> {
 /// The chat messages of `chat` that belong to the exchange: all but the request's own instructions.
 pub fn kept_messages(body: &Value, chat: &Value) -> Vec<Value> {
     let skip = usize::from(body.as_object().and_then(instructions).is_some());
-    chat["messages"].as_array().map_or_else(Vec::new, |all| all.iter().skip(skip).cloned().collect())
+    chat["messages"]
+        .as_array()
+        .map_or_else(Vec::new, |all| all.iter().skip(skip).cloned().collect())
 }
 
 /// The fields a Response object carries about its request.
 pub fn meta(body: &Value) -> Map<String, Value> {
     let mut meta = Map::new();
     let previous = body.get("previous_response_id").filter(|id| id.is_string());
-    meta.insert("previous_response_id".to_owned(), previous.cloned().unwrap_or(Value::Null));
-    meta.insert("instructions".to_owned(), body.get("instructions").filter(|v| v.is_string()).cloned().unwrap_or(Value::Null));
-    meta.insert("store".to_owned(), json!(body.get("store") != Some(&Value::Bool(false))));
+    meta.insert(
+        "previous_response_id".to_owned(),
+        previous.cloned().unwrap_or(Value::Null),
+    );
+    meta.insert(
+        "instructions".to_owned(),
+        body.get("instructions")
+            .filter(|v| v.is_string())
+            .cloned()
+            .unwrap_or(Value::Null),
+    );
+    meta.insert(
+        "store".to_owned(),
+        json!(body.get("store") != Some(&Value::Bool(false))),
+    );
     meta
 }
 
 /// The input items of a request, each with an id, as `GET /v1/responses/{id}/input_items` lists them.
 pub fn input_items(body: &Value) -> Vec<Value> {
     let entries = match body.get("input") {
-        Some(Value::String(text)) => vec![json!({"type": "message", "role": "user", "content": text})],
+        Some(Value::String(text)) => {
+            vec![json!({"type": "message", "role": "user", "content": text})]
+        }
         Some(Value::Array(items)) => items
             .iter()
             .map(|item| match item {
@@ -121,8 +140,17 @@ pub fn input_items(body: &Value) -> Vec<Value> {
         .enumerate()
         .map(|(index, mut item)| {
             let is_message = item.get("type").is_none_or(|kind| kind == "message");
-            if is_message && let Some(text) = item.get("content").and_then(Value::as_str).map(str::to_owned) {
-                let kind = if item["role"] == "assistant" { "output_text" } else { "input_text" };
+            if is_message
+                && let Some(text) = item
+                    .get("content")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            {
+                let kind = if item["role"] == "assistant" {
+                    "output_text"
+                } else {
+                    "input_text"
+                };
                 item["content"] = json!([{"type": kind, "text": text}]);
             }
             if is_message && item.get("type").is_none() {
@@ -158,7 +186,11 @@ pub fn assistant_messages(response: &Value) -> Vec<Value> {
     if text.is_empty() && calls.is_empty() {
         return Vec::new();
     }
-    let content = if text.is_empty() && !calls.is_empty() { Value::Null } else { json!(text) };
+    let content = if text.is_empty() && !calls.is_empty() {
+        Value::Null
+    } else {
+        json!(text)
+    };
     let mut message = json!({"role": "assistant", "content": content});
     if !calls.is_empty() {
         message["tool_calls"] = Value::Array(calls);
@@ -171,7 +203,11 @@ fn read_item(item: &Value, out: &mut Vec<Value>) {
         out.push(json!({"role": "user", "content": text}));
         return;
     }
-    match item.get("type").and_then(Value::as_str).unwrap_or("message") {
+    match item
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or("message")
+    {
         "message" => read_message(item, out),
         "function_call" => read_call(item, out),
         "function_call_output" => {
@@ -311,7 +347,10 @@ fn read_format(text: Option<&Value>) -> Option<Value> {
             let mut schema = Map::new();
             schema.insert(
                 "name".to_owned(),
-                format.get("name").cloned().unwrap_or_else(|| json!("response")),
+                format
+                    .get("name")
+                    .cloned()
+                    .unwrap_or_else(|| json!("response")),
             );
             for key in ["schema", "strict", "description"] {
                 if let Some(value) = format.get(key) {
@@ -386,10 +425,20 @@ pub fn from_chat(chat: &Value, chat_id: &str, model: &str, created: i64) -> Valu
 }
 
 /// Like `from_chat`, with fields to add to the object.
-pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, created: i64, opts: &Opts) -> Value {
+pub fn from_chat_with(
+    chat: &Value,
+    chat_id: &str,
+    model: &str,
+    created: i64,
+    opts: &Opts,
+) -> Value {
     let suffix = id_suffix(chat_id);
     let answer = read_answer(chat, suffix);
-    let mut output: Vec<Value> = opts.searches.iter().map(|search| search_item(suffix, search)).collect();
+    let mut output: Vec<Value> = opts
+        .searches
+        .iter()
+        .map(|search| search_item(suffix, search))
+        .collect();
     if opts.thinking && !answer.reasoning.is_empty() {
         output.push(reasoning_item(&format!("rs_{suffix}"), &answer.reasoning));
     }
@@ -404,7 +453,11 @@ pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, created: i64, op
             &call.arguments,
         ));
     }
-    let status = if answer.finish == "length" { "incomplete" } else { "completed" };
+    let status = if answer.finish == "length" {
+        "incomplete"
+    } else {
+        "completed"
+    };
     let mut response = response_object(
         &format!("resp_{suffix}"),
         model,
@@ -550,12 +603,24 @@ impl Stream {
         let item = search_item(&self.suffix, search);
         let item_id = item["id"].clone();
         let pending = json!({"id": item_id, "type": "web_search_call", "status": "in_progress"});
-        self.emit(out, "response.output_item.added", json!({"output_index": index, "item": pending}));
+        self.emit(
+            out,
+            "response.output_item.added",
+            json!({"output_index": index, "item": pending}),
+        );
         for step in ["in_progress", "searching", "completed"] {
             let name = format!("response.web_search_call.{step}");
-            self.emit(out, &name, json!({"output_index": index, "item_id": item_id}));
+            self.emit(
+                out,
+                &name,
+                json!({"output_index": index, "item_id": item_id}),
+            );
         }
-        self.emit(out, "response.output_item.done", json!({"output_index": index, "item": item}));
+        self.emit(
+            out,
+            "response.output_item.done",
+            json!({"output_index": index, "item": item}),
+        );
         self.output.insert(index, item);
     }
 
@@ -565,7 +630,11 @@ impl Stream {
             self.next_index += 1;
             let item_id = format!("rs_{}_{index}", self.suffix);
             let item = json!({"id": item_id, "type": "reasoning", "summary": []});
-            self.emit(out, "response.output_item.added", json!({"output_index": index, "item": item}));
+            self.emit(
+                out,
+                "response.output_item.added",
+                json!({"output_index": index, "item": item}),
+            );
             self.emit(
                 out,
                 "response.reasoning_summary_part.added",
@@ -574,9 +643,15 @@ impl Stream {
                     "part": {"type": "summary_text", "text": ""},
                 }),
             );
-            self.reasoning = Some(Reasoning { index, item_id, text: String::new() });
+            self.reasoning = Some(Reasoning {
+                index,
+                item_id,
+                text: String::new(),
+            });
         }
-        let Some(state) = self.reasoning.as_mut() else { return };
+        let Some(state) = self.reasoning.as_mut() else {
+            return;
+        };
         state.text.push_str(delta);
         let (index, item_id) = (state.index, state.item_id.clone());
         self.emit(
@@ -587,7 +662,9 @@ impl Stream {
     }
 
     fn close_reasoning(&mut self, out: &mut Vec<Event>) {
-        let Some(state) = self.reasoning.take() else { return };
+        let Some(state) = self.reasoning.take() else {
+            return;
+        };
         let (index, item_id) = (state.index, state.item_id);
         self.emit(
             out,
@@ -601,7 +678,11 @@ impl Stream {
             json!({"item_id": item_id, "output_index": index, "summary_index": 0, "part": part}),
         );
         let item = reasoning_item(&item_id, &state.text);
-        self.emit(out, "response.output_item.done", json!({"output_index": index, "item": item}));
+        self.emit(
+            out,
+            "response.output_item.done",
+            json!({"output_index": index, "item": item}),
+        );
         self.output.insert(index, item);
     }
 
@@ -627,9 +708,15 @@ impl Stream {
                     "part": {"type": "output_text", "text": "", "annotations": []},
                 }),
             );
-            self.text = Some(Text { index, item_id, text: String::new() });
+            self.text = Some(Text {
+                index,
+                item_id,
+                text: String::new(),
+            });
         }
-        let Some(text) = self.text.as_mut() else { return };
+        let Some(text) = self.text.as_mut() else {
+            return;
+        };
         text.text.push_str(delta);
         let (index, item_id) = (text.index, text.item_id.clone());
         self.emit(
@@ -690,10 +777,18 @@ impl Stream {
             );
             self.calls.insert(
                 slot,
-                Call { index, item_id, call_id, name: name.to_owned(), arguments: String::new() },
+                Call {
+                    index,
+                    item_id,
+                    call_id,
+                    name: name.to_owned(),
+                    arguments: String::new(),
+                },
             );
         }
-        let Some(state) = self.calls.get_mut(&slot) else { return };
+        let Some(state) = self.calls.get_mut(&slot) else {
+            return;
+        };
         if state.name.is_empty() {
             state.name = name.to_owned();
         }
@@ -749,13 +844,20 @@ impl Translator for Stream {
             return out;
         };
         if let Some(delta) = choice.get("delta") {
-            let thought = ["reasoning_content", "reasoning"]
-                .iter()
-                .find_map(|key| delta.get(key).and_then(Value::as_str).filter(|t| !t.is_empty()));
+            let thought = ["reasoning_content", "reasoning"].iter().find_map(|key| {
+                delta
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .filter(|t| !t.is_empty())
+            });
             if let Some(text) = thought.filter(|_| self.thinking) {
                 self.add_reasoning(&mut out, text);
             }
-            if let Some(text) = delta.get("content").and_then(Value::as_str).filter(|t| !t.is_empty()) {
+            if let Some(text) = delta
+                .get("content")
+                .and_then(Value::as_str)
+                .filter(|t| !t.is_empty())
+            {
                 self.add_text(&mut out, text);
             }
             for call in delta
@@ -788,12 +890,20 @@ impl Translator for Stream {
             &self.id,
             &self.model,
             self.created,
-            if incomplete { "incomplete" } else { "completed" },
+            if incomplete {
+                "incomplete"
+            } else {
+                "completed"
+            },
             self.output.values().cloned().collect(),
             usage_json(self.usage.0, self.usage.1),
         );
         merge(&mut response, &self.meta);
-        let name = if incomplete { "response.incomplete" } else { "response.completed" };
+        let name = if incomplete {
+            "response.incomplete"
+        } else {
+            "response.completed"
+        };
         self.emit(&mut out, name, json!({"response": response}));
         self.response = Some(response);
         out

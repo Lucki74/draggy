@@ -41,8 +41,8 @@ use axum::body::{Body, Bytes, to_bytes};
 use axum::extract::{Request, State};
 use axum::http::header::{
     ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
-    ACCESS_CONTROL_MAX_AGE, AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_TYPE, HOST as HOST_HEADER,
-    ORIGIN, RETRY_AFTER, VARY, X_CONTENT_TYPE_OPTIONS,
+    ACCESS_CONTROL_MAX_AGE, AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_TYPE,
+    HOST as HOST_HEADER, ORIGIN, RETRY_AFTER, VARY, X_CONTENT_TYPE_OPTIONS,
 };
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -58,8 +58,8 @@ use tokio_util::sync::{CancellationToken, DropGuard};
 
 use crate::dialect::{self, Dialect, Done, Keep, Opts};
 use crate::log::{Counter, LogEntry, Note, Tokens, client_of};
-use crate::ollama;
 use crate::messages;
+use crate::ollama;
 use crate::responses;
 use crate::routes;
 use crate::search::{self, Failure, Hit, Plan};
@@ -445,7 +445,10 @@ pub fn check_access(
         return None;
     }
     // Anthropic clients send the key in x-api-key.
-    let api_key = headers.get("x-api-key").map(header_text).unwrap_or_default();
+    let api_key = headers
+        .get("x-api-key")
+        .map(header_text)
+        .unwrap_or_default();
     if same_key(api_key.trim_matches(is_js_space), key) {
         return None;
     }
@@ -849,7 +852,11 @@ pub fn route(body: &Value, default: Mode) -> Mode {
     if body.get("model").and_then(Value::as_str) == Some(AGENT_MODEL) {
         return Mode::Agent;
     }
-    if needs_model(body) { Mode::Model } else { default }
+    if needs_model(body) {
+        Mode::Model
+    } else {
+        default
+    }
 }
 
 fn needs_model(body: &Value) -> bool {
@@ -870,7 +877,10 @@ fn message_needs_model(message: &Value) -> bool {
     if message.get("role").and_then(Value::as_str) == Some("tool") {
         return true;
     }
-    if message.get("tool_calls").is_some_and(|calls| !calls.is_null()) {
+    if message
+        .get("tool_calls")
+        .is_some_and(|calls| !calls.is_null())
+    {
         return true;
     }
     message
@@ -1041,10 +1051,7 @@ impl Frames {
 /// The Origin header when it is exactly one the user listed.
 fn allowed_origin(headers: &HeaderMap, settings: &ApiSettings) -> Option<String> {
     let origin = headers.get(ORIGIN).map(header_text)?;
-    settings
-        .allowed_origins
-        .contains(&origin)
-        .then_some(origin)
+    settings.allowed_origins.contains(&origin).then_some(origin)
 }
 
 fn host_matches(headers: &HeaderMap, port: u16) -> bool {
@@ -1058,8 +1065,12 @@ fn host_matches(headers: &HeaderMap, port: u16) -> bool {
 
 fn with_cors(response: &mut Response, origin: &str) {
     if let Ok(value) = HeaderValue::from_str(origin) {
-        response.headers_mut().insert(ACCESS_CONTROL_ALLOW_ORIGIN, value);
-        response.headers_mut().append(VARY, HeaderValue::from_static("Origin"));
+        response
+            .headers_mut()
+            .insert(ACCESS_CONTROL_ALLOW_ORIGIN, value);
+        response
+            .headers_mut()
+            .append(VARY, HeaderValue::from_static("Origin"));
     }
 }
 
@@ -1072,15 +1083,22 @@ fn preflight(headers: &HeaderMap, port: u16, settings: &ApiSettings) -> Response
             "Requests from web pages are not accepted.",
             "authentication_error",
         );
-        response.headers_mut().append(VARY, HeaderValue::from_static("Origin"));
+        response
+            .headers_mut()
+            .append(VARY, HeaderValue::from_static("Origin"));
         return response;
     };
     let mut response = StatusCode::NO_CONTENT.into_response();
     let out = response.headers_mut();
-    out.insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, DELETE, OPTIONS"));
+    out.insert(
+        ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("GET, POST, DELETE, OPTIONS"),
+    );
     out.insert(
         ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static("authorization, content-type, x-api-key, anthropic-version, openai-beta"),
+        HeaderValue::from_static(
+            "authorization, content-type, x-api-key, anthropic-version, openai-beta",
+        ),
     );
     out.insert(ACCESS_CONTROL_MAX_AGE, HeaderValue::from_static("600"));
     with_cors(&mut response, &origin);
@@ -1115,7 +1133,11 @@ async fn handle<B: Backend, E: Env>(
     }
     if settings.log_requests {
         let (model, mode) = note.read();
-        let tokens = response.extensions().get::<Tokens>().copied().unwrap_or(Tokens(0, 0));
+        let tokens = response
+            .extensions()
+            .get::<Tokens>()
+            .copied()
+            .unwrap_or(Tokens(0, 0));
         let entry = LogEntry {
             time: env.now_unix(),
             method,
@@ -1133,12 +1155,20 @@ async fn handle<B: Backend, E: Env>(
             return response;
         };
         // A stream is logged once it has ended, with the counts and the time it took.
-        let pending = Pending { env, entry: Some(entry), started, counter };
+        let pending = Pending {
+            env,
+            entry: Some(entry),
+            started,
+            counter,
+        };
         let (head, body) = response.into_parts();
-        let body = Body::from_stream(stream::unfold((body.into_data_stream(), pending), |(mut body, pending)| async {
-            let chunk = body.next().await?;
-            Some((chunk, (body, pending)))
-        }));
+        let body = Body::from_stream(stream::unfold(
+            (body.into_data_stream(), pending),
+            |(mut body, pending)| async {
+                let chunk = body.next().await?;
+                Some((chunk, (body, pending)))
+            },
+        ));
         return Response::from_parts(head, body);
     }
     response
@@ -1156,7 +1186,8 @@ impl<E: Env> Drop for Pending<E> {
     fn drop(&mut self) {
         if let Some(mut entry) = self.entry.take() {
             (entry.prompt_tokens, entry.completion_tokens) = self.counter.get();
-            entry.duration_ms = u64::try_from(self.started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            entry.duration_ms =
+                u64::try_from(self.started.elapsed().as_millis()).unwrap_or(u64::MAX);
             self.env.record(entry);
         }
     }
@@ -1178,18 +1209,29 @@ async fn handle_request<B: Backend, E: Env>(
         _ => None,
     };
     // Errors on any Ollama path use Ollama's shape.
-    let shape = if path.starts_with("/api/") { Some(Dialect::OllamaChat) } else { dialect };
+    let shape = if path.starts_with("/api/") {
+        Some(Dialect::OllamaChat)
+    } else {
+        dialect
+    };
     let counting = path == "/v1/messages/count_tokens";
     if let Some(refusal) = check_access(&parts.headers, shared.port, &key, &settings, &path) {
         tracing::debug!(target: "net.api", status = refusal.status.as_u16(), "request refused");
-        return shaped_error(shape, refusal.status, refusal.message, "authentication_error");
+        return shaped_error(
+            shape,
+            refusal.status,
+            refusal.message,
+            "authentication_error",
+        );
     }
 
     if parts.method == Method::GET && path == "/v1/models" {
         return models_response(&shared).await;
     }
     if parts.method == Method::GET
-        && let Some(id) = path.strip_prefix("/v1/models/").filter(|id| !id.is_empty() && !id.contains('/'))
+        && let Some(id) = path
+            .strip_prefix("/v1/models/")
+            .filter(|id| !id.is_empty() && !id.contains('/'))
     {
         return model_response(&shared, id, &settings).await;
     }
@@ -1198,12 +1240,19 @@ async fn handle_request<B: Backend, E: Env>(
     {
         return response;
     }
-    if let Some(response) = routes::responses_route(&shared, &parts.method, &path, parts.uri.query()) {
+    if let Some(response) =
+        routes::responses_route(&shared, &parts.method, &path, parts.uri.query())
+    {
         return response;
     }
     let posted = matches!(
         path.as_str(),
-        "/v1/chat/completions" | "/v1/embeddings" | "/v1/completions" | "/api/show" | "/api/embed" | "/api/embeddings"
+        "/v1/chat/completions"
+            | "/v1/embeddings"
+            | "/v1/completions"
+            | "/api/show"
+            | "/api/embed"
+            | "/api/embeddings"
     );
     if parts.method != Method::POST || (!posted && dialect.is_none()) {
         return shaped_error(
@@ -1274,7 +1323,12 @@ async fn handle_request<B: Backend, E: Env>(
         match converted {
             Ok(chat) => parsed = chat,
             Err(message) => {
-                return shaped_error(Some(dialect), StatusCode::BAD_REQUEST, &message, "invalid_request_error");
+                return shaped_error(
+                    Some(dialect),
+                    StatusCode::BAD_REQUEST,
+                    &message,
+                    "invalid_request_error",
+                );
             }
         }
         if counting {
@@ -1298,7 +1352,14 @@ async fn handle_request<B: Backend, E: Env>(
     };
     if let Some(note) = parts.extensions.get::<Note>() {
         let model = parsed.get("model").and_then(Value::as_str).unwrap_or("");
-        note.set(model, if mode == Mode::Model { "model" } else { "agent" });
+        note.set(
+            model,
+            if mode == Mode::Model {
+                "model"
+            } else {
+                "agent"
+            },
+        );
     }
     if oversize && mode != Mode::Model {
         tracing::debug!(target: "net.api", status = 413, "body rejected");
@@ -1353,10 +1414,16 @@ async fn handle_request<B: Backend, E: Env>(
 }
 
 /// The input tokens of a counted request: the local model's own count, or the estimate when that is not available.
-async fn counted_input<B: Backend, E: Env>(shared: &Shared<B, E>, mut chat: Value, settings: &ApiSettings) -> u64 {
+async fn counted_input<B: Backend, E: Env>(
+    shared: &Shared<B, E>,
+    mut chat: Value,
+    settings: &ApiSettings,
+) -> u64 {
     let estimate = messages::count_tokens(&chat);
     let name = chat.get("model").and_then(Value::as_str).unwrap_or("");
-    let name = settings::resolve_alias(name, &settings.aliases).unwrap_or(name).to_owned();
+    let name = settings::resolve_alias(name, &settings.aliases)
+        .unwrap_or(name)
+        .to_owned();
     if name.is_empty() || name.starts_with('@') {
         return estimate;
     }
@@ -1367,7 +1434,11 @@ async fn counted_input<B: Backend, E: Env>(shared: &Shared<B, E>, mut chat: Valu
         Ok(model) => chat["model"] = Value::String(model),
         Err(_) => return estimate,
     }
-    shared.backend.count_tokens(&chat, cancel).await.unwrap_or(estimate)
+    shared
+        .backend
+        .count_tokens(&chat, cancel)
+        .await
+        .unwrap_or(estimate)
 }
 
 /// The chat request for a Responses body. A body that continues a kept response carries that chat first.
@@ -1377,15 +1448,25 @@ fn responses_chat<B: Backend, E: Env>(
     body: &Value,
     opts: &mut Opts,
 ) -> Result<Value, Box<Result<Response, String>>> {
-    let previous = body.get("previous_response_id").and_then(Value::as_str).filter(|id| !id.is_empty());
+    let previous = body
+        .get("previous_response_id")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty());
     let prior = match previous {
         Some(id) => {
-            let store = shared.store.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let store = shared
+                .store
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             match store.get(id) {
                 Some(stored) => stored.messages.clone(),
                 None => {
                     let message = format!("Previous response with id '{id}' not found.");
-                    return Err(Box::new(Ok(routes::not_found(&message, "previous_response_id", "previous_response_not_found"))));
+                    return Err(Box::new(Ok(routes::not_found(
+                        &message,
+                        "previous_response_id",
+                        "previous_response_not_found",
+                    ))));
                 }
             }
         }
@@ -1409,8 +1490,15 @@ fn remember(store: &Mutex<Store>, keep: Keep, response: Value) {
     };
     let mut messages = keep.messages;
     messages.extend(responses::assistant_messages(&response));
-    let stored = Stored { messages, input: keep.input, response };
-    store.lock().unwrap_or_else(std::sync::PoisonError::into_inner).put(&id, stored);
+    let stored = Stored {
+        messages,
+        input: keep.input,
+        response,
+    };
+    store
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .put(&id, stored);
 }
 
 /// Waits for a free slot, and answers 429 with `Retry-After` when none comes in time.
@@ -1438,8 +1526,12 @@ pub(crate) async fn take_slot<B: Backend, E: Env>(
             slots,
         }),
         None => {
-            let mut response =
-                shaped_error(dialect, StatusCode::TOO_MANY_REQUESTS, BUSY, "rate_limit_error");
+            let mut response = shaped_error(
+                dialect,
+                StatusCode::TOO_MANY_REQUESTS,
+                BUSY,
+                "rate_limit_error",
+            );
             response
                 .headers_mut()
                 .insert(RETRY_AFTER, HeaderValue::from_static(RETRY_AFTER_SECONDS));
@@ -1480,7 +1572,11 @@ async fn model_response<B: Backend, E: Env>(
     settings: &ApiSettings,
 ) -> Response {
     let Ok(mut entries) = shared.backend.list_models().await else {
-        return error_response(StatusCode::INTERNAL_SERVER_ERROR, SERVER_ERROR, "server_error");
+        return error_response(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            SERVER_ERROR,
+            "server_error",
+        );
     };
     entries.push(ModelEntry {
         id: AGENT_MODEL.to_owned(),
@@ -1645,7 +1741,12 @@ pub(crate) fn error_response(status: StatusCode, message: &str, kind: &str) -> R
 }
 
 /// An error in the shape the route's clients read.
-pub(crate) fn shaped_error(dialect: Option<Dialect>, status: StatusCode, message: &str, kind: &str) -> Response {
+pub(crate) fn shaped_error(
+    dialect: Option<Dialect>,
+    status: StatusCode,
+    message: &str,
+    kind: &str,
+) -> Response {
     json_response(status, dialect::error_json(dialect, status, message, kind))
 }
 
@@ -1676,7 +1777,11 @@ async fn forward_model<B: Backend, E: Env>(
     let cancel = CancellationToken::new();
     let guard = cancel.clone().drop_guard();
 
-    let model = match shared.backend.prepare_model(&requested, cancel.clone()).await {
+    let model = match shared
+        .backend
+        .prepare_model(&requested, cancel.clone())
+        .await
+    {
         Ok(model) => model,
         Err(error) => return model_failure(&error, dialect),
     };
@@ -1694,7 +1799,10 @@ async fn forward_model<B: Backend, E: Env>(
 
     let mut searched = None;
     if let (Some(max), Some(_)) = (opts.web_search, dialect) {
-        let plan = Plan { max, enabled: settings.agent_web_tools };
+        let plan = Plan {
+            max,
+            enabled: settings.agent_web_tools,
+        };
         match search::rounds(shared.backend.as_ref(), body.clone(), &plan, &cancel).await {
             Ok(rounded) => {
                 opts.searches = rounded.searches;
@@ -1707,7 +1815,14 @@ async fn forward_model<B: Backend, E: Env>(
                 let created = shared.env.now_unix();
                 let ids = (id.as_str(), model.as_str(), created);
                 let asked = (started.elapsed(), &opts);
-                return dialect_response(dialect.unwrap_or(Dialect::Messages), status, &bytes, ids, asked, |_| {});
+                return dialect_response(
+                    dialect.unwrap_or(Dialect::Messages),
+                    status,
+                    &bytes,
+                    ids,
+                    asked,
+                    |_| {},
+                );
             }
         }
     }
@@ -1715,7 +1830,11 @@ async fn forward_model<B: Backend, E: Env>(
     let reply = match searched {
         Some(chat) => ForwardReply {
             status: 200,
-            body: if stream { search::as_stream(&chat) } else { search::as_bytes(&chat) },
+            body: if stream {
+                search::as_stream(&chat)
+            } else {
+                search::as_bytes(&chat)
+            },
         },
         None => match shared.backend.forward(body, cancel.clone()).await {
             Ok(reply) => reply,
@@ -1745,7 +1864,14 @@ async fn forward_model<B: Backend, E: Env>(
                     remember(&store, keep, response.clone());
                 }
             };
-            return dialect_response(dialect, status, &bytes, (&id, &model, created), (started.elapsed(), &opts), kept);
+            return dialect_response(
+                dialect,
+                status,
+                &bytes,
+                (&id, &model, created),
+                (started.elapsed(), &opts),
+                kept,
+            );
         }
         return buffered_response(status, &bytes, &id, &model, created, strip);
     }
@@ -1760,9 +1886,20 @@ async fn forward_model<B: Backend, E: Env>(
                 }
             })
         });
-        let stream = dialect::translated_stream(reply.body, translator, guard, permit, done, counter.clone());
+        let stream = dialect::translated_stream(
+            reply.body,
+            translator,
+            guard,
+            permit,
+            done,
+            counter.clone(),
+        );
         let body = Body::from_stream(stream);
-        let mut response = if dialect.is_ollama() { ndjson_response(body) } else { sse_response(body) };
+        let mut response = if dialect.is_ollama() {
+            ndjson_response(body)
+        } else {
+            sse_response(body)
+        };
         response.extensions_mut().insert(counter);
         return response;
     }
@@ -1831,11 +1968,13 @@ fn dialect_response(
             .and_then(|chat| dialect::whole_reply_with(dialect, &chat, ids, opts))
             .map(|mut reply| {
                 if dialect.is_ollama() {
-                    reply["total_duration"] = Value::from(u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX));
+                    reply["total_duration"] =
+                        Value::from(u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX));
                 }
                 reply
             });
-        let tokens = serde_json::from_slice::<Value>(bytes).map_or((0, 0), |chat| dialect::usage_of(&chat));
+        let tokens =
+            serde_json::from_slice::<Value>(bytes).map_or((0, 0), |chat| dialect::usage_of(&chat));
         return match reply {
             Some(reply) => {
                 kept(&reply);
@@ -1943,10 +2082,16 @@ fn patch_completion(value: &mut Value, id: &str, model: &str, created: i64) {
     if object.contains_key("error") && !object.contains_key("choices") {
         return;
     }
-    if !object.get("id").is_some_and(|v| v.as_str().is_some_and(|s| !s.is_empty())) {
+    if !object
+        .get("id")
+        .is_some_and(|v| v.as_str().is_some_and(|s| !s.is_empty()))
+    {
         object.insert("id".to_owned(), Value::String(id.to_owned()));
     }
-    object.insert("object".to_owned(), Value::String("chat.completion".to_owned()));
+    object.insert(
+        "object".to_owned(),
+        Value::String("chat.completion".to_owned()),
+    );
     object.insert("model".to_owned(), Value::String(model.to_owned()));
     if !object.get("created").is_some_and(Value::is_number) {
         object.insert("created".to_owned(), Value::from(created));
@@ -2021,7 +2166,10 @@ impl Relay {
         };
         self.patch(&mut value);
         let usage_only = value.get("usage").is_some()
-            && value.get("choices").and_then(Value::as_array).is_some_and(Vec::is_empty);
+            && value
+                .get("choices")
+                .and_then(Value::as_array)
+                .is_some_and(Vec::is_empty);
         if usage_only && !self.include_usage {
             return;
         }
@@ -2044,7 +2192,10 @@ impl Relay {
         if object.contains_key("error") && !object.contains_key("choices") {
             return;
         }
-        if !object.get("id").is_some_and(|v| v.as_str().is_some_and(|s| !s.is_empty())) {
+        if !object
+            .get("id")
+            .is_some_and(|v| v.as_str().is_some_and(|s| !s.is_empty()))
+        {
             object.insert("id".to_owned(), Value::String(self.id.clone()));
         }
         object.insert(
@@ -2058,7 +2209,8 @@ impl Relay {
         if let Some(usage) = object.get("usage").filter(|usage| usage.is_object()) {
             self.last_usage = Some(usage.clone());
             let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
-            self.counter.set(count("prompt_tokens"), count("completion_tokens"));
+            self.counter
+                .set(count("prompt_tokens"), count("completion_tokens"));
             let empty = object
                 .get("choices")
                 .and_then(Value::as_array)

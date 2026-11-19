@@ -45,9 +45,10 @@ pub fn requested(dialect: Dialect, body: &Value) -> Option<u32> {
     })?;
     match dialect {
         Dialect::Messages => {
-            let uses = tool.get("max_uses").and_then(Value::as_u64).map_or(DEFAULT_USES, |n| {
-                u32::try_from(n).unwrap_or(CEILING)
-            });
+            let uses = tool
+                .get("max_uses")
+                .and_then(Value::as_u64)
+                .map_or(DEFAULT_USES, |n| u32::try_from(n).unwrap_or(CEILING));
             Some(uses.min(CEILING))
         }
         Dialect::Responses => Some(DEFAULT_USES),
@@ -106,14 +107,19 @@ pub async fn rounds<B: Backend>(
     for round in 0..=plan.max + 1 {
         let open = u32::try_from(searches.len()).unwrap_or(u32::MAX) < plan.max;
         set_tool(&mut body, open);
-        let reply = backend.forward(body.clone(), cancel.clone()).await.map_err(Failure::Backend)?;
+        let reply = backend
+            .forward(body.clone(), cancel.clone())
+            .await
+            .map_err(Failure::Backend)?;
         let status = reply.status;
         let mut bytes = Vec::new();
         let mut upstream = reply.body;
         while let Some(chunk) = upstream.next().await {
             bytes.extend_from_slice(&chunk.map_err(Failure::Backend)?);
         }
-        let parsed = serde_json::from_slice::<Value>(&bytes).ok().filter(|chat| chat.get("choices").is_some());
+        let parsed = serde_json::from_slice::<Value>(&bytes)
+            .ok()
+            .filter(|chat| chat.get("choices").is_some());
         let Some(mut chat) = parsed.filter(|_| (200..300).contains(&status)) else {
             return Err(Failure::Upstream(status, bytes));
         };
@@ -148,7 +154,9 @@ pub async fn rounds<B: Backend>(
                 .map_or_else(|| format!("call_search_{round}_{place}"), str::to_owned);
             message["tool_calls"][place]["id"] = json!(call_id);
             let search = run_one(backend, call, plan, searches.len(), cancel).await;
-            answers.push(json!({"role": "tool", "tool_call_id": call_id, "content": result_text(&search)}));
+            answers.push(
+                json!({"role": "tool", "tool_call_id": call_id, "content": result_text(&search)}),
+            );
             searches.push(search);
         }
         if let Some(messages) = body.get_mut("messages").and_then(Value::as_array_mut) {
@@ -162,9 +170,13 @@ pub async fn rounds<B: Backend>(
 }
 
 fn set_tool(body: &mut Value, open: bool) {
-    let Some(object) = body.as_object_mut() else { return };
+    let Some(object) = body.as_object_mut() else {
+        return;
+    };
     let tools = object.entry("tools").or_insert_with(|| json!([]));
-    let Some(list) = tools.as_array_mut() else { return };
+    let Some(list) = tools.as_array_mut() else {
+        return;
+    };
     list.retain(|tool| tool.pointer("/function/name").and_then(Value::as_str) != Some(TOOL));
     if open {
         list.push(tool_definition());
@@ -182,10 +194,18 @@ async fn run_one<B: Backend>(
     done: usize,
     cancel: &CancellationToken,
 ) -> Search {
-    let arguments = call.pointer("/function/arguments").and_then(Value::as_str).unwrap_or("");
+    let arguments = call
+        .pointer("/function/arguments")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     let query = serde_json::from_str::<Value>(arguments)
         .ok()
-        .and_then(|args| args.get("query").and_then(Value::as_str).map(str::trim).map(str::to_owned))
+        .and_then(|args| {
+            args.get("query")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .map(str::to_owned)
+        })
         .unwrap_or_default();
     let mut search = Search {
         id: format!("{}", done + 1),
@@ -226,14 +246,25 @@ fn result_text(search: &Search) -> String {
 
 /// A whole chat reply as a one-chunk chat stream, so a translator can stream it.
 pub fn as_stream(chat: &Value) -> ByteStream {
-    let message = chat.pointer("/choices/0/message").cloned().unwrap_or(Value::Null);
+    let message = chat
+        .pointer("/choices/0/message")
+        .cloned()
+        .unwrap_or(Value::Null);
     let mut delta = json!({});
     for key in ["content", "reasoning_content"] {
-        if let Some(text) = message.get(key).and_then(Value::as_str).filter(|text| !text.is_empty()) {
+        if let Some(text) = message
+            .get(key)
+            .and_then(Value::as_str)
+            .filter(|text| !text.is_empty())
+        {
             delta[key] = json!(text);
         }
     }
-    if let Some(calls) = message.get("tool_calls").and_then(Value::as_array).filter(|calls| !calls.is_empty()) {
+    if let Some(calls) = message
+        .get("tool_calls")
+        .and_then(Value::as_array)
+        .filter(|calls| !calls.is_empty())
+    {
         let numbered: Vec<Value> = calls
             .iter()
             .enumerate()
@@ -245,7 +276,10 @@ pub fn as_stream(chat: &Value) -> ByteStream {
             .collect();
         delta["tool_calls"] = Value::Array(numbered);
     }
-    let finish = chat.pointer("/choices/0/finish_reason").cloned().unwrap_or_else(|| json!("stop"));
+    let finish = chat
+        .pointer("/choices/0/finish_reason")
+        .cloned()
+        .unwrap_or_else(|| json!("stop"));
     let chunk = json!({
         "id": chat.get("id").cloned().unwrap_or(Value::Null),
         "object": "chat.completion.chunk",

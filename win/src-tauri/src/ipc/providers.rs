@@ -494,7 +494,11 @@ pub(crate) fn routable_cloud_models(
 ) -> Vec<CloudModel> {
     let mut out = Vec::new();
     for source in sources {
-        if !source.enabled || !source.connected || source.kind == "local" || source.pinned.is_empty() {
+        if !source.enabled
+            || !source.connected
+            || source.kind == "local"
+            || source.pinned.is_empty()
+        {
             continue;
         }
         let infos = known(&source.id);
@@ -504,7 +508,9 @@ pub(crate) fn routable_cloud_models(
                 id: format!("@{}/{model}", source.id),
                 owned_by: source.provider_type.clone(),
                 context_length: info.and_then(|info| info.context_length),
-                capabilities: info.map(|info| info.capabilities.clone()).unwrap_or_default(),
+                capabilities: info
+                    .map(|info| info.capabilities.clone())
+                    .unwrap_or_default(),
             });
         }
     }
@@ -599,7 +605,13 @@ fn now_ms() -> u64 {
 mod tests {
     use super::*;
 
-    fn source(id: &str, kind: &str, enabled: bool, connected: bool, pinned: &[&str]) -> CloudSource {
+    fn source(
+        id: &str,
+        kind: &str,
+        enabled: bool,
+        connected: bool,
+        pinned: &[&str],
+    ) -> CloudSource {
         CloudSource {
             id: id.to_owned(),
             provider_type: format!("{id}-type"),

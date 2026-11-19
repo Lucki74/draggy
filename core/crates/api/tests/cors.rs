@@ -39,7 +39,12 @@ impl Backend for Quiet {
     async fn list_models(&self) -> Result<Vec<ModelEntry>, BackendError> {
         Ok(vec![ModelEntry::local("m")])
     }
-    async fn generate(&self, _: CompletionRequest, _: Sink, _: CancellationToken) -> Result<Reply, BackendError> {
+    async fn generate(
+        &self,
+        _: CompletionRequest,
+        _: Sink,
+        _: CancellationToken,
+    ) -> Result<Reply, BackendError> {
         Ok(Reply::default())
     }
 }
@@ -48,7 +53,13 @@ fn settings() -> ApiSettings {
     ApiSettings::from_value(&json!({"allowedOrigins": [SITE]}))
 }
 
-async fn send(settings: ApiSettings, method: &str, path: &str, origin: Option<&str>, key: bool) -> axum::response::Response {
+async fn send(
+    settings: ApiSettings,
+    method: &str,
+    path: &str,
+    origin: Option<&str>,
+    key: bool,
+) -> axum::response::Response {
     let mut builder = Request::builder()
         .method(method)
         .uri(path)
@@ -59,7 +70,9 @@ async fn send(settings: ApiSettings, method: &str, path: &str, origin: Option<&s
     if key {
         builder = builder.header("authorization", format!("Bearer {KEY}"));
     }
-    let request = builder.body(Body::empty()).unwrap_or_else(|e| panic!("{e}"));
+    let request = builder
+        .body(Body::empty())
+        .unwrap_or_else(|e| panic!("{e}"));
     router(DEFAULT_PORT, Quiet, TestEnv(settings))
         .oneshot(request)
         .await
@@ -87,12 +100,23 @@ async fn a_listed_origin_still_needs_the_key() {
 
 #[tokio::test]
 async fn other_origins_are_refused_and_get_no_cors_headers() {
-    for origin in ["https://evil.example.com", "https://app.example.com.evil.io", "HTTPS://APP.EXAMPLE.COM"] {
+    for origin in [
+        "https://evil.example.com",
+        "https://app.example.com.evil.io",
+        "HTTPS://APP.EXAMPLE.COM",
+    ] {
         let response = send(settings(), "GET", "/v1/models", Some(origin), true).await;
         assert_eq!(response.status(), StatusCode::FORBIDDEN, "{origin}");
         assert!(header(&response, "access-control-allow-origin").is_none());
     }
-    let response = send(ApiSettings::default(), "GET", "/v1/models", Some(SITE), true).await;
+    let response = send(
+        ApiSettings::default(),
+        "GET",
+        "/v1/models",
+        Some(SITE),
+        true,
+    )
+    .await;
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
 
@@ -102,14 +126,24 @@ async fn a_preflight_needs_a_listed_origin_but_no_key() {
         let response = send(settings(), "OPTIONS", path, Some(SITE), false).await;
         assert_eq!(response.status(), StatusCode::NO_CONTENT, "{path}");
         assert_eq!(header(&response, "access-control-allow-origin"), Some(SITE));
-        assert_eq!(header(&response, "access-control-allow-methods"), Some("GET, POST, DELETE, OPTIONS"));
+        assert_eq!(
+            header(&response, "access-control-allow-methods"),
+            Some("GET, POST, DELETE, OPTIONS")
+        );
         assert_eq!(
             header(&response, "access-control-allow-headers"),
             Some("authorization, content-type, x-api-key, anthropic-version, openai-beta")
         );
         assert_eq!(header(&response, "access-control-max-age"), Some("600"));
     }
-    let other = send(settings(), "OPTIONS", "/v1/models", Some("https://evil.example.com"), false).await;
+    let other = send(
+        settings(),
+        "OPTIONS",
+        "/v1/models",
+        Some("https://evil.example.com"),
+        false,
+    )
+    .await;
     assert_eq!(other.status(), StatusCode::FORBIDDEN);
     let none = send(settings(), "OPTIONS", "/v1/models", None, false).await;
     assert_eq!(none.status(), StatusCode::FORBIDDEN);
@@ -149,6 +183,7 @@ fn wildcards_and_junk_never_reach_the_list() {
         &json!({"allowedOrigins": ["*", "https://*.x.com", " https://a.com/ ", "a.com", "https://a.com", "bad origin://x", 5, ""]}),
     );
     assert_eq!(read.allowed_origins, vec!["https://a.com".to_owned()]);
-    let saved = ApiSettings::default().patched(&json!({"allowedOrigins": ["*"], "ollamaNoKey": true}));
+    let saved =
+        ApiSettings::default().patched(&json!({"allowedOrigins": ["*"], "ollamaNoKey": true}));
     assert!(saved.allowed_origins.is_empty() && saved.ollama_no_key);
 }

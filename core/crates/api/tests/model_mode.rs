@@ -9,12 +9,12 @@ use std::time::Duration;
 use axum::Router;
 use axum::body::{Body, Bytes};
 use axum::http::{Request, StatusCode};
+use draggy_api::log::LogEntry;
+use draggy_api::search::Hit;
 use draggy_api::server::{
     Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Env, ForwardReply, Mode,
     ModelEntry, Reply, Sink, router,
 };
-use draggy_api::log::LogEntry;
-use draggy_api::search::Hit;
 use draggy_api::settings::ApiSettings;
 use futures_util::stream;
 use http_body_util::BodyExt;
@@ -36,7 +36,10 @@ struct TestEnv {
 
 impl Env for TestEnv {
     fn record(&self, entry: LogEntry) {
-        self.logged.lock().unwrap_or_else(PoisonError::into_inner).push(entry);
+        self.logged
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(entry);
     }
 
     fn api_key(&self) -> String {
@@ -118,7 +121,10 @@ impl Forwarding {
     }
 
     fn searched(&self) -> Vec<String> {
-        self.searched.lock().unwrap_or_else(PoisonError::into_inner).clone()
+        self.searched
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 
     fn json(body: &Value) -> Self {
@@ -176,8 +182,15 @@ impl Backend for Forwarding {
         self.counted
     }
 
-    async fn web_search(&self, query: &str, _cancel: CancellationToken) -> Result<Vec<Hit>, BackendError> {
-        self.searched.lock().unwrap_or_else(PoisonError::into_inner).push(query.to_owned());
+    async fn web_search(
+        &self,
+        query: &str,
+        _cancel: CancellationToken,
+    ) -> Result<Vec<Hit>, BackendError> {
+        self.searched
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(query.to_owned());
         Ok(vec![Hit {
             title: format!("About {query}"),
             url: "https://example.com/a".to_owned(),
@@ -198,10 +211,18 @@ impl Backend for Forwarding {
             let mut release = release.clone();
             let _ = release.wait_for(|open| *open).await;
         }
-        let queued = self.queue.lock().unwrap_or_else(PoisonError::into_inner).pop_front();
+        let queued = self
+            .queue
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .pop_front();
         let chunks: Vec<Result<Bytes, BackendError>> = match queued {
             Some(reply) => vec![Ok(Bytes::from(reply))],
-            None => self.chunks.iter().map(|chunk| Ok(Bytes::from(chunk.clone()))).collect(),
+            None => self
+                .chunks
+                .iter()
+                .map(|chunk| Ok(Bytes::from(chunk.clone())))
+                .collect(),
         };
         let body: ByteStream = Box::pin(stream::iter(chunks));
         Ok(ForwardReply {
@@ -343,7 +364,8 @@ async fn streamed_tool_call_deltas_pass_through_and_done_ends_the_stream() {
         {"index": 0, "id": "c1", "type": "function", "function": {"name": "get", "arguments": ""}}]}, "finish_reason": null}]});
     let second = json!({"id": "x", "choices": [{"index": 0, "delta": {"tool_calls": [
         {"index": 0, "function": {"arguments": "{\"a\":1}"}}]}, "finish_reason": null}]});
-    let last = json!({"id": "x", "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}]});
+    let last =
+        json!({"id": "x", "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}]});
     let frames: Vec<String> = [&first, &second, &last]
         .iter()
         .map(|chunk| format!("data: {chunk}\n\n"))
@@ -432,7 +454,7 @@ async fn a_plain_request_follows_the_default_mode() {
     let model_first = TestEnv {
         mode: Mode::Model,
         wait: Duration::from_millis(100),
-        settings: ApiSettings::default(),
+        settings: ApiSettings::default(),
         logged: Arc::default(),
     };
 
@@ -513,7 +535,7 @@ async fn a_request_waits_for_a_free_slot_and_is_then_answered() {
     let waiting = TestEnv {
         mode: Mode::Agent,
         wait: Duration::from_secs(5),
-        settings: ApiSettings::default(),
+        settings: ApiSettings::default(),
         logged: Arc::default(),
     };
     let app = router(DEFAULT_PORT, backend.clone(), waiting);
@@ -583,7 +605,10 @@ async fn an_alias_is_applied_before_routing() {
 
     send(router(DEFAULT_PORT, backend.clone(), env), post(&plain())).await;
 
-    assert_eq!(backend.asked.lock().unwrap().clone(), vec!["qwen".to_owned()]);
+    assert_eq!(
+        backend.asked.lock().unwrap().clone(),
+        vec!["qwen".to_owned()]
+    );
 }
 
 #[tokio::test]
@@ -599,7 +624,10 @@ async fn the_system_prompt_and_sampling_defaults_reach_the_model() {
     send(router(DEFAULT_PORT, backend.clone(), env), post(&sent)).await;
 
     let seen = backend.forwarded();
-    assert_eq!(seen[0]["messages"][0], json!({"role": "system", "content": "Be brief."}));
+    assert_eq!(
+        seen[0]["messages"][0],
+        json!({"role": "system", "content": "Be brief."})
+    );
     assert_eq!(seen[0]["temperature"], json!(1.0));
     assert_eq!(seen[0]["top_k"], json!(20));
 }
@@ -610,14 +638,25 @@ async fn reasoning_is_stripped_from_a_whole_reply_when_off() {
     let backend = Forwarding::json(&reply);
 
     let (_, _, text) = send(
-        router(DEFAULT_PORT, backend.clone(), with_settings(json!({"sendReasoning": false}))),
+        router(
+            DEFAULT_PORT,
+            backend.clone(),
+            with_settings(json!({"sendReasoning": false})),
+        ),
         post(&plain()),
     )
     .await;
-    assert!(json_of(&text)["choices"][0]["message"].get("reasoning_content").is_none());
+    assert!(
+        json_of(&text)["choices"][0]["message"]
+            .get("reasoning_content")
+            .is_none()
+    );
 
     let (_, _, text) = send(app(&backend), post(&plain())).await;
-    assert_eq!(json_of(&text)["choices"][0]["message"]["reasoning_content"], "hm");
+    assert_eq!(
+        json_of(&text)["choices"][0]["message"]["reasoning_content"],
+        "hm"
+    );
 }
 
 #[tokio::test]
@@ -634,7 +673,11 @@ async fn reasoning_is_stripped_from_streamed_deltas_when_off() {
     sent["stream"] = json!(true);
 
     let (_, _, text) = send(
-        router(DEFAULT_PORT, backend, with_settings(json!({"sendReasoning": false}))),
+        router(
+            DEFAULT_PORT,
+            backend,
+            with_settings(json!({"sendReasoning": false})),
+        ),
         post(&sent),
     )
     .await;
@@ -672,9 +715,14 @@ fn post_to(path: &str, key_header: (&str, String), body: &Value) -> Request<Body
 #[tokio::test]
 async fn responses_route_translates_the_body_and_the_reply() {
     let backend = Forwarding::json(&completion());
-    let sent = json!({"model": "gpt-4o", "instructions": "Be brief.", "input": "hi", "store": true});
+    let sent =
+        json!({"model": "gpt-4o", "instructions": "Be brief.", "input": "hi", "store": true});
 
-    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let request = post_to(
+        "/v1/responses",
+        ("authorization", format!("Bearer {KEY}")),
+        &sent,
+    );
     let (status, _, text) = send(app(&backend), request).await;
     let reply: Value = serde_json::from_str(&text).unwrap_or_default();
 
@@ -683,20 +731,32 @@ async fn responses_route_translates_the_body_and_the_reply() {
     assert_eq!(reply["output"][0]["content"][0]["text"], "ok");
     assert_eq!(reply["usage"]["total_tokens"], 4);
     let forwarded = backend.forwarded();
-    assert_eq!(forwarded[0]["messages"][0], json!({"role": "system", "content": "Be brief."}));
+    assert_eq!(
+        forwarded[0]["messages"][0],
+        json!({"role": "system", "content": "Be brief."})
+    );
     assert_eq!(forwarded[0]["model"], "local-model");
 }
 
 #[tokio::test]
 async fn responses_route_streams_events() {
     let chunk = json!({"id": "x", "choices": [{"index": 0, "delta": {"content": "Hi"}, "finish_reason": "stop"}]});
-    let usage = json!({"id": "x", "choices": [], "usage": {"prompt_tokens": 2, "completion_tokens": 1}});
-    let frames = [format!("data: {chunk}\n\n"), format!("data: {usage}\n\n"), "data: [DONE]\n\n".to_owned()];
+    let usage =
+        json!({"id": "x", "choices": [], "usage": {"prompt_tokens": 2, "completion_tokens": 1}});
+    let frames = [
+        format!("data: {chunk}\n\n"),
+        format!("data: {usage}\n\n"),
+        "data: [DONE]\n\n".to_owned(),
+    ];
     let refs: Vec<&str> = frames.iter().map(String::as_str).collect();
     let backend = Forwarding::replying(&refs);
     let sent = json!({"model": "m", "input": "hi", "stream": true});
 
-    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let request = post_to(
+        "/v1/responses",
+        ("authorization", format!("Bearer {KEY}")),
+        &sent,
+    );
     let (status, _, text) = send(app(&backend), request).await;
 
     assert_eq!(status, StatusCode::OK);
@@ -704,7 +764,10 @@ async fn responses_route_streams_events() {
     assert!(text.contains("event: response.output_text.delta\n"));
     assert!(text.trim_end().ends_with('}'));
     assert!(text.contains("event: response.completed\n"));
-    assert_eq!(backend.forwarded()[0]["stream_options"], json!({"include_usage": true}));
+    assert_eq!(
+        backend.forwarded()[0]["stream_options"],
+        json!({"include_usage": true})
+    );
 }
 
 fn call_to(method: &str, path: &str) -> Request<Body> {
@@ -722,7 +785,11 @@ async fn an_unknown_previous_response_id_is_a_404() {
     let backend = Forwarding::json(&completion());
     let sent = json!({"model": "m", "input": "hi", "previous_response_id": "resp_1"});
 
-    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let request = post_to(
+        "/v1/responses",
+        ("authorization", format!("Bearer {KEY}")),
+        &sent,
+    );
     let (status, _, text) = send(app(&backend), request).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
@@ -760,13 +827,24 @@ async fn a_response_is_kept_and_continued() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json_of(&text)["id"], json!(id));
 
-    let (_, _, text) = send(app.clone(), call_to("GET", &format!("/v1/responses/{id}/input_items"))).await;
+    let (_, _, text) = send(
+        app.clone(),
+        call_to("GET", &format!("/v1/responses/{id}/input_items")),
+    )
+    .await;
     let list = json_of(&text);
     assert_eq!(list["object"], "list");
     assert_eq!(list["data"][0]["content"][0]["text"], "two");
 
-    let (status, _, text) = send(app.clone(), call_to("DELETE", &format!("/v1/responses/{id}"))).await;
-    assert_eq!((status, json_of(&text)["deleted"].clone()), (StatusCode::OK, json!(true)));
+    let (status, _, text) = send(
+        app.clone(),
+        call_to("DELETE", &format!("/v1/responses/{id}")),
+    )
+    .await;
+    assert_eq!(
+        (status, json_of(&text)["deleted"].clone()),
+        (StatusCode::OK, json!(true))
+    );
     let (status, _, _) = send(app, call_to("GET", &format!("/v1/responses/{id}"))).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
@@ -806,15 +884,29 @@ async fn messages_route_takes_x_api_key_and_answers_in_the_anthropic_shape() {
     assert_eq!(reply["type"], "message");
     assert_eq!(reply["content"][0], json!({"type": "text", "text": "ok"}));
     assert_eq!(reply["stop_reason"], "end_turn");
-    assert_eq!(reply["usage"], json!({"input_tokens": 3, "output_tokens": 1}));
-    assert_eq!(backend.asked.lock().unwrap_or_else(PoisonError::into_inner).clone(), vec!["claude-sonnet-4"]);
+    assert_eq!(
+        reply["usage"],
+        json!({"input_tokens": 3, "output_tokens": 1})
+    );
+    assert_eq!(
+        backend
+            .asked
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone(),
+        vec!["claude-sonnet-4"]
+    );
 }
 
 #[tokio::test]
 async fn messages_route_errors_use_the_anthropic_shape() {
     let backend = Forwarding::json(&completion());
 
-    let request = post_to("/v1/messages", ("x-api-key", "wrong".to_owned()), &json!({}));
+    let request = post_to(
+        "/v1/messages",
+        ("x-api-key", "wrong".to_owned()),
+        &json!({}),
+    );
     let (status, _, text) = send(app(&backend), request).await;
     let reply: Value = serde_json::from_str(&text).unwrap_or_default();
 
@@ -828,7 +920,11 @@ async fn count_tokens_estimates_without_calling_the_model() {
     let backend = Forwarding::json(&completion());
     let sent = json!({"model": "m", "messages": [{"role": "user", "content": "hello there"}]});
 
-    let request = post_to("/v1/messages/count_tokens", ("x-api-key", KEY.to_owned()), &sent);
+    let request = post_to(
+        "/v1/messages/count_tokens",
+        ("x-api-key", KEY.to_owned()),
+        &sent,
+    );
     let (status, _, text) = send(app(&backend), request).await;
     let reply: Value = serde_json::from_str(&text).unwrap_or_default();
 
@@ -879,7 +975,9 @@ fn answering(text: &str) -> Value {
 fn sse_events(text: &str) -> Vec<(String, Value)> {
     text.split("\n\n")
         .filter_map(|frame| {
-            let name = frame.lines().find_map(|line| line.strip_prefix("event: "))?;
+            let name = frame
+                .lines()
+                .find_map(|line| line.strip_prefix("event: "))?;
             let data = frame.lines().find_map(|line| line.strip_prefix("data: "))?;
             Some((name.to_owned(), json_of(data)))
         })
@@ -890,34 +988,59 @@ fn sse_events(text: &str) -> Vec<(String, Value)> {
 async fn responses_web_search_runs_and_is_reported() {
     let backend = Forwarding::replying(&[]).then(&[searching("rust news"), answering("Done.")]);
     let sent = json!({"model": "m", "input": "news?", "tools": [{"type": "web_search_preview"}]});
-    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let request = post_to(
+        "/v1/responses",
+        ("authorization", format!("Bearer {KEY}")),
+        &sent,
+    );
     let (status, _, text) = send(app(&backend), request).await;
 
     assert_eq!(status, StatusCode::OK);
     let reply = json_of(&text);
     assert_eq!(reply["output"][0]["type"], "web_search_call");
     assert_eq!(reply["output"][0]["action"]["query"], "rust news");
-    assert_eq!(reply["output"][0]["action"]["sources"][0]["url"], "https://example.com/a");
+    assert_eq!(
+        reply["output"][0]["action"]["sources"][0]["url"],
+        "https://example.com/a"
+    );
     assert_eq!(reply["output"][1]["content"][0]["text"], "Done.");
     assert_eq!(reply["usage"]["input_tokens"], 14);
     assert_eq!(backend.searched(), ["rust news"]);
     let second = &backend.forwarded()[1]["messages"];
     assert_eq!(second[1]["tool_calls"][0]["id"], "call_s");
     assert_eq!(second[2]["role"], "tool");
-    assert!(second[2]["content"].as_str().unwrap_or_default().contains("https://example.com/a"));
+    assert!(
+        second[2]["content"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("https://example.com/a")
+    );
 }
 
 #[tokio::test]
 async fn responses_web_search_streams_its_items_first() {
     let backend = Forwarding::replying(&[]).then(&[searching("q"), answering("Done.")]);
-    let sent = json!({"model": "m", "input": "x", "stream": true, "tools": [{"type": "web_search"}]});
-    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let sent =
+        json!({"model": "m", "input": "x", "stream": true, "tools": [{"type": "web_search"}]});
+    let request = post_to(
+        "/v1/responses",
+        ("authorization", format!("Bearer {KEY}")),
+        &sent,
+    );
     let (_, _, text) = send(app(&backend), request).await;
 
-    let names: Vec<String> = sse_events(&text).into_iter().map(|(name, _)| name).collect();
-    let searching_at = names.iter().position(|n| n == "response.web_search_call.searching");
+    let names: Vec<String> = sse_events(&text)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+    let searching_at = names
+        .iter()
+        .position(|n| n == "response.web_search_call.searching");
     let text_at = names.iter().position(|n| n == "response.output_text.delta");
-    assert!(searching_at.is_some() && searching_at < text_at, "{names:?}");
+    assert!(
+        searching_at.is_some() && searching_at < text_at,
+        "{names:?}"
+    );
     assert_eq!(names.last().map(String::as_str), Some("response.completed"));
 }
 
@@ -945,7 +1068,8 @@ async fn max_uses_and_the_setting_stop_a_search() {
         "model": "m", "max_tokens": 50, "messages": [{"role": "user", "content": "x"}],
         "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 1}],
     });
-    let backend = Forwarding::replying(&[]).then(&[searching("a"), searching("b"), answering("Done.")]);
+    let backend =
+        Forwarding::replying(&[]).then(&[searching("a"), searching("b"), answering("Done.")]);
     let request = post_to("/v1/messages", ("x-api-key", KEY.to_owned()), &sent);
     let (_, _, text) = send(app(&backend), request).await;
     assert_eq!(backend.searched(), ["a"]);
@@ -954,16 +1078,24 @@ async fn max_uses_and_the_setting_stop_a_search() {
     assert_eq!(json_of(&text)["content"].as_array().map(Vec::len), Some(3));
 
     let backend = Forwarding::replying(&[]).then(&[searching("a"), answering("Done.")]);
-    let router = router(DEFAULT_PORT, backend.clone(), with_settings(json!({"agentWebTools": false})));
+    let router = router(
+        DEFAULT_PORT,
+        backend.clone(),
+        with_settings(json!({"agentWebTools": false})),
+    );
     let request = post_to("/v1/messages", ("x-api-key", KEY.to_owned()), &sent);
     let (_, _, text) = send(router, request).await;
     assert!(backend.searched().is_empty());
-    assert_eq!(json_of(&text)["content"][1]["content"]["error_code"], "unavailable");
+    assert_eq!(
+        json_of(&text)["content"][1]["content"]["error_code"],
+        "unavailable"
+    );
 }
 
 #[tokio::test]
 async fn a_client_function_call_beats_a_search() {
-    let call = json!({"id": "c1", "type": "function", "function": {"name": "mine", "arguments": "{}"}});
+    let call =
+        json!({"id": "c1", "type": "function", "function": {"name": "mine", "arguments": "{}"}});
     let mut mixed = searching("q");
     if let Some(calls) = mixed["choices"][0]["message"]["tool_calls"].as_array_mut() {
         calls.push(call);
@@ -973,7 +1105,11 @@ async fn a_client_function_call_beats_a_search() {
         "model": "m", "input": "x",
         "tools": [{"type": "web_search"}, {"type": "function", "name": "mine", "parameters": {"type": "object"}}],
     });
-    let request = post_to("/v1/responses", ("authorization", format!("Bearer {KEY}")), &sent);
+    let request = post_to(
+        "/v1/responses",
+        ("authorization", format!("Bearer {KEY}")),
+        &sent,
+    );
     let (_, _, text) = send(app(&backend), request).await;
 
     let output = json_of(&text)["output"].clone();
@@ -1004,7 +1140,11 @@ async fn count_tokens_uses_the_models_own_count_for_local_models() {
     let backend = Forwarding::replying(&[]).counting(42);
     let count = |model: &str| {
         let sent = json!({"model": model, "messages": [{"role": "user", "content": "x"}]});
-        post_to("/v1/messages/count_tokens", ("x-api-key", KEY.to_owned()), &sent)
+        post_to(
+            "/v1/messages/count_tokens",
+            ("x-api-key", KEY.to_owned()),
+            &sent,
+        )
     };
     let (_, _, text) = send(app(&backend), count("local-model")).await;
     assert_eq!(json_of(&text)["input_tokens"], 42);
@@ -1023,7 +1163,10 @@ async fn a_messages_stream_starts_with_the_counted_input() {
     let (_, _, text) = send(app(&backend), request).await;
     let events = sse_events(&text);
     assert_eq!(events[0].1["message"]["usage"]["input_tokens"], 42);
-    assert_eq!(events.last().map(|(name, _)| name.as_str()), Some("message_stop"));
+    assert_eq!(
+        events.last().map(|(name, _)| name.as_str()),
+        Some("message_stop")
+    );
 }
 
 #[tokio::test]
@@ -1034,14 +1177,28 @@ async fn a_streamed_reply_is_logged_with_its_tokens() {
         "data: [DONE]\n\n",
     ];
     let backend = Forwarding::replying(&chunks);
-    let environment = TestEnv { mode: Mode::Model, ..env() };
+    let environment = TestEnv {
+        mode: Mode::Model,
+        ..env()
+    };
     let log = environment.logged.clone();
-    let sent = json!({"model": "m", "stream": true, "messages": [{"role": "user", "content": "x"}]});
-    let (_, _, text) = send(router(DEFAULT_PORT, backend.clone(), environment), post(&sent)).await;
+    let sent =
+        json!({"model": "m", "stream": true, "messages": [{"role": "user", "content": "x"}]});
+    let (_, _, text) = send(
+        router(DEFAULT_PORT, backend.clone(), environment),
+        post(&sent),
+    )
+    .await;
 
     // The client did not ask for usage, so it is asked of the model and kept back.
-    assert_eq!(backend.forwarded()[0]["stream_options"]["include_usage"], true);
+    assert_eq!(
+        backend.forwarded()[0]["stream_options"]["include_usage"],
+        true
+    );
     assert!(!text.contains("prompt_tokens"), "{text}");
     let entries = log.lock().unwrap_or_else(PoisonError::into_inner).clone();
-    assert_eq!((entries[0].prompt_tokens, entries[0].completion_tokens), (7, 3));
+    assert_eq!(
+        (entries[0].prompt_tokens, entries[0].completion_tokens),
+        (7, 3)
+    );
 }

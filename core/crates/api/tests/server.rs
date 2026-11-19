@@ -107,7 +107,11 @@ impl Backend for Scripted {
                 message: "disk".to_owned(),
             });
         }
-        Ok(self.models.iter().map(|name| ModelEntry::local(name)).collect())
+        Ok(self
+            .models
+            .iter()
+            .map(|name| ModelEntry::local(name))
+            .collect())
     }
 
     async fn generate(

@@ -13,8 +13,8 @@ use draggy_api::ollama;
 use draggy_api::search::{Hit, Search};
 use draggy_api::server::{
     Backend, BackendError, CompletionRequest, Env, ModelEntry, Reply, Sink, Usage, check_request,
-    chunk_line,
-    completion_body, generate_key, models_body, read_completion_request, router, same_key,
+    chunk_line, completion_body, generate_key, models_body, read_completion_request, router,
+    same_key,
 };
 use draggy_testkit::{cases, files};
 use http_body_util::BodyExt;
@@ -97,14 +97,24 @@ fn run(file: &str, input: &Value) -> Value {
 
 /// A request, a whole reply or a stream, translated for one dialect. A stream ends with `finish` or `fail:<message>`.
 fn run_dialect(dialect: Dialect, input: &Value) -> Value {
-    let (id, model, created) = (text(&input["chatId"]), text(&input["model"]), input["created"].as_i64().unwrap_or(0));
+    let (id, model, created) = (
+        text(&input["chatId"]),
+        text(&input["model"]),
+        input["created"].as_i64().unwrap_or(0),
+    );
     match input["op"].as_str() {
-        Some("request") => dialect::to_chat(dialect, &input["body"]).unwrap_or_else(|error| json!({ "error": error })),
-        Some("response") => {
-            dialect::whole_reply_with(dialect, &input["chat"], (id, model, created), &opts_of(&input["opts"])).unwrap_or(Value::Null)
-        }
+        Some("request") => dialect::to_chat(dialect, &input["body"])
+            .unwrap_or_else(|error| json!({ "error": error })),
+        Some("response") => dialect::whole_reply_with(
+            dialect,
+            &input["chat"],
+            (id, model, created),
+            &opts_of(&input["opts"]),
+        )
+        .unwrap_or(Value::Null),
         Some("stream") => {
-            let mut translator = dialect::translator_with(dialect, id, model, created, &opts_of(&input["opts"]));
+            let mut translator =
+                dialect::translator_with(dialect, id, model, created, &opts_of(&input["opts"]));
             let mut events = Vec::new();
             for chunk in input["chunks"].as_array().into_iter().flatten() {
                 events.extend(translator.feed(chunk));
@@ -113,7 +123,12 @@ fn run_dialect(dialect: Dialect, input: &Value) -> Value {
                 Some(message) => translator.fail(message),
                 None => translator.finish(),
             });
-            Value::Array(events.iter().map(|e| json!({ "event": e.name, "data": e.data })).collect())
+            Value::Array(
+                events
+                    .iter()
+                    .map(|e| json!({ "event": e.name, "data": e.data }))
+                    .collect(),
+            )
         }
         other => panic!("unknown op {other:?}"),
     }
@@ -121,8 +136,16 @@ fn run_dialect(dialect: Dialect, input: &Value) -> Value {
 
 /// The options a case sets: `searches` as `{id, query, hits: [{title, url, snippet}], error}`.
 fn opts_of(value: &Value) -> Opts {
-    let mut opts = Opts { thinking: value["thinking"] == true, ..Opts::default() };
-    opts.stop = value["stop"].as_array().into_iter().flatten().map(|s| text(s).to_owned()).collect();
+    let mut opts = Opts {
+        thinking: value["thinking"] == true,
+        ..Opts::default()
+    };
+    opts.stop = value["stop"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|s| text(s).to_owned())
+        .collect();
     for search in value["searches"].as_array().into_iter().flatten() {
         opts.searches.push(Search {
             id: text(&search["id"]).to_owned(),
@@ -146,8 +169,15 @@ fn opts_of(value: &Value) -> Opts {
 /// Ollama cases: `request`, `response` and `stream` as the other dialects, plus the small pure routes. Durations are masked.
 fn run_ollama(input: &Value) -> Value {
     let generate = text(&input["kind"]) == "generate";
-    let dialect = if generate { Dialect::OllamaGenerate } else { Dialect::OllamaChat };
-    let (model, created) = (text(&input["model"]), input["created"].as_i64().unwrap_or(0));
+    let dialect = if generate {
+        Dialect::OllamaGenerate
+    } else {
+        Dialect::OllamaChat
+    };
+    let (model, created) = (
+        text(&input["model"]),
+        input["created"].as_i64().unwrap_or(0),
+    );
     let entries = || -> Vec<ModelEntry> {
         input["entries"]
             .as_array()
@@ -168,13 +198,22 @@ fn run_ollama(input: &Value) -> Value {
         value
     };
     match input["op"].as_str() {
-        Some("load") => ollama::load_reply(generate, &input["body"], model, created).unwrap_or(Value::Null),
+        Some("load") => {
+            ollama::load_reply(generate, &input["body"], model, created).unwrap_or(Value::Null)
+        }
         Some("tags") => ollama::tags(&entries(), created),
         Some("show") => ollama::show(&entries()[0]),
         Some("time") => json!(ollama::iso_time(created)),
         Some("stream") => {
             let events = run_dialect(dialect, input);
-            Value::Array(events.as_array().into_iter().flatten().map(|e| mask(e["data"].clone())).collect())
+            Value::Array(
+                events
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|e| mask(e["data"].clone()))
+                    .collect(),
+            )
         }
         _ => mask(run_dialect(dialect, input)),
     }

@@ -462,7 +462,10 @@ impl<K: KvStore, S: Keystore, H: HttpClient> Gateway<'_, K, S, H> {
         let model = requested_model(&request.body);
         // A remote reference never reaches the engine, whether or not its provider exists.
         if local_only && model.starts_with('@') {
-            send_reply(sink, error_reply(400, "This route needs a local model.", &cors));
+            send_reply(
+                sink,
+                error_reply(400, "This route needs a local model.", &cors),
+            );
             return Ok(());
         }
         if model.starts_with('@') {
@@ -1160,15 +1163,48 @@ mod tests {
             clock: &clock,
         };
         let local = "{\"model\":\"m.gguf\"}";
-        assert!(gateway.handle(&request("POST", "draggy-ai://completions", None, local)).is_ok());
-        assert_eq!(engine.sent.borrow()[0].0, "http://127.0.0.1:9/v1/completions");
-        let cloud = gateway.handle(&request("POST", "draggy-ai://completions", None, "{\"model\":\"@a/b\"}"));
+        assert!(
+            gateway
+                .handle(&request("POST", "draggy-ai://completions", None, local))
+                .is_ok()
+        );
+        assert_eq!(
+            engine.sent.borrow()[0].0,
+            "http://127.0.0.1:9/v1/completions"
+        );
+        let cloud = gateway.handle(&request(
+            "POST",
+            "draggy-ai://completions",
+            None,
+            "{\"model\":\"@a/b\"}",
+        ));
         assert_eq!(cloud.map(|r| r.status), Ok(400));
         assert_eq!(engine.sent.borrow().len(), 1);
-        assert!(gateway.handle(&request("POST", "draggy-ai://tokenize", None, "{\"content\":\"x\"}")).is_ok());
+        assert!(
+            gateway
+                .handle(&request(
+                    "POST",
+                    "draggy-ai://tokenize",
+                    None,
+                    "{\"content\":\"x\"}"
+                ))
+                .is_ok()
+        );
         assert_eq!(engine.sent.borrow()[1].0, "http://127.0.0.1:9/tokenize");
-        assert!(gateway.handle(&request("POST", "draggy-ai://apply-template", None, "{\"messages\":[]}")).is_ok());
-        assert_eq!(engine.sent.borrow()[2].0, "http://127.0.0.1:9/apply-template");
+        assert!(
+            gateway
+                .handle(&request(
+                    "POST",
+                    "draggy-ai://apply-template",
+                    None,
+                    "{\"messages\":[]}"
+                ))
+                .is_ok()
+        );
+        assert_eq!(
+            engine.sent.borrow()[2].0,
+            "http://127.0.0.1:9/apply-template"
+        );
     }
 
     #[test]

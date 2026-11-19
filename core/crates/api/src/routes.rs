@@ -13,25 +13,41 @@ use crate::dialect::Dialect;
 use crate::embeddings;
 use crate::ollama;
 use crate::server::{
-    AGENT_MODEL, Backend, ByteStream, Env, ModelEntry, Permit, Shared, buffered_response, completion_id, error_body, error_response,
-    failure_message, json_response, model_failure, shaped_error, sse_response, take_slot,
+    AGENT_MODEL, Backend, ByteStream, Env, ModelEntry, Permit, Shared, buffered_response,
+    completion_id, error_body, error_response, failure_message, json_response, model_failure,
+    shaped_error, sse_response, take_slot,
 };
 use crate::settings::{self, ApiSettings};
 
 /// Vectors for the inputs, in the OpenAI shape.
-pub(crate) async fn embeddings<B: Backend, E: Env>(shared: &Shared<B, E>, body: &Value) -> Response {
+pub(crate) async fn embeddings<B: Backend, E: Env>(
+    shared: &Shared<B, E>,
+    body: &Value,
+) -> Response {
     let Some(object) = body.as_object() else {
-        return error_response(StatusCode::BAD_REQUEST, "The body must be a JSON object.", "invalid_request_error");
+        return error_response(
+            StatusCode::BAD_REQUEST,
+            "The body must be a JSON object.",
+            "invalid_request_error",
+        );
     };
     let inputs = match embeddings::read_inputs(object.get("input")) {
         Ok(inputs) => inputs,
-        Err(message) => return error_response(StatusCode::BAD_REQUEST, &message, "invalid_request_error"),
+        Err(message) => {
+            return error_response(StatusCode::BAD_REQUEST, &message, "invalid_request_error");
+        }
     };
     let format = match embeddings::read_format(body) {
         Ok(format) => format,
-        Err(message) => return error_response(StatusCode::BAD_REQUEST, &message, "invalid_request_error"),
+        Err(message) => {
+            return error_response(StatusCode::BAD_REQUEST, &message, "invalid_request_error");
+        }
     };
-    let requested = object.get("model").and_then(Value::as_str).unwrap_or("").to_owned();
+    let requested = object
+        .get("model")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_owned();
     let permit = match take_slot(shared, None).await {
         Ok(permit) => permit,
         Err(response) => return response,
@@ -52,7 +68,11 @@ pub(crate) async fn embeddings<B: Backend, E: Env>(shared: &Shared<B, E>, body: 
             "The embedding model returned the wrong number of vectors.",
             "server_error",
         ),
-        Err(error) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &failure_message(&error), "server_error"),
+        Err(error) => error_response(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            &failure_message(&error),
+            "server_error",
+        ),
     }
 }
 
@@ -63,23 +83,39 @@ pub(crate) async fn completions<B: Backend, E: Env>(
     settings: &ApiSettings,
 ) -> Response {
     if !body.is_object() || body.get("prompt").is_none() {
-        return error_response(StatusCode::BAD_REQUEST, "The prompt is required.", "invalid_request_error");
+        return error_response(
+            StatusCode::BAD_REQUEST,
+            "The prompt is required.",
+            "invalid_request_error",
+        );
     }
     let stream = body.get("stream") == Some(&Value::Bool(true));
     settings::apply_sampling(&mut body, &settings.sampling);
-    let requested = body.get("model").and_then(Value::as_str).unwrap_or("").to_owned();
+    let requested = body
+        .get("model")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_owned();
     let permit = match take_slot(shared, None).await {
         Ok(permit) => permit,
         Err(response) => return response,
     };
     let cancel = CancellationToken::new();
     let guard = cancel.clone().drop_guard();
-    let model = match shared.backend.prepare_model(&requested, cancel.clone()).await {
+    let model = match shared
+        .backend
+        .prepare_model(&requested, cancel.clone())
+        .await
+    {
         Ok(model) => model,
         Err(error) => return model_failure(&error, None),
     };
     body["model"] = Value::String(model.clone());
-    let reply = match shared.backend.forward_completions(body, cancel.clone()).await {
+    let reply = match shared
+        .backend
+        .forward_completions(body, cancel.clone())
+        .await
+    {
         Ok(reply) => reply,
         Err(error) => return model_failure(&error, None),
     };
@@ -186,15 +222,27 @@ pub(crate) fn responses_route<B: Backend, E: Env>(
     if id.is_empty() {
         return None;
     }
-    let missing = || not_found(&format!("Response with id '{id}' not found."), "response_id", "response_not_found");
-    let mut store = shared.store.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let missing = || {
+        not_found(
+            &format!("Response with id '{id}' not found."),
+            "response_id",
+            "response_not_found",
+        )
+    };
+    let mut store = shared
+        .store
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     match (method, tail) {
         (&Method::GET, None) => Some(match store.get(id) {
             Some(stored) => json_response(StatusCode::OK, stored.response.to_string()),
             None => missing(),
         }),
         (&Method::DELETE, None) => Some(if store.remove(id) {
-            json_response(StatusCode::OK, serde_json::json!({"id": id, "object": "response", "deleted": true}).to_string())
+            json_response(
+                StatusCode::OK,
+                serde_json::json!({"id": id, "object": "response", "deleted": true}).to_string(),
+            )
         } else {
             missing()
         }),
@@ -204,11 +252,20 @@ pub(crate) fn responses_route<B: Backend, E: Env>(
                 if query_value(query, "order") != Some("asc") {
                     items.reverse();
                 }
-                let limit = query_value(query, "limit").and_then(|v| v.parse::<usize>().ok()).unwrap_or(20).clamp(1, 100);
+                let limit = query_value(query, "limit")
+                    .and_then(|v| v.parse::<usize>().ok())
+                    .unwrap_or(20)
+                    .clamp(1, 100);
                 let more = items.len() > limit;
                 items.truncate(limit);
-                let first = items.first().map(|item| item["id"].clone()).unwrap_or(Value::Null);
-                let last = items.last().map(|item| item["id"].clone()).unwrap_or(Value::Null);
+                let first = items
+                    .first()
+                    .map(|item| item["id"].clone())
+                    .unwrap_or(Value::Null);
+                let last = items
+                    .last()
+                    .map(|item| item["id"].clone())
+                    .unwrap_or(Value::Null);
                 let list = serde_json::json!({
                     "object": "list", "data": items, "first_id": first, "last_id": last, "has_more": more,
                 });
@@ -236,7 +293,10 @@ async fn all_entries<B: Backend, E: Env>(shared: &Shared<B, E>) -> Option<Vec<Mo
 }
 
 /// The read-only Ollama routes, or `None` when the path is not one of them.
-pub(crate) async fn ollama_get<B: Backend, E: Env>(shared: &Shared<B, E>, path: &str) -> Option<Response> {
+pub(crate) async fn ollama_get<B: Backend, E: Env>(
+    shared: &Shared<B, E>,
+    path: &str,
+) -> Option<Response> {
     let body = match path {
         "/api/version" => ollama::version(),
         "/api/ps" => ollama::running(),
@@ -289,14 +349,26 @@ pub(crate) async fn ollama_show<B: Backend, E: Env>(
 }
 
 /// `POST /api/embed`, and the older `POST /api/embeddings` with one `prompt` and one `embedding` back.
-pub(crate) async fn ollama_embed<B: Backend, E: Env>(shared: &Shared<B, E>, body: &Value, legacy: bool) -> Response {
+pub(crate) async fn ollama_embed<B: Backend, E: Env>(
+    shared: &Shared<B, E>,
+    body: &Value,
+    legacy: bool,
+) -> Response {
     let shape = ollama_shape();
     let key = if legacy { "prompt" } else { "input" };
     let inputs = match embeddings::read_inputs(body.get(key)) {
         Ok(inputs) => inputs,
-        Err(message) => return shaped_error(shape, StatusCode::BAD_REQUEST, &message, "invalid_request_error"),
+        Err(message) => {
+            return shaped_error(
+                shape,
+                StatusCode::BAD_REQUEST,
+                &message,
+                "invalid_request_error",
+            );
+        }
     };
-    let requested = ollama::plain_name(body.get("model").and_then(Value::as_str).unwrap_or("")).to_owned();
+    let requested =
+        ollama::plain_name(body.get("model").and_then(Value::as_str).unwrap_or("")).to_owned();
     let permit = match take_slot(shared, shape).await {
         Ok(permit) => permit,
         Err(response) => return response,
@@ -322,6 +394,11 @@ pub(crate) async fn ollama_embed<B: Backend, E: Env>(shared: &Shared<B, E>, body
             "The embedding model returned the wrong number of vectors.",
             "server_error",
         ),
-        Err(error) => shaped_error(shape, StatusCode::INTERNAL_SERVER_ERROR, &failure_message(&error), "server_error"),
+        Err(error) => shaped_error(
+            shape,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            &failure_message(&error),
+            "server_error",
+        ),
     }
 }

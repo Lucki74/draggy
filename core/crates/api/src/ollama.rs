@@ -34,11 +34,16 @@ pub fn iso_time(seconds: i64) -> String {
     let z = days + 719_468;
     let era = z.div_euclid(146_097);
     let day_of_era = z.rem_euclid(146_097);
-    let year_of_era = (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let year_of_era =
+        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
     let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
     let shifted = (5 * day_of_year + 2) / 153;
     let day = day_of_year - (153 * shifted + 2) / 5 + 1;
-    let month = if shifted < 10 { shifted + 3 } else { shifted - 9 };
+    let month = if shifted < 10 {
+        shifted + 3
+    } else {
+        shifted - 9
+    };
     let year = year_of_era + era * 400 + i64::from(month <= 2);
     format!(
         "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
@@ -111,9 +116,14 @@ pub fn embed_reply(model: &str, vectors: &[Vec<f32>], tokens: u64) -> Value {
 /// The reply of a request that only loads the model, or `None` when the request has work to do.
 pub fn load_reply(generate: bool, body: &Value, model: &str, created: i64) -> Option<Value> {
     let empty = if generate {
-        body.get("prompt").and_then(Value::as_str).is_none_or(str::is_empty) && body.get("images").is_none()
+        body.get("prompt")
+            .and_then(Value::as_str)
+            .is_none_or(str::is_empty)
+            && body.get("images").is_none()
     } else {
-        body.get("messages").and_then(Value::as_array).is_some_and(Vec::is_empty)
+        body.get("messages")
+            .and_then(Value::as_array)
+            .is_some_and(Vec::is_empty)
     };
     if !empty {
         return None;
@@ -201,7 +211,11 @@ fn read_message(index: usize, entry: &Value, messages: &mut Vec<Value>) -> Resul
                 .rev()
                 .filter_map(|message| message.get("tool_calls").and_then(Value::as_array))
                 .flatten()
-                .find(|call| name.is_none_or(|name| call.pointer("/function/name").and_then(Value::as_str) == Some(name)))
+                .find(|call| {
+                    name.is_none_or(|name| {
+                        call.pointer("/function/name").and_then(Value::as_str) == Some(name)
+                    })
+                })
                 .and_then(|call| call.get("id").and_then(Value::as_str))
                 .unwrap_or("call_0_0")
                 .to_owned();
@@ -215,13 +229,21 @@ fn read_message(index: usize, entry: &Value, messages: &mut Vec<Value>) -> Resul
 fn finish_request(object: &Map<String, Value>, messages: Vec<Value>) -> Value {
     let stream = object.get("stream") != Some(&Value::Bool(false));
     let mut chat = Map::new();
-    chat.insert("model".to_owned(), json!(plain_name(object.get("model").and_then(Value::as_str).unwrap_or(""))));
+    chat.insert(
+        "model".to_owned(),
+        json!(plain_name(
+            object.get("model").and_then(Value::as_str).unwrap_or("")
+        )),
+    );
     chat.insert("messages".to_owned(), Value::Array(messages));
     chat.insert("stream".to_owned(), Value::Bool(stream));
     if stream {
         chat.insert("stream_options".to_owned(), json!({"include_usage": true}));
     }
-    if let Some(tools) = object.get("tools").filter(|tools| tools.as_array().is_some_and(|tools| !tools.is_empty())) {
+    if let Some(tools) = object
+        .get("tools")
+        .filter(|tools| tools.as_array().is_some_and(|tools| !tools.is_empty()))
+    {
         chat.insert("tools".to_owned(), tools.clone());
     }
     match object.get("format") {
@@ -237,12 +259,24 @@ fn finish_request(object: &Map<String, Value>, messages: Vec<Value>) -> Value {
         _ => {}
     }
     if let Some(options) = object.get("options").and_then(Value::as_object) {
-        for key in ["temperature", "top_p", "top_k", "seed", "stop", "presence_penalty", "frequency_penalty"] {
+        for key in [
+            "temperature",
+            "top_p",
+            "top_k",
+            "seed",
+            "stop",
+            "presence_penalty",
+            "frequency_penalty",
+        ] {
             if let Some(value) = options.get(key).filter(|value| !value.is_null()) {
                 chat.insert(key.to_owned(), value.clone());
             }
         }
-        if let Some(count) = options.get("num_predict").and_then(Value::as_i64).filter(|count| *count > 0) {
+        if let Some(count) = options
+            .get("num_predict")
+            .and_then(Value::as_i64)
+            .filter(|count| *count > 0)
+        {
             chat.insert("max_tokens".to_owned(), json!(count));
         }
     }
@@ -258,7 +292,9 @@ fn finish_request(object: &Map<String, Value>, messages: Vec<Value>) -> Value {
 
 /// The chat request for an `/api/chat` body.
 pub fn chat_to_chat(body: &Value) -> Result<Value, String> {
-    let object = body.as_object().ok_or_else(|| "The body must be a JSON object.".to_owned())?;
+    let object = body
+        .as_object()
+        .ok_or_else(|| "The body must be a JSON object.".to_owned())?;
     let entries = object
         .get("messages")
         .and_then(Value::as_array)
@@ -273,9 +309,15 @@ pub fn chat_to_chat(body: &Value) -> Result<Value, String> {
 
 /// The chat request for an `/api/generate` body.
 pub fn generate_to_chat(body: &Value) -> Result<Value, String> {
-    let object = body.as_object().ok_or_else(|| "The body must be a JSON object.".to_owned())?;
+    let object = body
+        .as_object()
+        .ok_or_else(|| "The body must be a JSON object.".to_owned())?;
     let mut messages = Vec::new();
-    if let Some(system) = object.get("system").and_then(Value::as_str).filter(|text| !text.trim().is_empty()) {
+    if let Some(system) = object
+        .get("system")
+        .and_then(Value::as_str)
+        .filter(|text| !text.trim().is_empty())
+    {
         messages.push(json!({"role": "system", "content": system}));
     }
     let prompt = object.get("prompt").and_then(Value::as_str).unwrap_or("");
@@ -295,7 +337,14 @@ fn done_reason(finish: &str) -> &'static str {
 }
 
 /// The last line of a reply, or the one object of a whole reply.
-fn closing(head: (bool, &str, i64), text: Option<&str>, calls: &[Value], finish: &str, usage: (u64, u64), total_ns: u64) -> Value {
+fn closing(
+    head: (bool, &str, i64),
+    text: Option<&str>,
+    calls: &[Value],
+    finish: &str,
+    usage: (u64, u64),
+    total_ns: u64,
+) -> Value {
     let (generate, model, created) = head;
     let mut reply = json!({"model": model, "created_at": iso_time(created)});
     if generate {
@@ -330,9 +379,22 @@ pub fn from_chat(generate: bool, chat: &Value, model: &str, created: i64) -> Val
 }
 
 /// Like `from_chat`, with the model's reasoning when the request asks for it.
-pub fn from_chat_with(generate: bool, chat: &Value, model: &str, created: i64, opts: &Opts) -> Value {
+pub fn from_chat_with(
+    generate: bool,
+    chat: &Value,
+    model: &str,
+    created: i64,
+    opts: &Opts,
+) -> Value {
     let answer = read_answer(chat, "ollama");
-    let mut reply = closing((generate, model, created), Some(&answer.text), &call_values(chat), &answer.finish, (answer.input_tokens, answer.output_tokens), 0);
+    let mut reply = closing(
+        (generate, model, created),
+        Some(&answer.text),
+        &call_values(chat),
+        &answer.finish,
+        (answer.input_tokens, answer.output_tokens),
+        0,
+    );
     if opts.thinking && !answer.reasoning.is_empty() {
         if generate {
             reply["thinking"] = json!(answer.reasoning);
@@ -411,16 +473,28 @@ impl Translator for Stream {
     fn feed(&mut self, chunk: &Value) -> Vec<Event> {
         let mut out = Vec::new();
         if let Some(delta) = chunk.pointer("/choices/0/delta") {
-            let thought = ["reasoning_content", "reasoning"]
-                .iter()
-                .find_map(|key| delta.get(key).and_then(Value::as_str).filter(|t| !t.is_empty()));
+            let thought = ["reasoning_content", "reasoning"].iter().find_map(|key| {
+                delta
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .filter(|t| !t.is_empty())
+            });
             if let Some(text) = thought.filter(|_| self.thinking) {
                 out.push(self.thought(text));
             }
-            if let Some(text) = delta.get("content").and_then(Value::as_str).filter(|text| !text.is_empty()) {
+            if let Some(text) = delta
+                .get("content")
+                .and_then(Value::as_str)
+                .filter(|text| !text.is_empty())
+            {
                 out.push(self.line(text, &[]));
             }
-            for call in delta.get("tool_calls").and_then(Value::as_array).into_iter().flatten() {
+            for call in delta
+                .get("tool_calls")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
                 let index = call.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
                 while self.calls.len() <= index.min(63) {
                     self.calls.push((String::new(), String::new()));
@@ -429,12 +503,16 @@ impl Translator for Stream {
                 if let Some(name) = call.pointer("/function/name").and_then(Value::as_str) {
                     slot.0.push_str(name);
                 }
-                if let Some(arguments) = call.pointer("/function/arguments").and_then(Value::as_str) {
+                if let Some(arguments) = call.pointer("/function/arguments").and_then(Value::as_str)
+                {
                     slot.1.push_str(arguments);
                 }
             }
         }
-        if let Some(reason) = chunk.pointer("/choices/0/finish_reason").and_then(Value::as_str) {
+        if let Some(reason) = chunk
+            .pointer("/choices/0/finish_reason")
+            .and_then(Value::as_str)
+        {
             self.finish = reason.to_owned();
         }
         let usage = usage_of(chunk);
@@ -460,8 +538,22 @@ impl Translator for Stream {
             out.push(self.line("", &calls));
         }
         let total = u64::try_from(self.started.elapsed().as_nanos()).unwrap_or(u64::MAX);
-        let finish = if self.finish.is_empty() { "stop" } else { &self.finish };
-        out.push(Event::new("", closing((self.generate, &self.model, self.created), None, &[], finish, self.usage, total)));
+        let finish = if self.finish.is_empty() {
+            "stop"
+        } else {
+            &self.finish
+        };
+        out.push(Event::new(
+            "",
+            closing(
+                (self.generate, &self.model, self.created),
+                None,
+                &[],
+                finish,
+                self.usage,
+                total,
+            ),
+        ));
         out
     }
 

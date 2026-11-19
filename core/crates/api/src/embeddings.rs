@@ -28,14 +28,19 @@ pub fn read_format(body: &Value) -> Result<Format, String> {
 /// The inputs of a body: a string, an array of strings, one array of token ids or an array of those.
 /// Each result is a string or an array of ids.
 pub fn read_inputs(input: Option<&Value>) -> Result<Vec<Value>, String> {
-    let wrong = || "input must be a string, an array of strings or an array of token arrays.".to_owned();
+    let wrong =
+        || "input must be a string, an array of strings or an array of token arrays.".to_owned();
     let inputs: Vec<Value> = match input {
         Some(Value::String(text)) => vec![Value::String(text.clone())],
         Some(Value::Array(items)) if items.iter().all(Value::is_string) => items.clone(),
         Some(Value::Array(items)) if items.iter().all(is_ids) && !items.is_empty() => {
             vec![Value::Array(items.clone())]
         }
-        Some(Value::Array(items)) if items.iter().all(|item| item.as_array().is_some_and(|ids| ids.iter().all(is_id))) => {
+        Some(Value::Array(items))
+            if items
+                .iter()
+                .all(|item| item.as_array().is_some_and(|ids| ids.iter().all(is_id))) =>
+        {
             items.clone()
         }
         _ => return Err(wrong()),
@@ -112,14 +117,31 @@ mod tests {
     #[test]
     fn reads_every_input_shape() {
         assert_eq!(read_inputs(Some(&json!("a"))), Ok(vec![json!("a")]));
-        assert_eq!(read_inputs(Some(&json!(["a", "b"]))), Ok(vec![json!("a"), json!("b")]));
-        assert_eq!(read_inputs(Some(&json!([1, 2, 3]))), Ok(vec![json!([1, 2, 3])]));
-        assert_eq!(read_inputs(Some(&json!([[1], [2, 3]]))), Ok(vec![json!([1]), json!([2, 3])]));
+        assert_eq!(
+            read_inputs(Some(&json!(["a", "b"]))),
+            Ok(vec![json!("a"), json!("b")])
+        );
+        assert_eq!(
+            read_inputs(Some(&json!([1, 2, 3]))),
+            Ok(vec![json!([1, 2, 3])])
+        );
+        assert_eq!(
+            read_inputs(Some(&json!([[1], [2, 3]]))),
+            Ok(vec![json!([1]), json!([2, 3])])
+        );
     }
 
     #[test]
     fn refuses_bad_inputs() {
-        for bad in [json!([]), json!(""), json!([""]), json!(7), json!(["a", 1]), json!([[]]), json!([1.5])] {
+        for bad in [
+            json!([]),
+            json!(""),
+            json!([""]),
+            json!(7),
+            json!(["a", 1]),
+            json!([[]]),
+            json!([1.5]),
+        ] {
             assert!(read_inputs(Some(&bad)).is_err(), "{bad}");
         }
         assert!(read_inputs(None).is_err());

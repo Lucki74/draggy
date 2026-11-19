@@ -135,7 +135,8 @@ fn read_user(content: Option<&Value>, out: &mut Vec<Value>) {
     out.extend(tools);
     if has_image {
         out.push(json!({"role": "user", "content": parts}));
-    } else if !text.is_empty() || parts.is_empty() && out.last().is_none_or(|m| m["role"] != "tool") {
+    } else if !text.is_empty() || parts.is_empty() && out.last().is_none_or(|m| m["role"] != "tool")
+    {
         out.push(json!({"role": "user", "content": text}));
     }
 }
@@ -185,7 +186,11 @@ fn read_assistant(content: Option<&Value>, out: &mut Vec<Value>) {
         }
         return;
     }
-    let content = if text.is_empty() { Value::Null } else { json!(text) };
+    let content = if text.is_empty() {
+        Value::Null
+    } else {
+        json!(text)
+    };
     out.push(json!({"role": "assistant", "content": content, "tool_calls": calls}));
 }
 
@@ -226,7 +231,10 @@ fn read_choice(choice: Option<&Value>) -> Option<Value> {
 pub fn stop_sequences(body: &Value) -> Vec<String> {
     let list = body.get("stop_sequences").and_then(Value::as_array);
     let strings = list.into_iter().flatten().filter_map(Value::as_str);
-    strings.filter(|s| !s.is_empty()).map(str::to_owned).collect()
+    strings
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 /// The first stop sequence found in `text`: where it starts and which one it is.
@@ -281,7 +289,9 @@ pub fn from_chat_with(chat: &Value, chat_id: &str, model: &str, opts: &Opts) -> 
         content.extend([call, result]);
     }
     if opts.thinking && !answer.reasoning.is_empty() {
-        content.push(json!({"type": "thinking", "thinking": answer.reasoning, "signature": SIGNATURE}));
+        content.push(
+            json!({"type": "thinking", "thinking": answer.reasoning, "signature": SIGNATURE}),
+        );
     }
     if !answer.text.is_empty() || answer.calls.is_empty() {
         content.push(json!({"type": "text", "text": answer.text}));
@@ -449,13 +459,20 @@ impl Stream {
             "content": [], "stop_reason": null, "stop_sequence": null,
             "usage": {"input_tokens": self.usage.0, "output_tokens": 0},
         });
-        out.push(Event::new("message_start", json!({"type": "message_start", "message": message})));
+        out.push(Event::new(
+            "message_start",
+            json!({"type": "message_start", "message": message}),
+        ));
         for search in std::mem::take(&mut self.searches) {
             let (call, result) = search_blocks(&self.suffix, &search);
             let input = call["input"].to_string();
             let mut call_start = call;
             call_start["input"] = json!({});
-            self.whole_block(out, call_start, Some(json!({"type": "input_json_delta", "partial_json": input})));
+            self.whole_block(
+                out,
+                call_start,
+                Some(json!({"type": "input_json_delta", "partial_json": input})),
+            );
             self.whole_block(out, result, None);
         }
     }
@@ -473,12 +490,17 @@ impl Stream {
                 json!({"type": "content_block_delta", "index": index, "delta": delta}),
             ));
         }
-        out.push(Event::new("content_block_stop", json!({"type": "content_block_stop", "index": index})));
+        out.push(Event::new(
+            "content_block_stop",
+            json!({"type": "content_block_stop", "index": index}),
+        ));
         self.index += 1;
     }
 
     fn close(&mut self, out: &mut Vec<Event>) {
-        let Some(block) = self.open.take() else { return };
+        let Some(block) = self.open.take() else {
+            return;
+        };
         if block == Block::Thinking {
             let delta = json!({"type": "signature_delta", "signature": SIGNATURE});
             out.push(Event::new(
@@ -548,9 +570,15 @@ impl Stream {
                 .get("id")
                 .and_then(Value::as_str)
                 .filter(|id| !id.is_empty())
-                .map_or_else(|| format!("toolu_{}_{}", self.suffix, self.calls), str::to_owned);
+                .map_or_else(
+                    || format!("toolu_{}_{}", self.suffix, self.calls),
+                    str::to_owned,
+                );
             self.calls += 1;
-            let name = call.pointer("/function/name").and_then(Value::as_str).unwrap_or("");
+            let name = call
+                .pointer("/function/name")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             out.push(Event::new(
                 "content_block_start",
                 json!({
@@ -592,13 +620,20 @@ impl Translator for Stream {
             return out;
         };
         if let Some(delta) = choice.get("delta") {
-            let thought = ["reasoning_content", "reasoning"]
-                .iter()
-                .find_map(|key| delta.get(key).and_then(Value::as_str).filter(|t| !t.is_empty()));
+            let thought = ["reasoning_content", "reasoning"].iter().find_map(|key| {
+                delta
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .filter(|t| !t.is_empty())
+            });
             if let Some(text) = thought.filter(|_| self.thinking) {
                 self.think(&mut out, text);
             }
-            if let Some(text) = delta.get("content").and_then(Value::as_str).filter(|t| !t.is_empty()) {
+            if let Some(text) = delta
+                .get("content")
+                .and_then(Value::as_str)
+                .filter(|t| !t.is_empty())
+            {
                 self.push_text(&mut out, text);
             }
             if self.hit.is_none() && delta.get("tool_calls").is_some() {

@@ -37,7 +37,11 @@ impl LogEntry {
 
 /// The client name for the log: the User-Agent cut to 60 characters, without control characters.
 pub fn client_of(user_agent: &str) -> String {
-    user_agent.chars().filter(|c| !c.is_control()).take(CLIENT_LIMIT).collect()
+    user_agent
+        .chars()
+        .filter(|c| !c.is_control())
+        .take(CLIENT_LIMIT)
+        .collect()
 }
 
 /// A bounded list that drops its oldest entry first.
@@ -48,7 +52,9 @@ pub struct Ring {
 
 impl Ring {
     pub const fn new() -> Self {
-        Self { items: VecDeque::new() }
+        Self {
+            items: VecDeque::new(),
+        }
     }
 
     /// Adds an entry and drops the oldest past `cap`.
@@ -115,7 +121,10 @@ mod tests {
     use super::*;
 
     fn entry(n: i64) -> LogEntry {
-        LogEntry { time: n, ..LogEntry::default() }
+        LogEntry {
+            time: n,
+            ..LogEntry::default()
+        }
     }
 
     #[test]

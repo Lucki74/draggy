@@ -1,17 +1,17 @@
 //! The local API server: an OpenAI-style endpoint on 127.0.0.1 that answers with the local engine. The renderer does
 //! the generating, so each request goes to it as an event and its text comes back on the `api-server:*` channels.
 
-use std::collections::HashMap;
-use std::sync::Mutex;
 use draggy_api::log::{LogEntry, Ring};
 use draggy_api::settings::ApiSettings;
+use std::collections::HashMap;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use draggy_api::search::Hit;
 use draggy_api::server::{
-    Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Embedded, Env, ForwardReply, HOST,
-    Mode, ModelEntry, Reply, Sink, Usage,
+    Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Embedded, Env,
+    ForwardReply, HOST, Mode, ModelEntry, Reply, Sink, Usage,
 };
 use draggy_engine::binary_manager::find_llama_binary;
 use draggy_providers::registry::Keystore;
@@ -20,10 +20,10 @@ use tauri::{AppHandle, Manager};
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
 
+use super::library::DEFAULT_EMBED_MODEL;
 use super::{IpcError, Registry, emit};
 use crate::AppState;
 use crate::engines::{EngineSetup, embed_server, host_platform};
-use super::library::DEFAULT_EMBED_MODEL;
 use crate::ipc::providers::adapters::AppKeys;
 
 const CONFIG_KEY: &str = "apiServer";
@@ -103,7 +103,9 @@ async fn configure(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> 
             .get("enabled")
             .and_then(Value::as_bool)
             .unwrap_or(saved.enabled),
-        port: input.get("port").map_or(saved.port, |port| port_from(Some(port))),
+        port: input
+            .get("port")
+            .map_or(saved.port, |port| port_from(Some(port))),
         model_mode: input
             .get("mode")
             .and_then(Value::as_str)
@@ -124,8 +126,13 @@ async fn regenerate_key(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcE
 
 async fn request_log(_app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     let cap = current_settings().log_size as usize;
-    let entries = LOG.lock().unwrap_or_else(|p| p.into_inner()).newest_first(cap);
-    Ok(Value::Array(entries.iter().map(LogEntry::to_value).collect()))
+    let entries = LOG
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .newest_first(cap);
+    Ok(Value::Array(
+        entries.iter().map(LogEntry::to_value).collect(),
+    ))
 }
 
 async fn clear_log(_app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
@@ -464,24 +471,42 @@ impl Backend for Bridge {
         }
         let messages = chat.get("messages")?;
         // The chat template first, so the count includes its markers; the plain text when it is not offered.
-        let templated = self.read_gateway("apply-template", json!({"messages": messages}), &cancel).await;
+        let templated = self
+            .read_gateway("apply-template", json!({"messages": messages}), &cancel)
+            .await;
         let prompt = templated
             .as_ref()
             .and_then(|reply| reply.get("prompt").and_then(Value::as_str))
             .map_or_else(|| plain_text(messages), str::to_owned);
-        let counted = self.read_gateway("tokenize", json!({"content": prompt}), &cancel).await?;
+        let counted = self
+            .read_gateway("tokenize", json!({"content": prompt}), &cancel)
+            .await?;
         let tokens = counted.get("tokens").and_then(Value::as_array)?.len() as u64;
-        let tools = chat.get("tools").map_or(0, |tools| tools.to_string().chars().count() as u64);
+        let tools = chat
+            .get("tools")
+            .map_or(0, |tools| tools.to_string().chars().count() as u64);
         Some(tokens + tools.div_ceil(4))
     }
 
-    async fn web_search(&self, query: &str, cancel: CancellationToken) -> Result<Vec<Hit>, BackendError> {
+    async fn web_search(
+        &self,
+        query: &str,
+        cancel: CancellationToken,
+    ) -> Result<Vec<Hit>, BackendError> {
         let searched = tokio::select! {
             () = cancel.cancelled() => return Err(BackendError { message: "The request was cancelled.".to_owned() }),
             searched = super::web::search_hits(&self.0, query) => searched,
         };
         searched
-            .map(|hits| hits.into_iter().map(|(title, url, snippet)| Hit { title, url, snippet }).collect())
+            .map(|hits| {
+                hits.into_iter()
+                    .map(|(title, url, snippet)| Hit {
+                        title,
+                        url,
+                        snippet,
+                    })
+                    .collect()
+            })
             .map_err(|message| BackendError { message })
     }
 
@@ -501,7 +526,8 @@ impl Backend for Bridge {
     ) -> Result<Embedded, BackendError> {
         let state = self.0.state::<AppState>();
         let engines = std::sync::Arc::clone(&state.engines);
-        let chosen = if !model.is_empty() && embed_server::model_present(&engines.models_dir, model) {
+        let chosen = if !model.is_empty() && embed_server::model_present(&engines.models_dir, model)
+        {
             model.to_owned()
         } else {
             DEFAULT_EMBED_MODEL.to_owned()
@@ -545,7 +571,12 @@ fn plain_text(messages: &Value) -> String {
 
 impl Bridge {
     /// Posts a body to a gateway route and reads the JSON answer, or `None` when it is not a good one.
-    async fn read_gateway(&self, route: &str, body: Value, cancel: &CancellationToken) -> Option<Value> {
+    async fn read_gateway(
+        &self,
+        route: &str,
+        body: Value,
+        cancel: &CancellationToken,
+    ) -> Option<Value> {
         let mut reply = self.post_gateway(route, body, cancel.clone()).await.ok()?;
         if reply.status != 200 {
             return None;
@@ -599,13 +630,18 @@ impl Bridge {
                     Ok(Some(bytes)) => Some((Ok(bytes), (Some(response), cancel))),
                     Ok(None) => None,
                     Err(_) => Some((
-                        Err(BackendError { message: FAILED.to_owned() }),
+                        Err(BackendError {
+                            message: FAILED.to_owned(),
+                        }),
                         (None, cancel),
                     )),
                 }
             },
         ));
-        Ok(ForwardReply { status, body: stream })
+        Ok(ForwardReply {
+            status,
+            body: stream,
+        })
     }
 }
 
@@ -633,7 +669,9 @@ impl Env for Keys {
 
     fn record(&self, entry: LogEntry) {
         let cap = current_settings().log_size as usize;
-        LOG.lock().unwrap_or_else(|p| p.into_inner()).push(entry, cap);
+        LOG.lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .push(entry, cap);
     }
 
     fn default_mode(&self) -> Mode {

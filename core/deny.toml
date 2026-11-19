@@ -15,6 +15,7 @@ ignore = [
     { id = "RUSTSEC-2026-0369", reason = "zip extract only; docx-rs 0.4.22 pins zip 8 and does not extract to disk" },
     { id = "RUSTSEC-2026-0429", reason = "zip extract only; docx-rs 0.4.22 pins zip 8 and does not extract to disk" },
     { id = "RUSTSEC-2026-0374", reason = "basic-toml is unmaintained and has no fix; only uniffi's build-time askama uses it" },
+    { id = "RUSTSEC-2026-0543", reason = "chrono is unmaintained with no drop-in replacement yet; draggy-engine only parses and formats release dates" },
 ]
 
 [licenses]

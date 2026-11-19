@@ -188,7 +188,8 @@ impl EmbedServer {
         setup: &EngineSetup,
     ) -> Result<Vec<Vec<f32>>, String> {
         let values: Vec<Value> = inputs.iter().cloned().map(Value::String).collect();
-        self.embed_values(binary, models_dir, cores, model, &values, setup).await
+        self.embed_values(binary, models_dir, cores, model, &values, setup)
+            .await
     }
 
     /// Like `embed`, for inputs that are strings or arrays of token ids.

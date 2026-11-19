@@ -96,8 +96,18 @@ impl ApiSettings {
         let defaults = Self::default();
         let sampling = value.get("sampling").unwrap_or(&Value::Null);
         Self {
-            max_parallel: whole(value, "maxParallel", MAX_PARALLEL_RANGE, DEFAULT_MAX_PARALLEL) as usize,
-            queue_wait_secs: whole(value, "queueWaitSecs", QUEUE_WAIT_RANGE, DEFAULT_QUEUE_WAIT_SECS),
+            max_parallel: whole(
+                value,
+                "maxParallel",
+                MAX_PARALLEL_RANGE,
+                DEFAULT_MAX_PARALLEL,
+            ) as usize,
+            queue_wait_secs: whole(
+                value,
+                "queueWaitSecs",
+                QUEUE_WAIT_RANGE,
+                DEFAULT_QUEUE_WAIT_SECS,
+            ),
             request_timeout_secs: whole(
                 value,
                 "requestTimeoutSecs",
@@ -109,7 +119,13 @@ impl ApiSettings {
             aliases: aliases(value.get("aliases")),
             list_cloud_models: flag(value, "listCloudModels", defaults.list_cloud_models),
             agent_web_tools: flag(value, "agentWebTools", defaults.agent_web_tools),
-            system_prompt: cap_bytes(value.get("systemPrompt").and_then(Value::as_str).unwrap_or(""), SYSTEM_PROMPT_LIMIT),
+            system_prompt: cap_bytes(
+                value
+                    .get("systemPrompt")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                SYSTEM_PROMPT_LIMIT,
+            ),
             send_reasoning: flag(value, "sendReasoning", defaults.send_reasoning),
             sampling: Sampling {
                 temperature: float(sampling, "temperature", 0.0, 2.0),
@@ -122,7 +138,10 @@ impl ApiSettings {
                 override_client: flag(sampling, "overrideClient", false),
             },
             extra_engine_args: cap_bytes(
-                value.get("extraEngineArgs").and_then(Value::as_str).unwrap_or(""),
+                value
+                    .get("extraEngineArgs")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
                 ENGINE_ARGS_LIMIT,
             ),
             allowed_origins: origins(value.get("allowedOrigins")),
@@ -273,7 +292,13 @@ fn aliases(value: Option<&Value>) -> BTreeMap<String, String> {
     };
     for (name, target) in map {
         let name: String = name.trim().chars().take(NAME_LIMIT).collect();
-        let target: String = target.as_str().unwrap_or("").trim().chars().take(NAME_LIMIT).collect();
+        let target: String = target
+            .as_str()
+            .unwrap_or("")
+            .trim()
+            .chars()
+            .take(NAME_LIMIT)
+            .collect();
         if name.is_empty() || target.is_empty() || name == target {
             continue;
         }
@@ -363,7 +388,9 @@ pub fn apply_sampling(body: &mut Value, sampling: &Sampling) {
             object.remove("max_completion_tokens");
         }
         let sent = object.get("max_tokens").is_some_and(|v| !v.is_null())
-            || object.get("max_completion_tokens").is_some_and(|v| !v.is_null());
+            || object
+                .get("max_completion_tokens")
+                .is_some_and(|v| !v.is_null());
         if sampling.override_client || !sent {
             object.insert("max_tokens".to_owned(), json!(v));
         }
@@ -396,13 +423,19 @@ mod tests {
         assert!(s.log_requests);
         assert_eq!(s.log_size, 50);
         assert_eq!(ApiSettings::from_value(&json!({"logSize": 1})).log_size, 10);
-        assert_eq!(ApiSettings::from_value(&json!({"logSize": 9999, "logRequests": false})).log_size, 500);
+        assert_eq!(
+            ApiSettings::from_value(&json!({"logSize": 9999, "logRequests": false})).log_size,
+            500
+        );
     }
 
     #[test]
     fn empty_input_gives_the_defaults() {
         assert_eq!(ApiSettings::from_value(&json!({})), ApiSettings::default());
-        assert_eq!(ApiSettings::from_value(&Value::Null), ApiSettings::default());
+        assert_eq!(
+            ApiSettings::from_value(&Value::Null),
+            ApiSettings::default()
+        );
     }
 
     #[test]
@@ -414,7 +447,9 @@ mod tests {
         assert_eq!(s.queue_wait_secs, 600);
         assert_eq!(s.request_timeout_secs, 10);
         assert_eq!(s.max_body_mb, 1);
-        let s = ApiSettings::from_value(&json!({ "maxParallel": 0, "queueWaitSecs": -5, "maxBodyMb": 500 }));
+        let s = ApiSettings::from_value(
+            &json!({ "maxParallel": 0, "queueWaitSecs": -5, "maxBodyMb": 500 }),
+        );
         assert_eq!(s.max_parallel, 1);
         assert_eq!(s.queue_wait_secs, 0);
         assert_eq!(s.max_body_mb, 64);
@@ -473,7 +508,8 @@ mod tests {
         let saved = ApiSettings::from_value(&json!({
             "maxParallel": 4, "systemPrompt": "Be brief.", "sampling": { "temperature": 0.5, "top_k": 40 }
         }));
-        let next = saved.patched(&json!({ "queueWaitSecs": 5, "sampling": { "top_k": null, "seed": 7 } }));
+        let next =
+            saved.patched(&json!({ "queueWaitSecs": 5, "sampling": { "top_k": null, "seed": 7 } }));
         assert_eq!(next.max_parallel, 4);
         assert_eq!(next.system_prompt, "Be brief.");
         assert_eq!(next.queue_wait_secs, 5);
@@ -484,9 +520,13 @@ mod tests {
 
     #[test]
     fn a_patch_is_clamped_and_unknown_keys_ignored() {
-        let next = ApiSettings::default().patched(&json!({ "maxParallel": 100, "port": 1, "bogus": true }));
+        let next = ApiSettings::default()
+            .patched(&json!({ "maxParallel": 100, "port": 1, "bogus": true }));
         assert_eq!(next.max_parallel, 16);
-        assert_eq!(next, ApiSettings::default().patched(&json!({ "maxParallel": 16 })));
+        assert_eq!(
+            next,
+            ApiSettings::default().patched(&json!({ "maxParallel": 16 }))
+        );
     }
 
     #[test]
@@ -502,7 +542,10 @@ mod tests {
     fn system_prompt_goes_first() {
         let mut body = json!({ "messages": [{ "role": "user", "content": "hi" }] });
         prepend_system(&mut body, "Be brief.");
-        assert_eq!(body["messages"][0], json!({ "role": "system", "content": "Be brief." }));
+        assert_eq!(
+            body["messages"][0],
+            json!({ "role": "system", "content": "Be brief." })
+        );
         assert_eq!(body["messages"][1]["role"], "user");
     }
 
@@ -565,16 +608,24 @@ mod tests {
     #[test]
     fn sampling_with_nothing_set_changes_nothing() {
         let mut body = json!({ "temperature": 1.0 });
-        apply_sampling(&mut body, &Sampling { override_client: true, ..Sampling::default() });
+        apply_sampling(
+            &mut body,
+            &Sampling {
+                override_client: true,
+                ..Sampling::default()
+            },
+        );
         assert_eq!(body, json!({ "temperature": 1.0 }));
     }
 
     #[test]
     fn reasoning_is_stripped_from_replies_and_chunks() {
-        let mut whole = json!({ "choices": [{ "message": { "content": "a", "reasoning_content": "t" } }] });
+        let mut whole =
+            json!({ "choices": [{ "message": { "content": "a", "reasoning_content": "t" } }] });
         strip_reasoning(&mut whole);
         assert_eq!(whole["choices"][0]["message"], json!({ "content": "a" }));
-        let mut chunk = json!({ "choices": [{ "delta": { "reasoning_content": "t", "reasoning": "t" } }] });
+        let mut chunk =
+            json!({ "choices": [{ "delta": { "reasoning_content": "t", "reasoning": "t" } }] });
         strip_reasoning(&mut chunk);
         assert_eq!(chunk["choices"][0]["delta"], json!({}));
         let mut other = json!({ "error": { "message": "x" } });

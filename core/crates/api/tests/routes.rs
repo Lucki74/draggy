@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 use axum::body::{Body, Bytes};
 use axum::http::{Request, StatusCode};
 use draggy_api::server::{
-    Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Embedded, Env, ForwardReply, ModelEntry,
-    Reply, Sink, router,
+    Backend, BackendError, ByteStream, CompletionRequest, DEFAULT_PORT, Embedded, Env,
+    ForwardReply, ModelEntry, Reply, Sink, router,
 };
 use futures_util::stream;
 use http_body_util::BodyExt;
@@ -42,21 +42,55 @@ impl Backend for Fake {
     async fn list_models(&self) -> Result<Vec<ModelEntry>, BackendError> {
         Ok(vec![])
     }
-    async fn generate(&self, _: CompletionRequest, _: Sink, _: CancellationToken) -> Result<Reply, BackendError> {
+    async fn generate(
+        &self,
+        _: CompletionRequest,
+        _: Sink,
+        _: CancellationToken,
+    ) -> Result<Reply, BackendError> {
         Ok(Reply::default())
     }
-    async fn prepare_model(&self, requested: &str, _: CancellationToken) -> Result<String, BackendError> {
-        Ok(if requested.is_empty() { "local".to_owned() } else { requested.to_owned() })
+    async fn prepare_model(
+        &self,
+        requested: &str,
+        _: CancellationToken,
+    ) -> Result<String, BackendError> {
+        Ok(if requested.is_empty() {
+            "local".to_owned()
+        } else {
+            requested.to_owned()
+        })
     }
-    async fn forward_completions(&self, body: Value, _: CancellationToken) -> Result<ForwardReply, BackendError> {
-        self.seen.lock().unwrap_or_else(PoisonError::into_inner).push(body);
-        let chunks: Vec<Result<Bytes, BackendError>> =
-            self.chunks.iter().map(|c| Ok(Bytes::from(c.clone()))).collect();
+    async fn forward_completions(
+        &self,
+        body: Value,
+        _: CancellationToken,
+    ) -> Result<ForwardReply, BackendError> {
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(body);
+        let chunks: Vec<Result<Bytes, BackendError>> = self
+            .chunks
+            .iter()
+            .map(|c| Ok(Bytes::from(c.clone())))
+            .collect();
         let body: ByteStream = Box::pin(stream::iter(chunks));
-        Ok(ForwardReply { status: self.status, body })
+        Ok(ForwardReply {
+            status: self.status,
+            body,
+        })
     }
-    async fn embed(&self, _: &str, inputs: Vec<Value>, _: CancellationToken) -> Result<Embedded, BackendError> {
-        self.seen.lock().unwrap_or_else(PoisonError::into_inner).push(json!(inputs));
+    async fn embed(
+        &self,
+        _: &str,
+        inputs: Vec<Value>,
+        _: CancellationToken,
+    ) -> Result<Embedded, BackendError> {
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(json!(inputs));
         Ok(Embedded {
             model: "nomic-embed-text".to_owned(),
             vectors: inputs.iter().map(|_| vec![1.0, 0.5]).collect(),
@@ -77,7 +111,12 @@ async fn call(backend: &Fake, path: &str, body: &Value) -> (StatusCode, String) 
         .await
         .unwrap_or_else(|never: Infallible| match never {});
     let status = response.status();
-    let bytes = response.into_body().collect().await.map(|c| c.to_bytes()).unwrap_or_default();
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .map(|c| c.to_bytes())
+        .unwrap_or_default();
     (status, String::from_utf8_lossy(&bytes).into_owned())
 }
 
@@ -88,7 +127,12 @@ fn json_of(text: &str) -> Value {
 #[tokio::test]
 async fn embeddings_answer_in_the_openai_shape() {
     let backend = Fake::default();
-    let (status, text) = call(&backend, "/v1/embeddings", &json!({"model": "x", "input": ["hello", "hi"]})).await;
+    let (status, text) = call(
+        &backend,
+        "/v1/embeddings",
+        &json!({"model": "x", "input": ["hello", "hi"]}),
+    )
+    .await;
     let body = json_of(&text);
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["object"], "list");
@@ -104,9 +148,19 @@ async fn embeddings_take_a_string_token_arrays_and_base64() {
     let (status, text) = call(&backend, "/v1/embeddings", &json!({"input": "one"})).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json_of(&text)["data"].as_array().map(Vec::len), Some(1));
-    let (_, text) = call(&backend, "/v1/embeddings", &json!({"input": [[1, 2], [3]], "dimensions": 8})).await;
+    let (_, text) = call(
+        &backend,
+        "/v1/embeddings",
+        &json!({"input": [[1, 2], [3]], "dimensions": 8}),
+    )
+    .await;
     assert_eq!(json_of(&text)["usage"]["total_tokens"], 3);
-    let (_, text) = call(&backend, "/v1/embeddings", &json!({"input": "a", "encoding_format": "base64"})).await;
+    let (_, text) = call(
+        &backend,
+        "/v1/embeddings",
+        &json!({"input": "a", "encoding_format": "base64"}),
+    )
+    .await;
     // 1.0 then 0.5 as little-endian f32.
     assert_eq!(json_of(&text)["data"][0]["embedding"], "AACAPwAAAD8=");
 }
@@ -114,7 +168,12 @@ async fn embeddings_take_a_string_token_arrays_and_base64() {
 #[tokio::test]
 async fn bad_embedding_requests_are_400() {
     let backend = Fake::default();
-    for bad in [json!({}), json!({"input": []}), json!({"input": 5}), json!({"input": "a", "encoding_format": "hex"})] {
+    for bad in [
+        json!({}),
+        json!({"input": []}),
+        json!({"input": 5}),
+        json!({"input": "a", "encoding_format": "hex"}),
+    ] {
         let (status, _) = call(&backend, "/v1/embeddings", &bad).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{bad}");
     }
@@ -123,8 +182,17 @@ async fn bad_embedding_requests_are_400() {
 #[tokio::test]
 async fn completions_are_forwarded_and_named_for_the_local_model() {
     let reply = json!({"id": "cmpl-1", "object": "text_completion", "model": "weights.gguf", "choices": [{"text": "x"}]});
-    let backend = Fake { chunks: vec![reply.to_string()], status: 200, ..Fake::default() };
-    let (status, text) = call(&backend, "/v1/completions", &json!({"model": "m", "prompt": "fn "})).await;
+    let backend = Fake {
+        chunks: vec![reply.to_string()],
+        status: 200,
+        ..Fake::default()
+    };
+    let (status, text) = call(
+        &backend,
+        "/v1/completions",
+        &json!({"model": "m", "prompt": "fn "}),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json_of(&text)["model"], "m");
     assert_eq!(backend.seen.lock().unwrap()[0]["prompt"], "fn ");
@@ -133,18 +201,30 @@ async fn completions_are_forwarded_and_named_for_the_local_model() {
 #[tokio::test]
 async fn completion_streams_pass_through() {
     let backend = Fake {
-        chunks: vec!["data: {\"choices\":[{\"text\":\"a\"}]}\n\n".to_owned(), "data: [DONE]\n\n".to_owned()],
+        chunks: vec![
+            "data: {\"choices\":[{\"text\":\"a\"}]}\n\n".to_owned(),
+            "data: [DONE]\n\n".to_owned(),
+        ],
         status: 200,
         ..Fake::default()
     };
-    let (status, text) = call(&backend, "/v1/completions", &json!({"prompt": "p", "stream": true})).await;
+    let (status, text) = call(
+        &backend,
+        "/v1/completions",
+        &json!({"prompt": "p", "stream": true}),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert!(text.contains("\"text\":\"a\"") && text.ends_with("data: [DONE]\n\n"));
 }
 
 #[tokio::test]
 async fn completions_need_a_prompt_and_pass_errors_on() {
-    let backend = Fake { chunks: vec!["{\"error\":{\"message\":\"no\"}}".to_owned()], status: 400, ..Fake::default() };
+    let backend = Fake {
+        chunks: vec!["{\"error\":{\"message\":\"no\"}}".to_owned()],
+        status: 400,
+        ..Fake::default()
+    };
     let (status, _) = call(&backend, "/v1/completions", &json!({"model": "m"})).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let (status, text) = call(&backend, "/v1/completions", &json!({"prompt": "p"})).await;

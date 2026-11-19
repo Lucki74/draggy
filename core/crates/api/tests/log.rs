@@ -6,7 +6,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 use axum::body::Body;
 use axum::http::Request;
 use draggy_api::log::LogEntry;
-use draggy_api::server::{Backend, BackendError, CompletionRequest, DEFAULT_PORT, Env, ModelEntry, Reply, Sink, router};
+use draggy_api::server::{
+    Backend, BackendError, CompletionRequest, DEFAULT_PORT, Env, ModelEntry, Reply, Sink, router,
+};
 use draggy_api::settings::ApiSettings;
 use serde_json::json;
 use tokio_util::sync::CancellationToken;
@@ -29,7 +31,10 @@ impl Env for TestEnv {
         self.0.clone()
     }
     fn record(&self, entry: LogEntry) {
-        self.1.lock().unwrap_or_else(PoisonError::into_inner).push(entry);
+        self.1
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(entry);
     }
 }
 
@@ -39,7 +44,12 @@ impl Backend for Quiet {
     async fn list_models(&self) -> Result<Vec<ModelEntry>, BackendError> {
         Ok(vec![ModelEntry::local("m")])
     }
-    async fn generate(&self, _: CompletionRequest, _: Sink, _: CancellationToken) -> Result<Reply, BackendError> {
+    async fn generate(
+        &self,
+        _: CompletionRequest,
+        _: Sink,
+        _: CancellationToken,
+    ) -> Result<Reply, BackendError> {
         Ok(Reply::default())
     }
 }
@@ -53,7 +63,9 @@ async fn get(settings: ApiSettings, auth: bool) -> Vec<LogEntry> {
     if auth {
         builder = builder.header("authorization", "Bearer draggy-test-key-0123456789");
     }
-    let request = builder.body(Body::empty()).unwrap_or_else(|e| panic!("{e}"));
+    let request = builder
+        .body(Body::empty())
+        .unwrap_or_else(|e| panic!("{e}"));
     let _ = router(DEFAULT_PORT, Quiet, TestEnv(settings, seen.clone()))
         .oneshot(request)
         .await
@@ -66,7 +78,10 @@ async fn a_request_is_logged_without_its_content() {
     let entries = get(ApiSettings::default(), true).await;
     assert_eq!(entries.len(), 1);
     let entry = &entries[0];
-    assert_eq!((entry.method.as_str(), entry.path.as_str(), entry.status), ("GET", "/v1/models", 200));
+    assert_eq!(
+        (entry.method.as_str(), entry.path.as_str(), entry.status),
+        ("GET", "/v1/models", 200)
+    );
     assert_eq!((entry.client.as_str(), entry.time), ("tester/1", 42));
 }
 

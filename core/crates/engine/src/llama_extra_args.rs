@@ -157,7 +157,10 @@ mod tests {
 
     #[test]
     fn quotes_group_words() {
-        assert_eq!(words(r#"--chat-template "a b" 'c d'"#), ["--chat-template", "a b", "c d"]);
+        assert_eq!(
+            words(r#"--chat-template "a b" 'c d'"#),
+            ["--chat-template", "a b", "c d"]
+        );
         assert_eq!(words(r#"--x "say \"hi\"""#), ["--x", r#"say "hi""#]);
         assert_eq!(words(r#"a"b c"d"#), ["ab cd"]);
         assert_eq!(words("--x ''"), ["--x", ""]);
@@ -165,8 +168,14 @@ mod tests {
 
     #[test]
     fn backslashes_stay_for_paths() {
-        assert_eq!(words(r"--lora C:\models\a.gguf"), ["--lora", r"C:\models\a.gguf"]);
-        assert_eq!(words(r#"--lora "C:\my models\a.gguf""#), ["--lora", r"C:\my models\a.gguf"]);
+        assert_eq!(
+            words(r"--lora C:\models\a.gguf"),
+            ["--lora", r"C:\models\a.gguf"]
+        );
+        assert_eq!(
+            words(r#"--lora "C:\my models\a.gguf""#),
+            ["--lora", r"C:\my models\a.gguf"]
+        );
     }
 
     #[test]
@@ -176,7 +185,10 @@ mod tests {
 
     #[test]
     fn shell_syntax_is_plain_text() {
-        assert_eq!(words("-a ; rm -rf $HOME | cat"), ["-a", ";", "rm", "-rf", "$HOME", "|", "cat"]);
+        assert_eq!(
+            words("-a ; rm -rf $HOME | cat"),
+            ["-a", ";", "rm", "-rf", "$HOME", "|", "cat"]
+        );
     }
 
     #[test]
@@ -187,14 +199,21 @@ mod tests {
 
     #[test]
     fn owned_flags_are_dropped_with_their_values() {
-        let out = sanitize("--host 0.0.0.0 -fa on --port=9 --api-key x -m other.gguf --embedding --no-mmap");
+        let out = sanitize(
+            "--host 0.0.0.0 -fa on --port=9 --api-key x -m other.gguf --embedding --no-mmap",
+        );
         assert_eq!(out.args, ["-fa", "on", "--no-mmap"]);
-        assert_eq!(out.dropped, ["--host", "--port", "--api-key", "-m", "--embedding"]);
+        assert_eq!(
+            out.dropped,
+            ["--host", "--port", "--api-key", "-m", "--embedding"]
+        );
     }
 
     #[test]
     fn draggy_sized_flags_are_dropped() {
-        let out = sanitize("-c 4096 -ngl 99 --threads 4 -np 8 -ctk q8_0 --ssl-key-file k --ssl-cert-file c --path /x");
+        let out = sanitize(
+            "-c 4096 -ngl 99 --threads 4 -np 8 -ctk q8_0 --ssl-key-file k --ssl-cert-file c --path /x",
+        );
         assert!(out.args.is_empty());
         assert_eq!(out.dropped.len(), 8);
     }
@@ -208,7 +227,17 @@ mod tests {
     #[test]
     fn allowed_flags_pass_in_order() {
         let out = sanitize(r#"-b 1024 --temp 0.5 --chat-template-kwargs '{"a":1}'"#);
-        assert_eq!(out.args, ["-b", "1024", "--temp", "0.5", "--chat-template-kwargs", r#"{"a":1}"#]);
+        assert_eq!(
+            out.args,
+            [
+                "-b",
+                "1024",
+                "--temp",
+                "0.5",
+                "--chat-template-kwargs",
+                r#"{"a":1}"#
+            ]
+        );
         assert!(out.dropped.is_empty());
     }
 }

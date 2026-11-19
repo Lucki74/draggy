@@ -52,8 +52,11 @@ impl Event {
     /// The SSE text: an `event:` line, a `data:` line and a blank line. A nameless event is one NDJSON line.
     pub fn frame(&self) -> String {
         if self.name.is_empty() {
-            return format!("{}
-", self.data);
+            return format!(
+                "{}
+",
+                self.data
+            );
         }
         format!("event: {}\ndata: {}\n\n", self.name, self.data)
     }
@@ -111,17 +114,32 @@ pub trait Translator: Send {
 }
 
 /// A translator for `dialect`, with ids derived from the chat id.
-pub fn translator(dialect: Dialect, chat_id: &str, model: &str, created: i64) -> Box<dyn Translator> {
+pub fn translator(
+    dialect: Dialect,
+    chat_id: &str,
+    model: &str,
+    created: i64,
+) -> Box<dyn Translator> {
     translator_with(dialect, chat_id, model, created, &Opts::default())
 }
 
 /// Like `translator`, with what the request asked for.
-pub fn translator_with(dialect: Dialect, chat_id: &str, model: &str, created: i64, opts: &Opts) -> Box<dyn Translator> {
+pub fn translator_with(
+    dialect: Dialect,
+    chat_id: &str,
+    model: &str,
+    created: i64,
+    opts: &Opts,
+) -> Box<dyn Translator> {
     match dialect {
-        Dialect::Responses => Box::new(responses::Stream::new(chat_id, model, created).with_opts(opts)),
+        Dialect::Responses => {
+            Box::new(responses::Stream::new(chat_id, model, created).with_opts(opts))
+        }
         Dialect::Messages => Box::new(messages::Stream::new(chat_id, model).with_opts(opts)),
         Dialect::OllamaChat => Box::new(ollama::Stream::new(false, model, created).with_opts(opts)),
-        Dialect::OllamaGenerate => Box::new(ollama::Stream::new(true, model, created).with_opts(opts)),
+        Dialect::OllamaGenerate => {
+            Box::new(ollama::Stream::new(true, model, created).with_opts(opts))
+        }
     }
 }
 
@@ -181,7 +199,12 @@ pub fn read_answer(chat: &Value, suffix: &str) -> Answer {
     };
     let reasoning = ["reasoning_content", "reasoning"]
         .iter()
-        .find_map(|key| message.and_then(|m| m.get(key)).and_then(Value::as_str).filter(|text| !text.is_empty()))
+        .find_map(|key| {
+            message
+                .and_then(|m| m.get(key))
+                .and_then(Value::as_str)
+                .filter(|text| !text.is_empty())
+        })
         .unwrap_or("")
         .to_owned();
     let calls: Vec<Call> = message
@@ -208,7 +231,14 @@ pub fn read_answer(chat: &Value, suffix: &str) -> Answer {
         .and_then(|c| c.get("finish_reason"))
         .and_then(Value::as_str)
         .map_or_else(
-            || if calls.is_empty() { "stop" } else { "tool_calls" }.to_owned(),
+            || {
+                if calls.is_empty() {
+                    "stop"
+                } else {
+                    "tool_calls"
+                }
+                .to_owned()
+            },
             str::to_owned,
         );
     let (input_tokens, output_tokens) = usage_of(chat);
@@ -242,7 +272,12 @@ fn str_at(value: &Value, pointer: &str) -> String {
 }
 
 /// An error body in the shape of the dialect: Anthropic's for Messages, otherwise OpenAI's.
-pub fn error_json(dialect: Option<Dialect>, status: StatusCode, message: &str, kind: &str) -> String {
+pub fn error_json(
+    dialect: Option<Dialect>,
+    status: StatusCode,
+    message: &str,
+    kind: &str,
+) -> String {
     if dialect.is_some_and(Dialect::is_ollama) {
         return json!({"error": message}).to_string();
     }
@@ -283,12 +318,23 @@ pub fn upstream_message(bytes: &[u8]) -> String {
 }
 
 /// A whole chat reply as the dialect's reply. `None` when the reply is not a chat completion.
-pub fn whole_reply(dialect: Dialect, chat: &Value, chat_id: &str, model: &str, created: i64) -> Option<Value> {
+pub fn whole_reply(
+    dialect: Dialect,
+    chat: &Value,
+    chat_id: &str,
+    model: &str,
+    created: i64,
+) -> Option<Value> {
     whole_reply_with(dialect, chat, (chat_id, model, created), &Opts::default())
 }
 
 /// Like `whole_reply`, with what the request asked for.
-pub fn whole_reply_with(dialect: Dialect, chat: &Value, ids: (&str, &str, i64), opts: &Opts) -> Option<Value> {
+pub fn whole_reply_with(
+    dialect: Dialect,
+    chat: &Value,
+    ids: (&str, &str, i64),
+    opts: &Opts,
+) -> Option<Value> {
     let (chat_id, model, created) = ids;
     chat.get("choices")?;
     Some(match dialect {

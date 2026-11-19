@@ -118,7 +118,10 @@ async fn run_search(app: &AppHandle, query: &str) -> Outcome {
 }
 
 /// The results of one search as title, link and snippet. An error when no provider answered.
-pub(crate) async fn search_hits(app: &AppHandle, query: &str) -> Result<Vec<(String, String, String)>, String> {
+pub(crate) async fn search_hits(
+    app: &AppHandle,
+    query: &str,
+) -> Result<Vec<(String, String, String)>, String> {
     let outcome = run_search(app, query).await;
     match outcome.status {
         Status::Ok | Status::Empty => Ok(outcome

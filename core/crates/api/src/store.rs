@@ -52,7 +52,11 @@ mod tests {
     use super::*;
 
     fn stored(n: usize) -> Stored {
-        Stored { messages: Vec::new(), input: Vec::new(), response: json!(n) }
+        Stored {
+            messages: Vec::new(),
+            input: Vec::new(),
+            response: json!(n),
+        }
     }
 
     #[test]
