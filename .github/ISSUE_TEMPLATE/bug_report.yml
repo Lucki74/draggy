@@ -42,11 +42,22 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
   - type: input
     id: os-version
     attributes:
       label: OS version
-      placeholder: e.g. Windows 11 23H2
+      placeholder: e.g. Windows 11 25H2, macOS 15.4 or Ubuntu 24.04
 
   - type: dropdown
     id: feature-area
@@ -55,34 +66,39 @@ body:
       options:
         - Chat
         - Code projects
-        - Browser
+        - Plans and background tasks
+        - Browser pane
+        - Web search and research
         - Document search
-        - Voice mode (beta)
-        - MCP extensions
-        - Command execution
-        - Model loading / GGUF
-        - Settings
-        - Updates
+        - Image generation
+        - Voice and talk
+        - Extensions (MCP and skills)
+        - Commands and permissions
+        - Cloud providers and sign-in
+        - Local models and engines
+        - Settings and appearance
+        - Installation and updates
         - Other
 
   - type: input
     id: model
     attributes:
       label: Model used
-      placeholder: e.g. Qwen2.5-7B-Instruct Q4_K_M
+      description: A local GGUF file or a cloud provider's model.
+      placeholder: e.g. Qwen3.6-35B-A3B Q4_K_M
 
   - type: input
     id: hardware
     attributes:
       label: Hardware
       description: CPU / GPU / RAM
-      placeholder: e.g. Ryzen 7 5800X / RTX 3070 8 GB / 32 GB
+      placeholder: e.g. Ryzen 7 7840HS / RTX 4070 8 GB / 32 GB, or M3 Pro 36 GB
 
   - type: textarea
     id: logs
     attributes:
       label: Logs or screenshots
-      description: Paste any relevant log output here. To attach screenshots, drag them into the "What happened?" field above.
+      description: Paste the relevant lines from app.log, or attach the file from Settings → Diagnostics → Export diagnostics, which hides your home folder and user name. To attach screenshots, drag them into the "What happened?" field above.
       render: shell
 
   - type: checkboxes
@@ -92,5 +108,5 @@ body:
       options:
         - label: I searched existing issues
           required: true
-        - label: I'm on the latest version
+        - label: I'm on the latest build
           required: true

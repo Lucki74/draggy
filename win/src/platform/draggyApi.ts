@@ -296,6 +296,10 @@ export function createDraggyApi(ipc: IpcLike): NonNullable<Window["draggy"]> {
       onState: (callback) => subscribe("updater-state", callback),
     },
 
+    startup: {
+      ready: () => ipc.invoke("splash:main-ready"),
+    },
+
     browserBar: {
       action: (name, value) =>
         ipc.invoke("browser-bar-action", name, value),

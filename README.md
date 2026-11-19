@@ -113,6 +113,13 @@ Draggy writes normal events to `app.log` in its data folder and detailed traces 
 - Speed depends on how much CPU and GPU memory bandwidth you have.
 - Large models depend on your drive. A hard disk or a USB drive is usually too slow to be useful.
 
+## Related repositories
+
+- [Lucki74/draggy-website](https://github.com/Lucki74/draggy-website): the source of [draggy.org](https://draggy.org)
+- [Lucki74/draggy-docs](https://github.com/Lucki74/draggy-docs): the source of [docs.draggy.org](https://docs.draggy.org)
+
+Report a problem with the website or the docs in its own repository.
+
 ## License
 
 Draggy uses the [Apache License 2.0](LICENSE). You can use it, change it, share it and ship it, commercial projects included, as long as you keep the [NOTICE](NOTICE) file.

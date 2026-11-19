@@ -29,15 +29,8 @@ const CONTROL_CHARS_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uFFFD]/;
 export const isBinary = (str: string): boolean => {
   if (!str) return false;
   if (str.startsWith("data:")) return false;
-  if (CONTROL_CHARS_RE.test(str)) return true;
-  if (str.length > 50) {
-    let nonAscii = 0;
-    for (let i = 0; i < str.length; i++) {
-      if (str.charCodeAt(i) > 127) nonAscii++;
-    }
-    if (nonAscii > str.length * 0.2) return true;
-  }
-  return false;
+  // Control characters and U+FFFD mark binary; letters outside ASCII (Cyrillic, CJK) are ordinary text.
+  return CONTROL_CHARS_RE.test(str);
 };
 
 export function sanitizeContent(content: string): string {

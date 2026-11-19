@@ -47,6 +47,7 @@ pub(crate) mod research;
 mod sd;
 mod shell;
 mod skills;
+mod splash;
 mod staging;
 mod storage;
 mod terminals;
@@ -111,6 +112,7 @@ impl Registry {
         tier::register_all(&mut registry);
         tts::register_all(&mut registry);
         updater::register_all(&mut registry);
+        splash::register_all(&mut registry);
         terminals::register_all(&mut registry);
         pricing::register_all(&mut registry);
         providers::register_all(&mut registry);
@@ -204,6 +206,10 @@ pub async fn ipc_invoke(
         return browser::popout_bar_call(&app, &page, &channel, args)
             .await
             .map_err(|error| error.to_string());
+    }
+    // The splash reads its own state and nothing else.
+    if label == crate::splash::LABEL && !splash::may_call(&channel) {
+        return Err("the splash may only call splash channels".to_owned());
     }
     // Browser channels drive the pane's pages, so only the main window may call them.
     if channel.starts_with("browser-") && !is_main_window(&label) {

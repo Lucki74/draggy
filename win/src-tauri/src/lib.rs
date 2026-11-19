@@ -15,6 +15,7 @@ pub mod pricing;
 pub mod proc_log;
 pub mod quit;
 pub mod secrets;
+pub mod splash;
 pub mod storage;
 pub mod terminals;
 pub mod theme;
@@ -63,16 +64,22 @@ fn open_log(data_dir: &Path) -> Diagnostics {
 }
 
 /// Sets the window colour from the saved theme, then shows it, so no wrong-coloured frame flashes.
-fn show_main_window(app: &tauri::App, data_dir: &Path) -> tauri::Result<()> {
-    let Some(window) = app.get_webview_window("main") else {
-        return Ok(());
-    };
+pub(crate) fn paint_and_show(window: &tauri::WebviewWindow, data_dir: &Path) -> tauri::Result<()> {
     let raw = theme::saved_settings(&data_dir.join("draggy.db"));
     let setting = theme::theme_setting(raw.as_deref());
     let system_dark = matches!(window.theme(), Ok(tauri::Theme::Dark));
     let [r, g, b] = theme::background_for(setting, system_dark);
     window.set_background_color(Some(Color(r, g, b, 255)))?;
     window.show()
+}
+
+pub(crate) fn show_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+    let Some(window) = app.get_webview_window("main") else {
+        return Ok(());
+    };
+    let data_dir = app.state::<AppState>().storage.data_dir().to_path_buf();
+    paint_and_show(&window, &data_dir)?;
+    window.set_focus()
 }
 
 /// The query that opens the renderer on first-run setup.
@@ -130,7 +137,7 @@ fn minimum_for_screen(app: &tauri::AppHandle) -> (f64, f64) {
 /// The main window, built here rather than from config so its links can reach the browser pane. Its
 /// own pages stay in the window; any other top-level navigation or window.open goes to the pane instead.
 /// With `setup`, it opens on first-run setup, as Electron's createWindow({ onboarding: true }) did.
-fn build_main_window(app: &tauri::AppHandle, setup: bool) -> tauri::Result<()> {
+pub(crate) fn build_main_window(app: &tauri::AppHandle, setup: bool) -> tauri::Result<()> {
     let navigating = app.clone();
     let opening = app.clone();
     let page = if setup {
@@ -186,7 +193,7 @@ pub fn show_setup_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 }
 
 /// The renderer's own pages: the asset host, and the dev server in debug builds.
-fn is_app_page(url: &tauri::Url) -> bool {
+pub(crate) fn is_app_page(url: &tauri::Url) -> bool {
     let dev =
         cfg!(debug_assertions) && url.host_str() == Some("127.0.0.1") && url.port() == Some(5173);
     dev || url.host_str() == Some("tauri.localhost")
@@ -197,8 +204,12 @@ fn is_about_page(url: &tauri::Url) -> bool {
     url.scheme() == "about"
 }
 
+/// The main window, or the splash while the main window does not exist yet.
 pub(crate) fn focus_main_window(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
+    let window = app
+        .get_webview_window("main")
+        .or_else(|| app.get_webview_window(splash::LABEL));
+    if let Some(window) = window {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
@@ -276,18 +287,26 @@ pub fn run() {
             ipc::research::prune_at_start(app.handle());
             ipc::mcp::adopt_stored_credentials(app.handle());
             ipc::providers::start_auto_refresh(app.handle());
-            ipc::providers::attach_focus_refresh(app.handle());
-            // The launch check and the filter lists wait for a finished setup; onboarding:complete starts them.
+            // The update checks and the filter lists wait for a finished setup; onboarding:complete starts them.
             let show_setup = app.state::<AppState>().storage.show_setup();
             if !show_setup {
-                ipc::updater::start(app.handle());
+                // The splash runs the launch check, so the background checks start one interval later.
+                ipc::updater::start_after_launch_check(app.handle());
                 browser::adblock::start(app.handle());
             }
-            build_main_window(app.handle(), show_setup)?;
-            show_main_window(app, &data_dir)?;
+            // The splash opens first and builds the main window once the update step is done.
+            splash::open(app.handle(), &data_dir)?;
+            splash::start(app.handle(), show_setup);
             Ok(())
         })
         .on_window_event(|window, event| {
+            if window.label() == splash::LABEL {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    splash::close_requested();
+                }
+                return;
+            }
             if window.label() != "main" {
                 return;
             }
@@ -314,21 +333,28 @@ pub fn run() {
         .expect("error while building Draggy")
         .run(|app, event| {
             // Every exit path ends here; without the marker the next launch reports a crash.
-            if let tauri::RunEvent::Exit = event
-                && let Some(state) = app.try_state::<AppState>()
-            {
-                // No engine child or open port may outlive the window.
-                if let Some(gateway) = app.try_state::<chat_gateway::ChatGateway>() {
-                    gateway.stop();
-                }
-                ipc::api_server::stop_all();
-                tauri::async_runtime::block_on(state.engines.shutdown());
-                terminals::stop_all();
-                tauri::async_runtime::block_on(state.mcp.stop_all());
-                ipc::code_runner::stop_all();
-                state.diag.end_session(true);
+            if let tauri::RunEvent::Exit = event {
+                shutdown(app);
             }
         });
+}
+
+/// Stops every child and port and writes the clean-exit marker. Runs on exit, and before the updater
+/// hands over to the installer, which ends the process without an exit event.
+pub(crate) fn shutdown(app: &tauri::AppHandle) {
+    let Some(state) = app.try_state::<AppState>() else {
+        return;
+    };
+    // No engine child or open port may outlive the window.
+    if let Some(gateway) = app.try_state::<chat_gateway::ChatGateway>() {
+        gateway.stop();
+    }
+    ipc::api_server::stop_all();
+    tauri::async_runtime::block_on(state.engines.shutdown());
+    terminals::stop_all();
+    tauri::async_runtime::block_on(state.mcp.stop_all());
+    ipc::code_runner::stop_all();
+    state.diag.end_session(true);
 }
 
 #[cfg(test)]

@@ -35,6 +35,10 @@ That runs the typecheck, the linter and the tests. CI runs the same command on e
 
 Tests run without a GPU and without a Tauri window, so keep new logic away from the hardware and the window shell, that way it stays testable.
 
+## Website and docs
+
+The website and the docs live in their own repos: [Lucki74/draggy-website](https://github.com/Lucki74/draggy-website) for draggy.org and [Lucki74/draggy-docs](https://github.com/Lucki74/draggy-docs) for docs.draggy.org. Changes to those pages go there.
+
 ## Architecture and boundaries
 
 The folder layout is in the [docs](https://docs.draggy.org/development). Two boundaries matter more than the rest:
