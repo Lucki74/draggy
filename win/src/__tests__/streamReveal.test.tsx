@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render } from "@testing-library/react";
 import { MAX_WORD_CHARS, advanceReveal, blockStarts, nextWordEnd } from "../chat/streamReveal";
 import StreamingMarkdown from "../chat/StreamingMarkdown";
+import { MARKDOWN_COMPONENTS } from "../chat/markdown";
 
 /** A streamed reply is revealed a word at a time at an even pace, and only the block still
  * being written is rendered again. */
@@ -130,6 +131,19 @@ describe("the streaming component", () => {
     await frames(1500);
 
     expect(container.textContent).toBe(text.trim());
+  });
+
+  it("leaves citation markers whole while words fade in", async () => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame", "performance", "setTimeout"] });
+    const text = "## Sources\n\n- [n1] ILO, *Jobs* - https://www.ilo.org/x\n- [n5], [n8] WHO - https://www.who.int/y";
+
+    const { container } = render(
+      <StreamingMarkdown source={text} streaming animateOnMount components={MARKDOWN_COMPONENTS} />,
+    );
+    await frames(1500);
+
+    expect(container.textContent).not.toContain("[object Object]");
+    expect(container.textContent).toContain("[n5], [n8] WHO");
   });
 
   it("shows a finished reply as it is", () => {
