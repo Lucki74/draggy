@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logBreadcrumb } from "../logger";
-import { Block, Group, Page } from "./Controls";
+import { Page } from "./Controls";
 import { SETTINGS_GROUPS, searchSettings, type SettingsPageEntry, type SettingsTab } from "./pages";
 import { useModelManager } from "./useModelManager";
 import ModelsPage from "./ModelsPage";
@@ -220,11 +220,7 @@ export default function SettingsPage(props: SettingsPageProps) {
 
             {tab === "api" && (
               <Page title={t("apiServer")}>
-                <Group>
-                  <Block>
-                    <ApiServerField t={t} />
-                  </Block>
-                </Group>
+                <ApiServerField t={t} models={manager.installed.map((m) => m.name)} />
               </Page>
             )}
 

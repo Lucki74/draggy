@@ -1,0 +1,941 @@
+{
+  "area": "apiserver",
+  "cases": [
+    {
+      "expected": {
+        "max_tokens": 64,
+        "messages": [
+          {
+            "content": "Be brief.",
+            "role": "system"
+          },
+          {
+            "content": [
+              {
+                "text": "What is this?",
+                "type": "text"
+              },
+              {
+                "image_url": {
+                  "url": "data:image/jpeg;base64,/9j/AAAA"
+                },
+                "type": "image_url"
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "model": "qwen3",
+        "response_format": {
+          "type": "json_object"
+        },
+        "stop": [
+          "END"
+        ],
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.2,
+        "top_k": 40
+      },
+      "input": {
+        "body": {
+          "format": "json",
+          "messages": [
+            {
+              "content": "Be brief.",
+              "role": "system"
+            },
+            {
+              "content": "What is this?",
+              "images": [
+                "/9j/AAAA"
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "qwen3:latest",
+          "options": {
+            "num_ctx": 8192,
+            "num_predict": 64,
+            "stop": [
+              "END"
+            ],
+            "temperature": 0.2,
+            "top_k": 40
+          }
+        },
+        "kind": "chat",
+        "op": "request"
+      },
+      "name": "chat request maps messages options and format"
+    },
+    {
+      "expected": {
+        "messages": [
+          {
+            "content": "go",
+            "role": "user"
+          },
+          {
+            "content": "",
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{\"a\":1}",
+                  "name": "f"
+                },
+                "id": "call_1_0",
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "content": "done",
+            "role": "tool",
+            "tool_call_id": "call_1_0"
+          }
+        ],
+        "model": "m",
+        "response_format": {
+          "json_schema": {
+            "name": "response",
+            "schema": {
+              "type": "object"
+            },
+            "strict": true
+          },
+          "type": "json_schema"
+        },
+        "stream": false,
+        "tools": [
+          {
+            "function": {
+              "name": "f",
+              "parameters": {
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      },
+      "input": {
+        "body": {
+          "format": {
+            "type": "object"
+          },
+          "messages": [
+            {
+              "content": "go",
+              "role": "user"
+            },
+            {
+              "content": "",
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": {
+                      "a": 1
+                    },
+                    "name": "f"
+                  }
+                }
+              ]
+            },
+            {
+              "content": "done",
+              "role": "tool",
+              "tool_name": "f"
+            }
+          ],
+          "model": "m",
+          "stream": false,
+          "tools": [
+            {
+              "function": {
+                "name": "f",
+                "parameters": {
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "kind": "chat",
+        "op": "request"
+      },
+      "name": "chat request with tool calls and a schema"
+    },
+    {
+      "expected": {
+        "error": "messages[].role must be system, user, assistant or tool."
+      },
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "content": "x",
+              "role": "robot"
+            }
+          ],
+          "model": "m"
+        },
+        "kind": "chat",
+        "op": "request"
+      },
+      "name": "chat request rejects a bad role"
+    },
+    {
+      "expected": {
+        "messages": [
+          {
+            "content": "S",
+            "role": "system"
+          },
+          {
+            "content": [
+              {
+                "text": "P",
+                "type": "text"
+              },
+              {
+                "image_url": {
+                  "url": "data:image/png;base64,iVBORw0"
+                },
+                "type": "image_url"
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "model": "m",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "input": {
+        "body": {
+          "images": [
+            "iVBORw0"
+          ],
+          "model": "m",
+          "prompt": "P",
+          "system": "S"
+        },
+        "kind": "generate",
+        "op": "request"
+      },
+      "name": "generate request joins system and prompt"
+    },
+    {
+      "expected": {
+        "created_at": "1970-01-02T00:00:00Z",
+        "done": true,
+        "done_reason": "load",
+        "model": "m",
+        "response": ""
+      },
+      "input": {
+        "body": {
+          "model": "m",
+          "prompt": ""
+        },
+        "created": 86400,
+        "kind": "generate",
+        "model": "m",
+        "op": "load"
+      },
+      "name": "empty generate only loads the model"
+    },
+    {
+      "expected": {
+        "created_at": "2023-11-14T22:13:20Z",
+        "done": true,
+        "done_reason": "stop",
+        "eval_count": 3,
+        "load_duration": 0,
+        "message": {
+          "content": "",
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "function": {
+                "arguments": {
+                  "a": 1
+                },
+                "name": "f"
+              }
+            }
+          ]
+        },
+        "model": "m",
+        "prompt_eval_count": 7,
+        "total_duration": 0
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"a\":1}",
+                      "name": "f"
+                    },
+                    "id": "c1",
+                    "type": "function"
+                  }
+                ]
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 3,
+            "prompt_tokens": 7
+          }
+        },
+        "created": 1700000000,
+        "kind": "chat",
+        "model": "m",
+        "op": "response"
+      },
+      "name": "whole chat reply with a tool call"
+    },
+    {
+      "expected": {
+        "created_at": "1970-01-01T00:00:00Z",
+        "done": true,
+        "done_reason": "length",
+        "eval_count": 1,
+        "load_duration": 0,
+        "model": "m",
+        "prompt_eval_count": 2,
+        "response": "Hi",
+        "total_duration": 0
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "length",
+              "message": {
+                "content": "Hi",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 1,
+            "prompt_tokens": 2
+          }
+        },
+        "created": 0,
+        "kind": "generate",
+        "model": "m",
+        "op": "response"
+      },
+      "name": "whole generate reply stopped by length"
+    },
+    {
+      "expected": [
+        {
+          "created_at": "1970-01-01T00:00:00Z",
+          "done": false,
+          "message": {
+            "content": "Hel",
+            "role": "assistant"
+          },
+          "model": "m"
+        },
+        {
+          "created_at": "1970-01-01T00:00:00Z",
+          "done": false,
+          "message": {
+            "content": "lo",
+            "role": "assistant"
+          },
+          "model": "m"
+        },
+        {
+          "created_at": "1970-01-01T00:00:00Z",
+          "done": true,
+          "done_reason": "stop",
+          "eval_count": 2,
+          "load_duration": 0,
+          "message": {
+            "content": "",
+            "role": "assistant"
+          },
+          "model": "m",
+          "prompt_eval_count": 4,
+          "total_duration": 0
+        }
+      ],
+      "input": {
+        "chunks": [
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "Hel",
+                  "role": "assistant"
+                }
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "lo"
+                },
+                "finish_reason": "stop"
+              }
+            ]
+          },
+          {
+            "choices": [],
+            "usage": {
+              "completion_tokens": 2,
+              "prompt_tokens": 4
+            }
+          }
+        ],
+        "created": 0,
+        "end": "finish",
+        "kind": "chat",
+        "model": "m",
+        "op": "stream"
+      },
+      "name": "chat stream of text then done"
+    },
+    {
+      "expected": [
+        {
+          "created_at": "1970-01-01T00:00:00Z",
+          "done": false,
+          "message": {
+            "content": "",
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": {
+                    "a": 1
+                  },
+                  "name": "f"
+                }
+              }
+            ]
+          },
+          "model": "m"
+        },
+        {
+          "created_at": "1970-01-01T00:00:00Z",
+          "done": true,
+          "done_reason": "stop",
+          "eval_count": 0,
+          "load_duration": 0,
+          "message": {
+            "content": "",
+            "role": "assistant"
+          },
+          "model": "m",
+          "prompt_eval_count": 0,
+          "total_duration": 0
+        }
+      ],
+      "input": {
+        "chunks": [
+          {
+            "choices": [
+              {
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "function": {
+                        "arguments": "{\"a\":",
+                        "name": "f"
+                      },
+                      "id": "c",
+                      "index": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "function": {
+                        "arguments": "1}"
+                      },
+                      "index": 0
+                    }
+                  ]
+                },
+                "finish_reason": "tool_calls"
+              }
+            ]
+          }
+        ],
+        "created": 0,
+        "end": "finish",
+        "kind": "chat",
+        "model": "m",
+        "op": "stream"
+      },
+      "name": "chat stream with tool call before done"
+    },
+    {
+      "expected": [
+        {
+          "created_at": "1970-01-01T00:00:00Z",
+          "done": false,
+          "model": "m",
+          "response": "a"
+        },
+        {
+          "error": "boom"
+        }
+      ],
+      "input": {
+        "chunks": [
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "a"
+                }
+              }
+            ]
+          }
+        ],
+        "created": 0,
+        "end": "fail:boom",
+        "kind": "generate",
+        "model": "m",
+        "op": "stream"
+      },
+      "name": "generate stream failing midway"
+    },
+    {
+      "expected": {
+        "models": [
+          {
+            "details": {
+              "families": [],
+              "family": "",
+              "format": "gguf",
+              "parameter_size": "",
+              "parent_model": "",
+              "quantization_level": ""
+            },
+            "digest": "195f525acc680bc5f51e09404f4f5828a28b67aadd92f663c04922bba20e6346",
+            "model": "qwen3:8b",
+            "modified_at": "2023-11-14T22:13:20Z",
+            "name": "qwen3:8b",
+            "size": 0
+          },
+          {
+            "details": {
+              "families": [],
+              "family": "",
+              "format": "gguf",
+              "parameter_size": "",
+              "parent_model": "",
+              "quantization_level": ""
+            },
+            "digest": "f2f4e55320c6b4333469dbcc66ac3f1220f530d823986c111050449c4d903dc8",
+            "model": "draggy-agent",
+            "modified_at": "2023-11-14T22:13:20Z",
+            "name": "draggy-agent",
+            "size": 0
+          }
+        ]
+      },
+      "input": {
+        "created": 1700000000,
+        "entries": [
+          {
+            "id": "qwen3:8b"
+          },
+          {
+            "id": "draggy-agent"
+          }
+        ],
+        "op": "tags"
+      },
+      "name": "tags list models with digests"
+    },
+    {
+      "expected": {
+        "capabilities": [
+          "completion",
+          "tools",
+          "vision"
+        ],
+        "details": {
+          "families": [],
+          "family": "",
+          "format": "gguf",
+          "parameter_size": "",
+          "parent_model": "",
+          "quantization_level": ""
+        },
+        "license": "",
+        "model_info": {
+          "general.architecture": "llama",
+          "llama.context_length": 32768
+        },
+        "modelfile": "",
+        "parameters": "",
+        "template": ""
+      },
+      "input": {
+        "entries": [
+          {
+            "capabilities": [
+              "tools",
+              "vision"
+            ],
+            "contextLength": 32768,
+            "id": "qwen3:8b"
+          }
+        ],
+        "op": "show"
+      },
+      "name": "show reports context and capabilities"
+    },
+    {
+      "expected": "2023-11-14T22:13:20Z",
+      "input": {
+        "created": 1700000000,
+        "op": "time"
+      },
+      "name": "time formats a Unix second"
+    },
+    {
+      "expected": {
+        "created_at": "1970-01-01T00:01:40Z",
+        "done": true,
+        "done_reason": "stop",
+        "eval_count": 2,
+        "load_duration": 0,
+        "message": {
+          "content": "Hi",
+          "role": "assistant",
+          "thinking": "Hmm."
+        },
+        "model": "local",
+        "prompt_eval_count": 4,
+        "total_duration": 0
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "Hi",
+                "reasoning_content": "Hmm.",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 4,
+            "total_tokens": 6
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "kind": "chat",
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "thinking": true
+        }
+      },
+      "name": "reasoning before a whole reply"
+    },
+    {
+      "expected": {
+        "created_at": "1970-01-01T00:01:40Z",
+        "done": true,
+        "done_reason": "stop",
+        "eval_count": 2,
+        "load_duration": 0,
+        "message": {
+          "content": "Hi",
+          "role": "assistant"
+        },
+        "model": "local",
+        "prompt_eval_count": 4,
+        "total_duration": 0
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "Hi",
+                "reasoning_content": "Hmm.",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 4,
+            "total_tokens": 6
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "kind": "chat",
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "thinking": false
+        }
+      },
+      "name": "reasoning left out when it is off"
+    },
+    {
+      "expected": [
+        {
+          "created_at": "1970-01-01T00:01:40Z",
+          "done": false,
+          "message": {
+            "content": "",
+            "role": "assistant",
+            "thinking": "Hm"
+          },
+          "model": "local"
+        },
+        {
+          "created_at": "1970-01-01T00:01:40Z",
+          "done": false,
+          "message": {
+            "content": "",
+            "role": "assistant",
+            "thinking": "m."
+          },
+          "model": "local"
+        },
+        {
+          "created_at": "1970-01-01T00:01:40Z",
+          "done": false,
+          "message": {
+            "content": "Hi",
+            "role": "assistant"
+          },
+          "model": "local"
+        },
+        {
+          "created_at": "1970-01-01T00:01:40Z",
+          "done": true,
+          "done_reason": "stop",
+          "eval_count": 2,
+          "load_duration": 0,
+          "message": {
+            "content": "",
+            "role": "assistant"
+          },
+          "model": "local",
+          "prompt_eval_count": 4,
+          "total_duration": 0
+        }
+      ],
+      "input": {
+        "chatId": "chatcmpl-abc",
+        "chunks": [
+          {
+            "choices": [
+              {
+                "delta": {
+                  "reasoning_content": "Hm"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {
+                  "reasoning_content": "m."
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {
+                  "content": "Hi"
+                },
+                "finish_reason": null,
+                "index": 0
+              }
+            ]
+          },
+          {
+            "choices": [
+              {
+                "delta": {},
+                "finish_reason": "stop",
+                "index": 0
+              }
+            ],
+            "usage": {
+              "completion_tokens": 2,
+              "prompt_tokens": 4
+            }
+          }
+        ],
+        "created": 100,
+        "end": "finish",
+        "kind": "chat",
+        "model": "local",
+        "op": "stream",
+        "opts": {
+          "thinking": true
+        }
+      },
+      "name": "reasoning before a stream"
+    },
+    {
+      "expected": {
+        "created_at": "1970-01-01T00:01:40Z",
+        "done": true,
+        "done_reason": "stop",
+        "eval_count": 2,
+        "load_duration": 0,
+        "model": "local",
+        "prompt_eval_count": 4,
+        "response": "Hi",
+        "thinking": "Hmm.",
+        "total_duration": 0
+      },
+      "input": {
+        "chat": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "content": "Hi",
+                "reasoning_content": "Hmm.",
+                "role": "assistant"
+              }
+            }
+          ],
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 4,
+            "total_tokens": 6
+          }
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "kind": "generate",
+        "model": "local",
+        "op": "response",
+        "opts": {
+          "thinking": true
+        }
+      },
+      "name": "generate reasoning in a whole reply"
+    },
+    {
+      "expected": {
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "messages": [
+          {
+            "content": "x",
+            "role": "user"
+          }
+        ],
+        "model": "m",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "input": {
+        "body": {
+          "messages": [
+            {
+              "content": "x",
+              "role": "user"
+            }
+          ],
+          "model": "m",
+          "think": false
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "kind": "chat",
+        "model": "local",
+        "op": "request"
+      },
+      "name": "think false turns thinking off"
+    },
+    {
+      "expected": {
+        "chat_template_kwargs": {
+          "enable_thinking": true
+        },
+        "messages": [
+          {
+            "content": "x",
+            "role": "user"
+          }
+        ],
+        "model": "m",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "input": {
+        "body": {
+          "model": "m",
+          "prompt": "x",
+          "think": true
+        },
+        "chatId": "chatcmpl-abc",
+        "created": 100,
+        "kind": "generate",
+        "model": "local",
+        "op": "request"
+      },
+      "name": "think true turns thinking on"
+    }
+  ]
+}

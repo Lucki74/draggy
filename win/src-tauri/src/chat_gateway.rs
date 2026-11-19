@@ -34,7 +34,13 @@ use crate::ipc::providers::adapters::{AppHttp, AppKeys, AppKv};
 const GATEWAY_URL: &str = "draggy-ai://chat";
 const UNKNOWN_URL: &str = "draggy-ai://unknown";
 const CHAT_PATH: &str = "/chat";
-const MAX_BODY_BYTES: usize = 32 * 1024 * 1024;
+const COMPLETIONS_ROUTE: &str = "/completions";
+const COMPLETIONS_URL: &str = "draggy-ai://completions";
+const TOKENIZE_ROUTE: &str = "/tokenize";
+const TOKENIZE_URL: &str = "draggy-ai://tokenize";
+const TEMPLATE_ROUTE: &str = "/apply-template";
+const TEMPLATE_URL: &str = "draggy-ai://apply-template";
+const MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
 const QUEUE: usize = 32;
 // The main window is served from the asset scheme, so its origin is tauri.localhost, not draggy.localhost.
 const RENDERER_ORIGIN: &str = "http://tauri.localhost";
@@ -213,10 +219,12 @@ async fn handle(State(core): State<Arc<Core>>, request: Request) -> Response {
 
     let gateway_request = GatewayRequest {
         method: parts.method.as_str().to_owned(),
-        url: if parts.uri.path() == CHAT_PATH {
-            GATEWAY_URL.to_owned()
-        } else {
-            UNKNOWN_URL.to_owned()
+        url: match parts.uri.path() {
+            CHAT_PATH => GATEWAY_URL.to_owned(),
+            COMPLETIONS_ROUTE => COMPLETIONS_URL.to_owned(),
+            TOKENIZE_ROUTE => TOKENIZE_URL.to_owned(),
+            TEMPLATE_ROUTE => TEMPLATE_URL.to_owned(),
+            _ => UNKNOWN_URL.to_owned(),
         },
         origin: header_text(&parts.headers, ORIGIN.as_str()),
         request_id: header_text(&parts.headers, "x-request-id"),

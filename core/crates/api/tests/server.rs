@@ -11,7 +11,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use draggy_api::server::{
     Backend, BackendError, CompletionRequest, DEFAULT_PORT, Env, HOST, MAX_BODY_BYTES, Message,
-    Reply, Role, Sink, Usage, generate_key, listen_failure, router,
+    ModelEntry, Reply, Role, Sink, Usage, generate_key, listen_failure, router,
 };
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
@@ -45,6 +45,11 @@ impl Env for FakeEnv {
 
     fn fill_random(&self, buffer: &mut [u8]) {
         buffer.fill(0xab);
+    }
+
+    // A short wait keeps the busy tests quick.
+    fn queue_wait(&self) -> Duration {
+        Duration::from_millis(150)
     }
 }
 
@@ -96,13 +101,17 @@ impl Scripted {
 }
 
 impl Backend for Scripted {
-    async fn list_models(&self) -> Result<Vec<String>, BackendError> {
+    async fn list_models(&self) -> Result<Vec<ModelEntry>, BackendError> {
         if self.model_failure {
             return Err(BackendError {
                 message: "disk".to_owned(),
             });
         }
-        Ok(self.models.clone())
+        Ok(self
+            .models
+            .iter()
+            .map(|name| ModelEntry::local(name))
+            .collect())
     }
 
     async fn generate(
@@ -136,7 +145,7 @@ struct Gated {
 }
 
 impl Backend for Gated {
-    async fn list_models(&self) -> Result<Vec<String>, BackendError> {
+    async fn list_models(&self) -> Result<Vec<ModelEntry>, BackendError> {
         Ok(Vec::new())
     }
 
@@ -169,7 +178,7 @@ struct Stuck {
 }
 
 impl Backend for Stuck {
-    async fn list_models(&self) -> Result<Vec<String>, BackendError> {
+    async fn list_models(&self) -> Result<Vec<ModelEntry>, BackendError> {
         Ok(Vec::new())
     }
 
@@ -278,6 +287,8 @@ async fn lists_the_installed_models() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["data"][0]["id"], "qwen3:8b");
     assert_eq!(body["data"][0]["owned_by"], "local");
+    // The agent is always listed, after the models.
+    assert_eq!(body["data"][1]["id"], "draggy-agent");
 }
 
 #[tokio::test]
@@ -474,8 +485,10 @@ async fn asks_a_client_to_wait_when_two_replies_are_already_being_made() {
             .unwrap_or_else(|_| panic!("replies did not start"));
     }
 
-    let (busy, _, text) = send(app, local("POST", "/v1/chat/completions", HELLO)).await;
+    // The third request waits for a slot, then is told to retry.
+    let (busy, headers, text) = send(app, local("POST", "/v1/chat/completions", HELLO)).await;
     assert_eq!(busy, StatusCode::TOO_MANY_REQUESTS);
+    assert!(headers.contains_key("retry-after"));
     assert_eq!(json_of(&text)["error"]["type"], "rate_limit_error");
 
     release_tx.send_replace(true);

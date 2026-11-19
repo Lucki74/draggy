@@ -68,6 +68,11 @@ describe("which model answers", () => {
   it("trusts the name when the installed list could not be read", () => {
     expect(pickModel("qwen3:8b", "llama3.2:3b", null)).toBe("qwen3:8b");
   });
+
+  it("takes draggy-agent as no request and a provider model as it is named", () => {
+    expect(pickModel("draggy-agent", "llama3.2:3b", ["qwen3:8b"])).toBe("llama3.2:3b");
+    expect(pickModel("@acme/big-one", "llama3.2:3b", ["qwen3:8b"])).toBe("@acme/big-one");
+  });
 });
 
 describe("what an outside caller gets", () => {
@@ -95,6 +100,14 @@ describe("what an outside caller gets", () => {
       allowedGroups: ["web"],
     });
     expect(seen.request?.environment.projectRoot).toBeUndefined();
+  });
+
+  it("gets no web tools when they are turned off", async () => {
+    const { run, seen } = fakeRun();
+
+    await answerApiRequest(request(), { ...deps({ webTools: false }), run });
+
+    expect(seen.request?.environment.allowedGroups).toEqual([]);
   });
 
   it("can only run what does not need the user's approval", async () => {

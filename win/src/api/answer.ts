@@ -18,6 +18,8 @@ export interface AnswerDependencies {
   /** What is installed, to tell a real model name from a client's default. */
   installed: string[] | null;
   settings: AppSettings;
+  /** False gives the agent no tools. */
+  webTools?: boolean;
   t: (key: string) => string;
   signal: AbortSignal;
   /** Text as it arrives, for a streamed reply. Only ever appended to. */
@@ -27,6 +29,9 @@ export interface AnswerDependencies {
   run?: (request: AgentRequest, host: AgentHost) => Promise<AgentResult>;
 }
 
+/** The name `/v1/models` lists for the agent loop. */
+export const AGENT_MODEL = "draggy-agent";
+
 /** The model a request gets. A client configured for OpenAI sends "gpt-4o" by default; that means
  * "whatever you have", not a download. */
 export function pickModel(
@@ -35,6 +40,9 @@ export function pickModel(
   installed: string[] | null,
 ): string | null {
   const wanted = requested.trim();
+  // The agent's own name asks for no model, and a provider model is named `@account/model`.
+  if (wanted === AGENT_MODEL) return current;
+  if (wanted.startsWith("@")) return wanted;
   if (wanted && (installed === null || installed.includes(wanted))) return wanted;
   return current;
 }
@@ -77,7 +85,7 @@ export async function answerApiRequest(
     hasFolder: false,
     hasSkills: false,
     hasGit: false,
-    allowedGroups: ["web"],
+    allowedGroups: deps.webTools === false ? [] : ["web"],
   };
 
   let sent = "";

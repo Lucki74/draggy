@@ -723,11 +723,67 @@ export interface ApiServerStatus {
   success: boolean;
   enabled: boolean;
   port: number;
+  /** What answers a request that asks for neither: the agent with web tools, or the model alone. */
+  mode: "agent" | "model";
   running: boolean;
   baseUrl: string;
   /** Only while enabled. */
   key: string | null;
   error: string | null;
+  settings: ApiSettings;
+}
+
+/** Sampling defaults for model mode. A key left out is not touched. */
+export interface ApiSampling {
+  temperature?: number;
+  top_p?: number;
+  top_k?: number;
+  min_p?: number;
+  repeat_penalty?: number;
+  max_tokens?: number;
+  seed?: number;
+  overrideClient?: boolean;
+}
+
+/** What the API page sets besides the switch, port and mode. Saved checked, so values are already in range. */
+export interface ApiLogEntry {
+  time: number;
+  method: string;
+  path: string;
+  model: string;
+  mode: string;
+  status: number;
+  durationMs: number;
+  promptTokens: number;
+  completionTokens: number;
+  client: string;
+}
+
+export interface ApiSettings {
+  maxParallel: number;
+  queueWaitSecs: number;
+  requestTimeoutSecs: number;
+  maxBodyMb: number;
+  defaultModel: string;
+  aliases: Record<string, string>;
+  listCloudModels: boolean;
+  agentWebTools: boolean;
+  systemPrompt: string;
+  sendReasoning: boolean;
+  sampling: ApiSampling;
+  extraEngineArgs: string;
+  allowedOrigins: string[];
+  ollamaNoKey: boolean;
+  logRequests: boolean;
+  logSize: number;
+}
+
+/** A change to the API setup. Fields left out keep their saved value, and a `null` in `sampling` clears that default. */
+export interface ApiServerConfig extends Partial<Omit<ApiSettings, "sampling">> {
+  enabled?: boolean;
+  port?: number;
+  mode?: "agent" | "model";
+  sampling?: { [K in keyof ApiSampling]?: ApiSampling[K] | null };
 }
 
 /** A chat completion request as the main process has already checked it. */
@@ -1636,12 +1692,18 @@ declare global {
 
       apiServer: {
         status: () => Promise<ApiServerStatus>;
-        configure: (config: { enabled?: boolean; port?: number }) => Promise<ApiServerStatus>;
+        configure: (config: ApiServerConfig) => Promise<ApiServerStatus>;
         regenerateKey: () => Promise<ApiServerStatus>;
+        log: () => Promise<ApiLogEntry[]>;
+        clearLog: () => Promise<{ success: boolean }>;
         /** Tells the main process this window can answer requests. */
         ready: () => void;
-        onRequest: (callback: (message: { id: string; request: ApiCompletionRequest }) => void) => Unsubscribe;
+        onRequest: (callback: (message: { id: string; request: ApiCompletionRequest; defaultModel?: string; webTools?: boolean }) => void) => Unsubscribe;
         onAbort: (callback: (id: string) => void) => Unsubscribe;
+        /** A model-mode request needs its model loaded. */
+        onPrepare: (callback: (message: { id: string; model: string; defaultModel?: string }) => void) => Unsubscribe;
+        /** Answers `onPrepare` with the model that is loaded, or a message when it could not be. */
+        prepared: (id: string, model: string, message?: string) => void;
         text: (id: string, text: string) => void;
         model: (id: string, model: string) => void;
         done: (id: string, result: ApiCompletionResult) => void;

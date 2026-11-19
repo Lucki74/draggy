@@ -187,11 +187,26 @@ impl EmbedServer {
         inputs: &[String],
         setup: &EngineSetup,
     ) -> Result<Vec<Vec<f32>>, String> {
+        let values: Vec<Value> = inputs.iter().cloned().map(Value::String).collect();
+        self.embed_values(binary, models_dir, cores, model, &values, setup)
+            .await
+    }
+
+    /// Like `embed`, for inputs that are strings or arrays of token ids.
+    pub async fn embed_values(
+        &self,
+        binary: Option<PathBuf>,
+        models_dir: &Path,
+        cores: CpuTopology,
+        model: &str,
+        inputs: &[Value],
+        setup: &EngineSetup,
+    ) -> Result<Vec<Vec<f32>>, String> {
         let port = self.ensure(binary, models_dir, cores, model, setup).await?;
         let response = self
             .http
             .post(format!("http://127.0.0.1:{port}/v1/embeddings"))
-            .json(&embeddings_body(model, inputs))
+            .json(&json!({ "input": inputs, "model": model }))
             .send()
             .await
             .map_err(|_| "Embedding failed: the server did not answer".to_owned())?;

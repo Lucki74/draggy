@@ -8,9 +8,13 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, Uri};
 use axum::response::Response;
+use draggy_api::dialect::{self, Dialect, Opts};
+use draggy_api::ollama;
+use draggy_api::search::{Hit, Search};
 use draggy_api::server::{
-    Backend, BackendError, CompletionRequest, Env, Reply, Sink, Usage, check_request, chunk_line,
-    completion_body, generate_key, models_body, read_completion_request, router, same_key,
+    Backend, BackendError, CompletionRequest, Env, ModelEntry, Reply, Sink, Usage, check_request,
+    chunk_line, completion_body, generate_key, models_body, read_completion_request, router,
+    same_key,
 };
 use draggy_testkit::{cases, files};
 use http_body_util::BodyExt;
@@ -42,6 +46,9 @@ fixture_tests! {
     bodies => "bodies.json",
     http => "http.json",
     ops => "ops.json",
+    responses => "responses.json",
+    messages => "messages.json",
+    ollama => "ollama.json",
 }
 
 #[test]
@@ -81,12 +88,140 @@ fn run(file: &str, input: &Value) -> Value {
         "bodies.json" => run_bodies(input),
         "http.json" => in_runtime(serve(input)),
         "ops.json" => in_runtime(run_steps(input)),
+        "responses.json" => run_dialect(Dialect::Responses, input),
+        "messages.json" => run_dialect(Dialect::Messages, input),
+        "ollama.json" => run_ollama(input),
         other => panic!("no Rust runner for {other}"),
+    }
+}
+
+/// A request, a whole reply or a stream, translated for one dialect. A stream ends with `finish` or `fail:<message>`.
+fn run_dialect(dialect: Dialect, input: &Value) -> Value {
+    let (id, model, created) = (
+        text(&input["chatId"]),
+        text(&input["model"]),
+        input["created"].as_i64().unwrap_or(0),
+    );
+    match input["op"].as_str() {
+        Some("request") => dialect::to_chat(dialect, &input["body"])
+            .unwrap_or_else(|error| json!({ "error": error })),
+        Some("response") => dialect::whole_reply_with(
+            dialect,
+            &input["chat"],
+            (id, model, created),
+            &opts_of(&input["opts"]),
+        )
+        .unwrap_or(Value::Null),
+        Some("stream") => {
+            let mut translator =
+                dialect::translator_with(dialect, id, model, created, &opts_of(&input["opts"]));
+            let mut events = Vec::new();
+            for chunk in input["chunks"].as_array().into_iter().flatten() {
+                events.extend(translator.feed(chunk));
+            }
+            events.extend(match text(&input["end"]).strip_prefix("fail:") {
+                Some(message) => translator.fail(message),
+                None => translator.finish(),
+            });
+            Value::Array(
+                events
+                    .iter()
+                    .map(|e| json!({ "event": e.name, "data": e.data }))
+                    .collect(),
+            )
+        }
+        other => panic!("unknown op {other:?}"),
+    }
+}
+
+/// The options a case sets: `searches` as `{id, query, hits: [{title, url, snippet}], error}`.
+fn opts_of(value: &Value) -> Opts {
+    let mut opts = Opts {
+        thinking: value["thinking"] == true,
+        ..Opts::default()
+    };
+    opts.stop = value["stop"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|s| text(s).to_owned())
+        .collect();
+    for search in value["searches"].as_array().into_iter().flatten() {
+        opts.searches.push(Search {
+            id: text(&search["id"]).to_owned(),
+            query: text(&search["query"]).to_owned(),
+            hits: search["hits"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|hit| Hit {
+                    title: text(&hit["title"]).to_owned(),
+                    url: text(&hit["url"]).to_owned(),
+                    snippet: text(&hit["snippet"]).to_owned(),
+                })
+                .collect(),
+            error: search["error"].as_str().map(str::to_owned),
+        });
+    }
+    opts
+}
+
+/// Ollama cases: `request`, `response` and `stream` as the other dialects, plus the small pure routes. Durations are masked.
+fn run_ollama(input: &Value) -> Value {
+    let generate = text(&input["kind"]) == "generate";
+    let dialect = if generate {
+        Dialect::OllamaGenerate
+    } else {
+        Dialect::OllamaChat
+    };
+    let (model, created) = (
+        text(&input["model"]),
+        input["created"].as_i64().unwrap_or(0),
+    );
+    let entries = || -> Vec<ModelEntry> {
+        input["entries"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|entry| ModelEntry {
+                id: text(&entry["id"]).to_owned(),
+                owned_by: "local".to_owned(),
+                context_length: entry["contextLength"].as_u64(),
+                capabilities: strings(&entry["capabilities"]),
+            })
+            .collect()
+    };
+    let mask = |mut value: Value| {
+        if value.get("total_duration").is_some() {
+            value["total_duration"] = json!(0);
+        }
+        value
+    };
+    match input["op"].as_str() {
+        Some("load") => {
+            ollama::load_reply(generate, &input["body"], model, created).unwrap_or(Value::Null)
+        }
+        Some("tags") => ollama::tags(&entries(), created),
+        Some("show") => ollama::show(&entries()[0]),
+        Some("time") => json!(ollama::iso_time(created)),
+        Some("stream") => {
+            let events = run_dialect(dialect, input);
+            Value::Array(
+                events
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|e| mask(e["data"].clone()))
+                    .collect(),
+            )
+        }
+        _ => mask(run_dialect(dialect, input)),
     }
 }
 
 fn in_runtime<F: Future>(future: F) -> F::Output {
     tokio::runtime::Builder::new_current_thread()
+        .enable_time()
         .build()
         .unwrap_or_else(|error| panic!("cannot build a runtime: {error}"))
         .block_on(future)
@@ -495,13 +630,17 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 impl Backend for FixtureBackend {
-    async fn list_models(&self) -> Result<Vec<String>, BackendError> {
+    async fn list_models(&self) -> Result<Vec<ModelEntry>, BackendError> {
         if self.models_fail {
             return Err(BackendError {
                 message: "disk".to_owned(),
             });
         }
-        Ok(self.models.clone())
+        Ok(self
+            .models
+            .iter()
+            .map(|name| ModelEntry::local(name))
+            .collect())
     }
 
     async fn generate(
@@ -545,5 +684,10 @@ impl Env for FixtureEnv {
 
     fn fill_random(&self, buffer: &mut [u8]) {
         buffer.fill(0xab);
+    }
+
+    // The fixtures keep the old instant 429 by not waiting at all.
+    fn queue_wait(&self) -> std::time::Duration {
+        std::time::Duration::ZERO
     }
 }
