@@ -33,7 +33,53 @@ const NOT_RUN: &str = "The call was not run.";
 const SIGNED_OUT: &str = "The ChatGPT account is signed out.";
 const STOPPED: &str = "Codex stopped during the turn.";
 
+/// How many finished processes stay alive for their conversation's next message.
+const IDLE_MAX: usize = 4;
+
 static PARKED: Mutex<Vec<Turn>> = Mutex::new(Vec::new());
+/// Processes whose turn ended cleanly. Threads are ephemeral, so a thread lives only as long as its process.
+static IDLE: Mutex<Vec<Idle>> = Mutex::new(Vec::new());
+
+struct Idle {
+    instance: String,
+    thread_id: String,
+    client: Client,
+    at: Instant,
+}
+
+/// Keeps a cleanly finished turn's process so the next message resumes its thread.
+fn keep_idle(turn: Turn) {
+    let mut idle = IDLE.lock().unwrap_or_else(PoisonError::into_inner);
+    idle.retain(|kept| kept.at.elapsed() < PARK);
+    idle.push(Idle {
+        instance: turn.instance,
+        thread_id: turn.thread_id,
+        client: turn.client,
+        at: Instant::now(),
+    });
+    if idle.len() > IDLE_MAX {
+        idle.remove(0);
+    }
+}
+
+/// The kept process that still holds this thread, if any.
+fn take_idle(instance: &str, thread_id: &str) -> Option<Client> {
+    let mut idle = IDLE.lock().unwrap_or_else(PoisonError::into_inner);
+    idle.retain(|kept| kept.at.elapsed() < PARK);
+    let index = idle
+        .iter()
+        .position(|kept| kept.instance == instance && kept.thread_id == thread_id)?;
+    Some(idle.remove(index).client)
+}
+
+/// Reads and drops what an idle process printed after its turn, so it cannot leak into the next one.
+async fn drain(client: &mut Client) {
+    let wait = Duration::from_millis(5);
+    while let Ok(Ok(Some(line))) = tokio::time::timeout(wait, client.lines.next_line()).await {
+        client.rpc.feed(format!("{line}\n").as_bytes());
+    }
+    client.rpc.take_events();
+}
 /// Each instance's threads the runtime still holds. They last until a stop, a sign-out or a turn that did not end cleanly.
 static THREADS: Mutex<Option<HashMap<String, Threads>>> = Mutex::new(None);
 
@@ -71,6 +117,9 @@ pub(super) fn clear_threads(instance: &str) {
     {
         map.remove(instance);
     }
+    IDLE.lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .retain(|kept| kept.instance != instance);
 }
 
 /// One turn on its own process: what it has seen, and the tool calls it still waits on.
@@ -87,6 +136,8 @@ struct Turn {
     limits: Option<Value>,
     failure: Option<AccountFailure>,
     parked: Option<Instant>,
+    /// Set when the turn ended cleanly and its thread was recorded, so the process is kept.
+    keep: bool,
     epoch: u64,
     /// The created-files folder, where a picture Codex draws is saved.
     pictures: PathBuf,
@@ -123,6 +174,7 @@ impl AccountRuntime for CodexChat {
 pub fn stop_all() {
     bump_stop_epoch();
     *THREADS.lock().unwrap_or_else(PoisonError::into_inner) = None;
+    IDLE.lock().unwrap_or_else(PoisonError::into_inner).clear();
     PARKED
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
@@ -165,17 +217,42 @@ async fn run(
         return drive(waiting, sink).await;
     }
 
-    let binary = install(app, &instance, &root)
-        .await
-        .map_err(|m| boxed(ErrorKind::AccountRuntimeUnavailable, &m))?;
-    let (home, env) = setup(&root, &instance).map_err(|m| boxed(ErrorKind::UnknownError, &m))?;
-    let mut client = Client::start(&binary, &home, &env)
-        .await
-        .map_err(|m| boxed(ErrorKind::AccountRuntimeUnavailable, &m))?;
-    require_sign_in(&mut client).await?;
     sweep(&messages);
+    let mut plan = threads_for(&instance, |threads| threads.plan(&messages));
+    let kept = plan.id.as_deref().and_then(|id| take_idle(&instance, id));
+    if kept.is_none()
+        && let Some(id) = plan.id.take()
+    {
+        // The process that held the thread is gone, and the thread with it, so start over with the history.
+        plan = threads_for(&instance, |threads| {
+            threads.forget(&id);
+            threads.plan(&messages)
+        });
+    }
+    let (home, mut client) = match kept {
+        Some(mut client) => {
+            drain(&mut client).await;
+            (
+                setup(&root, &instance)
+                    .map_err(|m| boxed(ErrorKind::UnknownError, &m))?
+                    .0,
+                client,
+            )
+        }
+        None => {
+            let binary = install(app, &instance, &root)
+                .await
+                .map_err(|m| boxed(ErrorKind::AccountRuntimeUnavailable, &m))?;
+            let (home, env) =
+                setup(&root, &instance).map_err(|m| boxed(ErrorKind::UnknownError, &m))?;
+            let mut client = Client::start(&binary, &home, &env)
+                .await
+                .map_err(|m| boxed(ErrorKind::AccountRuntimeUnavailable, &m))?;
+            require_sign_in(&mut client).await?;
+            (home, client)
+        }
+    };
 
-    let plan = threads_for(&instance, |threads| threads.plan(&messages));
     let thread_id = match plan.id {
         Some(id) => id,
         None => {
@@ -236,6 +313,7 @@ async fn run(
         limits: None,
         failure: None,
         parked: None,
+        keep: false,
         epoch: stop_epoch(),
         pictures: crate::ipc::files::created_dir(app.state::<crate::AppState>().storage.data_dir()),
     };
@@ -303,7 +381,12 @@ async fn drive(mut turn: Turn, sink: &mut dyn AccountSink) -> Result<(), Box<Acc
             match handle(&mut turn, event, sink) {
                 Flow::Go => {}
                 Flow::Called => settle = Some(Instant::now() + SETTLE),
-                Flow::Done(result) => return result,
+                Flow::Done(result) => {
+                    if result.is_ok() && turn.keep {
+                        keep_idle(turn);
+                    }
+                    return result;
+                }
             }
         }
         flush_or_forget(&mut turn).await?;
@@ -363,6 +446,7 @@ fn notified(turn: &mut Turn, method: &str, params: &Value, sink: &mut dyn Accoun
     }
     match method {
         "thread/tokenUsage/updated" => turn.usage = from_codex(params["tokenUsage"].get("last")),
+        "turn/completed" if is_other_turn(turn.turn_id.as_deref(), &params["turn"]) => {}
         "turn/completed" => return completed(turn, &params["turn"], sink),
         "item/completed" => {
             if let Some(token) = save_picture(&turn.pictures, &params["item"]) {
@@ -471,6 +555,11 @@ fn ending_of(result: &Value, failure: Option<AccountFailure>, limits: Option<&Va
     Ending::Quiet
 }
 
+/// A completion for an earlier turn on a resumed process, which must not end this one.
+fn is_other_turn(ours: Option<&str>, finished: &Value) -> bool {
+    matches!((ours, finished["id"].as_str()), (Some(ours), Some(theirs)) if ours != theirs)
+}
+
 fn completed(turn: &mut Turn, result: &Value, sink: &mut dyn AccountSink) -> Flow {
     let ending = ending_of(result, turn.failure.take(), turn.limits.as_ref());
     if !matches!(ending, Ending::Stop) {
@@ -486,6 +575,7 @@ fn completed(turn: &mut Turn, result: &Value, sink: &mut dyn AccountSink) -> Flo
                 state: recorded["state"].clone(),
             });
             sink.finish(FinishReason::Stop, turn.usage);
+            turn.keep = true;
             Flow::Done(Ok(()))
         }
         Ending::Length => {
@@ -644,6 +734,14 @@ mod tests {
 
     fn fixture(line: &str) -> Value {
         serde_json::from_str(line).expect("fixture")
+    }
+
+    #[test]
+    fn a_resumed_process_ignores_the_last_turns_completion() {
+        let earlier = json!({ "id": "turn_1", "status": "completed" });
+        assert!(is_other_turn(Some("turn_2"), &earlier));
+        assert!(!is_other_turn(Some("turn_1"), &earlier));
+        assert!(!is_other_turn(None, &earlier));
     }
 
     const PNG_1PX: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";

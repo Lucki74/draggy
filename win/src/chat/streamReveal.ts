@@ -110,7 +110,7 @@ export function blockStarts(source: string, previous?: { source: string; starts:
 /** The caret stays out of these: code keeps its layout and maths its own markup. Void elements
  * are here too, since React throws (error 137) on a <br> or <img> given a child. */
 const UNWRAPPED_TAGS = new Set([
-  "pre", "code", "svg", "math", "script", "style",
+  "pre", "code", "svg", "math", "script", "style", "draggy-cite",
   "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr",
 ]);
 
