@@ -173,11 +173,26 @@ impl ReplySink for ChannelSink {
         if let Some(allow) = headers.get_mut("access-control-allow-headers") {
             allow.push_str(", authorization");
         }
-        let _ = self.0.blocking_send(Event::Head { status, headers });
+        let _ = send_blocking(&self.0, Event::Head { status, headers });
     }
 
     fn chunk(&mut self, bytes: &[u8]) -> bool {
-        self.0.blocking_send(Event::Chunk(bytes.to_vec())).is_ok()
+        send_blocking(&self.0, Event::Chunk(bytes.to_vec()))
+    }
+}
+
+/// Waits for room in the channel without tokio's blocking_send, which panics inside block_on.
+/// Account chats stream from inside block_on, so this must work there too.
+fn send_blocking(tx: &mpsc::Sender<Event>, mut event: Event) -> bool {
+    loop {
+        match tx.try_send(event) {
+            Ok(()) => return true,
+            Err(mpsc::error::TrySendError::Closed(_)) => return false,
+            Err(mpsc::error::TrySendError::Full(back)) => {
+                event = back;
+                std::thread::sleep(Duration::from_millis(2));
+            }
+        }
     }
 }
 
@@ -450,6 +465,24 @@ mod tests {
         assert_eq!(request.url, GATEWAY_URL);
         assert_eq!(request.method, "POST");
         assert_eq!(request.body, r#"{"model":"gguf:a.gguf"}"#);
+    }
+
+    #[tokio::test]
+    async fn streams_from_inside_block_on_like_account_chats() {
+        let serve: Serve = Arc::new(move |_, _, sink, _| {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .build()
+                .expect("runtime");
+            runtime.block_on(async {
+                sink.head(200, &BTreeMap::new());
+                sink.chunk(b"hi");
+            });
+            Ok(())
+        });
+        let base = spawn(serve).await;
+        let response = post(&base).send().await.expect("send");
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.text().await.expect("text"), "hi");
     }
 
     #[tokio::test]
