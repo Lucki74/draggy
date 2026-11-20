@@ -51,6 +51,7 @@ The full docs are at [docs.draggy.org](https://docs.draggy.org), in English, Fre
 - Voice chat, with a local or cloud voice
 - Image generation, local or through a cloud provider
 - Pictures in answers, opened in a viewer
+- Videos in chat, read frame by frame by a vision model
 - A local API that speaks OpenAI, Anthropic and Ollama (see [API.md](API.md))
 - External runtimes and cloud APIs
 - Cost counters for cloud usage, with local turns priced at OpenRouter rates
