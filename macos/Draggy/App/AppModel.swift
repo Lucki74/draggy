@@ -148,6 +148,8 @@ final class AppModel {
     var draft = ""
     /// Pictures waiting to go with the next message.
     private(set) var pendingImages: [ImageRecord] = []
+    /// Videos waiting to go with the next message, already copied into the data folder.
+    private(set) var pendingVideos: [VideoRecord] = []
 
     var baseURL: String {
         didSet {
@@ -222,6 +224,9 @@ final class AppModel {
     /// The saved research runs, or nil when the data folder cannot open.
     @ObservationIgnored let researchStore: ResearchStore?
 
+    /// The imported videos and their frame indexes, or nil when the data folder cannot open.
+    @ObservationIgnored let videoStore: VideoStore?
+
     /// Reads each finished reply aloud with the system voice.
     var speakReplies: Bool {
         didSet {
@@ -270,6 +275,7 @@ final class AppModel {
             .appendingPathComponent("Draggy")
         try? FileManager.default.createDirectory(at: dataFolder, withIntermediateDirectories: true)
         researchStore = try? ResearchStore.open(dataDir: dataFolder.path)
+        videoStore = try? VideoStore.open(dataDir: dataFolder.path, ffmpegDir: nil)
         broker = ApprovalBroker { [weak self] request in
             self?.pendingApproval = request
         }
@@ -357,6 +363,33 @@ final class AppModel {
     private static let imageTypes = ["png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
                                      "gif": "image/gif", "webp": "image/webp"]
     private static let imageLimit = 10_000_000
+    /// Mirrors VIDEO_EXTENSIONS in the core.
+    nonisolated static let videoTypes = ["mp4", "m4v", "mov", "mkv", "webm", "avi", "wmv", "flv", "mpg", "mpeg",
+                             "ts", "mts", "m2ts", "3gp", "ogv"]
+
+    func removeVideo(at index: Int) {
+        guard pendingVideos.indices.contains(index) else { return }
+        pendingVideos.remove(at: index)
+    }
+
+    /// Copies a video into the data folder and adds it to the next message.
+    private func attachVideo(_ url: URL) async {
+        guard let store = videoStore, store.ffmpegAvailable() else {
+            errorMessage = String(localized: "Attaching videos needs ffmpeg. Install it with Homebrew.")
+            return
+        }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            pendingVideos.append(try await store.importVideo(path: url.path))
+        } catch let error as CoreError {
+            Logger.app.error("Operation failed (core error)")
+            errorMessage = Self.message(for: error)
+        } catch {
+            Logger.app.error("Operation failed: \(error.localizedDescription, privacy: .public)")
+            errorMessage = error.localizedDescription
+        }
+    }
 
     func removeImage(at index: Int) {
         guard pendingImages.indices.contains(index) else { return }
@@ -383,6 +416,10 @@ final class AppModel {
         errorMessage = nil
         if let mime = Self.imageTypes[url.pathExtension.lowercased()] {
             attachImage(url, mime: mime)
+            return
+        }
+        if Self.videoTypes.contains(url.pathExtension.lowercased()) {
+            await attachVideo(url)
             return
         }
         do {
@@ -438,6 +475,8 @@ final class AppModel {
         draft = ""
         let images = pendingImages
         pendingImages = []
+        let videos = pendingVideos
+        pendingVideos = []
         errorMessage = nil
         lastReply = ""
         isRunning = true
@@ -446,7 +485,7 @@ final class AppModel {
             pendingApproval = nil
         }
 
-        transcript.addUser(([text] + images.map { "[\($0.name)]" }).joined(separator: "\n"))
+        transcript.addUser(([text] + images.map { "[\($0.name)]" } + videos.map { "[\($0.name)]" }).joined(separator: "\n"))
         transcript.beginReply()
         let token = CancelToken()
         cancel = token
@@ -465,8 +504,8 @@ final class AppModel {
         do {
             let session = try currentSession()
             session.setResearchOptions(allowModelStart: researchModelStart, maxDepth: researchMaxDepth)
-            let outcome = try await session.sendWithImages(
-                text: text, images: images, observer: sink, approvals: broker, cancel: token)
+            let outcome = try await session.sendWithMedia(
+                text: text, images: images, videos: videos, observer: sink, approvals: broker, cancel: token)
             transcript.finishReply(outcome.textContent)
             if let metrics = outcome.metrics {
                 let turn = TurnPricer.record(
@@ -521,6 +560,7 @@ final class AppModel {
         if !records.isEmpty { try created.restore(saved: records) }
         // Finished research runs are saved to the library under this conversation.
         created.setResearchStore(store: researchStore, chatId: currentID.uuidString)
+        created.setVideoStore(store: videoStore)
         session = created
         return created
     }

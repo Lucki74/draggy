@@ -713,6 +713,8 @@ pub struct ToolContext<'a> {
     pub cancel: &'a CancelToken,
     /// Set by a tool that rewrites the plan; the loop reports it to the host and remembers it as seen.
     pub plan: Option<Vec<PlanItem>>,
+    /// Base64 JPEGs a tool wants the model to see; they follow the tool results as one user message.
+    pub images: Vec<String>,
 }
 
 impl ToolContext<'_> {
@@ -720,7 +722,22 @@ impl ToolContext<'_> {
     pub fn new_id(&mut self) -> String {
         self.ids.next_id()
     }
+
+    /// Queues a picture for the model. False once the turn holds `MAX_TURN_IMAGES`, so the tool can say so.
+    pub fn attach_image(&mut self, base64: String) -> bool {
+        if self.images.len() >= MAX_TURN_IMAGES {
+            return false;
+        }
+        self.images.push(base64);
+        true
+    }
 }
+
+/// How many tool pictures one pass may add, as on Windows.
+pub const MAX_TURN_IMAGES: usize = 24;
+
+/// The text of the message that carries tool pictures to the model.
+pub const TOOL_IMAGES_TEXT: &str = "Image from the tool result above.";
 
 /// The tools the turn may run. Definitions travel with the request; this trait runs them.
 pub trait ToolRuntime {
@@ -1430,6 +1447,8 @@ struct Turn<'a> {
     full_text: String,
     last_thought: String,
     last_tool_result: String,
+    /// Pictures tools queued during the current pass.
+    tool_images: Vec<String>,
     answer_asked: bool,
     action_asked: bool,
     tools_ran: bool,
@@ -1496,6 +1515,7 @@ impl<'a> Turn<'a> {
             full_text,
             last_thought: String::new(),
             last_tool_result: String::new(),
+            tool_images: Vec::new(),
             answer_asked: false,
             action_asked: false,
             tools_ran: false,
@@ -2183,6 +2203,7 @@ impl<'a> Turn<'a> {
                 self.last_tool_result = result.clone();
                 self.wire.push(tool_message(call, result));
             }
+            self.flush_tool_images();
             return;
         }
 
@@ -2207,7 +2228,12 @@ impl<'a> Turn<'a> {
             let result = self.run_guarded(name.as_deref().unwrap_or(""), &args);
             self.tools_ran = true;
             self.last_tool_result = result.clone();
-            self.wire.push(WireMessage::text("user", result));
+            // A text call's result is already a user message, so its pictures ride along on it.
+            let images = std::mem::take(&mut self.tool_images);
+            self.wire.push(WireMessage {
+                images,
+                ..WireMessage::text("user", result)
+            });
         }
     }
 
@@ -2347,13 +2373,16 @@ impl<'a> Turn<'a> {
 
     /// Runs a tool the turn is allowed to run, and takes any plan it wrote.
     fn execute(&mut self, name: &str, args: &Value) -> String {
+        let room = MAX_TURN_IMAGES.saturating_sub(self.tool_images.len());
         let mut ctx = ToolContext {
             steps: &mut self.steps,
             ids: &mut *self.ports.ids,
             cancel: self.ports.cancel,
             plan: None,
+            images: Vec::with_capacity(room),
         };
         let output = self.ports.tools.run(name, args, &mut ctx);
+        let images = std::mem::take(&mut ctx.images);
         let plan = ctx.plan.take();
         if let Some(items) = plan {
             // The model's own update is not the user's edit, so it is remembered as seen.
@@ -2361,7 +2390,22 @@ impl<'a> Turn<'a> {
             self.ports.host.on_plan(&items);
         }
         self.sync_steps();
+        self.tool_images.extend(images.into_iter().take(room));
         output
+    }
+
+    /// Sends the pictures tools queued in this pass after their results, the way the Windows loop does.
+    fn flush_tool_images(&mut self) {
+        if self.tool_images.is_empty() {
+            return;
+        }
+        let images = std::mem::take(&mut self.tool_images);
+        self.wire.push(WireMessage {
+            role: "user".into(),
+            content: TOOL_IMAGES_TEXT.into(),
+            images,
+            ..WireMessage::default()
+        });
     }
 
     /// One repair per turn for a malformed call, asked again with a schema so the sampler can only produce a valid

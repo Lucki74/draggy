@@ -59,7 +59,7 @@ struct ChatView: View {
 
     private var composer: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if !model.pendingImages.isEmpty { imageChips }
+            if !model.pendingImages.isEmpty || !model.pendingVideos.isEmpty { imageChips }
             composerRow
         }
         .padding()
@@ -77,6 +77,18 @@ struct ChatView: View {
                     Button { model.removeImage(at: index) } label: { Image(systemName: "xmark.circle.fill") }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Remove picture")
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(.quaternary, in: Capsule())
+            }
+            ForEach(Array(model.pendingVideos.enumerated()), id: \.offset) { index, video in
+                HStack(spacing: 4) {
+                    Image(systemName: "film")
+                    Text(video.name).lineLimit(1)
+                    Button { model.removeVideo(at: index) } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Remove video")
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
@@ -119,6 +131,7 @@ struct ChatView: View {
         }
     }
 
-    private static let attachmentTypes: [UTType] = ["docx", "pptx", "xlsx", "pdf", "png", "jpg", "jpeg", "gif", "webp"]
+    private static let attachmentTypes: [UTType] = (["docx", "pptx", "xlsx", "pdf", "png", "jpg", "jpeg", "gif", "webp"]
+        + AppModel.videoTypes)
         .compactMap { UTType(filenameExtension: $0) }
 }

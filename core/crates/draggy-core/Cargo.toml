@@ -27,6 +27,7 @@ draggy-diagnostics = { path = "../diagnostics" }
 draggy-engine = { path = "../engine" }
 draggy-models = { path = "../models" }
 draggy-agent = { path = "../agent" }
+draggy-media = { path = "../media" }
 draggy-tools = { path = "../tools" }
 draggy-providers = { path = "../providers" }
 draggy-mcp = { path = "../mcp" }

@@ -17,9 +17,11 @@ use draggy_core::{
     ApprovalChoice, ApprovalRecord, CancelToken, CoreError, ImageRecord, Session, StepRecord,
     TurnOutcome, read_document,
 };
+use draggy_core::video::{VIDEO_EXTENSIONS, VideoRecord};
 use draggy_linux::chat::{
     ChatMessage, Entry, Role, StepLine, StepState, Transcript, cost_label, in_run, metrics_line,
-    rail_title, start_turn, step_line, step_state, to_records, to_saved, with_document,
+    rail_title, start_turn, step_line, step_state, to_records, to_saved, video_store,
+    with_document,
 };
 use draggy_linux::conversations::{self, Conversation, Store};
 use draggy_linux::markdown::{self, Block};
@@ -107,6 +109,8 @@ mod imp {
         pub cancel: RefCell<Option<Arc<CancelToken>>>,
         /// Pictures waiting to go with the next message.
         pub images: RefCell<Vec<ImageRecord>>,
+        /// Videos waiting to go with the next message, already stored and indexing.
+        pub videos: RefCell<Vec<VideoRecord>>,
         /// Runs when the saved conversations change, so the sidebar list can refresh.
         pub changed: RefCell<Option<Rc<dyn Fn()>>>,
         /// The chip at the end of the last reply, for the chat's background tasks.
@@ -232,6 +236,13 @@ glib::wrapper! {
 }
 
 const MAX_PICTURE: usize = 10_000_000;
+
+/// Whether the file is a video the picker offers, by its extension.
+fn is_video(path: &std::path::Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| VIDEO_EXTENSIONS.contains(&extension.to_lowercase().as_str()))
+}
 
 /// The image type for a picture file, or `None` for anything else.
 fn picture_type(path: &std::path::Path) -> Option<&'static str> {
@@ -449,16 +460,19 @@ impl DraggyChat {
     /// Asks for a Word, PowerPoint, Excel or PDF file and reads it into the message being typed.
     fn choose_document(&self) {
         let filter = gtk::FileFilter::new();
-        filter.set_name(Some("Documents and pictures"));
+        filter.set_name(Some("Documents, pictures and videos"));
         for suffix in [
             "docx", "pptx", "xlsx", "pdf", "png", "jpg", "jpeg", "gif", "webp",
-        ] {
+        ]
+        .into_iter()
+        .chain(VIDEO_EXTENSIONS)
+        {
             filter.add_suffix(suffix);
         }
         let filters = gio::ListStore::new::<gtk::FileFilter>();
         filters.append(&filter);
         let dialog = gtk::FileDialog::new();
-        dialog.set_title("Attach a document or picture");
+        dialog.set_title("Attach a document, picture or video");
         dialog.set_filters(Some(&filters));
         let window = self.root().and_downcast::<gtk::Window>();
         let chat = self.clone();
@@ -470,6 +484,10 @@ impl DraggyChat {
             else {
                 return;
             };
+            if is_video(&path) {
+                chat.attach_video(path);
+                return;
+            }
             match picture_type(&path) {
                 Some(mime) => chat.attach_picture(&path, mime),
                 None => chat.attach_document(path),
@@ -504,6 +522,46 @@ impl DraggyChat {
                 self.toast("The file could not be read.")
             }
         }
+    }
+
+    /// Stores the video and starts indexing it on the runtime, then keeps it for the next message.
+    fn attach_video(&self, path: std::path::PathBuf) {
+        let Some(store) = video_store() else {
+            self.toast("Videos cannot be attached: the data folder is not available.");
+            return;
+        };
+        if !store.ffmpeg_available() {
+            self.toast("Attaching videos needs ffmpeg. Install it from your package manager.");
+            return;
+        }
+        let chat = self.clone();
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        chat.toast(&format!("Adding {name}"));
+        glib::spawn_future_local(async move {
+            let imported = runtime()
+                .spawn(store.import_video(path.to_string_lossy().into_owned()))
+                .await;
+            match imported {
+                Ok(Ok(video)) => {
+                    let mut videos = chat.imp().videos.borrow_mut();
+                    videos.push(video);
+                    let count = videos.len() + chat.imp().images.borrow().len();
+                    drop(videos);
+                    chat.toast(&format!("Added {name} ({count} waiting)"));
+                }
+                Ok(Err(error)) => {
+                    tracing::error!(target: "linux.chat", error = %error, "video could not be attached");
+                    chat.toast(&error.to_string())
+                }
+                Err(error) => {
+                    tracing::error!(target: "linux.chat", error = %error, "video import task failed");
+                    chat.toast("The video could not be attached.")
+                }
+            }
+        });
     }
 
     /// Reads the document on the runtime and adds its text to the composer, so the user sees it before sending.
@@ -566,9 +624,11 @@ impl DraggyChat {
             };
             chat.imp().input.buffer().set_text("");
             let images = chat.imp().images.take();
+            let videos = chat.imp().videos.take();
             let options = state.research.borrow().clone();
             session.set_research_options(options.model_start, options.max_depth);
-            chat.run_turn(session, text.clone(), text, images);
+            session.set_video_store(video_store());
+            chat.run_turn(session, text.clone(), text, images, videos);
         });
     }
 
@@ -917,12 +977,15 @@ impl DraggyChat {
         text: String,
         sent: String,
         images: Vec<ImageRecord>,
+        videos: Vec<VideoRecord>,
     ) {
         let imp = self.imp();
         let shown = images
             .iter()
-            .fold(text, |shown, image| format!("{shown}\n[{}]", image.name));
-        tracing::info!(target: "linux.chat", chars = sent.len(), images = images.len(), "turn started");
+            .map(|image| &image.name)
+            .chain(videos.iter().map(|video| &video.name))
+            .fold(text, |shown, name| format!("{shown}\n[{name}]"));
+        tracing::info!(target: "linux.chat", chars = sent.len(), images = images.len(), videos = videos.len(), "turn started");
         imp.log.borrow_mut().begin_turn(&shown);
         {
             let log = imp.log.borrow();
@@ -938,7 +1001,7 @@ impl DraggyChat {
         self.scroll_to_end();
 
         let (tx, rx) = async_channel::unbounded();
-        *imp.cancel.borrow_mut() = Some(start_turn(session, sent, images, tx));
+        *imp.cancel.borrow_mut() = Some(start_turn(session, sent, images, videos, tx));
         let chat = self.clone();
         glib::spawn_future_local(async move {
             while let Ok(message) = rx.recv().await {
