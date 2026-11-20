@@ -273,6 +273,7 @@ export default function ChatScreen({
       onPaste={handlePaste}
       onDrop={handleDrop}
       processFiles={session.processFiles}
+      pickVideos={window.draggy?.video ? session.pickVideos : undefined}
       setCompactLimit={session.setCompactLimit}
     />
   );

@@ -5,6 +5,10 @@ export const IMAGE_EXTENSIONS = [
   "png", "jpg", "jpeg", "jfif", "gif", "webp", "bmp", "ico", "cur", "avif", "apng", "tiff", "tif",
 ];
 
+export const VIDEO_EXTENSIONS = [
+  "mp4", "m4v", "mov", "webm", "mkv", "avi", "wmv", "flv", "mpg", "mpeg", "3gp", "ts", "mts", "m2ts", "ogv",
+];
+
 export const DOCUMENT_EXTENSIONS = ["docx", "pptx", "xlsx", "pdf"];
 
 export const TEXT_EXTENSIONS = [
@@ -19,13 +23,17 @@ export const TEXT_EXTENSIONS = [
 ];
 
 /** Every extension the picker offers, images aside. */
-export const ACCEPTED_EXTENSIONS = [...DOCUMENT_EXTENSIONS, ...TEXT_EXTENSIONS];
+export const ACCEPTED_EXTENSIONS = [
+  ...new Set([...VIDEO_EXTENSIONS, ...DOCUMENT_EXTENSIONS, ...TEXT_EXTENSIONS]),
+];
 
 export const MAX_TEXT_FILE_BYTES = 1024 * 1024;
 export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+/** Videos are copied into storage by path and never read into memory, so the cap is the indexer's. */
+export const MAX_VIDEO_BYTES = 4 * 1024 * 1024 * 1024;
 
-export type AttachmentKind = "image" | "document" | "text";
+export type AttachmentKind = "image" | "video" | "document" | "text";
 
 export type AttachmentPlan =
   | { kind: AttachmentKind; extension: string }
@@ -50,6 +58,14 @@ export function looksLikeImage(file: FileFacts): boolean {
   );
 }
 
+/** `.ts` is TypeScript unless the browser says it is an MPEG transport stream. */
+export function looksLikeVideo(file: FileFacts): boolean {
+  const type = String(file.type || "");
+  const extension = extensionOf(file.name);
+  if (extension === "ts") return type === "video/mp2t";
+  return type.startsWith("video/") || VIDEO_EXTENSIONS.includes(extension);
+}
+
 /** What happens to this file, before anything is read. Reasons are translation keys: a plan
  * carrying English is a bug only somebody else would see. */
 export function planAttachment(
@@ -70,6 +86,12 @@ export function planAttachment(
     }
     if (file.size > MAX_IMAGE_BYTES) return { kind: "reject", reason: "fileTooLarge" };
     return { kind: "image", extension };
+  }
+
+  // Accepted without vision: the model is told it cannot see the frames rather than the user being refused.
+  if (looksLikeVideo(file)) {
+    if (file.size > MAX_VIDEO_BYTES) return { kind: "reject", reason: "fileTooLarge" };
+    return { kind: "video", extension };
   }
 
   if (DOCUMENT_EXTENSIONS.includes(extension)) {

@@ -38,6 +38,7 @@ use crate::task_manager::{CancelSignal, Message, Seed};
 use crate::tool_channel::{
     RepairedCall, ToolDefinition, looks_like_call, read_repair, repair_prompt, repair_schema,
 };
+use crate::video_handle::{TrackedVideo, track_videos, video_handle_line, video_ref_of};
 
 /// A turn stops after this many passes unless the model's profile lowers it.
 pub const MAX_TOOL_LOOPS: usize = 75;
@@ -399,6 +400,21 @@ pub fn describe_plan(items: &[PlanItem]) -> String {
 /// `toWireMessage`: one stored message as the model reads it. Images are sent as bare base64; anything the model
 /// cannot take is said in words, so it does not guess at what was attached.
 pub fn to_wire_message(message: &Message, allow_images: bool, keep_thinking: bool) -> WireMessage {
+    to_wire_message_with_videos(
+        message,
+        allow_images,
+        keep_thinking,
+        &track_videos(&[message]),
+    )
+}
+
+/// `toWireMessage` with the chat's video numbering, so `v2` stays `v2` in every turn.
+pub fn to_wire_message_with_videos(
+    message: &Message,
+    allow_images: bool,
+    keep_thinking: bool,
+    videos: &[TrackedVideo],
+) -> WireMessage {
     let mut content = message.content.clone();
     let mut images: Vec<String> = Vec::new();
 
@@ -433,7 +449,18 @@ pub fn to_wire_message(message: &Message, allow_images: bool, keep_thinking: boo
                 attachment.name
             ));
         } else if attachment.kind.starts_with("video/") {
-            content.push_str(&format!("\n\n[Attached Video: {}]", attachment.name));
+            let video = video_ref_of(attachment)
+                .and_then(|(hash, ..)| videos.iter().find(|video| video.hash == hash));
+            match video {
+                Some(video) => {
+                    content.push_str("\n\n");
+                    content.push_str(&video_handle_line(video, allow_images));
+                }
+                None => content.push_str(&format!(
+                    "\n\n[Attached video: {}. It could not be read.]",
+                    attachment.name
+                )),
+            }
         } else if !is_binary(&attachment.content) {
             content.push_str(&format!(
                 "\n\n--- ATTACHED FILE: {} ---\n{}\n--- END ATTACHED FILE ---",
@@ -1194,8 +1221,10 @@ fn build_wire(
         wire.push(WireMessage::text("user", render_compaction_block(state)));
     }
     let offset = wire.len();
+    let videos = track_videos(&history.iter().collect::<Vec<_>>());
     for message in carried {
-        let mut entry = to_wire_message(message, profile.native_vision, native_thinking);
+        let mut entry =
+            to_wire_message_with_videos(message, profile.native_vision, native_thinking, &videos);
         if remote {
             entry.draggy_ref = Some(refs.reference(message));
         }

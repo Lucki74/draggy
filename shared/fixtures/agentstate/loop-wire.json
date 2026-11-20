@@ -327,7 +327,7 @@
       },
       "expected": {
         "role": "user",
-        "content": "watch\n\n[Attached Video: clip.mp4]"
+        "content": "watch\n\n[Attached video: clip.mp4. It could not be read.]"
       }
     },
     {
@@ -650,7 +650,7 @@
       },
       "expected": {
         "role": "user",
-        "content": "watch\n\n[Attached Video: clip.mp4]"
+        "content": "watch\n\n[Attached video: clip.mp4. It could not be read.]"
       }
     }
   ]

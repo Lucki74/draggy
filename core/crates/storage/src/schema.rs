@@ -59,6 +59,13 @@ pub(crate) const SCHEMA: &str = r#"
     bytes INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS video_index (
+    hash       TEXT PRIMARY KEY,
+    version    INTEGER NOT NULL DEFAULT 0,
+    json       TEXT,
+    created_at INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS kv (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL

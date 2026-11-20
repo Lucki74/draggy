@@ -62,7 +62,8 @@ pub(crate) fn collect_garbage(conn: &Connection, blob_dir: &Path) -> Result<usiz
         }
         conn.execute("DELETE FROM blobs WHERE hash = ?1", [hash])?;
     }
-    Ok(orphans.len())
+    let videos = crate::videos::collect_video_garbage(conn, blob_dir)?;
+    Ok(orphans.len() + videos)
 }
 
 fn remove_if_present(path: &Path) -> std::io::Result<()> {

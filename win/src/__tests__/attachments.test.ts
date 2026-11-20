@@ -6,8 +6,10 @@ import {
   MAX_DOCUMENT_BYTES,
   MAX_IMAGE_BYTES,
   MAX_TEXT_FILE_BYTES,
+  MAX_VIDEO_BYTES,
   extensionOf,
   looksLikeImage,
+  looksLikeVideo,
   planAttachment,
 } from "../chat/attachments";
 import {
@@ -138,7 +140,6 @@ describe("planning what to do with a dropped file", () => {
       reason: "unsupportedFile",
     });
     expect(planAttachment(file("song.mp3"), seeing).kind).toBe("reject");
-    expect(planAttachment(file("video.mp4"), seeing).kind).toBe("reject");
   });
 
   it("refuses a file with no extension at all", () => {
@@ -250,5 +251,45 @@ describe("keeping the highlighted command in range", () => {
   it("never goes negative", () => {
     expect(clampSlashIndex(-1, 3)).toBe(0);
     expect(clampSlashIndex(4, 0)).toBe(0);
+  });
+});
+
+describe("video attachments", () => {
+  it("recognises a video by its extension", () => {
+    expect(planAttachment(file("clip.mp4", 1000), seeing)).toEqual({
+      kind: "video",
+      extension: "mp4",
+    });
+    expect(planAttachment(file("clip.MOV", 1000), seeing)).toEqual({
+      kind: "video",
+      extension: "mov",
+    });
+  });
+
+  it("recognises a video by its MIME type", () => {
+    expect(looksLikeVideo(file("recording", 100, "video/webm"))).toBe(true);
+  });
+
+  it("refuses a video over the cap", () => {
+    expect(planAttachment(file("big.mp4", MAX_VIDEO_BYTES + 1), seeing)).toEqual({
+      kind: "reject",
+      reason: "fileTooLarge",
+    });
+    expect(planAttachment(file("big.mp4", MAX_VIDEO_BYTES), seeing).kind).toBe("video");
+  });
+
+  it("reads .ts as TypeScript unless the type says transport stream", () => {
+    expect(planAttachment(file("index.ts"), seeing).kind).toBe("text");
+    expect(planAttachment(file("capture.ts", 100, "video/mp2t"), seeing)).toEqual({
+      kind: "video",
+      extension: "ts",
+    });
+  });
+
+  it("accepts a video when the model cannot see", () => {
+    expect(planAttachment(file("clip.mp4", 1000), blind)).toEqual({
+      kind: "video",
+      extension: "mp4",
+    });
   });
 });

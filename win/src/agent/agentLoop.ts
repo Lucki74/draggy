@@ -1,4 +1,6 @@
 import { imageIndex, trackImages } from "../images/imageTracker";
+import { loadSegmentCounts, trackVideos, videoHandleLine, VIDEO_GUIDANCE, type TrackedVideo } from "../tools/video";
+import { videoRefOf } from "../chat/videoRef";
 
 /** How the answer shows a picture; the chat draws the token as the picture itself. */
 const IMAGE_PLACEMENT =
@@ -173,6 +175,9 @@ export interface WireMessage {
   draggy_ref?: DraggyRef;
 }
 
+/** Pictures tools may hand the model in one turn, video frames included. */
+export const MAX_TURN_IMAGES = 24;
+
 /** Stamped tail notes by message id, so past user turns stay identical across turns. */
 const userTailNotes = new Map<string, string>();
 
@@ -187,7 +192,7 @@ const TOOL_RESULTS_HEADING = "[Tool results this reply used]";
 const HISTORY_WORK_BUDGET = 800;
 
 /** Steps that hold a result worth remembering; a bare "searching" label says nothing. */
-const HISTORY_WORK_STEPS = new Set<string>(["command", "run_code", "create_file", "image", "results", "library", "reading", "loaded", "scanned"]);
+const HISTORY_WORK_STEPS = new Set<string>(["command", "run_code", "create_file", "image", "video", "results", "library", "reading", "loaded", "scanned"]);
 
 /** `keepThinking` sends a reply's reasoning back with it. With reasoning dropped from history,
  * Laguna wrote none at all; kept, it wrote 400 characters. */
@@ -195,6 +200,8 @@ export function toWireMessage(
   message: Message,
   allowImages: boolean,
   keepThinking = false,
+  videos: TrackedVideo[] = trackVideos([message]),
+  videoTools = true,
 ): WireMessage {
   let content = message.content || "";
   const images: string[] = [];
@@ -223,7 +230,9 @@ export function toWireMessage(
     } else if (isImage) {
       content += `\n\n[Attached image: ${attachment.name}. This model cannot read images, so describe the limitation instead of guessing its contents.]`;
     } else if (attachment.type.startsWith("video/")) {
-      content += `\n\n[Attached Video: ${attachment.name}]`;
+      const ref = videoRefOf(attachment);
+      const video = ref && videos.find((known) => known.hash === ref.hash);
+      content += video ? `\n\n${videoHandleLine(video, allowImages, videoTools)}` : `\n\n[Attached video: ${attachment.name}. It could not be read.]`;
     } else if (!isBinary(attachment.content)) {
       content += `\n\n--- ATTACHED FILE: ${attachment.name} ---\n${attachment.content}\n--- END ATTACHED FILE ---`;
     } else {
@@ -427,6 +436,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     ...request.environment,
     compactTools: (info?.promptProfile ?? "compact") === "compact",
     vision: hasCapability(info, "vision"),
+    hasVideos: trackVideos(messages).length > 0,
   };
   const withResearch = {
     ...sized,
@@ -519,6 +529,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     loadedSection,
     environment.imageReady ? imageIndex(trackImages(messages)) : "",
     environment.imageReady ? IMAGE_PLACEMENT : "",
+    environment.hasVideos && environment.vision ? VIDEO_GUIDANCE : "",
     environment.webMode !== "off" && holdsFinishedRun(messages) ? followUpInstruction() : "",
   ]
     .filter(Boolean)
@@ -548,6 +559,9 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
   const carried = compaction ? history.slice(compaction.throughIndex) : history;
   // Only a provider matches turns by these; hashing every attachment each turn would be wasted on the engine.
   const refs = isRemote(model) ? await Promise.all(carried.map(draggyRef)) : [];
+  // Ids come from the whole chat so a video keeps its number after compaction drops its first turn.
+  const videos = trackVideos(messages);
+  await loadSegmentCounts(videos);
 
   // What the fixed parts of the prompt cost, so the context view can say where
   // the window went rather than only how full it is.
@@ -584,7 +598,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       ? [{ role: "user" as const, content: renderCompactionBlock(compaction) }]
       : []),
     ...carried.map((message, index) => ({
-      ...toWireMessage(message, nativeVision, nativeThinking),
+      ...toWireMessage(message, nativeVision, nativeThinking, videos, !cannotUseTools),
       ...(refs[index] ? { draggy_ref: refs[index] } : {}),
     })),
   ];
@@ -864,6 +878,7 @@ async function runTurn(
     if (changed) syncSteps();
   };
 
+  let imagesThisTurn = 0;
   const toolContext: ToolContext = {
     t: host.t,
     settings,
@@ -886,7 +901,11 @@ async function runTurn(
     syncSteps,
     newId: generateId,
     attachImage: (base64) => {
-      if (toolContext.vision) pendingImages.push(base64);
+      // A looping model could otherwise flood the window with frames.
+      if (!toolContext.vision || imagesThisTurn >= MAX_TURN_IMAGES) return false;
+      imagesThisTurn++;
+      pendingImages.push(base64);
+      return true;
     },
 
     signal,
@@ -1092,6 +1111,7 @@ async function runTurn(
   // The tool list was built with this flag, so a call to a tool that needs it is checked against the same one.
   environment.vision = nativeVision;
   toolContext.images = trackImages(request.messages);
+  toolContext.videos = trackVideos(request.messages);
   const baseLimit = toolLoopLimit(slow, MAX_TOOL_LOOPS);
   // A research run carries its own call budget, so the cap rises once one starts.
   const currentLimit = () => loopLimitFor(activeRun(toolContext), baseLimit);

@@ -73,6 +73,10 @@ function lineFor(step: SearchStep): Line | null {
           : `Attempted to create ${step.filename ?? "a file"}: ${label}`,
       };
 
+    case "video":
+      // The pixels are gone by the next turn; the range seen is what is worth remembering.
+      return step.videoSeen ? { priority: 1, text: step.videoSeen } : null;
+
     case "image": {
       const image = step.image;
       if (!image || image.status !== "done") return null;

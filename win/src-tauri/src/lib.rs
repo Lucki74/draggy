@@ -238,6 +238,11 @@ pub fn run() {
             draggy_scheme::handle(
                 ctx.app_handle().clone(),
                 request.uri().to_string(),
+                request
+                    .headers()
+                    .get(tauri::http::header::RANGE)
+                    .and_then(|value| value.to_str().ok())
+                    .map(str::to_owned),
                 responder,
             )
         })

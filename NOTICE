@@ -38,6 +38,8 @@ license.
 
 pako is licensed under MIT and Zlib.
 
+FFmpeg (ffmpeg.exe and ffprobe.exe) ships as a separate executable that Draggy runs as a child process to read attached videos. FFmpeg is licensed under the GNU Lesser General Public License version 2.1 or later. Source: https://ffmpeg.org/
+
 Optional engines downloaded on demand
 
 colibri (https://github.com/JustVugg/colibri) and the embeddable Python 3.12 from

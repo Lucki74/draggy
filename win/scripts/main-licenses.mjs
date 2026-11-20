@@ -13,7 +13,7 @@ const found = await new Promise((resolve, reject) => {
 });
 
 const own = new RegExp(`^draggy@`);
-const blocks = Object.entries(found)
+const npmBlocks = Object.entries(found)
   .filter(([name]) => !own.test(name))
   .sort(([a], [b]) => a.localeCompare(b))
   .map(([name, info]) => {
@@ -22,6 +22,20 @@ const blocks = Object.entries(found)
     if (info.publisher) lines.push(`Publisher: ${info.publisher}`);
     return lines.join("\n");
   });
+
+// Bundled binaries that npm does not describe, listed by hand.
+const handListed = [
+  {
+    name: "FFmpeg",
+    license: "LGPL-2.1-or-later",
+    url: "https://ffmpeg.org/legal.html",
+    note: "Ships as the ffmpeg/ffprobe sidecars (ffmpeg.exe and ffprobe.exe)",
+  },
+];
+const extraBlocks = handListed.map(({ name, license, url, note }) =>
+  [name, `License: ${license}`, `Source: ${url}`, `Note: ${note}`].join("\n"),
+);
+const blocks = [...npmBlocks, ...extraBlocks];
 
 await mkdir(path.dirname(OUT), { recursive: true });
 await writeFile(OUT, `Production dependencies of the Draggy main process\n\n${blocks.join("\n\n")}\n`);

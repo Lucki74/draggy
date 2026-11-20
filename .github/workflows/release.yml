@@ -78,6 +78,25 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $dest).Hash.ToLowerInvariant()
           if ($hash -ne $pin.sha256) { throw "node.exe sha256 $hash does not match pin $($pin.version)" }
 
+      - name: Fetch the pinned ffmpeg and ffprobe sidecars
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pin = Get-Content -Raw scripts/ffmpeg-pin.json | ConvertFrom-Json
+          $zip = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
+          Invoke-WebRequest -Uri $pin.source -OutFile $zip
+          $out = Join-Path $env:RUNNER_TEMP 'ffmpeg'
+          Expand-Archive -LiteralPath $zip -DestinationPath $out -Force
+          New-Item -ItemType Directory -Force -Path vendor/ffmpeg | Out-Null
+          foreach ($tool in 'ffmpeg', 'ffprobe') {
+            $found = Get-ChildItem -Path $out -Recurse -Filter "$tool.exe" | Select-Object -First 1
+            if (-not $found) { throw "$tool.exe missing from $($pin.source)" }
+            $dest = Join-Path $PWD "vendor/ffmpeg/$tool.exe"
+            Copy-Item -LiteralPath $found.FullName -Destination $dest -Force
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $dest).Hash.ToLowerInvariant()
+            if ($hash -ne $pin.$tool.sha256) { throw "$tool.exe sha256 $hash does not match pin $($pin.version)" }
+          }
+
       - run: npm run fetch:python
 
       - run: npm run stage:sidecars

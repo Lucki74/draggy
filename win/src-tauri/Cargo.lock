@@ -1294,6 +1294,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "draggy-media"
+version = "0.1.0"
+dependencies = [
+ "draggy-tools",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "draggy-models"
 version = "0.1.0"
 dependencies = [
@@ -1389,6 +1401,7 @@ dependencies = [
  "draggy-documents",
  "draggy-engine",
  "draggy-mcp",
+ "draggy-media",
  "draggy-models",
  "draggy-providers",
  "draggy-storage",

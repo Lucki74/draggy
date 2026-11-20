@@ -54,6 +54,7 @@ mod terminals;
 mod tier;
 mod tts;
 pub mod updater;
+mod video;
 pub(crate) mod web;
 pub(crate) mod widgets;
 
@@ -121,6 +122,7 @@ impl Registry {
         library::register_all(&mut registry);
         research::register_all(&mut registry);
         documents::register_all(&mut registry);
+        video::register_all(&mut registry);
         commands::register_all(&mut registry);
         registry
     }

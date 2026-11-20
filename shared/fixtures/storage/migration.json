@@ -488,6 +488,12 @@
             },
             {
               "type": "index",
+              "name": "sqlite_autoindex_video_index_1",
+              "tableName": "video_index",
+              "sql": null
+            },
+            {
+              "type": "index",
               "name": "sqlite_autoindex_workspaces_1",
               "tableName": "workspaces",
               "sql": null
@@ -575,6 +581,12 @@
               "name": "sqlite_sequence",
               "tableName": "sqlite_sequence",
               "sql": "CREATE TABLE sqlite_sequence(name,seq)"
+            },
+            {
+              "type": "table",
+              "name": "video_index",
+              "tableName": "video_index",
+              "sql": "CREATE TABLE video_index ( hash TEXT PRIMARY KEY, version INTEGER NOT NULL DEFAULT 0, json TEXT, created_at INTEGER NOT NULL )"
             },
             {
               "type": "table",
@@ -672,6 +684,12 @@
             },
             {
               "type": "index",
+              "name": "sqlite_autoindex_video_index_1",
+              "tableName": "video_index",
+              "sql": null
+            },
+            {
+              "type": "index",
               "name": "sqlite_autoindex_workspaces_1",
               "tableName": "workspaces",
               "sql": null
@@ -759,6 +777,12 @@
               "name": "sqlite_sequence",
               "tableName": "sqlite_sequence",
               "sql": "CREATE TABLE sqlite_sequence(name,seq)"
+            },
+            {
+              "type": "table",
+              "name": "video_index",
+              "tableName": "video_index",
+              "sql": "CREATE TABLE video_index ( hash TEXT PRIMARY KEY, version INTEGER NOT NULL DEFAULT 0, json TEXT, created_at INTEGER NOT NULL )"
             },
             {
               "type": "table",

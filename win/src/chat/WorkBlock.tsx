@@ -21,6 +21,7 @@ import DiffBlock from "./DiffBlock";
 import { RailContext, leadingSpaces } from "./railContext";
 import { FilePreview } from "./FilePreview";
 import ImageCard from "./ImageCard";
+import { VideoStepFrames } from "./VideoAttachment";
 import { loadLabel, type LoadStage } from "./loadLabel";
 import { stepTotals } from "./workSummary";
 import { stepView } from "./stepView";
@@ -485,6 +486,8 @@ export function WorkBlock({
       <CodeRunOutput step={step} t={t} />
     ) : step.type === "git" && step.fileContent ? (
       <GitDiffOutput diff={step.fileContent} t={t} />
+    ) : step.type === "video" && step.videoFrames?.times.length ? (
+      <VideoStepFrames hash={step.videoFrames.hash} times={step.videoFrames.times} />
     ) : null;
 
   if (step.type === "edit_file" && step.before !== undefined && step.after !== undefined && !failed) {
