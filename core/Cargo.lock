@@ -726,6 +726,7 @@ dependencies = [
  "draggy-documents",
  "draggy-engine",
  "draggy-mcp",
+ "draggy-media",
  "draggy-models",
  "draggy-providers",
  "draggy-storage",

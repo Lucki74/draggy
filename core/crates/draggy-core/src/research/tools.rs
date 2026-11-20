@@ -563,6 +563,7 @@ mod tests {
             ids: &mut ids,
             cancel: &cancel,
             plan: None,
+            images: Vec::new(),
         };
         web.run_research(name, args, &mut ctx)
     }
@@ -577,6 +578,7 @@ mod tests {
             ids: &mut ids,
             cancel: &cancel,
             plan: None,
+            images: Vec::new(),
         };
         web.run_research(
             "start_research",

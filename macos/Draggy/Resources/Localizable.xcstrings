@@ -2600,6 +2600,52 @@
         }
       }
     },
+    "Remove video": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer la vidéo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar el video"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Убрать видео"
+          }
+        }
+      }
+    },
+    "Attaching videos needs ffmpeg. Install it with Homebrew.": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Joindre des vidéos nécessite ffmpeg. Installez-le avec Homebrew."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para adjuntar videos hace falta ffmpeg. Instálalo con Homebrew."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для прикрепления видео нужен ffmpeg. Установите его через Homebrew."
+          }
+        }
+      }
+    },
     "%lld running": {
       "extractionState": "manual",
       "localizations": {
