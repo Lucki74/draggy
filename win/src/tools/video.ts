@@ -16,6 +16,20 @@ export interface TrackedVideo {
 
 export const VIDEO_INDEX_WAIT_MS = 30_000;
 export const MAX_VIEW_FRAMES = 12;
+
+const LOOKED = "video.looked";
+
+/** A small model that already has the frames may ask for the same ones again and again; the second ask gets words, not pictures. */
+function lookedBefore(ctx: ToolContext, key: string): boolean {
+  const looked = (ctx.memo.get(LOOKED) as Set<string> | undefined) ?? new Set<string>();
+  ctx.memo.set(LOOKED, looked);
+  if (looked.has(key)) return true;
+  looked.add(key);
+  return false;
+}
+
+const lookedAgain = (tool: string) =>
+  `TOOL RESULT (${tool}): You already looked at exactly this in this turn and its frames are above. Do not call it again: answer the user now from what you saw.`;
 const MAX_TIMELINE_LINES = 200;
 
 /** Same ids every turn for the same history, so earlier handle lines never change and the cache prefix holds. */
@@ -249,6 +263,7 @@ const videoView: ToolSpec = {
     if (end <= start) return "TOOL RESULT (video_view): end must come after start.";
     const max = Math.min(MAX_VIEW_FRAMES, Math.max(1, Math.round(Number(args.max_frames) || 8)));
     const grid = args.grid === true || args.grid === "true";
+    if (lookedBefore(ctx, `view:${video.hash}:${start.toFixed(2)}-${end.toFixed(2)}:${max}:${grid}`)) return lookedAgain("video_view");
 
     const stepId = ctx.newId();
     const range = `${clock(start)}-${clock(end)}`;
@@ -326,6 +341,7 @@ const videoFrame: ToolSpec = {
     const fps = video.meta?.fps || 30;
     const asked = hasTime ? parseTime(args.time) : (Number(args.frame) + 0.5) / fps;
     if (asked === undefined || !Number.isFinite(asked) || asked < 0) return "TOOL RESULT (video_frame): the time or frame could not be read.";
+    if (lookedBefore(ctx, `frame:${video.hash}@${asked.toFixed(3)}`)) return lookedAgain("video_frame");
 
     const stepId = ctx.newId();
     ctx.pushStep({

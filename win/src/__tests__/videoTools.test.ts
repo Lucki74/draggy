@@ -211,4 +211,12 @@ describe("video_frame", () => {
     expect(attachImage).toHaveBeenCalledWith("ONE");
     expect(result).toContain("static segment 00:00.0-00:20.0");
   });
+
+  it("answers the same look twice in one turn with words only", async () => {
+    const { context, attachImage } = makeContext();
+    await tool("video_frame").run({ video: "v1", time: "0:30" }, context);
+    const again = await tool("video_frame").run({ video: "v1", time: "30" }, context);
+    expect(attachImage).toHaveBeenCalledOnce();
+    expect(again).toContain("already looked at exactly this");
+  });
 });
