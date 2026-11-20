@@ -1,0 +1,82 @@
+{
+  "area": "agent",
+  "description": "The handle line a turn carries for an attached video (win/src/tools/video.ts, core/crates/agent/src/video_handle.rs).",
+  "cases": [
+    {
+      "name": "an indexed video names its segments",
+      "input": {
+        "op": "line",
+        "vision": true,
+        "video": { "id": "v1", "name": "demo.mp4", "meta": { "duration_s": 134.2, "width": 1920, "height": 1080, "fps": 30 }, "segments": 37 }
+      },
+      "expected": "[Video v1 \"demo.mp4\": 2m14s, 1920x1080, 30fps, 37 distinct segments. Use video_info, video_view or video_frame to look at it.]"
+    },
+    {
+      "name": "a video still indexing says so",
+      "input": {
+        "op": "line",
+        "vision": true,
+        "video": { "id": "v2", "name": "clip.mov", "meta": { "duration_s": 3780, "width": 720, "height": 1280, "fps": 29.97003 }, "segments": null }
+      },
+      "expected": "[Video v2 \"clip.mov\": 1h03m, 720x1280, 29.97fps, index still building. Use video_info, video_view or video_frame to look at it.]"
+    },
+    {
+      "name": "a video that could not be indexed says so",
+      "input": {
+        "op": "line",
+        "vision": true,
+        "video": { "id": "v1", "name": "broken.mp4", "meta": null, "segments": "failed" }
+      },
+      "expected": "[Video v1 \"broken.mp4\": could not be indexed. Use video_info, video_view or video_frame to look at it.]"
+    },
+    {
+      "name": "a model without vision is told not to guess",
+      "input": {
+        "op": "line",
+        "vision": false,
+        "video": { "id": "v1", "name": "demo.mp4", "meta": { "duration_s": 45, "width": 640, "height": 360, "fps": 25 }, "segments": 3 }
+      },
+      "expected": "[Video v1 \"demo.mp4\" attached. This model cannot see video frames; say so instead of guessing its contents.]"
+    },
+    {
+      "name": "the wire text numbers videos by first appearance in the chat",
+      "input": {
+        "op": "wire",
+        "vision": true,
+        "index": 1,
+        "messages": [
+          {
+            "id": "m1",
+            "role": "user",
+            "content": "First",
+            "attachments": [
+              { "name": "a.mp4", "type": "video/mp4", "content": "draggy-video:{\"kind\":\"video\",\"hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"name\":\"a.mp4\",\"meta\":{\"duration_s\":45,\"width\":640,\"height\":360,\"fps\":25}}" }
+            ]
+          },
+          {
+            "id": "m2",
+            "role": "user",
+            "content": "Compare these",
+            "attachments": [
+              { "name": "b.webm", "type": "video/webm", "content": "draggy-video:{\"kind\":\"video\",\"hash\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"name\":\"b.webm\",\"meta\":null}" },
+              { "name": "a.mp4", "type": "video/mp4", "content": "draggy-video:{\"kind\":\"video\",\"hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"name\":\"a.mp4\",\"meta\":{\"duration_s\":45,\"width\":640,\"height\":360,\"fps\":25}}" }
+            ]
+          }
+        ]
+      },
+      "expected": "Compare these\n\n[Video v2 \"b.webm\": index still building. Use video_info, video_view or video_frame to look at it.]\n\n[Video v1 \"a.mp4\": 45s, 640x360, 25fps, index still building. Use video_info, video_view or video_frame to look at it.]"
+    },
+    {
+      "name": "a video attachment without a stored reference is not sent as text",
+      "input": {
+        "op": "wire",
+        "vision": true,
+        "index": 0,
+        "messages": [
+          { "id": "m1", "role": "user", "content": "Look", "attachments": [{ "name": "raw.mp4", "type": "video/mp4", "content": "AAAA" }] }
+        ]
+      },
+      "expected": "Look\n\n[Attached video: raw.mp4. It could not be read.]"
+    }
+  ]
+}

@@ -15,6 +15,8 @@ import { draftKeyFor } from "./useChatSession";
 import { ImagePreview } from "../ui/ImagePreview";
 import { Chip, Fuse, Icon, IconButton, Kbd, Menu, Popover, type MenuEntry } from "../ui";
 import { QueueCard } from "./QueueCard";
+import { VideoChip } from "./VideoAttachment";
+import { videoRefOf } from "./videoRef";
 import type { ModelInfo } from "../llama";
 import type { ContextWindowView } from "../agent/contextBreakdown";
 import type { CompactOutcome } from "../agent/taskManager";
@@ -124,6 +126,8 @@ export interface ComposerProps {
     onPaste: (e: React.ClipboardEvent) => void;
     onDrop: (e: React.DragEvent) => void;
     processFiles: (files: File[]) => Promise<void>;
+    /** Opens the native video picker; absent where the app has no backend. */
+    pickVideos?: () => Promise<void>;
     setCompactLimit: (arg: string) => boolean;
     clearAttachments: () => void;
     /** Code mode: the project folder and branch the turn works in. */
@@ -208,6 +212,7 @@ export function Composer({
     onPaste,
     onDrop,
     processFiles,
+    pickVideos,
     setCompactLimit,
     clearAttachments,
     workContext,
@@ -409,6 +414,16 @@ export function Composer({
             icon: <Icon name="file-arrow-up" size={16} />,
             onSelect: () => fileInputRef.current?.click(),
         },
+        ...(pickVideos
+            ? [
+                  {
+                      id: "video",
+                      label: t("addVideo"),
+                      icon: <Icon name="film-strip" size={16} />,
+                      onSelect: () => void pickVideos(),
+                  } satisfies MenuEntry,
+              ]
+            : []),
         {
             id: "folder",
             label: t("addFolder"),
@@ -639,7 +654,20 @@ export function Composer({
                                     ))}
                                     {attachedFiles
                                         .filter((file) => !file.type.startsWith("image/"))
-                                        .map((file, idx) => (
+                                        .map((file, idx) => {
+                                            const video = videoRefOf(file);
+                                            if (video) {
+                                                return (
+                                                    <span key={`video-${idx}`} aria-label={`${t("videoAttached")}: ${video.name}`}>
+                                                        <VideoChip
+                                                            video={video}
+                                                            t={t}
+                                                            onDelete={() => removeFile(attachedFiles.indexOf(file))}
+                                                        />
+                                                    </span>
+                                                );
+                                            }
+                                            return (
                                             <Chip
                                                 key={`non-img-${idx}`}
                                                 size="dense"
@@ -649,7 +677,8 @@ export function Composer({
                                                 label={file.name}
                                                 onDelete={() => removeFile(attachedFiles.indexOf(file))}
                                             />
-                                        ))}
+                                            );
+                                        })}
                                 </div>
                             )}
                         </div>

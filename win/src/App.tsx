@@ -14,6 +14,7 @@ import { registerSkillTools } from "./tools/skills";
 import { registerGitTools } from "./tools/git";
 import { registerCommandTools } from "./tools/commands";
 import { registerImageTools } from "./tools/image";
+import { registerVideoTools } from "./tools/video";
 import type { AppSettings } from "./types";
 import { swallowed } from "./logger";
 import { WindowFrame } from "./app/WindowControls";
@@ -26,6 +27,7 @@ registerSkillTools();
 registerGitTools();
 registerCommandTools();
 registerImageTools();
+registerVideoTools();
 
 /** The composition root: which model is running, and therefore whether the user sees the startup
  * screen or the app. Everything else lives in `app/`. */

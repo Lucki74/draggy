@@ -3,8 +3,11 @@ import {
     ACCEPTED_EXTENSIONS,
     DOCUMENT_EXTENSIONS,
     IMAGE_EXTENSIONS,
+    VIDEO_EXTENSIONS,
     planAttachment,
 } from "./attachments";
+import { formatVideoRef, videoErrorKey, videoRefOf } from "./videoRef";
+import { startVideoIndex } from "./videoStatus";
 import {
     CONTEXT_BUCKETS,
     FALLBACK_CONTEXT_LENGTH,
@@ -46,10 +49,13 @@ import type {
     Attachment,
     ChatSession,
     InstalledSkill,
+    VideoRef,
 } from "../types";
 import { swallowed } from "../logger";
 
 const MEASURE_DELAY_MS = 400;
+/** Pasted or dropped videos travel as bytes over IPC; above this the picker copies them by path. */
+const MAX_PASTED_VIDEO_BYTES = 200 * 1024 * 1024;
 
 export interface UseChatSessionOptions {
     model: string;
@@ -321,18 +327,73 @@ export function useChatSession({
     }, [notice]);
 
     const removeFile = (index: number) => {
-        setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+        setAttachedFiles((prev) => {
+            const removed = prev[index] ? videoRefOf(prev[index]) : null;
+            const rest = prev.filter((_, i) => i !== index);
+            // An index nobody waits for any more is stopped; a tool restarts it if an older turn asks.
+            if (removed && !rest.some((file) => videoRefOf(file)?.hash === removed.hash)) {
+                window.draggy?.video
+                    .cancel(removed.hash)
+                    .catch(swallowed("video.cancel", "the index finishes unused"));
+            }
+            return rest;
+        });
     };
 
     const visionSupported = modelInfo === null || modelInfo.capabilities.includes("vision");
     const documentsSupported = Boolean(window.draggy);
 
     const acceptAttribute = ACCEPTED_EXTENSIONS.filter(
-        (extension) => documentsSupported || !DOCUMENT_EXTENSIONS.includes(extension),
+        (extension) =>
+            documentsSupported ||
+            (!DOCUMENT_EXTENSIONS.includes(extension) && !VIDEO_EXTENSIONS.includes(extension)),
     )
         .concat(visionSupported ? IMAGE_EXTENSIONS : [])
         .map((extension) => "." + extension)
         .join(",");
+
+    /** A refusal from the video channels in the user's language where a key fits, else the backend's words. */
+    const videoRefusal = (name: string, reply: { code?: string; error: string }) => {
+        const key = videoErrorKey(reply.code);
+        return `${name} - ${key ? t(key) : reply.error || t("unsupportedFile")}`;
+    };
+
+    /** The attachment for an imported video; indexing starts now so it is likely done when a tool asks. */
+    const videoAttachment = (
+        type: string,
+        imported: { hash: string; name: string; meta: VideoRef["meta"] },
+    ): Attachment => {
+        void startVideoIndex(imported.hash);
+        return {
+            name: imported.name,
+            type: type.startsWith("video/") ? type : "video/mp4",
+            content: formatVideoRef({ kind: "video", hash: imported.hash, name: imported.name, meta: imported.meta }),
+        };
+    };
+
+    /** A text-only model still gets the video's handle line, so the user is told it will not see frames. */
+    const withVisionNote = (accepted: Attachment[], rejected: string[]) =>
+        !visionSupported && accepted.some((file) => file.type.startsWith("video/"))
+            ? [...rejected, t("videoNoVisionNote")]
+            : rejected;
+
+    /** The native picker hands over paths, so a video of any size is copied by the backend, never read here. */
+    const pickVideos = async () => {
+        const api = window.draggy?.video;
+        if (!api) return;
+        const picked = await api.pick();
+        if (!picked.success) return;
+        const accepted: Attachment[] = [];
+        const rejected: string[] = [];
+        for (const path of picked.paths) {
+            const name = path.split(/[\\/]/).pop() || "video";
+            const imported = await api.import(path, name);
+            if (imported.success) accepted.push(videoAttachment("", imported));
+            else rejected.push(videoRefusal(name, imported));
+        }
+        if (accepted.length > 0) setAttachedFiles((prev) => [...prev, ...accepted]);
+        setFileErrors(withVisionNote(accepted, rejected));
+    };
 
     const processFiles = async (files: File[]) => {
         const accepted: Attachment[] = [];
@@ -347,6 +408,23 @@ export function useChatSession({
             }
 
             try {
+                if (plan.kind === "video") {
+                    const api = window.draggy?.video;
+                    if (!api) {
+                        rejected.push(`${file.name} - ${t("unsupportedFile")}`);
+                        continue;
+                    }
+                    // A browser File has no path, so its bytes cross IPC; large ones go through the picker.
+                    if (file.size > MAX_PASTED_VIDEO_BYTES) {
+                        rejected.push(`${file.name} - ${t("videoTooLargeToPaste")}`);
+                        continue;
+                    }
+                    const imported = await api.importBytes(file.name, new Uint8Array(await file.arrayBuffer()));
+                    if (imported.success) accepted.push(videoAttachment(file.type, imported));
+                    else rejected.push(videoRefusal(file.name, imported));
+                    continue;
+                }
+
                 if (plan.kind === "image") {
                     if (!(await canDecodeImage(file))) {
                         rejected.push(`${file.name} - ${t("unreadableImage")}`);
@@ -397,7 +475,7 @@ export function useChatSession({
         if (accepted.length > 0) {
             setAttachedFiles((prev) => [...prev, ...accepted]);
         }
-        setFileErrors(rejected);
+        setFileErrors(withVisionNote(accepted, rejected));
     };
 
     const chipRanges = useMemo(() => commandRanges(input, { surface, skills }), [input, surface, skills]);
@@ -569,5 +647,6 @@ export function useChatSession({
         runSlashCommand,
         removeFile,
         processFiles,
+        pickVideos,
     };
 }

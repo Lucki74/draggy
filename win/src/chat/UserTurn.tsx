@@ -5,6 +5,8 @@ import { REHYPE_PLUGINS, REMARK_PLUGINS } from "./markdown";
 import { copyAsMarkdown } from "./copyMarkdown";
 import { Button, Icon, IconButton, Lightbox } from "../ui";
 import { looksLikeImage } from "./attachments";
+import { VideoTurnCard } from "./VideoAttachment";
+import { videoRefOf } from "./videoRef";
 import type { Attachment, Message } from "../types";
 
 export interface UserTurnProps {
@@ -37,8 +39,10 @@ export function UserTurn({ msg, idx, text, onEditMessage, t }: UserTurnProps) {
     <div className="group/turn flex flex-col items-end gap-1.5 max-w-full">
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 justify-end">
-          {attachments.map((file, fIdx) =>
-            file.type.startsWith("image/") || (looksLikeImage({ ...file, size: 0 }) && file.content.startsWith("data:image")) ? (
+          {attachments.map((file, fIdx) => {
+            const video = videoRefOf(file);
+            if (video) return <VideoTurnCard key={fIdx} video={video} t={t} />;
+            return file.type.startsWith("image/") || (looksLikeImage({ ...file, size: 0 }) && file.content.startsWith("data:image")) ? (
               <button
                 key={fIdx}
                 type="button"
@@ -57,8 +61,8 @@ export function UserTurn({ msg, idx, text, onEditMessage, t }: UserTurnProps) {
                 <Icon name={file.type.startsWith("video/") ? "film-strip" : "file-text"} size={14} />
                 <span className="truncate max-w-[180px] text-text-primary">{file.name}</span>
               </span>
-            ),
-          )}
+            );
+          })}
         </div>
       )}
 

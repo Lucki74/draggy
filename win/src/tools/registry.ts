@@ -1,4 +1,5 @@
 import type { TrackedImage } from "../images/imageTracker";
+import type { TrackedVideo } from "./video";
 import type { AppSettings, PermissionMode, SearchStep, UserQuestion, UserReply } from "../types";
 import type { ToolAnnotations } from "../agent/permissions";
 import type { PlanItem } from "../plan/plan";
@@ -17,6 +18,7 @@ export type ToolGroup =
   | "git"
   | "shell"
   | "image"
+  | "video"
   | "external";
 
 export interface ToolParameter {
@@ -52,6 +54,8 @@ export interface ToolEnvironment {
   imageReady?: boolean;
   /** Whether the chat model can read pictures, which is what lets it look at one of the chat's images. */
   vision?: boolean;
+  /** Whether a video is attached somewhere in the chat, which is what offers the video tools. */
+  hasVideos?: boolean;
   /** The only groups this turn may use, when set. A request from the local API gets the web and
    * nothing else: not the user's extensions, not their files. */
   allowedGroups?: ToolGroup[];
@@ -93,8 +97,10 @@ export interface ToolContext {
   vision?: boolean;
   /** The pictures in this chat, numbered img_1 upward. A tool that makes one adds it here. */
   images?: TrackedImage[];
-  /** Hands the model a base64 image with this tool's result. Ignored for a model without vision. */
-  attachImage?: (base64: string) => void;
+  /** The videos in this chat, numbered v1 upward. */
+  videos?: TrackedVideo[];
+  /** Hands the model a base64 image with this tool's result. False when it was not sent: no vision, or the turn's image budget is spent. */
+  attachImage?: (base64: string) => boolean | void;
   signal: AbortSignal;
   /** Scratch space shared by every tool call in one turn and thrown away after it. Tools use it to
    * notice that they are being asked the same thing twice. */

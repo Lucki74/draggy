@@ -13,6 +13,7 @@ mod recovery;
 mod research;
 mod schema;
 pub mod secrets;
+mod videos;
 mod workspaces;
 
 use std::path::{Path, PathBuf};
@@ -29,6 +30,7 @@ pub use research::{
     to_match,
 };
 pub use schema::SCHEMA_VERSION;
+pub use videos::{StoredVideoIndex, VIDEO_REF_PREFIX, video_hash_of};
 pub use workspaces::{DEFAULT_WORKSPACE_ID, Workspace, WorkspaceKind};
 
 /// A failed call. The two refusals keep their exact messages.

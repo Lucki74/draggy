@@ -66,6 +66,7 @@ fn render_block(block: &Value) -> String {
         Some("text") => text_of(object.get("text")),
         Some("image") => format!("[image returned, {}]", mime_of(object.get("mimeType"))),
         Some("audio") => format!("[audio returned, {}]", mime_of(object.get("mimeType"))),
+        Some("video") => format!("[video returned, {}]", mime_of(object.get("mimeType"))),
         Some("resource") => render_resource(object.get("resource")),
         _ => String::new(),
     }
@@ -117,6 +118,9 @@ mod tests {
     fn a_missing_mime_type_is_named_unknown() {
         let text = render_tool_result(&json!({"content": [{"type": "image"}]}));
         assert_eq!(text, "[image returned, unknown type]");
+        let text =
+            render_tool_result(&json!({"content": [{"type": "video", "mimeType": "video/mp4"}]}));
+        assert_eq!(text, "[video returned, video/mp4]");
     }
 
     #[test]

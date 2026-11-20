@@ -37,6 +37,7 @@ tracing = "0.1"
 draggy-documents = { path = "../../core/crates/documents" }
 draggy-engine = { path = "../../core/crates/engine" }
 draggy-mcp = { path = "../../core/crates/mcp" }
+draggy-media = { path = "../../core/crates/media" }
 draggy-models = { path = "../../core/crates/models" }
 draggy-providers = { path = "../../core/crates/providers" }
 draggy-web = { path = "../../core/crates/web" }

@@ -38,6 +38,9 @@ import type { PromptMode } from "../../prompts";
 import type { ProjectMemory } from "../../project/memory";
 import { promptProfileFor } from "../../ai/providers";
 import { imageIndex, referenceStrength } from "../../images/imageTracker";
+import { trackVideos, videoHandleLine, type TrackedVideo } from "../../tools/video";
+import { toWireMessage } from "../../agent/agentLoop";
+import type { Message } from "../../types";
 import type { TrackedImage } from "../../images/imageTracker";
 import {
   allowedEfforts,
@@ -288,6 +291,20 @@ function runImageReference(input: Fixture): unknown {
   }
 }
 
+function runVideoHandle(input: Fixture): unknown {
+  const vision = input.vision === true;
+  switch (input.op) {
+    case "line":
+      return videoHandleLine({ hash: "", ...(input.video as Omit<TrackedVideo, "hash">) }, vision);
+    case "wire": {
+      const messages = input.messages as Message[];
+      return toWireMessage(messages[input.index as number], vision, false, trackVideos(messages)).content;
+    }
+    default:
+      throw new Error(`unknown videoHandle op ${input.op}`);
+  }
+}
+
 /** Parses the text whole, then in two parts at every code-point split, and requires the same answer. */
 function runPartialArgs(input: Fixture): unknown {
   const raw = text(input, "raw");
@@ -307,6 +324,8 @@ function run(file: string, input: Fixture): unknown {
       return runPartialArgs(input);
     case "imageReference":
       return runImageReference(input);
+    case "videoHandle":
+      return runVideoHandle(input);
     case "effort":
       return runEffort(input);
     case "toolParsing":

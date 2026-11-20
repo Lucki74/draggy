@@ -16,6 +16,19 @@ $dir = Join-Path $PSScriptRoot '..\src-tauri\binaries'
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
 Copy-Item -LiteralPath $Source -Destination (Join-Path $dir 'node-x86_64-pc-windows-msvc.exe') -Force
 Write-Output "staged node $($pin.version)"
+# ffmpeg and ffprobe index and cut attached videos; they are pinned the same way and never fetched at runtime.
+$ffpin = Get-Content -Raw (Join-Path $PSScriptRoot 'ffmpeg-pin.json') | ConvertFrom-Json
+foreach ($tool in 'ffmpeg', 'ffprobe') {
+  $src = Join-Path $PSScriptRoot "..\vendor\ffmpeg\$tool.exe"
+  if (-not (Test-Path $src)) { throw "Pinned $tool.exe missing at $src (expected $($ffpin.version))" }
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  $stream = [System.IO.File]::OpenRead((Resolve-Path -LiteralPath $src).Path)
+  try { $hash = ([System.BitConverter]::ToString($sha.ComputeHash($stream)) -replace '-', '').ToLowerInvariant() }
+  finally { $stream.Dispose(); $sha.Dispose() }
+  if ($hash -ne $ffpin.$tool.sha256) { throw "$tool.exe sha256 $hash does not match pin $($ffpin.version) $($ffpin.$tool.sha256)" }
+  Copy-Item -LiteralPath $src -Destination (Join-Path $dir "$tool-x86_64-pc-windows-msvc.exe") -Force
+}
+Write-Output "staged ffmpeg $($ffpin.version)"
 # The sandbox launcher ships as a resource; every agent command runs through it.
 $sandbox = Join-Path $PSScriptRoot '..\sandbox\Cargo.toml'
 cargo build --release --quiet --manifest-path $sandbox

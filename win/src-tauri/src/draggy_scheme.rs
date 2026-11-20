@@ -29,13 +29,17 @@ enum Route {
     Favicon(String),
     Images(String),
     Models(String),
+    Video(String),
     Unknown,
 }
 
 /// Answers one `draggy://` request. The work runs off the webview thread: a model may be downloaded first.
-pub fn handle(app: AppHandle, uri: String, responder: UriSchemeResponder) {
+pub fn handle(app: AppHandle, uri: String, range: Option<String>, responder: UriSchemeResponder) {
     tauri::async_runtime::spawn(async move {
-        let response = serve(&app, &uri).await;
+        let response = match route(&uri) {
+            Route::Video(hash) => video(&app, &hash, range.as_deref()).await,
+            _ => serve(&app, &uri).await,
+        };
         responder.respond(response);
     });
 }
@@ -46,7 +50,7 @@ async fn serve(app: &AppHandle, uri: &str) -> Response<Vec<u8>> {
         Route::Images(name) => serve_created(&created_dir(&data), &name),
         Route::Favicon(host) => favicon(app, &data.join("favicon-cache"), &host).await,
         Route::Models(relative) => model(app, &data.join("model-cache"), &relative).await,
-        Route::Unknown => text(404, "Not found"),
+        Route::Video(_) | Route::Unknown => text(404, "Not found"),
     }
 }
 
@@ -72,6 +76,7 @@ fn route(uri: &str) -> Route {
         "favicon" => Route::Favicon(name),
         "images" => Route::Images(name),
         "models" => Route::Models(name),
+        "video" => Route::Video(name),
         _ => Route::Unknown,
     }
 }
@@ -461,6 +466,68 @@ fn with_common(builder: tauri::http::response::Builder, bytes: Vec<u8>) -> Respo
         .unwrap_or_else(|_| Response::new(Vec::new()))
 }
 
+/// Longest piece of a video one answer carries, so seeking a long file never reads it whole.
+const VIDEO_CHUNK: u64 = 4 * 1024 * 1024;
+
+/// The byte span a `Range: bytes=a-b` header asks for, clamped to the file and to one chunk.
+fn byte_range(header: Option<&str>, size: u64) -> Option<(u64, u64)> {
+    if size == 0 {
+        return None;
+    }
+    let Some(spec) = header.and_then(|value| value.trim().strip_prefix("bytes=")) else {
+        return Some((0, (size - 1).min(VIDEO_CHUNK - 1)));
+    };
+    let (from, to) = spec.split(',').next()?.split_once('-')?;
+    let (start, end) = match (from.trim(), to.trim()) {
+        ("", suffix) => {
+            let count = suffix.parse::<u64>().ok()?.min(size);
+            (size - count, size - 1)
+        }
+        (from, "") => (from.parse().ok()?, size - 1),
+        (from, to) => (from.parse().ok()?, to.parse::<u64>().ok()?.min(size - 1)),
+    };
+    (start <= end && start < size).then(|| (start, end.min(start + VIDEO_CHUNK - 1)))
+}
+
+/// A stored video, served in ranges so the player can seek. Only a hash the store knows is ever opened.
+async fn video(app: &AppHandle, hash: &str, range: Option<&str>) -> Response<Vec<u8>> {
+    use std::io::{Read, Seek, SeekFrom};
+    let Some(storage) = app.state::<AppState>().storage.handle() else {
+        return text(404, "Not found");
+    };
+    let key = hash.to_owned();
+    let range = range.map(str::to_owned);
+    let answer = tauri::async_runtime::spawn_blocking(move || {
+        let path = storage.video_path(&key).ok().flatten()?;
+        let mut file = fs::File::open(path).ok()?;
+        let size = file.metadata().ok()?.len();
+        let Some((start, end)) = byte_range(range.as_deref(), size) else {
+            return Some((416, size, 0, Vec::new()));
+        };
+        file.seek(SeekFrom::Start(start)).ok()?;
+        let mut bytes = Vec::new();
+        file.take(end - start + 1).read_to_end(&mut bytes).ok()?;
+        Some((206, size, start, bytes))
+    })
+    .await
+    .ok()
+    .flatten();
+    let Some((status, size, start, bytes)) = answer else {
+        return text(404, "Not found");
+    };
+    let content_range = if status == 416 {
+        format!("bytes */{size}")
+    } else {
+        format!("bytes {start}-{}/{size}", start + bytes.len() as u64 - 1)
+    };
+    let builder = Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, "video/mp4")
+        .header(header::ACCEPT_RANGES, "bytes")
+        .header(header::CONTENT_RANGE, content_range);
+    with_common(builder, bytes)
+}
+
 fn text(status: u16, body: &str) -> Response<Vec<u8>> {
     respond(
         status,
@@ -513,6 +580,10 @@ mod tests {
     #[test]
     fn an_unknown_host_is_not_found() {
         assert_eq!(route("draggy://nowhere/a.png"), Route::Unknown);
+        assert_eq!(
+            route("http://draggy.localhost/video/abc"),
+            Route::Video("abc".into())
+        );
         assert_eq!(text(404, "Not found").status(), 404);
     }
 
@@ -566,5 +637,21 @@ mod tests {
         assert_eq!(href_of(tag).as_deref(), Some("/static/i.png"));
         assert!(link_icon_re().is_match(tag));
         assert!(!link_icon_re().is_match(r#"<link rel="stylesheet" href="/s.css">"#));
+    }
+
+    #[test]
+    fn video_ranges_stay_inside_the_file_and_one_chunk() {
+        assert_eq!(byte_range(None, 10), Some((0, 9)));
+        assert_eq!(byte_range(Some("bytes=2-4"), 10), Some((2, 4)));
+        assert_eq!(byte_range(Some("bytes=5-"), 10), Some((5, 9)));
+        assert_eq!(byte_range(Some("bytes=-3"), 10), Some((7, 9)));
+        assert_eq!(byte_range(Some("bytes=4-99"), 10), Some((4, 9)));
+        assert_eq!(byte_range(Some("bytes=10-"), 10), None);
+        assert_eq!(byte_range(Some("bytes=0-"), 0), None);
+        let big = 100 * VIDEO_CHUNK;
+        assert_eq!(
+            byte_range(Some("bytes=0-"), big),
+            Some((0, VIDEO_CHUNK - 1))
+        );
     }
 }

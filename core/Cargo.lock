@@ -811,6 +811,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "draggy-media"
+version = "0.1.0"
+dependencies = [
+ "draggy-tools",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "draggy-models"
 version = "0.1.0"
 dependencies = [

@@ -20,6 +20,7 @@ pub mod resume;
 pub mod skills;
 pub mod task_manager;
 pub mod tool_channel;
+pub mod video_handle;
 
 /// Failures while building the agent's patterns. A runtime matching error is logged and reads as no match.
 #[derive(Debug, thiserror::Error)]

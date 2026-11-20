@@ -1,6 +1,7 @@
 //! Runs the golden fixtures in `shared/fixtures/agent` through the Rust port. The vitest runner in
 //! `src/__tests__/fixtures/agent.test.ts` calls the TypeScript reference on the same files, so both must agree.
 
+use draggy_agent::agent_loop::to_wire_message_with_videos;
 use draggy_agent::announcement::announces_action;
 use draggy_agent::command_rules::{
     command_covered, command_grant_targets, command_prefix, command_segments, dialect_for,
@@ -27,6 +28,10 @@ use draggy_agent::prompts::{
     prompt_profile_for, voice_search_query,
 };
 use draggy_agent::repetition::detect_repetition;
+use draggy_agent::task_manager::Message;
+use draggy_agent::video_handle::{
+    Segments, TrackedVideo, VideoMeta, track_videos, video_handle_line,
+};
 use draggy_testkit::{cases, files};
 use serde_json::{Map, Value, json};
 
@@ -58,6 +63,7 @@ fn run(file: &str, input: &Value) -> Value {
         "promptProfile.json" => profile(input),
         "effort.json" => effort_rules(input),
         "imageReference.json" => image_reference(input),
+        "videoHandle.json" => video_handle(input),
         other => panic!("no runner for {other}"),
     }
 }
@@ -305,6 +311,39 @@ fn level_list(value: &Value) -> Option<Vec<Effort>> {
     value
         .as_array()
         .map(|items| items.iter().map(level_of).collect())
+}
+
+/// `videoHandle.json`: the line a turn carries for a video, against `win/src/tools/video.ts`.
+fn video_handle(input: &Value) -> Value {
+    let vision = input["vision"].as_bool().unwrap_or_default();
+    match op(input) {
+        "line" => {
+            let video = &input["video"];
+            let tracked = TrackedVideo {
+                id: video["id"].as_str().unwrap_or_default().to_string(),
+                hash: String::new(),
+                name: video["name"].as_str().unwrap_or_default().to_string(),
+                meta: serde_json::from_value::<Option<VideoMeta>>(video["meta"].clone())
+                    .unwrap_or(None),
+                segments: match &video["segments"] {
+                    Value::Number(count) => {
+                        Segments::Count(count.as_u64().unwrap_or_default() as usize)
+                    }
+                    Value::String(_) => Segments::Failed,
+                    _ => Segments::Building,
+                },
+            };
+            json!(video_handle_line(&tracked, vision))
+        }
+        "wire" => {
+            let messages: Vec<Message> =
+                serde_json::from_value(input["messages"].clone()).expect("messages");
+            let videos = track_videos(&messages.iter().collect::<Vec<_>>());
+            let index = input["index"].as_u64().unwrap_or_default() as usize;
+            json!(to_wire_message_with_videos(&messages[index], vision, false, &videos).content)
+        }
+        other => panic!("unknown videoHandle op {other}"),
+    }
 }
 
 /// `imageReference.json`: the picture index and the default strength, against `win/src/images/imageTracker.ts`.

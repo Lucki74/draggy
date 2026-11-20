@@ -32,6 +32,7 @@
     "bench:engine": "node scripts/bench-engine.cjs",
     "check": "npm run typecheck && npm run lint && npm run test",
     "icons": "node scripts/make-icons.mjs",
+    "fixtures:video": "node scripts/make-video-fixtures.cjs",
     "skills:lint": "node scripts/skills/lint.mjs"
   },
   "dependencies": {

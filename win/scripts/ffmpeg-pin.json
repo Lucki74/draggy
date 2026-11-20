@@ -1,0 +1,8 @@
+{
+  "version": "9.0.2",
+  "build": "full_build",
+  "source": "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-full_build.zip",
+  "todo": "Dev only: the Gyan full build is GPLv3. Swap in an LGPL win64 static build and its hashes before release.",
+  "ffmpeg": { "sha256": "589e50b766d251afdf181dd664d40bd94407e200b019989fd7468c7d118a28d0" },
+  "ffprobe": { "sha256": "02264dfa4f56baaa31e443ece8aa16d397f6b008200e7fd184d22b9009e75fd3" }
+}

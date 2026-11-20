@@ -77,11 +77,70 @@ export interface SystemSpecs {
   arch?: string;
 }
 
+/** `content` of a `video/*` attachment is `draggy-video:` followed by a `VideoRef` as JSON; the bytes stay in storage. */
 export interface Attachment {
   name: string;
   type: string;
   content: string;
 }
+
+/** What ffprobe reported for a stored video. */
+export interface VideoMeta {
+  duration_s: number;
+  fps: number;
+  width: number;
+  height: number;
+  codec: string;
+  rotation: number;
+  has_audio: boolean;
+  frame_count_estimate: number;
+}
+
+export interface VideoRef {
+  kind: "video";
+  hash: string;
+  name: string;
+  meta: VideoMeta | null;
+}
+
+export type VideoSegmentKind = "static" | "motion";
+
+export interface VideoSegment {
+  start_s: number;
+  end_s: number;
+  rep_s: number;
+  change_score: number;
+  kind: VideoSegmentKind;
+  changes: number;
+}
+
+export interface VideoIndex {
+  version: number;
+  meta: VideoMeta;
+  sample_fps: number;
+  segments: VideoSegment[];
+}
+
+export type VideoIndexState =
+  | { hash: string; status: "pending" }
+  | { hash: string; status: "running"; progress: number }
+  | { hash: string; status: "ready"; progress: number }
+  | { hash: string; status: "failed"; code: string; error: string };
+
+/** A refusal from the video channels; `code` is one of the `E_*` names. */
+export interface VideoRefusal {
+  success: false;
+  code?: string;
+  error: string;
+  cancelled?: boolean;
+}
+
+export interface VideoImage {
+  mime: string;
+  data: string;
+}
+
+export type VideoReply<T> = ({ success: true } & T) | VideoRefusal;
 
 export interface LibraryModel {
   name: string;
@@ -436,6 +495,8 @@ export interface SearchStep {
     | "extension"
     /** A picture made by the local image engine, shown as a card. */
     | "image"
+    /** A look at an attached video: its timeline, a range of frames or one frame. Text only in history. */
+    | "video"
     /** A note the user added while the turn ran, handed to the model at its next step. */
     | "steer"
     /** A tool call still being written by the model. Display only: replaced by the real step once it runs. */
@@ -513,6 +574,8 @@ export interface SearchStep {
   tookMs?: number;
   /** On a "loading" step: a provider's retry, counted down to when the next attempt goes out. */
   retry?: { attempt: number; of: number; until: number };
+  /** On a "video" step: what was looked at, in English for later turns, such as `Looked at v1 00:12.0-00:30.0 (8 frames).` */
+  videoSeen?: string;
   /** On an "image" step: what was asked and where the result is. Never the image's bytes. */
   image?: ImageStepInfo;
 }
@@ -1575,6 +1638,46 @@ declare global {
         filename: string,
         data: Uint8Array,
       ) => Promise<{ success: boolean; text?: string; error?: string }>;
+      video: {
+        pick: () => Promise<VideoReply<{ paths: string[] }>>;
+        import: (
+          path: string,
+          name?: string,
+        ) => Promise<VideoReply<{ hash: string; name: string; size: number; meta: VideoMeta }>>;
+        importBytes: (
+          name: string,
+          bytes: Uint8Array,
+        ) => Promise<VideoReply<{ hash: string; name: string; size: number; meta: VideoMeta }>>;
+        index: (hash: string) => Promise<VideoReply<{ state: VideoIndexState }>>;
+        indexStatus: (hash: string) => Promise<VideoReply<{ state: VideoIndexState }>>;
+        getIndex: (hash: string) => Promise<VideoReply<{ index: VideoIndex | null }>>;
+        select: (
+          hash: string,
+          start: number,
+          end: number,
+          max: number,
+        ) => Promise<VideoReply<{ shown: VideoSegment[]; skipped: number }>>;
+        frame: (
+          hash: string,
+          timeS: number,
+          maxSide?: number,
+        ) => Promise<VideoReply<{ timeS: number; image: VideoImage }>>;
+        frames: (
+          hash: string,
+          times: number[],
+          options?: { maxSide?: number; grid?: boolean },
+        ) => Promise<
+          VideoReply<{
+            frames?: { timeS: number; image: VideoImage }[];
+            sheet?: VideoImage;
+            cols?: number;
+            times?: number[];
+          }>
+        >;
+        poster: (hash: string) => Promise<VideoReply<{ meta: VideoMeta; image: VideoImage }>>;
+        cancel: (hash: string) => Promise<VideoReply<{ cancelled: boolean }>>;
+        onIndexProgress: (callback: (state: VideoIndexState) => void) => () => void;
+      };
 
       searchModels: (query: string) => Promise<{
         success: boolean;

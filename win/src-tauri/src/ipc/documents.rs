@@ -21,7 +21,7 @@ pub fn register_all(registry: &mut Registry) {
 }
 
 /// The bridge sends a Uint8Array through JSON, so it arrives as an index-keyed object; base64 and arrays also work.
-fn bytes_arg(value: Option<&Value>) -> Option<Vec<u8>> {
+pub(crate) fn bytes_arg(value: Option<&Value>) -> Option<Vec<u8>> {
     match value? {
         Value::String(encoded) => STANDARD.decode(encoded).ok(),
         Value::Array(items) => items

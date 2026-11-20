@@ -54,6 +54,8 @@ npm run stage:sidecars
 
 Copies `vendor/node/node.exe` into `src-tauri/binaries/` under the target-triple name Tauri expects. It fails when the file does not match the pin in `scripts/node-pin.json`. `vendor/` is git-ignored, so a fresh clone must fetch the pinned `node.exe` first; CI does this with the SHA-256 check in `ci.yml`. The app never downloads node at runtime.
 
+It also copies `vendor/ffmpeg/ffmpeg.exe` and `vendor/ffmpeg/ffprobe.exe`, checked against `scripts/ffmpeg-pin.json`, as the `binaries/ffmpeg` and `binaries/ffprobe` sidecars that index attached videos. For dev, copy them from a local ffmpeg install and update the pin; CI fetches the pinned archive. The app never downloads ffmpeg at runtime, and a debug build falls back to `ffmpeg` on `PATH`.
+
 ## Two kinds of tests
 
 The parent workspace directory `../temp` (at the root of `draggy`) is reserved for running tests with cargo and scratch test outputs. Keep it clean after tests.
