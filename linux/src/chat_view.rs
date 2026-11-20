@@ -13,11 +13,11 @@ use gtk::{gdk, gio, glib};
 use crate::state::{AppState, BRAVE_KEY, SERVER_KEY};
 use crate::tasks_view::TasksList;
 use draggy_core::research::tools::ResearchLibrary;
+use draggy_core::video::{VIDEO_EXTENSIONS, VideoRecord};
 use draggy_core::{
     ApprovalChoice, ApprovalRecord, CancelToken, CoreError, ImageRecord, Session, StepRecord,
     TurnOutcome, read_document,
 };
-use draggy_core::video::{VIDEO_EXTENSIONS, VideoRecord};
 use draggy_linux::chat::{
     ChatMessage, Entry, Role, StepLine, StepState, Transcript, cost_label, in_run, metrics_line,
     rail_title, start_turn, step_line, step_state, to_records, to_saved, video_store,
