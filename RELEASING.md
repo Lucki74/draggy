@@ -28,8 +28,9 @@ because Linux installs read that file from the newest `b-N` release and fail wit
 
 ### Notes
 
-Notes are Markdown with an `**Updates**` list and a `**Fixes**` list. Each bullet starts with what
-changed for the user and has no trailing period. Leave out refactors nobody would notice. The
+Notes are Markdown with an `**Updates**` heading and a `**Fixes**` heading, each followed by short
+prose paragraphs written like the opening of the README, not a bulleted list. Say what changed for
+the user, with no dashes. Leave out refactors nobody would notice. The
 workflow appends the `**Full Changelog**` line. The notes become the release body.
 While a build is in preparation, the notes file is `RELEASE-NOTES-BUILD-X.md` at the repo root. Rename
 it to `RELEASE-NOTES-BUILD-<n>.md` once the build number is known, and keep only one such file.
