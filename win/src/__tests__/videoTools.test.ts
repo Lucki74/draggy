@@ -123,6 +123,10 @@ describe("toWireMessage with videos", () => {
     expect(toWireMessage(message, false, false).content).toContain("This model cannot see video frames");
   });
 
+  it("says the frames cannot be looked at when tools are off", () => {
+    expect(toWireMessage(message, true, false, undefined, false).content).toContain("Tools are off for this model");
+  });
+
   it("keeps the same id when a later message brings a second video", () => {
     const second = { ...message, id: "m2", attachments: [{ ...message.attachments![0], name: "b.mp4", content: formatVideoRef({ kind: "video", hash: "b".repeat(64), name: "b.mp4", meta }) }] } as Message;
     const videos = trackVideos([message, second]);
@@ -139,7 +143,7 @@ describe("video_view", () => {
     expect(attachImage).toHaveBeenCalledTimes(3);
     expect(result).toContain("image 2: t=30.0s, covers 20.0-40.0s, motion (3 changes)");
     expect(result).toContain("2 more distinct segments");
-    expect(steps[0]).toMatchObject({ type: "video", isComplete: true });
+    expect(steps[0]).toMatchObject({ type: "video", isComplete: true, videoFrames: { hash: HASH, times: [10, 30, 50] } });
   });
 
   it("clamps the range to the video and the frame count to twelve", async () => {

@@ -576,6 +576,8 @@ export interface SearchStep {
   retry?: { attempt: number; of: number; until: number };
   /** On a "video" step: what was looked at, in English for later turns, such as `Looked at v1 00:12.0-00:30.0 (8 frames).` */
   videoSeen?: string;
+  /** On a "video" step: which frames were looked at, so the step can show them small. The pixels are fetched again, never stored. */
+  videoFrames?: { hash: string; times: number[] };
   /** On an "image" step: what was asked and where the result is. Never the image's bytes. */
   image?: ImageStepInfo;
 }

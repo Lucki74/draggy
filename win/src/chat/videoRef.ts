@@ -62,3 +62,7 @@ export function videoErrorKey(code: string | undefined): string | null {
       return null;
   }
 }
+
+/** Frames already on hand this session, as data URLs keyed by hash and time, so a video step shows them without asking again. */
+export const videoFrameUrls = new Map<string, string>();
+export const videoFrameKey = (hash: string, timeS: number) => `${hash}@${timeS.toFixed(3)}`;

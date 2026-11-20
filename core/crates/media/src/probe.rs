@@ -11,7 +11,6 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// What ffprobe reports, with width and height as displayed once rotation is applied.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct VideoMeta {
     pub duration_s: f64,
     pub fps: f64,

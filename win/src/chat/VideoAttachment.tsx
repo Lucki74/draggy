@@ -3,7 +3,7 @@ import { draggyUrl } from "../appUrl";
 import { Icon, IconButton } from "../ui";
 import { logSwallow } from "../logger";
 import type { VideoRef } from "../types";
-import { describeMeta, formatDuration } from "./videoRef";
+import { formatDuration, videoFrameKey, videoFrameUrls } from "./videoRef";
 import { startVideoIndex, useVideoIndexState } from "./videoStatus";
 
 const posters = new Map<string, string>();
@@ -37,6 +37,40 @@ function Thumb({ poster, className }: { poster: string | null; className: string
     <span className={`${className} grid place-items-center bg-surface-tint text-text-secondary`}>
       <Icon name="film-strip" size={16} />
     </span>
+  );
+}
+
+/** The frames a video step looked at, small and in order. Frames not on hand, such as after a restart, are fetched once more. */
+export function VideoStepFrames({ hash, times }: { hash: string; times: number[] }) {
+  const [, redraw] = useState(0);
+  useEffect(() => {
+    const missing = times.filter((time) => !videoFrameUrls.has(videoFrameKey(hash, time)));
+    if (missing.length === 0 || !window.draggy?.video) return;
+    let live = true;
+    window.draggy.video
+      .frames(hash, missing, { maxSide: 160 })
+      .then((reply) => {
+        if (!reply.success) return;
+        missing.forEach((time, i) => {
+          const frame = reply.frames?.[i];
+          if (frame) videoFrameUrls.set(videoFrameKey(hash, time), `data:${frame.image.mime};base64,${frame.image.data}`);
+        });
+        if (live) redraw((n) => n + 1);
+      })
+      .catch((error) => logSwallow("video.stepFrames", error, "the step shows placeholders instead"));
+    return () => {
+      live = false;
+    };
+  }, [hash, times]);
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {times.map((time) => (
+        <span key={time} className="flex flex-col items-center gap-0.5">
+          <Thumb poster={videoFrameUrls.get(videoFrameKey(hash, time)) ?? null} className="h-12 w-20 rounded" />
+          <span className="font-mono text-[11px] text-text-tertiary">{formatDuration(time)}</span>
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -85,11 +119,6 @@ export function VideoChip({
 export function VideoTurnCard({ video, t }: { video: VideoRef; t: (key: string) => string }) {
   const poster = usePoster(video.hash);
   const [playing, setPlaying] = useState(false);
-  const details = video.meta
-    ? t("videoDuration")
-        .replace("{duration}", formatDuration(video.meta.duration_s))
-        .replace("{resolution}", describeMeta(video.meta))
-    : null;
   return (
     <figure className="flex flex-col gap-1 m-0 max-w-[360px]">
       {playing ? (
@@ -115,10 +144,6 @@ export function VideoTurnCard({ video, t }: { video: VideoRef; t: (key: string) 
           </span>
         </button>
       )}
-      <figcaption className="text-[12px] text-text-secondary truncate" title={video.name}>
-        {video.name}
-        {details && ` · ${details}`}
-      </figcaption>
     </figure>
   );
 }

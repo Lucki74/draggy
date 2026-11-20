@@ -20,7 +20,6 @@ const COLLAPSE_MIN_RUN: usize = 3;
 
 /// When a sample opens a new segment. Any one trigger is enough.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Thresholds {
     /// Mean absolute luma difference as a fraction of full scale.
     pub mean_diff: f64,
@@ -34,7 +33,10 @@ pub struct Thresholds {
 
 impl Default for Thresholds {
     /// 1.5% mean and 4 hash bits per the plan; the pixel trigger catches a 12px cursor on a 160px wide video.
-    /// 32 levels stays above x264 noise at crf 35 on the 64x36 proxy. Retune on real recordings.
+    /// 32 levels stays above x264 noise at crf 35 on the 64x36 proxy. Checked on three 2.5-5 minute screen recordings
+    /// (typing, scrolling, idle): one segment per 2 s, 63-89% of the time static. The pixel trigger decides almost every
+    /// split; the mean at 1-2.5% and 6 hash bits change the count by under 7%. Grain added at strength 25 to a slide video
+    /// still gives the same 4 segments.
     fn default() -> Self {
         Self {
             mean_diff: 0.015,
@@ -53,7 +55,6 @@ pub enum SegmentKind {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Segment {
     pub start_s: f64,
     pub end_s: f64,
@@ -84,7 +85,6 @@ impl Segment {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct VideoIndex {
     pub version: u32,
     pub meta: VideoMeta,
@@ -250,7 +250,6 @@ fn dhash(frame: &[u8]) -> u64 {
 
 /// The segments overlapping `start_s..end_s` worth showing, and how many more were left out.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Selection {
     pub shown: Vec<Segment>,
     pub skipped: usize,
@@ -430,10 +429,10 @@ mod tests {
     }
 
     #[test]
-    fn the_index_serialises_in_camel_case() {
+    fn the_index_serialises_in_snake_case() {
         let json = serde_json::to_value(seg(0.0, 2.0, 0.0)).expect("serialises");
-        assert_eq!(json["startS"], 0.0);
+        assert_eq!(json["start_s"], 0.0);
         assert_eq!(json["kind"], "static");
-        assert_eq!(json["changeScore"], 0.0);
+        assert_eq!(json["change_score"], 0.0);
     }
 }

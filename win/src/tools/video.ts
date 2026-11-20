@@ -1,7 +1,7 @@
 import { registerTools } from "./registry";
 import type { ToolContext, ToolSpec } from "./registry";
 import { startVideoIndex, waitForVideoIndex } from "../chat/videoStatus";
-import { describeMeta, formatDuration, videoRefOf } from "../chat/videoRef";
+import { describeMeta, formatDuration, videoFrameKey, videoFrameUrls, videoRefOf } from "../chat/videoRef";
 import type { Message, VideoMeta, VideoSegment } from "../types";
 
 /** A video of the chat as the model knows it: `v1`, `v2`… in order of first appearance. */
@@ -68,7 +68,7 @@ export function resetVideoCountsForTests() {
 }
 
 /** The one line a turn carries for a video: no pixels, only what the tools can show. Mirrored in agent_loop.rs. */
-export function videoHandleLine(video: TrackedVideo, vision: boolean): string {
+export function videoHandleLine(video: TrackedVideo, vision: boolean, tools = true): string {
   if (!vision) {
     return `[Video ${video.id} "${video.name}" attached. This model cannot see video frames; say so instead of guessing its contents.]`;
   }
@@ -77,6 +77,7 @@ export function videoHandleLine(video: TrackedVideo, vision: boolean): string {
   if (typeof video.segments === "number") parts.push(`${video.segments} distinct segments`);
   else if (video.segments === "failed") parts.push("could not be indexed");
   else parts.push("index still building");
+  if (!tools) return `[Video ${video.id} "${video.name}": ${parts.join(", ")}. Tools are off for this model, so its frames cannot be looked at; say so instead of guessing its contents.]`;
   return `[Video ${video.id} "${video.name}": ${parts.join(", ")}. Use video_info, video_view or video_frame to look at it.]`;
 }
 
@@ -273,9 +274,12 @@ const videoView: ToolSpec = {
     }
     const times = index ? (shown as VideoSegment[]).map((segment) => segment.rep_s) : evenTimes(start, end, max);
     const reply = await api.frames(video.hash, times, { grid });
+    if (reply.success) for (const frame of reply.frames ?? []) videoFrameUrls.set(videoFrameKey(video.hash, frame.timeS), `data:${frame.image.mime};base64,${frame.image.data}`);
     ctx.patchStep(stepId, {
       isComplete: true,
-      ...(reply.success ? { videoSeen: `Looked at ${video.id} "${video.name}" ${range} (${times.length} frames).` } : {}),
+      ...(reply.success
+        ? { videoSeen: `Looked at ${video.id} "${video.name}" ${range} (${times.length} frames).`, videoFrames: { hash: video.hash, times } }
+        : {}),
     });
     if (!reply.success) return `TOOL RESULT (video_view): ${reply.error}`;
 
@@ -332,9 +336,12 @@ const videoFrame: ToolSpec = {
     });
     const api = window.draggy!.video;
     const reply = await api.frame(video.hash, asked);
+    if (reply.success) videoFrameUrls.set(videoFrameKey(video.hash, reply.timeS), `data:${reply.image.mime};base64,${reply.image.data}`);
     ctx.patchStep(stepId, {
       isComplete: true,
-      ...(reply.success ? { videoSeen: `Looked at the frame of ${video.id} "${video.name}" at ${clock(reply.timeS)}.` } : {}),
+      ...(reply.success
+        ? { videoSeen: `Looked at the frame of ${video.id} "${video.name}" at ${clock(reply.timeS)}.`, videoFrames: { hash: video.hash, times: [reply.timeS] } }
+        : {}),
     });
     if (!reply.success) return `TOOL RESULT (video_frame): ${reply.error}`;
     const sent = ctx.attachImage(reply.image.data) !== false;

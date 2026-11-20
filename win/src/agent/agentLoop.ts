@@ -201,6 +201,7 @@ export function toWireMessage(
   allowImages: boolean,
   keepThinking = false,
   videos: TrackedVideo[] = trackVideos([message]),
+  videoTools = true,
 ): WireMessage {
   let content = message.content || "";
   const images: string[] = [];
@@ -231,7 +232,7 @@ export function toWireMessage(
     } else if (attachment.type.startsWith("video/")) {
       const ref = videoRefOf(attachment);
       const video = ref && videos.find((known) => known.hash === ref.hash);
-      content += video ? `\n\n${videoHandleLine(video, allowImages)}` : `\n\n[Attached video: ${attachment.name}. It could not be read.]`;
+      content += video ? `\n\n${videoHandleLine(video, allowImages, videoTools)}` : `\n\n[Attached video: ${attachment.name}. It could not be read.]`;
     } else if (!isBinary(attachment.content)) {
       content += `\n\n--- ATTACHED FILE: ${attachment.name} ---\n${attachment.content}\n--- END ATTACHED FILE ---`;
     } else {
@@ -597,7 +598,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       ? [{ role: "user" as const, content: renderCompactionBlock(compaction) }]
       : []),
     ...carried.map((message, index) => ({
-      ...toWireMessage(message, nativeVision, nativeThinking, videos),
+      ...toWireMessage(message, nativeVision, nativeThinking, videos, !cannotUseTools),
       ...(refs[index] ? { draggy_ref: refs[index] } : {}),
     })),
   ];
