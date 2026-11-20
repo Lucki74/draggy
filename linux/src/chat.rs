@@ -1,8 +1,8 @@
 //! The chat's logic without any widget: the transcript, how core events change it, and the bridge that carries a turn
 //! from the core's threads to the window's main loop.
 
-use std::sync::Arc;
 use std::sync::mpsc;
+use std::sync::{Arc, OnceLock};
 
 use async_channel::Sender;
 use draggy_core::{
@@ -14,6 +14,7 @@ use crate::conversations::SavedMessage;
 use crate::runtime::runtime;
 use crate::services::stats_store::{REFERENCE_MODEL, REFERENCE_PROVIDER, TurnCost, format_money};
 use draggy_core::cost::CostKind;
+use draggy_core::video::{VideoRecord, VideoStore};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
@@ -438,6 +439,7 @@ pub fn start_turn(
     session: Arc<Session>,
     text: String,
     images: Vec<ImageRecord>,
+    videos: Vec<VideoRecord>,
     tx: Sender<ChatMessage>,
 ) -> Arc<CancelToken> {
     let cancel = CancelToken::new();
@@ -446,11 +448,25 @@ pub fn start_turn(
         let observer: Arc<dyn TurnObserver> = Arc::new(Observer(tx.clone()));
         let approvals: Arc<dyn ApprovalHandler> = Arc::new(Approvals(tx.clone()));
         let result = session
-            .send_with_images(text, images, observer, Some(approvals), cancel)
+            .send_with_media(text, images, videos, observer, Some(approvals), cancel)
             .await;
         drop(tx.send(ChatMessage::Finished(result)).await);
     });
     token
+}
+
+/// The app's video store, opened once under the data folder. ffmpeg comes from the system; `None` when the data
+/// folder is unknown or cannot be opened.
+pub fn video_store() -> Option<Arc<VideoStore>> {
+    static STORE: OnceLock<Option<Arc<VideoStore>>> = OnceLock::new();
+    STORE
+        .get_or_init(|| {
+            let dir = crate::models::data_dir()?;
+            VideoStore::open(dir.to_string_lossy().into_owned(), None)
+                .inspect_err(|error| tracing::error!(target: "linux.chat", error = %error, "video store could not be opened"))
+                .ok()
+        })
+        .clone()
 }
 
 /// The message with a document's text added after what is typed, under the file's name.
@@ -779,7 +795,7 @@ mod tests {
         })
         .expect("a session");
         let (tx, rx) = async_channel::unbounded();
-        let _cancel = start_turn(session, "hello".to_owned(), Vec::new(), tx);
+        let _cancel = start_turn(session, "hello".to_owned(), Vec::new(), Vec::new(), tx);
         loop {
             match rx.recv_blocking().expect("the turn reports") {
                 ChatMessage::Finished(result) => {

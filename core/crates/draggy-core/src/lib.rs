@@ -29,6 +29,7 @@ pub mod skills;
 pub mod task_tools;
 pub mod tools;
 pub mod update;
+pub mod video;
 pub mod web;
 pub mod web_tools;
 

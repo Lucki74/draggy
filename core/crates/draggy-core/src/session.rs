@@ -44,7 +44,10 @@ use crate::research_library::ResearchStore;
 use crate::skills::{self, SkillStore};
 use crate::task_tools::TaskSet;
 use crate::tools::{FileTools, NoTools, definitions};
+use crate::video::{self, VideoRecord, VideoStore, VideoTools};
 use crate::web_tools::{self, WebTools};
+
+const VIDEO_GUIDANCE: &str = "Videos are not preloaded: each one appears as a line such as [Video v1 ...]. Start with video_info to read its timeline, then use video_view on narrow ranges and video_frame for one exact moment.";
 
 struct WallClock;
 
@@ -201,6 +204,8 @@ pub struct Session {
     library: Mutex<Option<ResearchLibrary>>,
     /// Whether the model may start research itself, and the deepest plan allowed.
     research_options: Mutex<(bool, Option<Depth>)>,
+    /// Where attached videos live, when the shell opened a store. Without one the video tools are not offered.
+    videos: Mutex<Option<Arc<VideoStore>>>,
 }
 
 impl Drop for Session {
@@ -266,10 +271,14 @@ struct CompositeTools {
     web: Option<WebTools>,
     skills: Option<SkillStore>,
     plans: bool,
+    video: Option<VideoTools>,
 }
 
 impl ToolRuntime for CompositeTools {
     fn annotations(&self, name: &str) -> ToolAnnotations {
+        if let Some(video) = self.video.as_ref().filter(|_| video::owns(name)) {
+            return video.annotations(name);
+        }
         if skills::owns(name) || plan::owns(name) {
             return ToolAnnotations {
                 read_only: true,
@@ -290,6 +299,9 @@ impl ToolRuntime for CompositeTools {
         if self.plans && plan::owns(name) {
             return plan::run(args, ctx);
         }
+        if let Some(video) = self.video.as_mut().filter(|_| video::owns(name)) {
+            return video.run(name, args, ctx);
+        }
         if let Some(store) = self.skills.as_mut().filter(|_| skills::owns(name)) {
             return skills::run(store, args, ctx);
         }
@@ -305,6 +317,9 @@ impl ToolRuntime for CompositeTools {
     fn prepare_wire(&mut self, wire: &mut [WireMessage]) {
         if let Some(web) = self.web.as_mut() {
             web.prepare_wire(wire);
+        }
+        if let Some(video) = self.video.as_mut() {
+            video.prepare_wire(wire);
         }
     }
 
@@ -335,6 +350,7 @@ impl Session {
             tasks: TaskSet::new(),
             library: Mutex::new(None),
             research_options: Mutex::new((true, None)),
+            videos: Mutex::new(None),
         }))
     }
 
@@ -350,6 +366,7 @@ impl Session {
         grants: Vec<Grant>,
         extra_tools: &[ToolDefinition],
         web: bool,
+        videos: bool,
     ) -> TurnRequest {
         let has_folder = self.config.folder.is_some();
         let commands = has_folder && self.config.allow_commands;
@@ -378,6 +395,9 @@ impl Session {
             tools.extend(skills::definitions());
         }
         tools.extend(plan::definitions());
+        if videos {
+            tools.extend(video::definitions());
+        }
         TurnRequest {
             profile: ModelProfile {
                 model: self.config.model.clone(),
@@ -397,7 +417,11 @@ impl Session {
                 effort: Effort::Medium,
                 allow_max_in_chat: false,
                 web_mode: if web { WebMode::On } else { WebMode::Off },
-                custom_instructions: Vec::new(),
+                custom_instructions: if videos {
+                    vec![VIDEO_GUIDANCE.to_owned()]
+                } else {
+                    Vec::new()
+                },
             },
             environment: PromptEnvironment {
                 has_folder,
@@ -431,7 +455,7 @@ impl Session {
     pub(crate) fn run_blocking(
         &self,
         text: &str,
-        images: &[ImageRecord],
+        attachments: Vec<Attachment>,
         observer: Arc<dyn TurnObserver>,
         approvals: Option<Arc<dyn ApprovalHandler>>,
         cancel: &CancelToken,
@@ -442,8 +466,8 @@ impl Session {
             state.next_message += 1;
             let id = format!("m{}", state.next_message);
             let mut sent = message(id, "user", text);
-            if !images.is_empty() {
-                sent.attachments = Some(images.iter().map(attachment).collect());
+            if !attachments.is_empty() {
+                sent.attachments = Some(attachments);
             }
             state.messages.push(sent);
             (
@@ -497,7 +521,24 @@ impl Session {
                     .1,
             );
         }
-        let request = self.request(messages, grants, extra_tools, web_tools.is_some());
+        let video_store = self
+            .videos
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        let video_tools = match (video_store, &handle) {
+            (Some(store), Some(handle)) if video::has_videos(&messages) => {
+                Some(VideoTools::new(handle.clone(), store, &messages))
+            }
+            _ => None,
+        };
+        let request = self.request(
+            messages,
+            grants,
+            extra_tools,
+            web_tools.is_some(),
+            video_tools.is_some(),
+        );
         let mut model = OpenAiModel::new(
             Arc::clone(&self.net),
             &self.config.base_url,
@@ -520,6 +561,7 @@ impl Session {
             web: web_tools,
             skills: self.skill_store(),
             plans: true,
+            video: video_tools,
         };
         let mut bridge = Bridge(observer);
         let mut host = Host {
@@ -711,15 +753,40 @@ impl Session {
         approvals: Option<Arc<dyn ApprovalHandler>>,
         cancel: Arc<CancelToken>,
     ) -> Result<TurnOutcome, CoreError> {
+        self.send_with_media(text, images, Vec::new(), observer, approvals, cancel)
+            .await
+    }
+
+    /// Where attached videos are stored; the video tools are offered only while one is set.
+    pub fn set_video_store(&self, store: Option<Arc<VideoStore>>) {
+        *self.videos.lock().unwrap_or_else(PoisonError::into_inner) = store;
+    }
+
+    /// Like `send`, with pictures and videos. Videos come from `VideoStore::import`; the model looks at them through
+    /// the video tools rather than receiving them whole.
+    pub async fn send_with_media(
+        self: Arc<Self>,
+        text: String,
+        images: Vec<ImageRecord>,
+        videos: Vec<VideoRecord>,
+        observer: Arc<dyn TurnObserver>,
+        approvals: Option<Arc<dyn ApprovalHandler>>,
+        cancel: Arc<CancelToken>,
+    ) -> Result<TurnOutcome, CoreError> {
         let (reply, answer) = tokio::sync::oneshot::channel();
         let session = Arc::clone(&self);
         let handle = tokio::runtime::Handle::current();
+        let attachments: Vec<Attachment> = images
+            .iter()
+            .map(attachment)
+            .chain(videos.iter().map(video::video_attachment))
+            .collect();
         std::thread::Builder::new()
             .name("draggy-turn".to_owned())
             .spawn(move || {
                 let outcome = session.run_blocking(
                     &text,
-                    &images,
+                    attachments,
                     observer,
                     approvals,
                     &cancel,

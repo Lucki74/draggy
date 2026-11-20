@@ -832,6 +832,7 @@ dependencies = [
  "draggy-documents",
  "draggy-engine",
  "draggy-mcp",
+ "draggy-media",
  "draggy-models",
  "draggy-providers",
  "draggy-storage",
@@ -923,6 +924,18 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "draggy-media"
+version = "0.1.0"
+dependencies = [
+ "draggy-tools",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
