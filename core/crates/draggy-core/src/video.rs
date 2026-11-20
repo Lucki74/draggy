@@ -274,7 +274,11 @@ impl VideoStore {
     }
 
     /// Waits for the index up to `INDEX_WAIT`, building it first. None when it is still not there.
-    async fn wait_for_index(self: &Arc<Self>, hash: &str, cancel: &dyn Fn() -> bool) -> Option<VideoIndex> {
+    async fn wait_for_index(
+        self: &Arc<Self>,
+        hash: &str,
+        cancel: &dyn Fn() -> bool,
+    ) -> Option<VideoIndex> {
         if let Some(index) = self.load_index(hash) {
             return Some(index);
         }
@@ -294,9 +298,9 @@ impl VideoStore {
     /// The segment count for a handle line, without waiting.
     fn segments(&self, hash: &str) -> Segments {
         match self.status_of(hash) {
-            Some(Status::Ready) => self
-                .load_index(hash)
-                .map_or(Segments::Building, |index| Segments::Count(index.segments.len())),
+            Some(Status::Ready) => self.load_index(hash).map_or(Segments::Building, |index| {
+                Segments::Count(index.segments.len())
+            }),
             Some(Status::Failed) => Segments::Failed,
             _ => Segments::Building,
         }
@@ -324,13 +328,16 @@ impl VideoStore {
     /// Probes and stores the video at `path`, then starts indexing it in the background.
     pub async fn import_video(self: Arc<Self>, path: String) -> Result<VideoRecord, CoreError> {
         let source = PathBuf::from(&path);
-        let name = source
-            .file_name()
-            .map_or_else(|| "video".to_owned(), |name| name.to_string_lossy().into_owned());
+        let name = source.file_name().map_or_else(
+            || "video".to_owned(),
+            |name| name.to_string_lossy().into_owned(),
+        );
         let paths = self.paths().map_err(failed)?;
         // Probing first refuses audio files and long videos before anything is copied.
         let meta = draggy_media::probe(&paths, &source).await.map_err(failed)?;
-        let size = std::fs::metadata(&source).map(|meta| meta.len()).unwrap_or(0);
+        let size = std::fs::metadata(&source)
+            .map(|meta| meta.len())
+            .unwrap_or(0);
         if size > MAX_VIDEO_BYTES {
             return Err(CoreError::Invalid {
                 message: "The video is larger than 4GB.".to_owned(),
@@ -441,7 +448,11 @@ fn describe_segment(segment: &Segment) -> String {
         SegmentKind::Motion => format!(
             "motion ({} {})",
             segment.changes,
-            if segment.changes == 1 { "change" } else { "changes" }
+            if segment.changes == 1 {
+                "change"
+            } else {
+                "changes"
+            }
         ),
     }
 }
@@ -496,7 +507,9 @@ pub fn timeline(segments: &[Segment], start: f64, end: f64) -> Vec<String> {
 
 fn even_times(start: f64, end: f64, count: usize) -> Vec<f64> {
     let step = (end - start) / count as f64;
-    (0..count).map(|i| start + step * (i as f64 + 0.5)).collect()
+    (0..count)
+        .map(|i| start + step * (i as f64 + 0.5))
+        .collect()
 }
 
 fn looked_again(tool: &str) -> String {
@@ -518,7 +531,8 @@ fn definition(name: &str, description: &str, properties: Value) -> ToolDefinitio
 
 /// The three video tools, offered when the chat holds a video and the model can see pictures.
 pub fn definitions() -> Vec<ToolDefinition> {
-    let video = json!({ "type": "string", "description": "The video's ID from the chat, such as v1." });
+    let video =
+        json!({ "type": "string", "description": "The video's ID from the chat, such as v1." });
     vec![
         definition(
             "video_info",
@@ -605,8 +619,16 @@ impl VideoTools {
         let ids: Vec<&str> = self.videos.iter().map(|video| video.id.as_str()).collect();
         Err(format!(
             "There is no video {} in this chat. Known videos: {}.",
-            if wanted.is_empty() { "(none given)" } else { wanted.as_str() },
-            if ids.is_empty() { "none".to_owned() } else { ids.join(", ") }
+            if wanted.is_empty() {
+                "(none given)"
+            } else {
+                wanted.as_str()
+            },
+            if ids.is_empty() {
+                "none".to_owned()
+            } else {
+                ids.join(", ")
+            }
         ))
     }
 
@@ -651,7 +673,8 @@ impl VideoTools {
         if let Some(step) = ctx.steps.get_mut(at) {
             step.is_complete = Some(true);
             if let Some(seen) = seen {
-                step.extra.insert("videoSeen".to_owned(), Value::String(seen));
+                step.extra
+                    .insert("videoSeen".to_owned(), Value::String(seen));
             }
         }
     }
@@ -666,7 +689,10 @@ impl VideoTools {
         Self::finish(
             ctx,
             at,
-            Some(format!("Read the timeline of {} \"{}\".", video.id, video.name)),
+            Some(format!(
+                "Read the timeline of {} \"{}\".",
+                video.id, video.name
+            )),
         );
         let mut head = format!("{} \"{}\"", video.id, video.name);
         let meta = index
@@ -690,7 +716,11 @@ impl VideoTools {
         if let Some(tracked) = self.videos.iter_mut().find(|item| item.hash == video.hash) {
             tracked.segments = Segments::Count(index.segments.len());
         }
-        let start = args.get("start").and_then(parse_time).unwrap_or(0.0).max(0.0);
+        let start = args
+            .get("start")
+            .and_then(parse_time)
+            .unwrap_or(0.0)
+            .max(0.0);
         let end = args
             .get("end")
             .and_then(parse_time)
@@ -736,7 +766,9 @@ impl VideoTools {
             .get("max_frames")
             .and_then(|value| value.as_f64().or_else(|| value.as_str()?.parse().ok()))
             .filter(|value| value.is_finite() && *value != 0.0)
-            .map_or(8, |value| (value.round().max(1.0) as usize).min(MAX_VIEW_FRAMES));
+            .map_or(8, |value| {
+                (value.round().max(1.0) as usize).min(MAX_VIEW_FRAMES)
+            });
         let grid = matches!(args.get("grid"), Some(Value::Bool(true)))
             || args.get("grid").and_then(Value::as_str) == Some("true");
         let key = format!("view:{}:{start:.2}-{end:.2}:{max}:{grid}", video.hash);
@@ -750,23 +782,37 @@ impl VideoTools {
         let (shown, skipped, times): (Vec<Option<Segment>>, usize, Vec<f64>) = match &index {
             Some(index) => {
                 let selection = select_frames(&index.segments, start, end, max);
-                let times = selection.shown.iter().map(|segment| segment.rep_s).collect();
-                (selection.shown.into_iter().map(Some).collect(), selection.skipped, times)
+                let times = selection
+                    .shown
+                    .iter()
+                    .map(|segment| segment.rep_s)
+                    .collect();
+                (
+                    selection.shown.into_iter().map(Some).collect(),
+                    selection.skipped,
+                    times,
+                )
             }
             None => (vec![None; max], 0, even_times(start, end, max)),
         };
-        let times: Vec<f64> = times.into_iter().map(|time| clamp_time(time, duration)).collect();
+        let times: Vec<f64> = times
+            .into_iter()
+            .map(|time| clamp_time(time, duration))
+            .collect();
 
         let images: Result<Vec<Vec<u8>>, MediaError> = self.handle.block_on(async {
             if grid {
                 let cols = (times.len() as f64).sqrt().ceil() as u32;
                 let sheet =
-                    draggy_media::contact_sheet(&paths, &file, &meta, &times, VIEW_MAX_SIDE, cols).await?;
+                    draggy_media::contact_sheet(&paths, &file, &meta, &times, VIEW_MAX_SIDE, cols)
+                        .await?;
                 return Ok(vec![sheet]);
             }
             let mut frames = Vec::with_capacity(times.len());
             for time_s in &times {
-                frames.push(draggy_media::extract_frame(&paths, &file, *time_s, VIEW_MAX_SIDE).await?);
+                frames.push(
+                    draggy_media::extract_frame(&paths, &file, *time_s, VIEW_MAX_SIDE).await?,
+                );
             }
             Ok(frames)
         });
@@ -867,17 +913,27 @@ impl VideoTools {
             args.get("time").and_then(parse_time)
         } else {
             args.get("frame")
-                .and_then(|value| value.as_f64().or_else(|| value.as_str()?.trim().parse().ok()))
+                .and_then(|value| {
+                    value
+                        .as_f64()
+                        .or_else(|| value.as_str()?.trim().parse().ok())
+                })
                 .map(|frame| (frame + 0.5) / fps)
         };
         let Some(asked) = asked.filter(|time| time.is_finite() && *time >= 0.0) else {
             return "TOOL RESULT (video_frame): the time or frame could not be read.".to_owned();
         };
-        if !self.looked.insert(format!("frame:{}@{asked:.3}", video.hash)) {
+        if !self
+            .looked
+            .insert(format!("frame:{}@{asked:.3}", video.hash))
+        {
             return looked_again("video_frame");
         }
 
-        let at = Self::step(ctx, format!("Looking at {} at {}", video.name, clock(asked)));
+        let at = Self::step(
+            ctx,
+            format!("Looking at {} at {}", video.name, clock(asked)),
+        );
         let time_s = clamp_time(asked, meta.duration_s);
         let bytes = self.handle.block_on(draggy_media::extract_frame(
             &paths,
@@ -1019,7 +1075,10 @@ mod tests {
         assert_eq!(attachment.kind, "video/quicktime");
         let (hash, name, meta) =
             draggy_agent::video_handle::video_ref_of(&attachment).expect("a video reference");
-        assert_eq!((hash.as_str(), name.as_str()), ("a".repeat(64).as_str(), "demo.mov"));
+        assert_eq!(
+            (hash.as_str(), name.as_str()),
+            ("a".repeat(64).as_str(), "demo.mov")
+        );
         assert_eq!(meta.map(|meta| meta.width), Some(640));
     }
 
@@ -1040,7 +1099,10 @@ mod tests {
         ];
         assert_eq!(
             timeline(&segments, 10.0, 30.0),
-            ["00:00.0-00:20.0 static", "00:20.0-00:40.0 motion (3 changes)"]
+            [
+                "00:00.0-00:20.0 static",
+                "00:20.0-00:40.0 motion (3 changes)"
+            ]
         );
     }
 
@@ -1091,17 +1153,27 @@ mod tests {
         assert!(has_videos(std::slice::from_ref(&sent)));
         let mut tools = VideoTools::new(runtime.handle().clone(), store, &[sent]);
 
-        let both = call(&mut tools, "video_frame", &json!({"video": "v1", "time": 1, "frame": 3}));
+        let both = call(
+            &mut tools,
+            "video_frame",
+            &json!({"video": "v1", "time": 1, "frame": 3}),
+        );
         assert!(both.contains("give either time or frame"), "{both}");
         let neither = call(&mut tools, "video_frame", &json!({"video": "v1"}));
         assert!(neither.contains("give either time or frame"), "{neither}");
         let unknown = call(&mut tools, "video_info", &json!({"video": "v9"}));
-        assert!(unknown.contains("There is no video v9 in this chat. Known videos: v1."), "{unknown}");
+        assert!(
+            unknown.contains("There is no video v9 in this chat. Known videos: v1."),
+            "{unknown}"
+        );
     }
 
     #[test]
     fn offers_three_tools() {
-        let names: Vec<String> = definitions().into_iter().map(|tool| tool.function.name).collect();
+        let names: Vec<String> = definitions()
+            .into_iter()
+            .map(|tool| tool.function.name)
+            .collect();
         assert_eq!(names, TOOL_NAMES);
         assert!(owns("video_frame") && !owns("read_file"));
     }

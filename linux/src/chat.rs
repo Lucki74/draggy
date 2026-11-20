@@ -1,8 +1,8 @@
 //! The chat's logic without any widget: the transcript, how core events change it, and the bridge that carries a turn
 //! from the core's threads to the window's main loop.
 
-use std::sync::{Arc, OnceLock};
 use std::sync::mpsc;
+use std::sync::{Arc, OnceLock};
 
 use async_channel::Sender;
 use draggy_core::{
@@ -11,10 +11,10 @@ use draggy_core::{
 };
 
 use crate::conversations::SavedMessage;
-use draggy_core::video::{VideoRecord, VideoStore};
 use crate::runtime::runtime;
 use crate::services::stats_store::{REFERENCE_MODEL, REFERENCE_PROVIDER, TurnCost, format_money};
 use draggy_core::cost::CostKind;
+use draggy_core::video::{VideoRecord, VideoStore};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
