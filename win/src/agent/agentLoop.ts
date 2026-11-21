@@ -1108,10 +1108,11 @@ async function runTurn(
   } = await prepareTurn(request);
   onContext?.(toolContext);
   toolContext.vision = nativeVision;
-  // The tool list was built with this flag, so a call to a tool that needs it is checked against the same one.
+  // The tool list was built with these flags, so a call to a tool that needs them is checked against the same ones.
   environment.vision = nativeVision;
   toolContext.images = trackImages(request.messages);
   toolContext.videos = trackVideos(request.messages);
+  environment.hasVideos = toolContext.videos.length > 0;
   const baseLimit = toolLoopLimit(slow, MAX_TOOL_LOOPS);
   // A research run carries its own call budget, so the cap rises once one starts.
   const currentLimit = () => loopLimitFor(activeRun(toolContext), baseLimit);
