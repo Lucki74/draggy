@@ -833,6 +833,41 @@ describe("a tool that returns an image", () => {
   });
 });
 
+describe("a tool that needs an attached video", () => {
+  const peek: ToolSpec = {
+    name: "peek_video",
+    group: "video",
+    description: "Looks at a video.",
+    parameters: {},
+    required: [],
+    usage: "{}",
+    available: (environment) => environment.vision === true && Boolean(environment.hasVideos),
+    run: async () => "TOOL RESULT (peek_video): saw it",
+  };
+
+  it("runs when the chat holds a video, not only appears in the tool list", async () => {
+    registerTool(peek);
+    const { requests } = installFetch(
+      [{ toolCalls: [{ function: { name: "peek_video", arguments: {} } }] }, { content: ["ok"] }],
+      ["tools", "vision"],
+    );
+    const withVideo: Message = {
+      ...userMessage("what is in it?"),
+      attachments: [
+        {
+          name: "clip.webm",
+          type: "video/webm",
+          content: `draggy-video:${JSON.stringify({ kind: "video", hash: "a".repeat(64), name: "clip.webm", meta: null })}`,
+        },
+      ],
+    };
+    await run([withVideo]).promise;
+    const second = JSON.stringify((requests[1] as { messages: unknown[] }).messages);
+    expect(second).toContain("saw it");
+    expect(second).not.toContain("not enabled");
+  });
+});
+
 describe("text-mode tool calling", () => {
   it("recovers a tool call from plain text and hides it from the user", async () => {
     installFetch(
