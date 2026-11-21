@@ -44,10 +44,11 @@ async function main() {
     fs.rmSync(target, { recursive: true, force: true });
     throw new Error(`Python archive hash mismatch: ${hash}`);
   }
-  execFileSync("powershell", ["-NoProfile", "-Command", "Expand-Archive -LiteralPath $env:PY_ZIP -DestinationPath $env:PY_DIR -Force"], {
-    env: { ...process.env, PY_ZIP: zip, PY_DIR: target },
-  });
+  // Windows' own tar reads zip files; Expand-Archive failed under pwsh on the release runner.
+  const tar = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
+  execFileSync(tar, ["-xf", zip, "-C", target], { stdio: "inherit" });
   fs.rmSync(zip);
+  if (!fs.existsSync(path.join(target, "python.exe"))) throw new Error("python.exe is missing after unpacking the archive");
   dropPathFile();
   console.log(`Python ${VERSION} ready in ${target}`);
 }
