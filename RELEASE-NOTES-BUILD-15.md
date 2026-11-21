@@ -1,3 +1,3 @@
 **Fixes**
 
-The AI can read videos again. Its video tools answered that they were disabled, so it could not look at an attached video.
+* AI could not read videos because of "Disabled tools" but now can.
