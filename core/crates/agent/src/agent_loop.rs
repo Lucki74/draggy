@@ -31,8 +31,8 @@ use crate::prompts::{
 use crate::repetition::detect_repetition;
 use crate::resume::{SearchStep, build_resume_message, join_continuation};
 use crate::skills::{
-    InstalledSkill, LoadedSkill, Side, SkillReader, loaded_skill_ids,
-    render_invoked_skill, render_loaded_skills, render_skill, skill_invocation, skills_for,
+    InstalledSkill, LoadedSkill, Side, SkillReader, loaded_skill_ids, render_invoked_skill,
+    render_loaded_skills, render_skill, skill_invocation, skills_for,
 };
 use crate::task_manager::{CancelSignal, Message, Seed};
 use crate::tool_channel::{
