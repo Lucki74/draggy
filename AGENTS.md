@@ -153,7 +153,7 @@ Evidence is required before concluding work:
 
 When the owner sends a GitHub issue, first restate roughly what they asked. Then fix it, test that the fix works and that nothing else broke, open a PR, and merge it once the tests pass. Never merge a fix you have not tested.
 
-Every PR description names the issue it closes (`Fixes #N`) and explains the change in two sentences or more, written with the `/humanizer` skill. Commits keep a subject only.
+Every PR description names the issue it closes (`Fixes #N`) and explains the change in two sentences at most, written with the `/humanizer` skill. Commits keep a subject only.
 
 ## Releases
 

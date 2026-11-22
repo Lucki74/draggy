@@ -32,7 +32,7 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 
 - Swift files and `.xcstrings` use CRLF in the working copy. Edit `Localizable.xcstrings` as text, since a JSON re-dump rewrites the whole file.
 - After a Swift change, watch the "Build and test" macOS job, which is the only compile check.
-- Commits carry a subject only. A PR carries a title and a description written with the `/humanizer` skill, as Issues and pull requests in AGENTS.md says. Neither carries attribution. Squash merge with `gh pr merge N --squash --subject "<title> (#N)" --body ""`.
+- Commits carry a subject only. A PR carries a title and a description of two sentences at most, written with the `/humanizer` skill, as Issues and pull requests in AGENTS.md says. Neither carries attribution. Squash merge with `gh pr merge N --squash --subject "<title> (#N)" --body ""`.
 
 ## Compact instructions
 
