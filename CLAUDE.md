@@ -9,6 +9,7 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 ## Development and test workflow
 
 - The parent workspace directory `../temp` (at the root of `draggy`) is reserved for running tests with cargo and scratch test outputs. Keep it clean after tests.
+- When the owner sends an issue, restate roughly what they asked, then fix it, test it, open a PR that names the issue and merge only after the tests pass (Issues and pull requests in AGENTS.md).
 - Run `npm run check` (typecheck, lint and tests) before finishing a task.
 - During iteration run one file: `npx vitest run src/__tests__/<file>.test.ts` or `-t "test name"`. Vitest takes `--reporter=dot` for short output, not `-q`.
 - The development server is `npm run tauri:dev` on port 5173. Kill a stale Vite process if the port is taken.
@@ -31,7 +32,7 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 
 - Swift files and `.xcstrings` use CRLF in the working copy. Edit `Localizable.xcstrings` as text, since a JSON re-dump rewrites the whole file.
 - After a Swift change, watch the "Build and test" macOS job, which is the only compile check.
-- Commits and PRs carry a subject or title only, no body and no attribution. Squash merge with `gh pr merge N --squash --subject "<title> (#N)" --body ""`.
+- Commits carry a subject only. A PR carries a title and a description written with the `/humanizer` skill, as Issues and pull requests in AGENTS.md says. Neither carries attribution. Squash merge with `gh pr merge N --squash --subject "<title> (#N)" --body ""`.
 
 ## Compact instructions
 

@@ -28,12 +28,18 @@ export function describeSkills(skills: InstalledSkill[]): string {
         ? `- ${skill.id}: ${skill.description}`
         : `- ${skill.id}: ${skill.name}. ${skill.description}`,
     );
+  // Past the cap only ids go in, so every switched-on skill stays reachable.
+  const rest = offered.slice(MAX_LISTED_SKILLS).map((skill) => skill.id);
+  const more =
+    rest.length > 0
+      ? `\n\nAlso switched on, with no room to describe them here: ${rest.join(", ")}. Each id says what the skill is for; call use_skill with one to read it.`
+      : "";
 
   return `SKILLS
 
 Skills are instructions for particular kinds of job, some shipped with Draggy and some written by the user. The description says when each one applies.
 
-${lines.join("\n")}
+${lines.join("\n")}${more}
 
 When a request matches one, call use_skill with its id before you start, and follow what it says. When none of them matches, work as you normally would and do not mention them.`;
 }
