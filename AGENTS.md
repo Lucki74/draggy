@@ -149,6 +149,12 @@ Evidence is required before concluding work:
 - Measure behavior from packaged or GUI processes when testing window or process visibility.
 - Note any environment-specific limitations (such as update checks being disabled in debug builds).
 
+## Issues and pull requests
+
+When the owner sends a GitHub issue, first restate roughly what they asked. Then fix it, test that the fix works and that nothing else broke, open a PR, and merge it once the tests pass. Never merge a fix you have not tested.
+
+Every PR description names the issue it closes (`Fixes #N`) and explains the change in two sentences at most, written with the `/humanizer` skill. Commits keep a subject only.
+
 ## Releases
 
 Releases are cut from the Release workflow (`release.yml`, run by hand on `main`). The workflow picks the next build number from the `b-N` tags and builds the app as `3.0.N`. Do not tag or publish a release unless asked. Detailed instructions are in [RELEASING.md](RELEASING.md).

@@ -35,7 +35,6 @@ import type { GenerationMetrics } from "../llama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
 import {
-  MAX_LISTED_SKILLS,
   describeSkills,
   loadSingleSkill,
   loadSkills,
@@ -586,10 +585,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       chars: renderSkill(skill).length,
     })),
     toolCount: availableTools(environment).length,
-    skillCount: Math.min(
-      skills.filter((skill) => skill.modelInvocable !== false).length,
-      MAX_LISTED_SKILLS,
-    ),
+    skillCount: skills.filter((skill) => skill.modelInvocable !== false).length,
   };
 
   const wire: WireMessage[] = [

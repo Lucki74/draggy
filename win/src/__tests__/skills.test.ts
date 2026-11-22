@@ -96,6 +96,21 @@ describe("what the prompt carries", () => {
     );
     expect(described.length).toBeLessThan(4000);
   });
+
+  it("still names every switched-on skill past the cap, so the model can call it", () => {
+    const many = Array.from({ length: 45 }, (_, i) =>
+      skill(`skill-${String(i).padStart(2, "0")}`, `Skill ${i}`, "A short description of the job."),
+    );
+    const mine = skill("zoom-notes", "zoom-notes", "Turns a Zoom transcript into notes.");
+
+    const described = describeSkills([...many, mine]);
+
+    for (const one of [...many, mine]) expect(described, one.id).toContain(one.id);
+    expect(described).toContain(
+      "Also switched on, with no room to describe them here: skill-40, skill-41, skill-42, skill-43, skill-44, zoom-notes.",
+    );
+    expect(describeSkills(many.slice(0, MAX_LISTED_SKILLS))).not.toContain("Also switched on");
+  });
 });
 
 describe("which skills a side offers", () => {
