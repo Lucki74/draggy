@@ -54,6 +54,15 @@ describe("not mistaking ordinary text for a tool call", () => {
   }
 });
 
+describe("a bare call whose arguments nest", () => {
+  it("keeps the whole object", () => {
+    const raw = 'Sure. {"name": "search_web", "args": {"query": "x", "filter": {"site": "a"}, "n": 2}} done';
+    const detected = parser.detect(raw);
+    expect(detected).not.toBeNull();
+    expect(parseToolCall(detected as string).args).toEqual({ query: "x", filter: { site: "a" }, n: 2 });
+  });
+});
+
 describe("stripping tool syntax out of the visible reply", () => {
   for (const fixture of TOOL_CALL_FIXTURES) {
     if (fixture.visible === undefined) continue;

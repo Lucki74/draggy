@@ -27,6 +27,25 @@ const TOOL_CALLS_ENVELOPE_RE =
 
 const ORPHAN_BRACE_LINE_RE = /(?:^|\n)[ \t]*[{}[\]]+[ \t]*(?=\n|$)/g;
 
+/** The whole JSON object that opens at `start`, nested ones included, or null when it never closes. The lazy
+ * pattern alone stops at the first pair of closing braces, which cuts a call whose arguments nest. */
+function balancedObjectAt(text: string, start: number): string | null {
+  let depth = 0;
+  let inString = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (ch === "\\") i++;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}" && --depth === 0) return text.slice(start, i + 1);
+  }
+  return null;
+}
+
 function protectCode(text: string): { masked: string; restore: (value: string) => string } {
   const stored: string[] = [];
 
@@ -132,7 +151,7 @@ export function createToolParser(names: string[]): ToolParser {
     }
 
     const bareJson = raw.match(bareJsonRe);
-    if (bareJson) return bareJson[0];
+    if (bareJson) return balancedObjectAt(raw, bareJson.index ?? 0) ?? bareJson[0];
 
     const reactStyle = raw.match(REACT_TOOL_RE);
     if (reactStyle) {
