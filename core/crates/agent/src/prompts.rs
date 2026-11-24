@@ -509,15 +509,30 @@ pub fn describe_skills(skills: &[PromptSkill]) -> String {
             }
         })
         .collect();
+    // Past the cap only ids go in, so every switched-on skill stays reachable.
+    let rest: Vec<&str> = offered
+        .iter()
+        .skip(MAX_LISTED_SKILLS)
+        .map(|skill| skill.id.as_str())
+        .collect();
+    let more = if rest.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "\n\nAlso switched on, with no room to describe them here: {}. Each id says what the skill is for; call use_skill with one to read it.",
+            rest.join(", ")
+        )
+    };
     format!(
         r##"SKILLS
 
 Skills are instructions for particular kinds of job, some shipped with Draggy and some written by the user. The description says when each one applies.
 
-{}
+{}{}
 
 When a request matches one, call use_skill with its id before you start, and follow what it says. When none of them matches, work as you normally would and do not mention them."##,
-        lines.join("\n")
+        lines.join("\n"),
+        more
     )
 }
 

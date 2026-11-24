@@ -3366,7 +3366,7 @@ fn the_memory_count_includes_the_project_instructions_header() {
 }
 
 #[test]
-fn the_skill_count_is_capped_at_the_listing_limit() {
+fn the_skill_count_includes_skills_past_the_listing_limit() {
     let mut skills = FakeSkills::default();
     let mut turn = request(vec![user("hello")]);
     turn.skills = (0..45)
@@ -3380,7 +3380,7 @@ fn the_skill_count_is_capped_at_the_listing_limit() {
         .collect();
     let prepared = prepared(&turn, &mut skills);
 
-    assert_eq!(prepared.prompt_parts.skill_count, Some(40));
+    assert_eq!(prepared.prompt_parts.skill_count, Some(45));
 }
 
 #[test]
