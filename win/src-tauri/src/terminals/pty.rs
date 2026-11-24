@@ -106,6 +106,39 @@ fn answer_cursor(sessions: &Sessions, id: &str) {
     }
 }
 
+/// The text in `carry`, leaving only a sequence cut at the end of the read for the next one.
+/// A byte that can never be valid becomes U+FFFD instead of holding back everything after it.
+fn take_text(carry: &mut Vec<u8>) -> String {
+    let mut text = String::new();
+    let mut rest: &[u8] = carry;
+    loop {
+        match std::str::from_utf8(rest) {
+            Ok(valid) => {
+                text.push_str(valid);
+                rest = &[];
+                break;
+            }
+            Err(error) => {
+                let (good, after) = rest.split_at(error.valid_up_to());
+                text.push_str(std::str::from_utf8(good).unwrap_or_default());
+                match error.error_len() {
+                    Some(bad) => {
+                        text.push(char::REPLACEMENT_CHARACTER);
+                        rest = &after[bad..];
+                    }
+                    None => {
+                        rest = after;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    let kept = rest.len();
+    carry.drain(..carry.len() - kept);
+    text
+}
+
 fn failed(error: impl std::fmt::Display) -> OpenError {
     OpenError::Failed(error.to_string())
 }
@@ -160,6 +193,7 @@ impl Host {
         let mut child = pair.slave.spawn_command(command).map_err(failed)?;
         drop(pair.slave);
         let pid = child.process_id();
+        draggy_tools::spawn::adopt(pid);
 
         let reader = pair.master.try_clone_reader().map_err(failed)?;
         let writer = pair.master.take_writer().map_err(failed)?;
@@ -192,12 +226,7 @@ impl Host {
                     Ok(0) | Err(_) => break,
                     Ok(read) => {
                         carry.extend_from_slice(&buffer[..read]);
-                        let complete = match std::str::from_utf8(&carry) {
-                            Ok(_) => carry.len(),
-                            Err(error) => error.valid_up_to(),
-                        };
-                        let mut text = String::from_utf8_lossy(&carry[..complete]).into_owned();
-                        carry.drain(..complete);
+                        let mut text = take_text(&mut carry);
                         if !answered && text.contains(CURSOR_QUERY) {
                             answered = true;
                             text = text.replacen(CURSOR_QUERY, "", 1);
@@ -292,6 +321,16 @@ impl Host {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_bad_byte_is_replaced_and_a_cut_sequence_waits() {
+        let mut carry = b"ok\xffgo\xe2\x82".to_vec();
+        assert_eq!(super::take_text(&mut carry), "ok\u{fffd}go");
+        assert_eq!(carry, b"\xe2\x82");
+        carry.push(0xac);
+        assert_eq!(super::take_text(&mut carry), "\u{20ac}");
+        assert!(carry.is_empty());
+    }
+
     use super::*;
     use std::sync::mpsc;
     use std::time::Duration;

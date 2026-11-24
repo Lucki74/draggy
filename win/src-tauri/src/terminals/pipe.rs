@@ -58,6 +58,7 @@ pub fn spawn(
     crate::proc_log::spawned(&launch.file.to_string_lossy(), launch.args);
     let mut child = command.spawn()?;
     let pid = child.id();
+    draggy_tools::spawn::adopt(pid);
     let stop = CancelToken::new();
     let on_chunk = Arc::new(on_chunk);
     let readers = [

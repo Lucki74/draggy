@@ -761,7 +761,7 @@ where
 
         let before = snapshot(&self.store, &resolved);
         make_parent(&resolved)?;
-        fs::write(&resolved, &data)?;
+        write_whole(&resolved, &data)?;
 
         let bytes = data.len() as u64;
         let after_hash = self.store.keep(&data)?;
@@ -800,7 +800,7 @@ where
         let applied = apply_edit(&current.text, find, replace, expected)?;
 
         let before_hash = self.store.keep(current.text.as_bytes())?;
-        fs::write(&resolved, applied.next.as_bytes())?;
+        write_whole(&resolved, applied.next.as_bytes())?;
         let after_hash = self.store.keep(applied.next.as_bytes())?;
 
         let bytes = applied.next.len() as u64;
@@ -1122,6 +1122,33 @@ fn lookup(table: &[(&'static str, &'static str)], ext: &str) -> Option<&'static 
         .iter()
         .find(|(known, _)| *known == ext)
         .map(|(_, mime)| *mime)
+}
+
+/// Writes the whole file beside the target, then renames it over, so a crash mid-write never leaves the user's file
+/// cut short. Falls back to a plain write when the rename is refused, for example while another program holds the
+/// file open on Windows.
+fn write_whole(path: &Path, data: &[u8]) -> io::Result<()> {
+    let Some(name) = path.file_name() else {
+        return fs::write(path, data);
+    };
+    let mut temp_name = std::ffi::OsString::from(".");
+    temp_name.push(name);
+    temp_name.push(format!(".draggy-{}.tmp", crate::spawn::current_pid()));
+    let temp = path.with_file_name(temp_name);
+    if fs::write(&temp, data).is_err() {
+        let _ = fs::remove_file(&temp);
+        return fs::write(path, data);
+    }
+    if let Ok(meta) = fs::metadata(path) {
+        let _ = fs::set_permissions(&temp, meta.permissions());
+    }
+    match fs::rename(&temp, path) {
+        Ok(()) => Ok(()),
+        Err(_) => {
+            let _ = fs::remove_file(&temp);
+            fs::write(path, data)
+        }
+    }
 }
 
 fn make_parent(path: &Path) -> io::Result<()> {
