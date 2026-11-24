@@ -42,6 +42,33 @@ fn text_arg(args: &[Value], index: usize) -> String {
         .to_owned()
 }
 
+/// What `gguf:download` was asked for: the URL, the file name and the screen's correlation id.
+#[derive(Debug, PartialEq, Eq)]
+struct DownloadArgs {
+    url: String,
+    filename: String,
+    cid: Option<String>,
+}
+
+/// The renderer sends one `{ url, filename, cid }` object; two plain strings are read as the URL and file name.
+fn download_args(args: &[Value]) -> DownloadArgs {
+    let Some(options) = args.first().and_then(Value::as_object) else {
+        return DownloadArgs {
+            url: text_arg(args, 0),
+            filename: text_arg(args, 1),
+            cid: None,
+        };
+    };
+    let field = |key: &str| options.get(key).and_then(Value::as_str);
+    DownloadArgs {
+        url: field("url").unwrap_or_default().to_owned(),
+        filename: field("filename").unwrap_or_default().to_owned(),
+        cid: field("cid")
+            .filter(|cid| !cid.is_empty())
+            .map(str::to_owned),
+    }
+}
+
 fn system_root() -> PathBuf {
     PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into()))
 }
@@ -383,15 +410,15 @@ async fn delete(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
 
 async fn download(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let state = app.state::<AppState>();
-    let url = text_arg(&args, 0);
-    let filename = text_arg(&args, 1);
+    let DownloadArgs { url, filename, cid } = download_args(&args);
     let engines = Arc::clone(&state.engines);
     let Some(downloader) = engines.models_dl.as_ref() else {
         return Err(IpcError::Failed("network unavailable".into()));
     };
     let sink = app.clone();
     let label = filename.clone();
-    let request = DownloadRequest::new(url, &engines.models_dir, &filename);
+    let mut request = DownloadRequest::new(url, &engines.models_dir, &filename);
+    request.cid = cid;
     let result = downloader
         .download(request, move |progress| {
             let value = progress_value(&progress, &label);
@@ -542,6 +569,43 @@ mod tests {
         assert_eq!(value["contextLength"], Value::Null);
         assert_eq!(value["blockCount"], json!(32.0));
         assert_eq!(value["baseModels"], json!(["Qwen/Qwen3.6-35B-A3B"]));
+    }
+
+    #[test]
+    fn download_args_are_read_from_the_renderer_object() {
+        let args = [json!({
+            "url": "https://huggingface.co/acme/M-GGUF/resolve/main/m.gguf",
+            "filename": "m.gguf",
+            "cid": "c1"
+        })];
+        assert_eq!(
+            download_args(&args),
+            DownloadArgs {
+                url: "https://huggingface.co/acme/M-GGUF/resolve/main/m.gguf".into(),
+                filename: "m.gguf".into(),
+                cid: Some("c1".into()),
+            }
+        );
+        let bare = download_args(&[json!({
+            "url": "https://a.test/m.gguf",
+            "filename": "m.gguf",
+            "cid": ""
+        })]);
+        assert_eq!(bare.cid, None);
+    }
+
+    #[test]
+    fn download_args_still_take_two_plain_strings() {
+        let args = [json!("https://a.test/m.gguf"), json!("m.gguf")];
+        assert_eq!(
+            download_args(&args),
+            DownloadArgs {
+                url: "https://a.test/m.gguf".into(),
+                filename: "m.gguf".into(),
+                cid: None,
+            }
+        );
+        assert_eq!(download_args(&[]).url, "");
     }
 
     #[test]
