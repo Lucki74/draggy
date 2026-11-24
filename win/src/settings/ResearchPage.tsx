@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { uiLocale } from "../i18n";
 import { Button, Page } from "./Controls";
 import StreamingMarkdown from "../chat/StreamingMarkdown";
 import { Icon } from "../ui/icons/Icon";
@@ -82,7 +83,7 @@ export function ResearchPage({ sessions, onFollowUp, t }: Props) {
               >
                 <span className="truncate text-[14px] text-text-primary">{run.question}</span>
                 <span className="text-[12px] text-text-tertiary">
-                  {[new Date(run.startedAt).toLocaleDateString(), t(DEPTH_LABEL[run.depth]), t("researchRunSources").replace("{n}", String(run.sourceCount))].join(" · ")}
+                  {[new Date(run.startedAt).toLocaleDateString(uiLocale()), t(DEPTH_LABEL[run.depth]), t("researchRunSources").replace("{n}", String(run.sourceCount))].join(" · ")}
                 </span>
                 {snippetOf(run.id) && <span className="line-clamp-2 text-[12px] text-text-secondary">{snippetOf(run.id)}</span>}
               </button>

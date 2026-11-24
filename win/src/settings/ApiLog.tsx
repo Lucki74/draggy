@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { uiLocale } from "../i18n";
 import { Icon } from "../ui/icons/Icon";
 import type { ApiLogEntry } from "../types";
 import { copyText } from "../utils";
@@ -19,7 +20,7 @@ function curlFor(entry: ApiLogEntry, baseUrl: string): string {
 }
 
 function clock(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return new Date(seconds * 1000).toLocaleTimeString(uiLocale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 /** The recent requests the server kept in memory, newest first. It reloads when the page opens and

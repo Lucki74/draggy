@@ -25,7 +25,8 @@ export default function TerminalPane({ sessionId, t }: TerminalPaneProps) {
     if (!body || !current) return;
     body.replaceChildren(current.host);
     fitSession(current.id);
-    focusSession(current.id);
+    // The shell sits hidden behind the task list, so only the shell view takes the keys.
+    if (view === "shell") focusSession(current.id);
   }, [current, current?.view, view]);
 
   useEffect(() => {

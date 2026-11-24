@@ -18,6 +18,11 @@ export function setUiLanguage(language: string) {
   uiLanguage = language;
 }
 
+/** The language numbers and times are written in, for code that is not handed the settings. */
+export function uiLocale(): string {
+  return uiLanguage;
+}
+
 /** A string for a shared control (toast, lightbox, error screen) that is not handed `t`. */
 export function uiText(key: string): string {
   return translate(uiLanguage, key);

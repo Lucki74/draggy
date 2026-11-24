@@ -129,13 +129,9 @@ export function rungFits(rung: ModelRecommendation, vram: number, target: Runtim
 
 export function getRecommendedModel(vram: number, target: RuntimeTarget = {}): string {
   const index = ggufLadder.findLastIndex((rung) => !rung.pending && rungFits(rung, vram, target));
-  if (index < 0) return ggufLadder[0].model;
-
-  // A Max or Ultra die has the bandwidth for the rung above, if all its memory can hold it.
-  const next = ggufLadder[index + 1];
-  const wide = isAppleSilicon(target) && ["max", "ultra"].includes(chipClassOf(target.cpuModel));
-  const whole = unifiedMemory(Number.isFinite(vram) && vram > 0 ? vram : 0, target);
-  return wide && next && !next.pending && next.memory <= whole ? next.model : ggufLadder[index].model;
+  // No bump for a Max or Ultra die: macOS lets the GPU wire about three quarters of unified memory,
+  // the same share rungFits allows, so the rung above would page whatever the bandwidth.
+  return ggufLadder[index < 0 ? 0 : index].model;
 }
 
 export interface RecommendedDownload {
