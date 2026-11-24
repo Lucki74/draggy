@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import MessageItem from "./MessageItem";
 import { TranscriptViewContext } from "./transcriptView";
 import InView from "./InView";
@@ -149,11 +149,11 @@ export function Transcript({
     },
   };
 
-  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+  const scrollToBottom = useEffectEvent((behavior: ScrollBehavior) => {
     if (isAtBottom.current) {
       scrollBoxToEnd(behavior);
     }
-  };
+  });
 
   useEffect(() => {
     if (chat.isGenerating) return;

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import ContextWheel from "./ContextWheel";
 import PermissionPicker from "./PermissionPicker";
 import ModelChoices from "../providers/ModelChoices";
@@ -300,14 +300,14 @@ export function Composer({
     const lockedEfforts = EFFORT_ORDER.filter((level) => !allowedEfforts(surface, settings.allowMaxInChat).includes(level));
     const flashTimer = useRef<number | undefined>(undefined);
     // Ctrl+Shift+E steps to the next level and shows the slider for a moment, unless motion is reduced.
-    const cycleEffort = () => {
+    const cycleEffort = useEffectEvent(() => {
         const next = nextEffort(settings.effort, { mode: surface, allowMaxInChat: settings.allowMaxInChat });
         onPatchSettings({ effort: next });
         if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
         setOpenMenu("effort");
         window.clearTimeout(flashTimer.current);
         flashTimer.current = window.setTimeout(() => setOpenMenu((current) => (current === "effort" ? null : current)), 1200);
-    };
+    });
     useEffect(() => () => window.clearTimeout(flashTimer.current), []);
 
     // Claude Code's menu keys: Ctrl+Shift+M mode, Ctrl+Shift+E effort, Ctrl+Shift+I model.
