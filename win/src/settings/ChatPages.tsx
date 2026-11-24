@@ -15,6 +15,7 @@ import { DEFAULT_WORKSPACE_ID } from "../workspaces";
 import { modelKey, modelOptions, resolveChoice, splitModelKey, voiceOptions, type CloudProvider } from "./cloudChoice";
 import type { ModelManager } from "./useModelManager";
 import type { AppSettings } from "../types";
+import { swallowed } from "../logger";
 
 type Translate = (key: string) => string;
 
@@ -22,7 +23,10 @@ type Translate = (key: string) => string;
 function TrustedSites({ t }: { t: Translate }) {
   const [sites, setSites] = useState<string[]>([]);
   useEffect(() => {
-    void window.draggy?.browserAgent?.trustedSites().then(setSites);
+    window.draggy?.browserAgent
+      ?.trustedSites()
+      .then(setSites)
+      .catch(swallowed("settings", "the main process already logged this call"));
   }, []);
   if (!sites.length) return null;
   return (
@@ -33,8 +37,11 @@ function TrustedSites({ t }: { t: Translate }) {
             <span className="truncate">{origin}</span>
             <Button
               onClick={() => {
-                void window.draggy?.browserAgent.revokeSite(origin);
-                setSites((list) => list.filter((o) => o !== origin));
+                // The row goes only once the site is really forgotten, so a failed revoke stays visible.
+                window.draggy?.browserAgent
+                  .revokeSite(origin)
+                  .then(() => setSites((list) => list.filter((o) => o !== origin)))
+                  .catch(swallowed("settings", "the main process already logged this call"));
               }}
             >
               {t("browserTrustedRemove")}

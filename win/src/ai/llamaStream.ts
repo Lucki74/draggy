@@ -374,11 +374,20 @@ export async function* sseToLlamaChunks(
   let yieldedDone = false;
   let yieldedMetrics = false;
 
+  let ended = false;
   for (;;) {
     const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
+    if (done) {
+      // A server that closes right after its last event, with no blank line, still sent that event.
+      buffer += decoder.decode();
+      if (!buffer.trim()) break;
+      buffer += "\n\n";
+      ended = true;
+    } else {
+      buffer += decoder.decode(value, { stream: true });
+    }
+    // SSE allows CRLF and CR line ends. A CR at the very end may be half of a CRLF, so it waits for the next chunk.
+    buffer = buffer.replace(/\r\n/g, "\n").replace(/\r(?!$)/g, "\n");
     let sepIndex: number;
 
     while ((sepIndex = buffer.indexOf("\n\n")) !== -1) {
@@ -480,5 +489,6 @@ export async function* sseToLlamaChunks(
         usage: payload.usage ?? lastUsage,
       };
     }
+    if (ended) break;
   }
 }

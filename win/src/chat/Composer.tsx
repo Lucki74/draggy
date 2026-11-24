@@ -726,6 +726,8 @@ export function Composer({
                         onPaste={onPaste}
                         onDrop={onDrop}
                         onKeyDown={(e) => {
+                            // An IME confirms its candidate with Enter; that key is not a send.
+                            if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                             if (mentioning) {
                                 if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                                     e.preventDefault();

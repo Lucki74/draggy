@@ -337,6 +337,7 @@ function ExportGroup({ t }: { t: Translate }) {
                 {t("diagIncludeDumps")}
                 <Toggle checked={includeDumps} onChange={setIncludeDumps} label={t("diagIncludeDumps")} />
               </label>
+              {includeDumps && <p className="text-[12px] leading-5 text-text-secondary">{t("diagDumpsHint")}</p>}
             </div>
             <div>
               <p className="mb-1 text-[13px] font-medium text-text-secondary">{t("diagPreviewTitle")}</p>

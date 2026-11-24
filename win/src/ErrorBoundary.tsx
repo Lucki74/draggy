@@ -34,8 +34,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private copyLog = async () => {
-    const text = await collectErrorDetails({ text: this.state.error?.stack || this.state.error?.message || "", scope: "react" });
     try {
+      const text = await collectErrorDetails({ text: this.state.error?.stack || this.state.error?.message || "", scope: "react" });
       await navigator.clipboard.writeText(text);
       this.setState({ copied: true });
       setTimeout(() => this.setState({ copied: false }), 2000);
@@ -58,6 +58,13 @@ export class ErrorBoundary extends Component<Props, State> {
             {this.state.error?.message || uiText("errorFallback")}
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-1">
+            <Button
+              variant="secondary"
+              size="dense"
+              onClick={() => this.setState({ hasError: false, error: undefined })}
+            >
+              {uiText("retry")}
+            </Button>
             <Button
               variant="secondary"
               size="dense"

@@ -223,6 +223,10 @@ export function getModelInfo(model: string): Promise<ModelInfo | null> {
 
     await rememberCapabilities(model, value.capabilities);
     return value;
+  }).catch((error: unknown) => {
+    // A failed look is asked again next time rather than served from the cache.
+    modelInfoCache.delete(model);
+    throw error;
   });
 
   modelInfoCache.set(model, pending);

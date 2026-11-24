@@ -99,6 +99,8 @@ export function Sidebar({
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
+  // Escape unmounts the field, and the blur that follows must not save what was cancelled.
+  const renameCancelled = useRef(false);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -187,6 +189,10 @@ export function Sidebar({
   );
 
   const saveRename = (id: string) => {
+    if (renameCancelled.current) {
+      renameCancelled.current = false;
+      return;
+    }
     const trimmed = renameDraft.trim();
     if (trimmed && onRenameChat) {
       onRenameChat(id, trimmed);
@@ -333,7 +339,10 @@ export function Sidebar({
             onChange={(e) => setRenameDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") saveRename(session.id);
-              if (e.key === "Escape") setEditingChatId(null);
+              if (e.key === "Escape") {
+                renameCancelled.current = true;
+                setEditingChatId(null);
+              }
             }}
             onBlur={() => saveRename(session.id)}
             className="flex-1 min-w-0 mx-1.5 bg-surface-base border border-rule-control rounded-xs px-1 text-xs text-text-primary outline-none"

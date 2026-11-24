@@ -59,7 +59,11 @@ export function ResearchPage({ sessions, onFollowUp, t }: Props) {
       <input
         type="search"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => {
+          // The last search answered an older query; its hits would list the wrong runs until the new ones land.
+          setHits(null);
+          setQuery(event.target.value);
+        }}
         placeholder={t("researchSearchPlaceholder")}
         aria-label={t("researchSearchPlaceholder")}
         className="h-8 w-full rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"

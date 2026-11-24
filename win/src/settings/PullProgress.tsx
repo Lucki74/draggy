@@ -3,6 +3,7 @@ import { Icon } from "../ui/icons/Icon";
 import { ProgressLine } from "../ui/ProgressLine";
 import { PULL_PHASE_KEYS } from "../llama";
 import { formatBytes, formatTransferred } from "../formatBytes";
+import { downloadErrorText } from "../downloadErrors";
 import type { PullState } from "./useModelManager";
 
 /** Formats a remaining duration as `2m 05s`, or `1h 01m 05s` past an hour; empty when unknown. */
@@ -21,7 +22,7 @@ export function formatRemainingTime(seconds: number | null | undefined): string 
 
 /** What the line under the name says: the bytes and speed the engine measured, or the phase. */
 function statusText(state: PullState, t: (key: string) => string): string {
-  if (state.phase === "failed") return state.error || t("downloadFailed");
+  if (state.phase === "failed") return state.error ? downloadErrorText(state.error, t) : t("downloadFailed");
   if (state.phase === "queued") return t("queuedDownload");
   if (state.phase !== "downloading" || !state.total) return t(PULL_PHASE_KEYS[state.phase]);
 

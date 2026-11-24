@@ -153,13 +153,17 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
         );
         return loaded;
       })();
+      // A failed look is asked again next time rather than cached.
+      loadingRef.current.catch(() => {
+        loadingRef.current = null;
+      });
     }
     return loadingRef.current;
   }, [api, settings.modelName]);
 
   useEffect(() => {
     if (step !== "source" && step !== "local") return;
-    void loadSurroundings();
+    loadSurroundings().catch(swallowed("onboarding", "the main process already logged this call"));
     if (online === null) probeOnline();
     // Loopback only, and only as the step opens (providers spec rule 4, decision 4).
     if (step === "source") void providers.scan();
