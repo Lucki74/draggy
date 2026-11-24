@@ -241,8 +241,6 @@ export function Dock({
       workspaceId,
       rootPath,
       gitStatus,
-      layout.diffFile,
-      layout.file,
       onOpenFile,
       onSendReviewComment,
       width,

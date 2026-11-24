@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { uiLocale } from "../i18n";
 import { Badge, Block, Button, Group, Page, Row, Segmented, Toggle } from "./Controls";
 import { Icon } from "../ui/icons/Icon";
 import { logSwallow, swallowed } from "../logger";
@@ -39,7 +40,7 @@ function LoggingGroup({ t }: { t: Translate }) {
     api?.setLogLevel(options).then(setState).catch(swallowed("settings", "the main process already logged this call"));
 
   const verbose = state?.level === "DEBUG";
-  const until = verbose && state?.until ? new Date(state.until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
+  const until = verbose && state?.until ? new Date(state.until).toLocaleTimeString(uiLocale(), { hour: "2-digit", minute: "2-digit" }) : null;
   const scopeList = scopes.split(",").map((scope) => scope.trim()).filter(Boolean);
 
   return (
@@ -337,6 +338,7 @@ function ExportGroup({ t }: { t: Translate }) {
                 {t("diagIncludeDumps")}
                 <Toggle checked={includeDumps} onChange={setIncludeDumps} label={t("diagIncludeDumps")} />
               </label>
+              {includeDumps && <p className="text-[12px] leading-5 text-text-secondary">{t("diagDumpsHint")}</p>}
             </div>
             <div>
               <p className="mb-1 text-[13px] font-medium text-text-secondary">{t("diagPreviewTitle")}</p>

@@ -2,6 +2,7 @@ import { Button } from "../ui/Button";
 import { Icon } from "../ui/icons/Icon";
 import { ProgressLine } from "../ui/ProgressLine";
 import { formatTransferred } from "../formatBytes";
+import { downloadErrorText } from "../downloadErrors";
 import { formatRemainingTime } from "../settings/PullProgress";
 import type { FirstDownload } from "./useFirstDownload";
 
@@ -30,9 +31,10 @@ export default function DownloadBar({
   let error = "";
 
   if (model.phase === "error") {
-    error = `${t("downloadFailed")}: ${model.error ?? ""}`;
+    error = model.error ? `${t("downloadFailed")}: ${downloadErrorText(model.error, t)}` : t("downloadFailed");
   } else if (engine.phase === "error") {
-    error = engine.error && engine.error !== "missingGgufEngine" ? engine.error : t("missingGgufEngine");
+    error =
+      engine.error && engine.error !== "missingGgufEngine" ? downloadErrorText(engine.error, t) : t("missingGgufEngine");
   } else if (model.phase === "queued" || model.phase === "downloading") {
     label = model.filename ?? model.reference ?? "";
     percent = model.percent;

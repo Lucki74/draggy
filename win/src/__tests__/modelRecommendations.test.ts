@@ -173,30 +173,11 @@ describe("chip class on Apple Silicon", () => {
     expect(getRecommendedModel(5, { ...base, ram: 16, cpuModel: "Apple M1" })).toBe(best.model);
   });
 
-  it("takes a wide-bandwidth Max or Ultra chip one rung above a base or Pro one", () => {
+  it("keeps a Max or Ultra chip on the rung that fits the GPU share of memory", () => {
     const base = { platform: "darwin", arch: "arm64", llamaVersion: "0.33.3", ram: 32 };
-    const climbing = mlxLadder;
-    const atThirtyTwo = climbing.findLastIndex((entry) => entry.memory <= 32 * USABLE_UNIFIED_RAM_FRACTION);
-
-    expect(getRecommendedModel(0, { ...base, cpuModel: "Apple M2" })).toBe(
-      climbing[atThirtyTwo].model,
-    );
-    expect(getRecommendedModel(0, { ...base, cpuModel: "Apple M2 Pro" })).toBe(
-      climbing[atThirtyTwo].model,
-    );
-    expect(getRecommendedModel(0, { ...base, cpuModel: "Apple M2 Max" })).toBe(
-      climbing[atThirtyTwo + 1].model,
-    );
-    expect(getRecommendedModel(0, { ...base, cpuModel: "Apple M2 Ultra" })).toBe(
-      climbing[atThirtyTwo + 1].model,
-    );
-  });
-
-  it("skips the bump when the rung above needs more than all the memory", () => {
-    const mac = { platform: "darwin", arch: "arm64", ram: 24 };
-    expect(getRecommendedModel(0, { ...mac, cpuModel: "Apple M2 Max" })).toBe(
-      getRecommendedModel(0, { ...mac, cpuModel: "Apple M2" }),
-    );
+    const plain = getRecommendedModel(0, { ...base, cpuModel: "Apple M2" });
+    expect(getRecommendedModel(0, { ...base, cpuModel: "Apple M2 Max" })).toBe(plain);
+    expect(getRecommendedModel(0, { ...base, cpuModel: "Apple M2 Ultra" })).toBe(plain);
   });
 
   it("never bumps past the top of the ladder", () => {

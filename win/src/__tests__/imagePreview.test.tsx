@@ -31,7 +31,7 @@ describe("ImagePreview component", () => {
     const onDelete = vi.fn();
     render(<ImagePreview src="data:image/png;base64,abc" alt="test.png" onDelete={onDelete} />);
 
-    const removeBtn = screen.getByRole("button", { name: "Remove attachment" });
+    const removeBtn = screen.getByRole("button", { name: "Remove" });
     expect(removeBtn).toBeTruthy();
     fireEvent.click(removeBtn);
     expect(onDelete).toHaveBeenCalledTimes(1);
@@ -39,6 +39,6 @@ describe("ImagePreview component", () => {
 
   it("omits the remove button when onDelete is not provided", () => {
     render(<ImagePreview src="data:image/png;base64,abc" alt="test.png" />);
-    expect(screen.queryByRole("button", { name: "Remove attachment" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
   });
 });

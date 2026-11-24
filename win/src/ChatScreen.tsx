@@ -195,7 +195,8 @@ export default function ChatScreen({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        if (chat.isGenerating) onStopGeneration();
+        // An open mention or slash menu takes Escape first and marks it handled.
+        if (chat.isGenerating && !event.defaultPrevented) onStopGeneration();
         return;
       }
       if (!event.ctrlKey && !event.metaKey) return;

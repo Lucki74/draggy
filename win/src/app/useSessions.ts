@@ -164,10 +164,15 @@ export function useSessions(): SessionStore {
   const deleteSession = useCallback((chatId: string) => {
     cancelSessionSave(chatId);
     forgetChatTasks(chatId);
+    const removed = sessionsRef.current.find((s) => s.id === chatId);
     setSessions((prev) => prev.filter((s) => s.id !== chatId));
     storageBackend()
       .deleteSession(chatId)
-      .catch(swallowed("app", "best effort, the screen works without it"));
+      .catch((error: unknown) => {
+        // The chat is still on disk and would come back on the next launch, so it comes back now instead.
+        swallowed("app", "the chat stays listed when its file could not be removed")(error);
+        if (removed) setSessions((prev) => (prev.some((s) => s.id === chatId) ? prev : [removed, ...prev]));
+      });
   }, []);
 
   const clearSessions = useCallback(() => {

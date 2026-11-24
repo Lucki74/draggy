@@ -1,4 +1,5 @@
 import { Icon } from "./icons/Icon";
+import { uiText } from "../i18n";
 
 interface ImagePreviewProps {
     src: string;
@@ -26,7 +27,7 @@ export function ImagePreview({ src, alt, onDelete, size = "md" }: ImagePreviewPr
                     type="button"
                     onClick={onDelete}
                     className="absolute -top-1.5 -end-1.5 p-0.5 rounded-full bg-surface-base border border-rule hover:bg-danger/10 hover:border-danger transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                    aria-label="Remove attachment"
+                    aria-label={uiText("remove")}
                 >
                     <Icon name="x" size={10} />
                 </button>

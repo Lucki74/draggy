@@ -12,6 +12,7 @@ import { fill } from "../onboarding/text";
 import { ConfirmDialog, Toggle } from "./Controls";
 import { hostnameOf, hueFor, siteLabel } from "./../utils";
 import { iconMissing, markIconMissing } from "../favicon";
+import { swallowed } from "../logger";
 import type {
   RegistryEntry,
   McpCatalogueEntry,
@@ -122,10 +123,10 @@ export default function McpPanel({ t }: { t: (key: string) => string }) {
   useEffect(() => {
     if (!api) return;
 
-    api.catalogue().then((result) => setCatalogue(result.servers || []));
-    api.config().then((result) => setConfig(result.config || {}));
-    api.running().then((result) => setRunning(result.servers || []));
-    api.enabled().then((result) => setEnabled(result.ids || []));
+    api.catalogue().then((result) => setCatalogue(result.servers || [])).catch(swallowed("mcp", "the main process already logged this call"));
+    api.config().then((result) => setConfig(result.config || {})).catch(swallowed("mcp", "the main process already logged this call"));
+    api.running().then((result) => setRunning(result.servers || [])).catch(swallowed("mcp", "the main process already logged this call"));
+    api.enabled().then((result) => setEnabled(result.ids || [])).catch(swallowed("mcp", "the main process already logged this call"));
 
     const stopWatching = api.onState?.((state) => {
       setRunning(state.servers || []);

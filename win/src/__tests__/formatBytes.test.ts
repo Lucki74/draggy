@@ -19,3 +19,13 @@ describe("formatTransferred", () => {
     expect(formatTransferred(50_000_000, 200_000_000, "en")).toBe("50 / 200 MB");
   });
 });
+
+describe("formatBytes edges", () => {
+  it("uses KB below a megabyte", () => {
+    expect(formatBytes(4_200, "en")).toBe("4 KB");
+    expect(formatBytes(12, "en")).toBe("1 KB");
+  });
+  it("rounds a size just under a gigabyte up to GB", () => {
+    expect(formatBytes(999_600_000, "en")).toBe("1.0 GB");
+  });
+});

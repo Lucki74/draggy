@@ -160,6 +160,8 @@ export function useChatSession({
 
     const [loadedDraftKey, setLoadedDraftKey] = useState(draftKey);
     if (loadedDraftKey !== draftKey) {
+        // The debounced write below is cancelled by the switch, so the text typed just before it is kept here.
+        writeLocalStorage(loadedDraftKey, input);
         setLoadedDraftKey(draftKey);
         setInput(localStorage.getItem(draftKey) || "");
     }
@@ -170,6 +172,17 @@ export function useChatSession({
         }, 300);
         return () => clearTimeout(handle);
     }, [input, draftKey]);
+
+    const latestDraft = useRef({ key: draftKey, value: input });
+    useEffect(() => {
+        latestDraft.current = { key: draftKey, value: input };
+    }, [input, draftKey]);
+    useEffect(() => {
+        const latest = latestDraft;
+        return () => {
+            writeLocalStorage(latest.current.key, latest.current.value);
+        };
+    }, []);
 
     const [attachedFiles, setAttachedFiles] = useState<Attachment[]>([]);
     const [fileErrors, setFileErrors] = useState<string[]>([]);

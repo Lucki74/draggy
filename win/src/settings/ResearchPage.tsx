@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { uiLocale } from "../i18n";
 import { Button, Page } from "./Controls";
 import StreamingMarkdown from "../chat/StreamingMarkdown";
 import { Icon } from "../ui/icons/Icon";
@@ -59,7 +60,11 @@ export function ResearchPage({ sessions, onFollowUp, t }: Props) {
       <input
         type="search"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => {
+          // The last search answered an older query; its hits would list the wrong runs until the new ones land.
+          setHits(null);
+          setQuery(event.target.value);
+        }}
         placeholder={t("researchSearchPlaceholder")}
         aria-label={t("researchSearchPlaceholder")}
         className="h-8 w-full rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"
@@ -78,7 +83,7 @@ export function ResearchPage({ sessions, onFollowUp, t }: Props) {
               >
                 <span className="truncate text-[14px] text-text-primary">{run.question}</span>
                 <span className="text-[12px] text-text-tertiary">
-                  {[new Date(run.startedAt).toLocaleDateString(), t(DEPTH_LABEL[run.depth]), t("researchRunSources").replace("{n}", String(run.sourceCount))].join(" · ")}
+                  {[new Date(run.startedAt).toLocaleDateString(uiLocale()), t(DEPTH_LABEL[run.depth]), t("researchRunSources").replace("{n}", String(run.sourceCount))].join(" · ")}
                 </span>
                 {snippetOf(run.id) && <span className="line-clamp-2 text-[12px] text-text-secondary">{snippetOf(run.id)}</span>}
               </button>

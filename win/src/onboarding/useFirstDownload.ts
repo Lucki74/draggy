@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { downloadModel, type BootBridge } from "../boot/bootSequence";
+import { BootError, downloadModel, type BootBridge } from "../boot/bootSequence";
 import { createSpeedMeter } from "../downloadSpeed";
 import { pullImageModel } from "../images/pullImageModel";
 
@@ -202,7 +202,9 @@ export function useFirstDownload(api: BootBridge | undefined = window.draggy): F
         },
         (error: unknown) => {
           if (controller.signal.aborted || isAbort(error)) return;
-          const message = error instanceof Error ? error.message : String(error);
+          // A BootError's message starts with its translation key; the bar adds the translated words itself.
+          const message =
+            error instanceof BootError ? (error.detail ?? "") : error instanceof Error ? error.message : String(error);
           setModel((current) => ({ ...current, phase: "error", error: message }));
         },
       );

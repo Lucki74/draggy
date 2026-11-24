@@ -141,7 +141,7 @@ export default function StartupScreen({ modelName, language, onReady, onUseProvi
                     <p className="mt-2 flex justify-between gap-3 text-[12px] leading-4 text-text-tertiary">
                       <span className="min-w-0 truncate">{progress.label}</span>
                       <span className="flex-shrink-0 tabular-nums">
-                        {formatTransferred(progress.completed, progress.total)}
+                        {formatTransferred(progress.completed, progress.total, language)}
                       </span>
                     </p>
                   )}
