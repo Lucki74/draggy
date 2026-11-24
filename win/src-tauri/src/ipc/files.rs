@@ -373,7 +373,27 @@ fn ignored_change(rel: &str) -> bool {
         || rel.ends_with('~')
         || SKIPPED_FOLDERS
             .iter()
-            .any(|name| rel.contains(&format!("/{name}/")) || rel.starts_with(name))
+            .any(|name| {
+                rel == *name
+                    || rel.starts_with(&format!("{name}/"))
+                    || rel.contains(&format!("/{name}/"))
+            })
+}
+
+#[cfg(test)]
+mod watcher_tests {
+    use super::ignored_change;
+
+    #[test]
+    fn skips_only_whole_folder_names() {
+        assert!(ignored_change(".git/index"));
+        assert!(ignored_change("node_modules/a/b.js"));
+        assert!(ignored_change("app/dist/main.js"));
+        assert!(ignored_change("notes.md.swp"));
+        assert!(!ignored_change(".gitignore"));
+        assert!(!ignored_change(".github/workflows/ci.yml"));
+        assert!(!ignored_change("distance.ts"));
+    }
 }
 
 /// Starts the watcher for a workspace root unless one runs. Outside changes reach the canvas as `file-changed`,
@@ -383,7 +403,9 @@ pub(crate) fn ensure_workspace_watcher(app: &AppHandle, workspace: &str, root: &
     if map.contains_key(workspace) || !root.exists() {
         return;
     }
-    let pending: Arc<Mutex<(u64, PathBuf)>> = Arc::new(Mutex::new((0, root.to_path_buf())));
+    // Latest generation per changed path, so a burst across several files reports every one of them.
+    let pending: Arc<Mutex<(u64, HashMap<PathBuf, u64>)>> =
+        Arc::new(Mutex::new((0, HashMap::new())));
     let root_path = root.to_path_buf();
     let (handler_app, id) = (app.clone(), workspace.to_owned());
     let handler = move |result: notify::Result<notify::Event>| {
@@ -400,17 +422,23 @@ pub(crate) fn ensure_workspace_watcher(app: &AppHandle, workspace: &str, root: &
             let generation = {
                 let mut slot = pending.lock().unwrap_or_else(PoisonError::into_inner);
                 slot.0 += 1;
-                slot.1 = changed;
-                slot.0
+                let generation = slot.0;
+                slot.1.insert(changed.clone(), generation);
+                generation
             };
             let (pending, app, id) = (Arc::clone(&pending), handler_app.clone(), id.clone());
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(Duration::from_millis(150)).await;
-                let path = {
-                    let slot = pending.lock().unwrap_or_else(PoisonError::into_inner);
-                    (slot.0 == generation).then(|| slot.1.clone())
+                let latest = {
+                    let mut slot = pending.lock().unwrap_or_else(PoisonError::into_inner);
+                    let latest = slot.1.get(&changed) == Some(&generation);
+                    if latest {
+                        slot.1.remove(&changed);
+                    }
+                    latest
                 };
-                if let Some(path) = path {
+                if latest {
+                    let path = changed;
                     let payload = json!({ "workspaceId": id, "path": path_text(&path) });
                     crate::ipc::emit(&app, "file-changed", payload);
                 }
