@@ -3,6 +3,7 @@
 
 pub mod browser;
 pub mod chat_gateway;
+pub mod child_job;
 pub mod draggy_scheme;
 pub mod engines;
 pub mod images;
@@ -216,12 +217,39 @@ pub(crate) fn focus_main_window(app: &tauri::AppHandle) {
     }
 }
 
+/// Shows why Draggy cannot start and exits. The app has no console, so a panic here would just vanish.
+fn startup_failed(message: &str) -> ! {
+    #[cfg(windows)]
+    {
+        use windows::Win32::UI::WindowsAndMessaging::{MB_ICONERROR, MB_OK, MessageBoxW};
+        use windows::core::HSTRING;
+        // SAFETY: both strings live for the call and no owner window is passed.
+        unsafe {
+            MessageBoxW(
+                None,
+                &HSTRING::from(message),
+                &HSTRING::from("Draggy"),
+                MB_OK | MB_ICONERROR,
+            );
+        }
+    }
+    eprintln!("{message}");
+    std::process::exit(1);
+}
+
 pub fn run() {
     // The port must be known before the window, so the CSP can name the gateway's origin.
+    child_job::install();
     let mut context = tauri::generate_context!();
-    let listener = chat_gateway::bind().expect("the chat gateway could not bind");
-    chat_gateway::restrict_csp(&mut context, listener.port())
-        .expect("the chat gateway could not set its CSP");
+    let listener = match chat_gateway::bind() {
+        Ok(listener) => listener,
+        Err(error) => startup_failed(&format!("The local chat gateway could not start: {error}")),
+    };
+    if let Err(error) = chat_gateway::restrict_csp(&mut context, listener.port()) {
+        startup_failed(&format!(
+            "The local chat gateway could not be set up: {error}"
+        ));
+    }
     tauri::Builder::default()
         // Must come first so a second launch is caught before anything else starts.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {

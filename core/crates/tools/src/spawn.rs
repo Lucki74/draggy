@@ -20,6 +20,21 @@ const READ_CHUNK: usize = 8_192;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
+static ADOPTER: std::sync::OnceLock<fn(u32)> = std::sync::OnceLock::new();
+
+/// Lets the app take every child this module starts, for example into a Windows job that ends them when the app
+/// process ends however it ends. Core cannot hold unsafe code, so the app brings the platform part. Set once.
+pub fn set_adopter(adopter: fn(u32)) {
+    let _ = ADOPTER.set(adopter);
+}
+
+/// Hands a started child to the adopter, when the app set one.
+pub fn adopt(pid: Option<u32>) {
+    if let (Some(adopter), Some(pid)) = (ADOPTER.get(), pid) {
+        adopter(pid);
+    }
+}
+
 /// Stops every tool that holds it. One token per turn lets Escape stop all of the turn's running tools at once.
 #[derive(Clone, Debug)]
 pub struct CancelToken {
@@ -88,7 +103,9 @@ pub fn spawn_hidden<S: AsRef<OsStr>>(
     args: &[S],
     setup: impl FnOnce(&mut Command),
 ) -> io::Result<Child> {
-    hidden_command(program, args, setup).spawn()
+    let child = hidden_command(program, args, setup).spawn()?;
+    adopt(child.id());
+    Ok(child)
 }
 
 /// Starts a hidden process whose input the caller writes to, for servers that read requests from stdin.
@@ -99,7 +116,9 @@ pub fn spawn_hidden_with_input<S: AsRef<OsStr>>(
 ) -> io::Result<Child> {
     let mut command = hidden_command(program, args, setup);
     command.stdin(Stdio::piped());
-    command.spawn()
+    let child = command.spawn()?;
+    adopt(child.id());
+    Ok(child)
 }
 
 /// Runs a hidden process to the end and returns its whole output, for calls that need no timeout or cancel.
@@ -558,7 +577,9 @@ pub fn spawn_piped_blocking(
         use std::os::windows::process::CommandExt;
         command.creation_flags(0x0800_0000);
     }
-    command.spawn()
+    let child = command.spawn()?;
+    adopt(Some(child.id()));
+    Ok(child)
 }
 
 /// Starts a hidden child in its own process group with all three streams piped and exactly `env`, for background
@@ -588,7 +609,9 @@ pub fn spawn_task_blocking(
         use std::os::windows::process::CommandExt;
         command.creation_flags(0x0800_0000);
     }
-    command.spawn()
+    let child = command.spawn()?;
+    adopt(Some(child.id()));
+    Ok(child)
 }
 
 /// Runs a short command to the end on the calling thread and returns its output.

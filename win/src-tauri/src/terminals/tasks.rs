@@ -1030,16 +1030,35 @@ mod tests {
     use super::*;
     use std::sync::mpsc;
 
-    fn logs(tag: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("draggy-tasks-{tag}-{}", now_ms()))
+    /// A manager whose log folder is removed when the test ends.
+    struct TestManager {
+        manager: Manager,
+        _logs: tempfile::TempDir,
     }
 
-    fn manager(tag: &str) -> (Manager, mpsc::Receiver<Value>) {
+    impl std::ops::Deref for TestManager {
+        type Target = Manager;
+        fn deref(&self) -> &Manager {
+            &self.manager
+        }
+    }
+
+    fn manager(tag: &str) -> (TestManager, mpsc::Receiver<Value>) {
         let (tx, rx) = mpsc::channel();
-        let manager = Manager::new(Some(logs(tag)), move |event| {
+        let logs = tempfile::Builder::new()
+            .prefix(&format!("draggy-tasks-{tag}-"))
+            .tempdir()
+            .expect("a temp folder");
+        let manager = Manager::new(Some(logs.path().to_path_buf()), move |event| {
             let _ = tx.send(event);
         });
-        (manager, rx)
+        (
+            TestManager {
+                manager,
+                _logs: logs,
+            },
+            rx,
+        )
     }
 
     fn start(manager: &Manager, chat: &str, command: &str) -> Result<Started, String> {

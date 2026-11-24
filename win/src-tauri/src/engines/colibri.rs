@@ -897,6 +897,7 @@ impl ColibriServer {
             }
         };
         crate::proc_log::spawned("colibri", spawn.args.as_slice());
+        draggy_tools::spawn::adopt(child.id());
 
         let progress = Arc::new(Mutex::new(Progress::new()));
         if let Some(out) = child.stdout.take() {
