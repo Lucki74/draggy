@@ -124,11 +124,14 @@ pub fn plan_save(
         return Err("That is not a valid npm package name.".to_owned());
     }
 
-    let env_in = entry
-        .get("env")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default();
+    // A malformed env would start the server with none of its variables, so it is refused instead.
+    let env_in = match entry.get("env") {
+        None | Some(Value::Null) => Map::new(),
+        Some(Value::Object(env)) => env.clone(),
+        Some(_) => {
+            return Err("A server's environment has to be a set of names and values.".to_owned());
+        }
+    };
     let secret_fields: Map<String, Value> = if url.is_empty() {
         env_in
             .iter()
@@ -297,6 +300,12 @@ mod tests {
         let plan = plan_save("github", &entry, None, true, |f| f == "TOKEN").unwrap();
         assert_eq!(plan.entry["env"], json!({"MODE": "x"}));
         assert_eq!(plan.secrets.unwrap()["TOKEN"], json!("t"));
+    }
+
+    #[test]
+    fn a_malformed_env_is_refused_rather_than_dropped() {
+        let entry = json!({"enabled": true, "env": ["TOKEN=t"]});
+        assert!(plan_save("github", &entry, None, true, |_| false).is_err());
     }
 
     #[test]
