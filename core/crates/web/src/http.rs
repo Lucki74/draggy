@@ -11,6 +11,8 @@ use crate::policy::{UrlPolicy, is_private_ip};
 
 /// Redirect hops a request may follow. Node's fetch and the hidden browser both follow 20.
 const REDIRECT_LIMIT: usize = 20;
+/// The most of a body kept. A page or answer past this is cut, so one huge reply cannot fill memory.
+const BODY_LIMIT: usize = 16 * 1024 * 1024;
 
 /// The verbs the port uses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -165,7 +167,15 @@ impl HttpClient for ReqwestClient {
             .get(reqwest::header::CONTENT_TYPE)
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned);
-        let bytes = response.bytes().await.map_err(map_error)?;
+        let mut response = response;
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(map_error)? {
+            let room = BODY_LIMIT - bytes.len();
+            bytes.extend_from_slice(&chunk[..chunk.len().min(room)]);
+            if bytes.len() >= BODY_LIMIT {
+                break;
+            }
+        }
         let body = if request.page {
             decode_page(&bytes, content_type.as_deref())
         } else {

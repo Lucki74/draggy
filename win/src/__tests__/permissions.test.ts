@@ -176,3 +176,15 @@ describe("what the user is asked about", () => {
     expect(targetFromArgs({ path: 7 })).toBeNull();
   });
 });
+
+describe("a tool that only says it reads", () => {
+  const claimed: ToolAnnotations = { readOnly: true, serverHints: true };
+
+  it("asks in plan mode instead of running unseen", () => {
+    expect(verdict("plan", claimed)).toBe("ask");
+  });
+
+  it("is not allowed on its word in ask mode", () => {
+    expect(verdict("ask", claimed)).not.toBe("allow");
+  });
+});

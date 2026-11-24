@@ -27,6 +27,10 @@ export interface ToolAnnotations {
   /** Runs outside the sandbox. Never allowed without a question, whatever the mode but YOLO. */
   outsideSandbox?: boolean;
 
+  /** The hints below come from an outside MCP server. A server can claim anything, so its
+   * read-only claim never skips a question on its own. */
+  serverHints?: boolean;
+
   /** Explicit hints matching MCP and directory requirements. */
   readOnlyHint?: boolean;
   destructiveHint?: boolean;
@@ -177,17 +181,49 @@ const READ_ONLY_GIT = new Set([
   "describe",
 ]);
 
+const BRANCH_LIST_FLAGS = new Set([
+  "-a",
+  "-r",
+  "-v",
+  "-vv",
+  "-l",
+  "--all",
+  "--remotes",
+  "--list",
+  "--verbose",
+  "--show-current",
+]);
+
+/** `git branch` and `git remote` list things when bare, and change things with arguments. */
+function gitArgsReadOnly(sub: string, rest: string[]): boolean {
+  if (sub === "branch")
+    return rest.every((word) => BRANCH_LIST_FLAGS.has(word.toLowerCase()));
+  if (sub === "remote") {
+    const action = rest.find((word) => !word.startsWith("-"));
+    if (!action) return rest.every((word) => /^(-v|--verbose)$/.test(word));
+    return action === "show" || action === "get-url";
+  }
+  return true;
+}
+
 function readOnlySegment(segment: string): boolean {
   const words = segment.trim().split(/\s+/);
   const head = (words[0] ?? "").toLowerCase();
   if (head === "git") {
-    const sub = words.slice(1).find((word) => !word.startsWith("-"));
-    return !!sub && READ_ONLY_GIT.has(sub.toLowerCase());
+    const at = words.findIndex((word, i) => i > 0 && !word.startsWith("-"));
+    const sub = at > 0 ? words[at].toLowerCase() : "";
+    if (!READ_ONLY_GIT.has(sub)) return false;
+    return gitArgsReadOnly(sub, words.slice(at + 1));
   }
   if (
     head === "find" &&
-    words.some((w) => /^-(delete|exec|execdir|ok)$/i.test(w))
+    words.some((w) =>
+      /^-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)$/i.test(w),
+    )
   )
+    return false;
+  // `sort -o file` writes the result to a file.
+  if (head === "sort" && words.some((w) => /^(-[^-]*o|--output)/.test(w)))
     return false;
   return READ_ONLY_COMMANDS.has(head);
 }
@@ -215,12 +251,18 @@ export function decide(query: PermissionQuery): Verdict {
 
   // Reading is allowed everywhere, plan mode included: looking at the project
   // is exactly what plan mode is for.
-  if (isReadOnly) {
+  if (isReadOnly && !annotations.serverHints) {
     return { decision: "allow", reason: "This tool only reads." };
   }
 
   if (mode === "plan") {
-    return { decision: "deny", reason: PLAN_REFUSAL };
+    return isReadOnly
+      ? {
+          decision: "ask",
+          reason:
+            "The server says this tool only reads, so the user confirms it first.",
+        }
+      : { decision: "deny", reason: PLAN_REFUSAL };
   }
 
   if (mode === "auto") {

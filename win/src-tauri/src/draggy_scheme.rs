@@ -17,6 +17,8 @@ use crate::ipc::files::created_dir;
 
 const MODEL_ORIGIN: &str = "https://huggingface.co";
 const ICON_TIMEOUT: Duration = Duration::from_secs(5);
+/// A model download that sends nothing for this long is given up on.
+const MODEL_STALL: Duration = Duration::from_secs(30);
 const MAX_ICON_BYTES: usize = 256 * 1024;
 const ICON_PAGE_CHARS: usize = 60_000;
 const ICON_CACHE_SECONDS: u32 = 604_800;
@@ -103,7 +105,10 @@ fn serve_created(dir: &Path, name: &str) -> Response<Vec<u8>> {
     let Some(content_type) = created_mime(name) else {
         return text(400, "Bad request");
     };
-    if name.is_empty() || name.contains(['/', '\\']) {
+    // One plain component only: "C:x.png" would join as a drive-relative path outside the folder.
+    let mut parts = Path::new(name).components();
+    let bare = matches!(parts.next(), Some(Component::Normal(_))) && parts.next().is_none();
+    if !bare || name.contains(['/', '\\', ':']) {
         return text(400, "Bad request");
     }
     let target = dir.join(name);
@@ -151,7 +156,13 @@ async fn model(app: &AppHandle, root: &Path, relative: &str) -> Response<Vec<u8>
     let Some(client) = client() else {
         return text(502, "Upstream unreachable");
     };
-    let Some(mut reply) = fetch(app, client, &format!("{MODEL_ORIGIN}/{relative}"), None).await
+    let Some(mut reply) = fetch(
+        app,
+        client,
+        &format!("{MODEL_ORIGIN}/{relative}"),
+        Some(MODEL_STALL),
+    )
+    .await
     else {
         return text(502, "Upstream unreachable");
     };
@@ -605,6 +616,7 @@ mod tests {
         assert_eq!(served.headers()[header::CONTENT_TYPE], "image/png");
         assert_eq!(served.body().as_slice(), b"\x89PNG-bytes");
         assert_eq!(serve_created(dir.path(), "../fox.png").status(), 400);
+        assert_eq!(serve_created(dir.path(), "C:fox.png").status(), 400);
         assert_eq!(serve_created(dir.path(), "notes.txt").status(), 400);
         assert_eq!(serve_created(dir.path(), "missing.png").status(), 404);
     }

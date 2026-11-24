@@ -94,7 +94,21 @@ export function createToolParser(names: string[]): ToolParser {
     ORPHAN_BRACE_LINE_RE,
   ];
 
+  // A call shown as an example inside a fenced block is prose, not a request to run it. A reply that is only
+  // a fenced block is the model wrapping its real call, so that one is still read.
   const detect = (raw: string): string | null => {
+    const fences: string[] = [];
+    const masked = raw.replace(FENCED_BLOCK_RE, (block) => {
+      fences.push(block);
+      return `__DRAGGY_FENCE_${fences.length - 1}__`;
+    });
+    if (fences.length === 0) return detectIn(raw);
+    const found = detectIn(masked);
+    if (found) return found.replace(/__DRAGGY_FENCE_(\d+)__/g, (whole, index) => fences[Number(index)] ?? whole);
+    return masked.trim().match(/^__DRAGGY_FENCE_\d+__$/) ? detectIn(raw) : null;
+  };
+
+  const detectIn = (raw: string): string | null => {
     const tagged = raw.match(TOOL_TAG_RE);
     if (tagged) return tagged[1];
 

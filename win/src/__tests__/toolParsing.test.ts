@@ -230,3 +230,14 @@ describe("extracting streaming file creation arguments", () => {
 });
 
 
+
+describe("calls shown inside a fenced block", () => {
+  it("leaves an example in prose alone", () => {
+    const raw = 'You could call it like this:\n```json\n{"name": "search_web", "args": {"query": "x"}}\n```\nbut I will not.';
+    expect(parser.detect(raw)).toBeNull();
+  });
+  it("still reads a reply that is only a fenced call", () => {
+    const raw = '```json\n{"name": "search_web", "args": {"query": "x"}}\n```';
+    expect(parser.detect(raw)).not.toBeNull();
+  });
+});
