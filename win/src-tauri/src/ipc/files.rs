@@ -371,13 +371,11 @@ const SKIPPED_FOLDERS: &[&str] = &[".git", "node_modules", "dist", "dist-electro
 fn ignored_change(rel: &str) -> bool {
     rel.ends_with(".swp")
         || rel.ends_with('~')
-        || SKIPPED_FOLDERS
-            .iter()
-            .any(|name| {
-                rel == *name
-                    || rel.starts_with(&format!("{name}/"))
-                    || rel.contains(&format!("/{name}/"))
-            })
+        || SKIPPED_FOLDERS.iter().any(|name| {
+            rel == *name
+                || rel.starts_with(&format!("{name}/"))
+                || rel.contains(&format!("/{name}/"))
+        })
 }
 
 #[cfg(test)]
