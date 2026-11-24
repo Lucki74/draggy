@@ -54,6 +54,15 @@ describe("not mistaking ordinary text for a tool call", () => {
   }
 });
 
+describe("a bare call whose arguments nest", () => {
+  it("keeps the whole object", () => {
+    const raw = 'Sure. {"name": "search_web", "args": {"query": "x", "filter": {"site": "a"}, "n": 2}} done';
+    const detected = parser.detect(raw);
+    expect(detected).not.toBeNull();
+    expect(parseToolCall(detected as string).args).toEqual({ query: "x", filter: { site: "a" }, n: 2 });
+  });
+});
+
 describe("stripping tool syntax out of the visible reply", () => {
   for (const fixture of TOOL_CALL_FIXTURES) {
     if (fixture.visible === undefined) continue;
@@ -230,3 +239,14 @@ describe("extracting streaming file creation arguments", () => {
 });
 
 
+
+describe("calls shown inside a fenced block", () => {
+  it("leaves an example in prose alone", () => {
+    const raw = 'You could call it like this:\n```json\n{"name": "search_web", "args": {"query": "x"}}\n```\nbut I will not.';
+    expect(parser.detect(raw)).toBeNull();
+  });
+  it("still reads a reply that is only a fenced call", () => {
+    const raw = '```json\n{"name": "search_web", "args": {"query": "x"}}\n```';
+    expect(parser.detect(raw)).not.toBeNull();
+  });
+});

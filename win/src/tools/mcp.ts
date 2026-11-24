@@ -71,6 +71,7 @@ export function toAnnotations(hints?: McpToolHints): ToolAnnotations {
   const openWorld = hints?.openWorldHint !== false;
 
   return {
+    serverHints: true,
     readOnly,
     readOnlyHint: readOnly,
     destructive,

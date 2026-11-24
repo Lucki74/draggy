@@ -6,7 +6,7 @@ import {
   commandSegments,
   needsHost,
 } from "../agent/commandRules";
-import { decide, grantsFor, targetFromArgs } from "../agent/permissions";
+import { commandReadOnly, decide, grantsFor, targetFromArgs } from "../agent/permissions";
 import type { ToolAnnotations } from "../agent/permissions";
 
 /** Commands under the permission engine. A command can do anything, so it asks in every mode but
@@ -160,5 +160,28 @@ describe("node runners", () => {
     expect(needsHost("git status")).toBe(false);
     expect(needsHost("node script.js")).toBe(false);
     expect(needsHost("cargo test")).toBe(false);
+  });
+});
+
+describe("commands that only look like reads", () => {
+  it("reads a branch or remote listing", () => {
+    for (const line of ["git branch", "git branch -a", "git branch --list", "git remote -v", "git remote show origin"]) {
+      expect(commandReadOnly(line), line).toBe(true);
+    }
+  });
+
+  it("does not treat a change through a read command as a read", () => {
+    for (const line of [
+      "git branch -D main",
+      "git branch new-branch",
+      "git remote remove origin",
+      "git remote add evil https://example.com",
+      "sort -o out.txt in.txt",
+      "sort --output=out.txt in.txt",
+      "find . -fprint list.txt",
+      "find . -okdir rm {} ;",
+    ]) {
+      expect(commandReadOnly(line), line).toBe(false);
+    }
   });
 });
