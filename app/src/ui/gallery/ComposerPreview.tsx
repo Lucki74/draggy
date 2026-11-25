@@ -48,7 +48,7 @@ export function ComposerPreview({
     onOpenSettings?: (tab: string) => void;
     runSlashCommand?: (id: string) => void;
     language?: keyof typeof translations;
-    /** As the composer looks under 640px wide. */
+    /** As the composer looks in a narrow column, where the controls wrap. */
     narrow?: boolean;
     /** Empty for a first run with no model loaded. */
     model?: string;
@@ -83,7 +83,6 @@ export function ComposerPreview({
         contextView: VIEW,
         compacting: false,
         acceptAttribute: "*",
-        compactToolbar: narrow,
         tightToolbar: false,
         speechSupported: true,
         variant,
@@ -108,5 +107,11 @@ export function ComposerPreview({
         workContext,
     } as unknown as ComposerProps;
 
-    return <Composer {...props} />;
+    return narrow ? (
+        <div style={{ width: 360 }}>
+            <Composer {...props} />
+        </div>
+    ) : (
+        <Composer {...props} />
+    );
 }

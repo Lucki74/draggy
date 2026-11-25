@@ -100,7 +100,6 @@ export interface ComposerProps {
     contextView: ContextWindowView;
     compacting: boolean;
     acceptAttribute: string;
-    compactToolbar: boolean;
     tightToolbar: boolean;
     speechSupported: boolean;
     /** "home" sits centered on an empty session; "dock" is pinned under the transcript. */
@@ -189,7 +188,6 @@ export function Composer({
     contextView,
     compacting,
     acceptAttribute,
-    compactToolbar,
     tightToolbar,
     speechSupported,
     variant = "dock",
@@ -793,8 +791,8 @@ export function Composer({
                     />
                     </div>
 
-                    {/* Below 640px the controls take a second line instead of losing their labels. */}
-                    <div className={`flex items-center gap-1 px-2 pb-2 pt-1 min-w-0 ${compactToolbar ? "flex-wrap" : ""}`}>
+                    {/* When the row runs out of room the controls wrap to a second line instead of losing their labels. */}
+                    <div className="flex flex-wrap items-center gap-1 px-2 pb-2 pt-1 min-w-0">
                         <input
                             type="file"
                             multiple
@@ -822,7 +820,7 @@ export function Composer({
                             />
                         )}
 
-                        <div className={`flex flex-wrap items-center justify-end gap-1 min-w-0 ${compactToolbar ? "basis-full" : "ms-auto"}`}>
+                        <div className="ms-auto flex flex-wrap items-center justify-end gap-1 min-w-0">
                             {thinkingUnavailable ? (
                                 <Chip
                                     disabled

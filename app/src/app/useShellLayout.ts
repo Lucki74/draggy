@@ -4,6 +4,7 @@ const TREE_WIDTH = 224;
 const MIN_SIDE_WIDTH = 280;
 const CHAT_WIDTH_BESIDE_TREE = 460;
 const CHAT_MIN_WIDTH = 420;
+const MIN_PANE_WIDTH = 260;
 
 export interface ShellLayoutOptions {
     canvasPath: string | null;
@@ -47,6 +48,16 @@ export function useShellLayout({
         window.addEventListener("mouseup", onMouseUp);
     }, [treeWidth, workAreaWidth]);
 
+    // Window width only: the dock itself shrinks the work area, so using that would flip the dock to an overlay mid-drag.
+    const isNarrow = typeof window !== "undefined" && window.innerWidth < 1100;
+    const treeFits = workAreaWidth >= TREE_WIDTH + CHAT_WIDTH_BESIDE_TREE + (!isNarrow && canvasPath ? MIN_SIDE_WIDTH : 0);
+    // The work area holds both the chat and the docked pane. The pane floats only when even its minimum would squeeze the chat.
+    const dockOverlay = isNarrow || workAreaWidth - MIN_PANE_WIDTH < CHAT_MIN_WIDTH;
+    // A docked pane gives way to the chat, as when the window shrinks after a wide drag.
+    const paneWidth = dockOverlay
+        ? rightPaneWidth
+        : Math.max(MIN_PANE_WIDTH, Math.min(rightPaneWidth, workAreaWidth - CHAT_MIN_WIDTH));
+
     const startResizeRightPane = useCallback((e: React.PointerEvent) => {
         e.preventDefault();
         // Capture keeps the drag alive over the chat, a browser pane or anything else under the cursor.
@@ -54,14 +65,14 @@ export function useShellLayout({
         document.body.style.userSelect = "none";
         document.body.style.cursor = "col-resize";
         const startX = e.clientX;
-        const startW = rightPaneWidth;
+        const startW = paneWidth;
         let lastWidth = startW;
-        // The pane grows only into room the chat can give up; past that it would push off the window's edge.
-        const room = Math.min(window.innerWidth, startW + workAreaWidth) - CHAT_MIN_WIDTH;
-        const maxW = Math.max(startW, 300, room);
+        // The pane grows only into room the chat can give up, never past the window's edge.
+        const room = Math.min(window.innerWidth, workAreaWidth) - CHAT_MIN_WIDTH;
+        const maxW = Math.max(dockOverlay ? startW : MIN_PANE_WIDTH, MIN_PANE_WIDTH, room);
         const onMouseMove = (moveEvent: PointerEvent) => {
             const delta = startX - moveEvent.clientX;
-            lastWidth = Math.max(260, Math.min(maxW, startW + delta));
+            lastWidth = Math.max(MIN_PANE_WIDTH, Math.min(maxW, startW + delta));
             setRightPaneWidth(lastWidth);
         };
         const onMouseUp = () => {
@@ -75,20 +86,14 @@ export function useShellLayout({
         window.addEventListener("pointermove", onMouseMove);
         window.addEventListener("pointerup", onMouseUp);
         window.addEventListener("pointercancel", onMouseUp);
-    }, [rightPaneWidth, workAreaWidth, onRightPaneWidthChange]);
-
-    // Window width only: the dock itself shrinks the work area, so using that would flip the dock to an overlay mid-drag.
-    const isNarrow = typeof window !== "undefined" && window.innerWidth < 1100;
-    const treeFits = workAreaWidth >= TREE_WIDTH + CHAT_WIDTH_BESIDE_TREE + (!isNarrow && canvasPath ? MIN_SIDE_WIDTH : 0);
-    // A docked pane that would leave the chat under its minimum floats over it instead, so the chat keeps its width.
-    const dockOverlay = isNarrow || workAreaWidth - rightPaneWidth < CHAT_MIN_WIDTH;
+    }, [paneWidth, dockOverlay, workAreaWidth, onRightPaneWidthChange]);
 
     return {
         treeOpen,
         setTreeOpen,
         treeFits,
         treeWidth,
-        rightPaneWidth,
+        rightPaneWidth: paneWidth,
         dockOverlay,
         observeWorkArea,
         startResizeTree,
