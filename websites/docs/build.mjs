@@ -57,9 +57,19 @@ function stripTags(text) {
 }
 
 const slugify = (s) => stripTags(s.toLowerCase()).replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "section";
+/** Markdown without its fenced code blocks, stripped until nothing changes. */
+function stripFences(md) {
+  let out = md;
+  let previous;
+  do {
+    previous = out;
+    out = out.replace(/```[\s\S]*?```/g, " ");
+  } while (out !== previous);
+  return out;
+}
+
 const plain = (md) =>
-  md
-    .replace(/```[\s\S]*?```/g, " ")
+  stripFences(md)
     .replace(/\[!(NOTE|TIP|WARNING|IMPORTANT|PLATFORMS)\]/g, "")
     .replace(/^>\s*-\s/gm, "")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
