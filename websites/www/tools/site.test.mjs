@@ -119,8 +119,7 @@ test("no source or page holds UTF-8 that was read as CP437 or CP850, or a replac
     ...pages.filter((file) => file.startsWith(join(out, "ru", ""))),
   ];
   for (const file of russian) {
-    const characters = [...read(file)
-      .replace(/<script[^]*?<\/script>/g, "")
+    const characters = [...withoutScripts(read(file))
       .replace(/<details class="lang">[^]*?<\/details>/g, "")];
     const found = characters.findIndex((ch) => latin1(ch.codePointAt(0)));
     assert.equal(found, -1, `${file} has ${characters[found]} at character ${found}`);
@@ -184,9 +183,19 @@ test("each indexable page lists all four languages and x-default", () => {
   }
 });
 
+/** The page without its scripts, stripped until nothing changes so no tag is left half removed. */
+function withoutScripts(html) {
+  let previous;
+  do {
+    previous = html;
+    html = html.replace(/<script\b[^]*?<\/script\s*>/gi, "");
+  } while (html !== previous);
+  return html;
+}
+
 test("English never says offline: the app goes online for search, updates and extensions", () => {
   for (const file of pages.filter((file) => !/[\\/](?:es|fr|ru)[\\/]/.test(file.replace(out, "")))) {
-    assert.doesNotMatch(read(file).replace(/<script[^]*?<\/script>/g, ""), /offline/i, file);
+    assert.doesNotMatch(withoutScripts(read(file)), /offline/i, file);
   }
 });
 
@@ -208,7 +217,7 @@ test("every inline script a page runs is allowed by the Content-Security-Policy 
 
   // Edit the theme script in tools/build.mjs and its hash in vercel.json has to change with it.
   for (const file of pages) {
-    for (const [, body] of read(file).matchAll(/<script>([^]*?)<\/script>/g)) {
+    for (const [, body] of read(file).matchAll(/<script>([^]*?)<\/script\s*>/gi)) {
       const hash = `'sha256-${createHash("sha256").update(body).digest("base64")}'`;
       assert.ok(csp.includes(hash), `${file}: ${hash} is not in the CSP`);
     }

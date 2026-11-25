@@ -444,7 +444,7 @@ function structuredData(code, page, t) {
         mainEntity: [1, 3, 11, 8, 10].map((n) => ({
           "@type": "Question",
           name: t(`faq.q${n}`),
-          acceptedAnswer: { "@type": "Answer", text: t(`faq.a${n}`).replace(/<[^>]+>/g, "") },
+          acceptedAnswer: { "@type": "Answer", text: stripTags(t(`faq.a${n}`)) },
         })),
       },
     ],
@@ -1118,9 +1118,14 @@ Sitemap: ${SITE}/sitemap.xml
  * question about Draggy: what it is in a sentence, then every English page
  * with its own summary, so a model can fetch the one it needs.
  */
+/** Plain text from a translation: drops tags, then any stray angle bracket. */
+function stripTags(text) {
+  return String(text).replace(/<[^>]*>/g, "").replace(/[<>]/g, "");
+}
+
 function llms() {
   const t = lookup("en");
-  const plain = (text) => text.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  const plain = (text) => stripTags(text).replace(/\s+/g, " ").trim();
   const line = (page, title, summary) => `- [${title}](${url("en", page)})${summary ? `: ${plain(summary)}` : ""}`;
   const site = (id) => PAGES.find((page) => page.id === id);
 

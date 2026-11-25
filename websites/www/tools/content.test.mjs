@@ -74,6 +74,7 @@ const vercel = JSON.parse(read(join(root, "vercel.json")));
 /** Mirrors the router's patterns for the shapes vercel.json uses. `:name` is one segment, `:name*` and `:name+` take the rest. */
 function toRegExp(source) {
   const body = source
+    .replace(/\\/g, "\\\\")
     .replace(/\./g, "\\.")
     .replace(/\/:(\w+)\*/g, "(?:/(?<$1>.*))?")
     .replace(/\/:(\w+)\+/g, "/(?<$1>.+)")

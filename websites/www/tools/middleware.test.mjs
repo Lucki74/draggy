@@ -248,6 +248,7 @@ const vercel = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url
 
 function toRegExp(source) {
   const body = source
+    .replace(/\\/g, "\\\\")
     .replace(/\./g, "\\.")
     .replace(/\/:(\w+)\*/g, "(?:/(?<$1>.*))?")
     .replace(/\/:(\w+)\+/g, "/(?<$1>.+)")
