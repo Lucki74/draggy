@@ -432,7 +432,7 @@ function structuredData(code, page, t) {
         url: pageUrl,
         downloadUrl: `${REPO}/releases`,
         license: `${REPO}/blob/main/LICENSE`,
-        operatingSystem: "Windows, macOS, Linux",
+        operatingSystem: "Windows, Linux",
         applicationCategory: "DeveloperApplication",
         softwareVersion: release.version,
         isAccessibleForFree: true,
@@ -843,14 +843,6 @@ const SPECS = {
     disk: ["spec.disk.min", "spec.disk.rec"],
     network: ["spec.net"],
   },
-  macos: {
-    os: ["spec.mac.os"],
-    cpu: ["spec.mac.cpu"],
-    memory: ["spec.mem.min", "spec.mem.recMac"],
-    gpu: ["spec.gpu.mac"],
-    disk: ["spec.disk.min", "spec.disk.rec"],
-    network: ["spec.net"],
-  },
   linux: {
     os: ["spec.linux.os"],
     cpu: ["spec.linux.cpu"],
@@ -863,7 +855,6 @@ const SPECS = {
 
 const INSTALL = {
   windows: [{ text: "install.windows.1" }, { text: "firstRun.windows" }, { text: "download.step3Text" }],
-  macos: [{ text: "install.macos.1" }, { text: "firstRun.macos" }, { text: "download.step3Text" }],
   linux: [
     { text: "install.linux.deb", cmd: "sudo apt install ./{{r:linux-deb.name}}" },
     { text: "install.linux.rpm", cmd: "sudo dnf install ./{{r:linux-rpm.name}}" },
@@ -873,10 +864,10 @@ const INSTALL = {
 
 /**
  * {{specs}}: Steam-style requirements, Minimum beside Recommended, then the install steps, once for each system.
- * With script a tab strip shows one system (the visitor's own first); without it all three are stacked.
+ * With script a tab strip shows one system (the visitor's own first); without it both are stacked.
  */
 function specsBlock(t) {
-  const names = { windows: t("os.windows"), macos: t("os.macos"), linux: t("os.linux") };
+  const names = { windows: t("os.windows"), linux: t("os.linux") };
   const rows = ["os", "cpu", "memory", "gpu", "disk", "network"];
   const tabs = Object.entries(names)
     .map(([os, name]) => `<button type="button" class="spec-tab" data-os-pick="${os}" aria-pressed="false">${name}</button>`)
@@ -1139,13 +1130,13 @@ function llms() {
 
 > ${plain(t("hero.heading"))} ${plain(t("index.description"))}
 
-${plain(t("hero.lede"))} Build ${release.build}, for Windows, macOS and Linux. Four languages: English, French, Spanish and Russian. Open source under the Apache License 2.0.
+${plain(t("hero.lede"))} Build ${release.build}, for Windows and Linux. macOS is coming back soon. Four languages: English, French, Spanish and Russian. Open source under the Apache License 2.0.
 
 ## Facts
 
 - Price: free for all users. Any cloud feature added later will be billed.
 - License: Apache License 2.0.
-- Platforms: Windows 10 or 11 (64-bit), macOS (Apple silicon) and Linux (.deb and .rpm, x86-64).
+- Platforms: Windows 10 or 11 (64-bit) and Linux (.deb and .rpm, x86-64). macOS is paused for now.
 - Account: none needed.
 - Not to be confused with Drag, the email product.
 

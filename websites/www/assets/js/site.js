@@ -739,6 +739,33 @@ function attempt(setup) {
   }
 }
 
+/* ---------- macOS waitlist ---------- */
+
+/** Sends the macOS waitlist form without leaving the page. Without script the form posts and the route redirects back. */
+function setUpWaitlist() {
+  for (const form of document.querySelectorAll("[data-waitlist]")) {
+    const status = form.querySelector("[data-waitlist-status]");
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = form.querySelector("button");
+      button.disabled = true;
+      try {
+        const response = await fetch(form.action, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.elements.email.value }),
+        });
+        if (!response.ok) throw new Error(String(response.status));
+        status.textContent = status.dataset.thanks;
+        form.elements.email.disabled = true;
+      } catch {
+        status.textContent = status.dataset.error;
+        button.disabled = false;
+      }
+    });
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   attempt(() => markOwnSystem(detectOs()));
   attempt(() => putOwnSystemFirst(document.documentElement.dataset.os));
@@ -755,4 +782,5 @@ document.addEventListener("DOMContentLoaded", () => {
   attempt(setUpStage);
   attempt(setUpFaq);
   attempt(setUpWikiContents);
+  attempt(setUpWaitlist);
 });

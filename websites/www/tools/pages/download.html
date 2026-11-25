@@ -17,11 +17,13 @@
             </div>
             <div class="dl" id="macos">
               <h2>{{t:os.macos}}</h2>
-              <p class="file-meta">{{t:download.card.macos}} · {{r:macos-zip.mb}}</p>
-              <a class="btn btn-lg" href="{{r:macos-zip.url}}">
-                <svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>
-                {{t:download.button}}
-              </a>
+              <p class="file-meta">{{t:download.macosSoon}}</p>
+              <form class="waitlist" action="/api/macos-waitlist" method="post" data-waitlist>
+                <label for="waitlist-email">{{t:download.macosEmail}}</label>
+                <input id="waitlist-email" name="email" type="email" autocomplete="email" required maxlength="254" />
+                <button class="btn btn-lg" type="submit">{{t:download.macosNotify}}</button>
+                <p class="file-meta" data-waitlist-status role="status" data-thanks="{{t:download.macosThanks}}" data-error="{{t:download.macosError}}">{{t:download.macosPrivacy}}</p>
+              </form>
             </div>
             <div class="dl" id="linux">
               <h2>{{t:os.linux}}</h2>

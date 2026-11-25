@@ -483,14 +483,12 @@ html[data-os="linux"] #linux {
 }
 
 html[data-os="windows"] .spec-tabs,
-html[data-os="macos"] .spec-tabs,
 html[data-os="linux"] .spec-tabs {
   display: flex;
   flex-wrap: wrap;
 }
 
 html[data-os="windows"] .spec:not([data-spec-os="windows"]),
-html[data-os="macos"] .spec:not([data-spec-os="macos"]),
 html[data-os="linux"] .spec:not([data-spec-os="linux"]) {
   display: none;
 }
@@ -501,7 +499,6 @@ html[data-os="linux"] .spec:not([data-spec-os="linux"]) {
 
 /* With the tabs showing, the system's own name is the tab, so the heading steps aside for a screen reader only. */
 html[data-os="windows"] .spec > h3,
-html[data-os="macos"] .spec > h3,
 html[data-os="linux"] .spec > h3 {
   position: absolute;
   width: 1px;
@@ -739,4 +736,20 @@ html[data-os="linux"] .spec > h3 {
   .glitch::before,
   .glitch::after { display: none; }
   .page-404 .code-404::after { display: none; }
+}
+
+/* macOS waitlist: one email field in the macOS download card. */
+.waitlist {
+  display: grid;
+  gap: 8px;
+}
+
+.waitlist input {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line, currentColor);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
 }

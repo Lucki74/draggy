@@ -36,7 +36,6 @@ const REPO = "Lucki74/draggy";
 /** The downloads the page offers, and how to recognise each in the release. Only the Windows installer is in an update manifest, so only it carries a checksum. */
 const ASSETS = {
   "windows-exe": (name) => name === "draggy_setup.exe",
-  "macos-zip": (name) => /^Draggy-[\d.]+-macos-arm64\.zip$/.test(name),
   "linux-deb": (name) => /^draggy_[\d.]+-\d+_amd64\.deb$/.test(name),
   "linux-rpm": (name) => /^draggy-[\d.]+-\d+\.x86_64\.rpm$/.test(name),
 };

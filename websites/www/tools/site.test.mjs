@@ -444,7 +444,7 @@ test("download links match the release version and formatted sizes", () => {
 test("the download page has a specs table for each system in every language", () => {
   for (const lang of ["", "fr/", "es/", "ru/"]) {
     const html = read(join(out, lang, "download", "index.html"));
-    for (const os of ["windows", "macos", "linux"]) {
+    for (const os of ["windows", "linux"]) {
       const spec = html.match(new RegExp(`<div class="spec"[^>]*data-spec-os="${os}"[^]*?</table>`))?.[0] ?? "";
       assert.ok(spec, `${lang || "en/"}download has no ${os} specs`);
       assert.equal((spec.match(/<th scope="row">/g) ?? []).length, 6, `${lang || "en/"}${os}: six rows`);

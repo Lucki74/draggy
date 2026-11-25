@@ -1,33 +1,49 @@
 {
-  "version": "3.0.15",
-  "build": 15,
-  "tag": "b-15",
-  "date": "2026-11-21",
+  "version": "3.0.16",
+  "build": 16,
+  "tag": "b-16",
+  "date": "2026-11-25",
   "stars": 8,
   "assets": {
     "windows-exe": {
       "name": "draggy_setup.exe",
-      "url": "https://github.com/Lucki74/draggy/releases/download/b-15/draggy_setup.exe",
-      "size": 189557310,
-      "sha512": "917b8ffeadd242202cba99fb71a4c67c476b9d651e752061a6ae299eb8de16b83ea457cdd6445ec9e26475f8c9ff96d41ce9a9dbead8968a5ca3285cf4747096"
-    },
-    "macos-zip": {
-      "name": "Draggy-3.0.15-macos-arm64.zip",
-      "url": "https://github.com/Lucki74/draggy/releases/download/b-15/Draggy-3.0.15-macos-arm64.zip",
-      "size": 17488050
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-16/draggy_setup.exe",
+      "size": 189556789,
+      "sha512": "c4050287eff44a1496b4c59cdcea6d81620d0fd748dffd3b13056f71acd2131339e1c134126f88d7296f54d0dddd5508bbdd0f71eba3e8cd980b097bc3c46cb0"
     },
     "linux-deb": {
-      "name": "draggy_3.0.15-1_amd64.deb",
-      "url": "https://github.com/Lucki74/draggy/releases/download/b-15/draggy_3.0.15-1_amd64.deb",
-      "size": 7794868
+      "name": "draggy_3.0.16-1_amd64.deb",
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-16/draggy_3.0.16-1_amd64.deb",
+      "size": 7650388
     },
     "linux-rpm": {
-      "name": "draggy-3.0.15-1.x86_64.rpm",
-      "url": "https://github.com/Lucki74/draggy/releases/download/b-15/draggy-3.0.15-1.x86_64.rpm",
-      "size": 9294186
+      "name": "draggy-3.0.16-1.x86_64.rpm",
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-16/draggy-3.0.16-1.x86_64.rpm",
+      "size": 9099892
     }
   },
   "recent": [
+    {
+      "tag": "b-16",
+      "build": 16,
+      "version": "3.0.16",
+      "date": "2026-11-25",
+      "html_url": "https://github.com/Lucki74/draggy/releases/tag/b-16",
+      "notes": {
+        "updates": [
+          "macOS builds are paused for now. This build ships for Windows and Linux only, and macOS will come back in a later build.",
+          "Download errors now tell you what to do about a full disk, a folder you can't write to, a bad checksum or a blocked address.",
+          "Skills switched on past the 40th can still be used."
+        ],
+        "fixes": [
+          "Model downloads on Windows no longer fail with \"URL refused by outbound security policy\".",
+          "Closing or crashing Draggy no longer leaves llama-server or shell processes running.",
+          "MCP tools that only claim to be read-only now ask before they run, and web fetches stop at 16 MiB.",
+          "When several files change at once, every one of them is picked up, so open canvases no longer go stale.",
+          "Enter with an input method editor, Escape in menus and rename, and retry on the crash screen work again."
+        ]
+      }
+    },
     {
       "tag": "b-15",
       "build": 15,
@@ -56,22 +72,6 @@
           "Replies in chats signed in with an account are no longer empty",
           "Tool calls and follow-up messages in ChatGPT chats now work",
           "Browser tool calls are now shown as completed instead of failed all the time"
-        ]
-      }
-    },
-    {
-      "tag": "b-13",
-      "build": 13,
-      "version": "3.0.13",
-      "date": "2026-11-17",
-      "html_url": "https://github.com/Lucki74/draggy/releases/tag/b-13",
-      "notes": {
-        "updates": [
-          "Draggy opens with a small startup window that checks for an update, and auto-installs it."
-        ],
-        "fixes": [
-          "Every skill in the built-in library is installed, where only one of them used to land",
-          "Long messages in Cyrillic, Chinese and other non-Latin scripts are no longer treated as binary data"
         ]
       }
     }
