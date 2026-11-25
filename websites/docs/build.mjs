@@ -57,29 +57,25 @@ function stripTags(text) {
 }
 
 const slugify = (s) => stripTags(s.toLowerCase()).replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "section";
-/** Markdown without its fenced code blocks, stripped until nothing changes. */
-function stripFences(md) {
+/** Markdown as plain text for the search index, stripped until nothing changes so no marker is left half removed. */
+function plain(md) {
   let out = md;
   let previous;
   do {
     previous = out;
-    out = out.replace(/```[\s\S]*?```/g, " ");
+    out = out
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/\[!(NOTE|TIP|WARNING|IMPORTANT|PLATFORMS)\]/g, "")
+      .replace(/^>\s*-\s/gm, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/<[^>]+>/g, "")
+      .replace(/[`*#>|]/g, "")
+      .replace(/\{#[^}]*\}/g, "")
+      .replace(/\{\{n:[a-zA-Z]+\}\}/g, "");
   } while (out !== previous);
-  return out;
+  return out.replace(/\s+/g, " ").trim();
 }
-
-const plain = (md) =>
-  stripFences(md)
-    .replace(/\[!(NOTE|TIP|WARNING|IMPORTANT|PLATFORMS)\]/g, "")
-    .replace(/^>\s*-\s/gm, "")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/<[^>]+>/g, "")
-    .replace(/[`*#>|]/g, "")
-    .replace(/\{#[^}]*\}/g, "")
-    .replace(/\{\{n:[a-zA-Z]+\}\}/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
 
 function subst(text) {
   return text.replace(/\{\{n:([a-zA-Z]+)\}\}/g, (_, k) => {
