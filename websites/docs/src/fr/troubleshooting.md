@@ -38,7 +38,7 @@ Le modèle ne peut atteindre que le dossier du projet, et ne peut récupérer qu
 
 ## Les mises à jour n'arrivent jamais
 
-Les mises à jour ne fonctionnent que dans une version installée. Depuis les sources, elles sont désactivées.
+Les mises à jour ne fonctionnent que dans une version installée. Les builds lancées depuis les sources ne se mettent pas à jour.
 
 ## Toujours bloqué
 

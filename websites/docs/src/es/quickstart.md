@@ -10,8 +10,8 @@ Descarga el instalador para tu sistema desde [la página de descarga](site:downl
 
 > [!PLATFORMS]
 > - Windows: Windows puede mostrar un aviso de SmartScreen en el primer arranque, porque la compilación aún no está firmada con un certificado de desarrollador. Selecciona Más información y luego Ejecutar de todas formas.
-> - macOS: Descomprime la descarga para Apple silicon, haz clic derecho en Draggy.app y selecciona Abrir la primera vez.
-> - Linux: Instala el paquete .deb con tu gestor de paquetes o dpkg, o el paquete .rpm con rpm o dnf.
+> - macOS: Descomprime el `.zip` universal y mueve Draggy a Aplicaciones. La primera vez, ve a Ajustes del Sistema → Privacidad y seguridad → Abrir igualmente.
+> - Linux: Instala el .deb con `sudo apt install ./archivo.deb`, o el .rpm con `sudo dnf install ./archivo.rpm`. El AppImage se ejecuta después de `chmod +x`.
 
 [Instalación](doc:installation) tiene todos los pasos.
 

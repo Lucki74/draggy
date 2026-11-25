@@ -1145,7 +1145,7 @@ ${plain(t("hero.lede"))} Build ${release.build}, for Windows, macOS and Linux. F
 
 - Price: free for all users. Any cloud feature added later will be billed.
 - License: Apache License 2.0.
-- Platforms: Windows 10 or 11 (64-bit), macOS (Apple silicon) and Linux (.deb and .rpm, x86-64).
+- Platforms: Windows 10 or 11 (64-bit), macOS (Intel and Apple silicon) and Linux (.deb, .rpm and AppImage, x86-64).
 - Account: none needed.
 - Not to be confused with Drag, the email product.
 

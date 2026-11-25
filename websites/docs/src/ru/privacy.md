@@ -35,7 +35,7 @@ section: fix
 | --- | --- |
 | Windows | `%APPDATA%\Draggy` |
 | macOS | `~/Library/Application Support/Draggy` |
-| Linux | `~/.config/Draggy` |
+| Linux | `$XDG_DATA_HOME/Draggy`, или `~/.local/share/Draggy`, если переменная не задана |
 
 Внутри: `draggy.db` для диалогов и настроек, `library.db` для индекса документов, `secrets.bin` для ключей провайдеров и учётных данных расширений, зашифрованных хранилищем ключей вашей ОС, папки входа для ChatGPT и Claude, а также папки для созданных файлов, папки чатов (`chats`, в Windows), запусков кода, моделей речи и установленных серверов.
 

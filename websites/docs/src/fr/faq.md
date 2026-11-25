@@ -34,11 +34,11 @@ En mode par défaut, Accepter les modifications, les modifications ordinaires de
 
 ## Pourquoi mon ordinateur m'avertit-il à l'ouverture ?
 
-La version de Draggy n'est pas encore signée avec un certificat d'éditeur. Windows affiche un avertissement au premier lancement. Les étapes pour passer outre sont sur la [page de téléchargement](site:download#first-run).
+Les versions de Draggy ne sont pas encore signées avec un certificat d'éditeur, donc Windows et macOS affichent un avertissement au premier lancement. Les étapes pour passer outre sont sur la [page de téléchargement](site:download#first-run).
 
 ## Se met-il à jour tout seul ?
 
-Oui. Draggy vérifie à chaque lancement et toutes les six heures. Sous Windows, une mise à jour trouvée au lancement se télécharge et s'installe dans la fenêtre de démarrage, sauf si vous choisissez **Démarrer sans mettre à jour**. Une mise à jour trouvée plus tard se télécharge en arrière-plan, et un avis **Mise à jour prête** propose **Installer maintenant** ou **Plus tard**. Installer maintenant l'installe discrètement et redémarre Draggy.
+Oui. Draggy se met à jour lui-même sous Windows, macOS et Linux, à partir d'un flux signé. Il vérifie au lancement, puis toutes les six heures. Une mise à jour trouvée au lancement s'installe dans la fenêtre de démarrage, sauf si vous choisissez **Démarrer sans mettre à jour**. Une mise à jour trouvée plus tard se télécharge en arrière-plan, et un avis **Mise à jour prête** propose **Installer maintenant** ou **Plus tard**. Installer maintenant l'installe discrètement et redémarre Draggy.
 
 ## Quelles langues parle-t-il ?
 
