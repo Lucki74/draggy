@@ -56,6 +56,22 @@ Copies `vendor/node/node.exe` into `src-tauri/binaries/` under the target-triple
 
 It also copies `vendor/ffmpeg/ffmpeg.exe` and `vendor/ffmpeg/ffprobe.exe`, checked against `scripts/ffmpeg-pin.json`, as the `binaries/ffmpeg` and `binaries/ffprobe` sidecars that index attached videos. For dev, copy them from a local ffmpeg install and update the pin; CI fetches the pinned archive. The app never downloads ffmpeg at runtime, and a debug build falls back to `ffmpeg` on `PATH`.
 
+### macOS, for development
+
+The Windows app also builds and runs on Apple silicon Macs, for development only. Put the `bin/node` from the archive named in `scripts/node-pin-macos.json` at `vendor/node/node`, then:
+
+```bash
+npm ci
+APPDATA=/tmp/draggy-dev npx tauri dev
+npx tauri build --debug
+```
+
+Tauri merges `src-tauri/tauri.macos.conf.json` over `tauri.conf.json` on macOS. It builds an `.app`, drops the sandbox launcher and the NSIS settings, empties the updater endpoints so a Mac build never reads the Windows feed, and stages sidecars with `scripts/stage-sidecars-mac.sh`. ffmpeg has no macOS pin yet, so that script stages `vendor/ffmpeg/` or the `ffmpeg` on `PATH`, and only in debug builds.
+
+Without `APPDATA` the data folder is `~/Library/Application Support/Draggy`, the folder the Swift app uses. Set `APPDATA` to keep a dev run away from it; the data then goes to `$APPDATA/Draggy`. `APPDATA` does not move the webview's storage: WKWebView keeps it in `~/Library/WebKit/<bundle id>`, or `~/Library/WebKit/draggy-win` under `tauri dev`. The bundle id is `com.draggy.app`, the same as the Swift app's, so do not open a built `.app` on a Mac that has the Swift app's data.
+
+Not working on macOS yet: saving keys (there is no keystore, so search keys last for one run and key-based providers stay off), PDF export, update checks, the browser pane, the agent sandbox, elevation, the terminal shell list, memory and GPU detection, and the window buttons (Segoe glyphs show as boxes). The splash waits about 14 seconds before the main window shows. `npm run tauri:build` still calls the PowerShell staging and the Windows release config.
+
 ## Two kinds of tests
 
 The parent workspace directory `../temp` (at the root of `draggy`) is reserved for running tests with cargo and scratch test outputs. Keep it clean after tests.
