@@ -10,14 +10,26 @@ Draggy doesn't phone home, collect analytics, ask for an account or send anythin
 
 ## Getting it running
 
-You need Node 24 (the version in `app/.nvmrc`, same as CI) and the Rust toolchain for the Tauri shell. Run everything below from `app/`.
+You need Node 24 (the version in `app/.nvmrc`, same as CI) and the Rust toolchain for the Tauri shell, plus the system pieces Tauri needs on your platform:
+
+- Windows: the Visual Studio C++ Build Tools and WebView2 (already on Windows 11).
+- macOS: the Xcode Command Line Tools (`xcode-select --install`).
+- Linux: `libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev` on Ubuntu, and `rpm` if you build the `.rpm`.
+
+Run everything below from `app/`.
 
 ```bash
 cd app
 npm install
 ```
 
-The app ships a pinned `node.exe` as a sidecar. `vendor/` is git-ignored, so before the first run, grab the version listed in `app/scripts/node-pin.json` and put it at `app/vendor/node/node.exe`. CI downloads the same file and checks its SHA-256.
+The app ships a pinned `node` as a sidecar. `vendor/` is git-ignored, so before the first run, grab the version listed in the pin file for your system and put it in `app/vendor/node/`. CI downloads the same file and checks its SHA-256.
+
+| System | Pin file | File |
+| --- | --- | --- |
+| Windows | `app/scripts/node-pin.json` | `node.exe` |
+| macOS | `app/scripts/node-pin-macos.json` | `node` |
+| Linux | `app/scripts/node-pin-linux.json` | `node` |
 
 ```bash
 npm run tauri:dev
@@ -31,7 +43,7 @@ That stages the sidecar, then starts Vite on port 5173 with hot reload inside th
 npm run check
 ```
 
-That runs the typecheck, the linter and the tests. CI runs the same command on every pull request, plus the Rust format, clippy and test checks in `app/src-tauri/`. Pull requests get squash merged.
+That runs the typecheck, the linter and the tests. CI runs the same command on every pull request, on Windows, macOS and Linux, plus the Rust format, clippy and test checks in `app/src-tauri/`. Pull requests get squash merged.
 
 Tests run without a GPU and without a Tauri window, so keep new logic away from the hardware and the window shell, that way it stays testable.
 

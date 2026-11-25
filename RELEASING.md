@@ -1,15 +1,15 @@
 # Releasing Draggy
 
-Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds the Windows installer with Tauri and the Linux packages natively, then publishes a release with the packages, the `latest.yml` files and `SHA256SUMS.txt`, which the app reads or checks against.
+Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds the Tauri app for Windows, macOS and Linux, then publishes a release with the installers, the signed Tauri updater feeds and `SHA256SUMS.txt`.
 
 ## Cutting a build
 
 Builds are numbered. The Release workflow takes the next number N from the highest `b-N` tag and
 builds the app as version `3.0.N`. The release is named `build-N`, the tag is `b-N`, and the app
-shows it as "build N". Version `3.0.0` in `package.json` is the development build and is never
+shows it as "build N". Version `3.0.5` in `package.json` is the development build and is never
 released.
 
-1. Check that `main` is green on Windows and Linux.
+1. Check that `main` is green on Windows, macOS and Linux.
 2. Write the notes (see below).
 3. From the Actions tab, run Release on `main` with the notes, or from a terminal:
 
@@ -18,14 +18,12 @@ gh workflow run release.yml --ref main -f notes="$(cat notes.md)"
 ```
 
 The workflow only runs from `main` and only by hand. The Windows job runs `npm run check` before it
-builds, and the Linux job runs the Rust tests. The publish job waits for both, so a failure on either
-system means nothing is published. The macOS job builds the Tauri app in `app/` and is switched off (`if: false`) while macOS builds are
-paused; search the workflows for `TODO: re-enable macOS` to turn it back on.
+builds, and the macOS and Linux jobs run the Rust tests in `app/src-tauri`. The publish job waits for all
+three, so a failure on any system means nothing is published.
 
 The release is created as a draft, the files are uploaded, and only then is it published and marked
 Latest. A failed upload therefore never leaves a half-empty release that installed apps would pick up.
-If the build has no `latest-linux.yml`, the publish job copies it forward from the newest `b-N` release that points at the frozen `electron-crossplatform-final` tag,
-because Linux installs read that file from the newest `b-N` release and fail without it. `SHA256SUMS.txt` is copied forward the same way.
+Older Linux installs (the Electron and GTK builds) read `latest-linux.yml` from the newest `b-N` release and fail without it, so the publish job keeps writing that file and points it at the Tauri packages. `SHA256SUMS.txt` lists every file in the release.
 
 ### Notes
 
@@ -42,7 +40,7 @@ it to `RELEASE-NOTES-BUILD-<n>.md` once the build number is known, and keep only
 gh workflow run release.yml --ref main -f dry_run=true -f notes="dry run"
 ```
 
-A dry run builds both systems, skips the publish job, and keeps the installers as workflow artifacts. It creates no
+A dry run builds all three systems, skips the publish job, and keeps the installers as workflow artifacts. It creates no
 tag and no release, so it does not use up a build number.
 
 ## The Windows build
@@ -57,25 +55,38 @@ The Windows job runs on `windows-latest` in `app/`. It:
 
 Build inputs are the Rust crate in `src-tauri/`, the React app in `src/`, and the `node.exe` sidecar. The installer is per-user (`installMode: currentUser`).
 
+## The macOS build
+
+The macOS job runs on `macos-latest` in `app/`. It fetches the pinned `node` from `scripts/node-pin-macos.json`, stages the sidecars with `scripts/stage-sidecars-mac.sh`, and runs `npx tauri build --target universal-apple-darwin`, so one app runs on Intel and Apple silicon. The app is signed ad hoc (`codesign --sign -`) and not notarized, which is why the first open needs the Gatekeeper step. The download is `Draggy-3.0.N-macos-universal.zip`; the updater gets the `.app.tar.gz` and its `.sig`.
+
+## The Linux build
+
+The Linux job runs on `ubuntu-24.04` in `app/`. It fetches the pinned `node` from `scripts/node-pin-linux.json`, stages the sidecars with `scripts/stage-sidecars-linux.sh`, and builds the `.deb`, `.rpm` and AppImage, each with a `.sig` for the updater.
+
 ## Signing the updater
 
-The Tauri updater verifies each update against a minisign public key. The release job signs the installer with the private key in two repository secrets:
+The Tauri updater verifies each update against a minisign public key. The release jobs sign every updater artifact on all three systems with the private key in two repository secrets:
 
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
 The public key is `plugins.updater.pubkey` in `app/src-tauri/tauri.conf.json`. The private key and its password exist only in the repository secrets. A new key pair breaks updates for every install that has the old public key, so rotate it only after a compromise, and ship the new public key in a build signed with the old key first.
 
-The Windows signature is the trust boundary for the Tauri feed. The Linux checksums come from the same release as the packages, so whoever can write to a release can still ship code to those platforms. That is why the workflow holds the only token that publishes, and why `SECURITY.md` says so.
+The signature is the trust boundary for the Tauri feeds: an update that does not match the public key is refused on every system. Older Electron and GTK installs still check only the SHA-256 in the release, so whoever can write to a release can ship code to them. That is why the workflow holds the only token that publishes, and why `SECURITY.md` says so.
 
-## Where the Windows updates go
+## Where the updates go
 
-The publish job puts two things on the Windows side:
+Each system has a rolling release that holds its Tauri feed. These releases are created once, are never marked Latest, and are replaced on every release.
 
-- The Tauri feed, `latest-windows.json`, and `draggy_setup.exe` go to the rolling `updater-windows` release. That release is created once, is never marked Latest, and is replaced on every Windows release. The app reads the feed URL set in `tauri.conf.json`.
-- The bridge `latest.yml` for the installer goes into the `b-N` release. Installs of the Electron build read that file, so they can update into the Tauri build.
+| Release | Feed | Read by |
+|---|---|---|
+| `updater-windows` | `latest-windows.json` | `tauri.conf.json` |
+| `updater-macos` | `latest-macos.json` | `tauri.macos.conf.json` |
+| `updater-linux` | `latest-linux.json` | `tauri.linux.conf.json` |
 
-macOS and Linux share the Rust code in `core/crates/draggy-core/src/update.rs`, which picks the highest `b-N` release, selects the asset by file name and checks its SHA-256 against `SHA256SUMS.txt`.
+The macOS feed lists the universal `.app.tar.gz` for both architectures. The Linux feed lists the AppImage, `.deb` and `.rpm`.
+
+Two bridge files go into the `b-N` release for installs that predate Tauri: `latest.yml` for the Windows Electron build and `latest-linux.yml` for the Electron and GTK Linux builds. Both point at the Tauri installers, so those installs update into the Tauri app.
 
 ## Tags are permanent
 
