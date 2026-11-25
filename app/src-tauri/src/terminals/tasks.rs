@@ -1074,6 +1074,7 @@ mod tests {
         })
     }
 
+    #[cfg(windows)]
     fn wait_status(manager: &Manager, chat: &str, id: &str) -> Value {
         for _ in 0..600 {
             let task = manager
@@ -1136,6 +1137,7 @@ mod tests {
         assert!(!manager.has_running("c"));
     }
 
+    #[cfg(windows)]
     #[test]
     fn a_real_command_reports_its_output_and_exit_code() {
         let (manager, rx) = manager("exit");
@@ -1161,6 +1163,7 @@ mod tests {
         assert!(rx.try_iter().any(|event| event["type"] == "ended"));
     }
 
+    #[cfg(windows)]
     #[test]
     fn the_chat_cap_is_enforced_per_chat() {
         let (manager, _rx) = manager("cap");
@@ -1173,6 +1176,7 @@ mod tests {
         manager.stop_all();
     }
 
+    #[cfg(windows)]
     #[test]
     fn stop_ends_a_long_command_as_stopped() {
         let (manager, _rx) = manager("stop");
@@ -1291,6 +1295,7 @@ mod tests {
         adopted.exit(Exit::default());
     }
 
+    #[cfg(windows)]
     #[test]
     fn pty_runs_a_quoted_cmd_line() {
         let (manager, _rx) = manager("pty-quotes");

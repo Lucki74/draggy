@@ -669,6 +669,7 @@ mod run_tests {
         );
     }
 
+    #[cfg(windows)]
     #[tokio::test]
     async fn echo_returns_output_and_exit_code() {
         let result = run(manager(), request("echo hi", std::env::temp_dir())).await;
@@ -677,6 +678,7 @@ mod run_tests {
         assert!(result["output"].as_str().unwrap_or_default().contains("hi"));
     }
 
+    #[cfg(windows)]
     #[tokio::test]
     async fn timeout_moves_the_command_to_a_background_task() {
         let manager = manager();
@@ -690,6 +692,7 @@ mod run_tests {
         manager.stop("timeout-chat", &id).expect("stop");
     }
 
+    #[cfg(windows)]
     #[tokio::test]
     async fn cancel_stops_a_running_command_by_run_id() {
         let mut req = request("ping -n 20 127.0.0.1 >nul", std::env::temp_dir());
@@ -702,6 +705,7 @@ mod run_tests {
         assert_eq!(result["success"], json!(false));
     }
 
+    #[cfg(windows)]
     #[tokio::test]
     async fn refuses_a_duplicate_run_id() {
         let manager = manager();
@@ -720,6 +724,7 @@ mod run_tests {
         first.await.expect("join");
     }
 
+    #[cfg(windows)]
     #[tokio::test]
     async fn detach_hands_a_running_command_to_a_task() {
         let manager = manager();
@@ -736,6 +741,7 @@ mod run_tests {
         manager.stop("detach-chat", &id).expect("stop");
     }
 
+    #[cfg(windows)]
     #[tokio::test]
     async fn carries_folder_and_environment_until_reset() {
         let manager = manager();
