@@ -9333,7 +9333,7 @@
       }
     },
     {
-      "name": "a block on one provider does not hide an empty answer from another",
+      "name": "a block on one provider does not hide an empty answer from another, and the empty is not remembered",
       "input": {
         "ops": [
           {
@@ -9397,16 +9397,21 @@
             "results": [],
             "provider": null,
             "tried": [
-              "duckduckgo",
               "startpage",
               "duckduckgo-lite",
               "brave-html",
               "ecosia",
               "yahoo"
             ],
-            "status": "empty",
-            "cached": true,
-            "called": [],
+            "status": "blocked",
+            "cached": false,
+            "called": [
+              "startpage",
+              "duckduckgo-lite",
+              "brave-html",
+              "ecosia",
+              "yahoo"
+            ],
             "waitedMs": 0
           }
         ]

@@ -77,8 +77,13 @@ fn parse_page(
     let base = dom::document_base(&document, &page);
     let rows = extract(&document, &base);
     if rows.is_empty() {
-        if matches!(status, 202 | 403 | 429) {
+        // Any status but a plain 200 range with no rows is a refusal, not an empty web (Yahoo's bot check ends in a bare 500).
+        if status == 202 || !(200..300).contains(&status) {
             return Err(ProviderError::Blocked("rate-limited".to_owned()));
+        }
+        // Yahoo sends suspected bots through its /_bv/ verification redirect.
+        if page.path().starts_with("/_bv/") {
+            return Err(ProviderError::Blocked("captcha".to_owned()));
         }
         // Startpage serves an Anubis proof-of-work page with 200 and no block wording.
         if dom::has(&document, "#anubis_challenge, #anubis_version") {
@@ -328,6 +333,24 @@ mod tests {
         assert!(matches!(blocked, Err(ProviderError::Blocked(reason)) if reason == "rate-limited"));
         let empty = parse_response(Provider::DuckDuckGo, url, 200, "<html><body></body></html>");
         assert!(matches!(empty, Ok(rows) if rows.is_empty()));
+    }
+
+    #[test]
+    fn yahoo_bot_check_is_a_block() {
+        let failed = parse_response(
+            Provider::Yahoo,
+            "https://search.yahoo.com/search?p=x",
+            500,
+            "",
+        );
+        assert!(matches!(failed, Err(ProviderError::Blocked(reason)) if reason == "rate-limited"));
+        let check = parse_response(
+            Provider::Yahoo,
+            "https://search.yahoo.com/_bv/v.gif?orig=%2Fsearch",
+            200,
+            "<html><body></body></html>",
+        );
+        assert!(matches!(check, Err(ProviderError::Blocked(reason)) if reason == "captcha"));
     }
 
     #[test]
