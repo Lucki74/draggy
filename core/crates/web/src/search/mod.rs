@@ -382,8 +382,9 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
             status,
             cached: false,
         };
-        // An outage or a block is worth retrying later, so only a genuine empty result is remembered.
-        if status == Status::Empty {
+        // An outage or a block is worth retrying later, so only a genuine empty result is remembered. Empty with a
+        // provider blocked or skipped for its cooldown means part of the web went unasked, so it is not remembered either.
+        if status == Status::Empty && !any_blocked {
             self.write_cache(key, &outcome);
         }
         outcome
@@ -557,6 +558,42 @@ mod tests {
         let second = runtime.block_on(search.run("term", &config));
         assert_eq!(second.status, Status::Blocked);
         assert_eq!(second.tried, vec![Provider::DuckDuckGo]);
+    }
+
+    /// DuckDuckGo shows a captcha, every other provider answers an empty page.
+    struct OneBlocked;
+
+    impl HttpClient for OneBlocked {
+        fn send(
+            &self,
+            request: HttpRequest,
+        ) -> impl Future<Output = Result<HttpResponse, HttpError>> + Send {
+            let body = if request.url.contains("html.duckduckgo.com") {
+                "<html><head><title>Captcha</title></head><body></body></html>"
+            } else {
+                "<html><body></body></html>"
+            };
+            ready(Ok(HttpResponse {
+                status: 200,
+                body: body.to_owned(),
+                final_url: request.url,
+            }))
+        }
+    }
+
+    #[test]
+    fn empty_with_a_provider_blocked_is_not_remembered() {
+        let mut search = Search::new(OneBlocked, SystemClock);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap();
+        let config = SearchConfig::default();
+        let first = runtime.block_on(search.run("term", &config));
+        assert_eq!(first.status, Status::Empty);
+        let second = runtime.block_on(search.run("term", &config));
+        assert!(!second.cached);
+        assert!(!second.tried.contains(&Provider::DuckDuckGo));
     }
 
     #[test]
