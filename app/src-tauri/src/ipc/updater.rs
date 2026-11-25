@@ -164,7 +164,7 @@ fn current_version(app: &AppHandle) -> String {
     app.package_info().version.to_string()
 }
 
-// Endpoint is a fixed Windows-only `latest-windows.json` on the `updater-windows` rolling release, not `releases/latest`, which may be mac/linux.
+// The endpoint is `releases/latest/download/latest-<os>.json`: each b-N release carries every system's feed under its own name.
 async fn check(app: &AppHandle) {
     set(app, |s| {
         s.status = "checking";

@@ -76,17 +76,19 @@ The signature is the trust boundary for the Tauri feeds: an update that does not
 
 ## Where the updates go
 
-Each system has a rolling release that holds its Tauri feed. These releases are created once, are never marked Latest, and are replaced on every release.
+Every `b-N` release carries the Tauri feed for each system next to the installers, and each feed links to files in that same release. The app asks for `releases/latest/download/<feed>`, and GitHub serves that file from whichever release is marked Latest, so there is no separate feed release to keep in step.
 
-| Release | Feed | Read by |
-|---|---|---|
-| `updater-windows` | `latest-windows.json` | `tauri.conf.json` |
-| `updater-macos` | `latest-macos.json` | `tauri.macos.conf.json` |
-| `updater-linux` | `latest-linux.json` | `tauri.linux.conf.json` |
+| Feed | Read by |
+|---|---|
+| `latest-windows.json` | `tauri.conf.json` |
+| `latest-macos.json` | `tauri.macos.conf.json` |
+| `latest-linux.json` | `tauri.linux.conf.json` |
 
 The macOS feed lists the universal `.app.tar.gz` for both architectures. The Linux feed lists the AppImage, `.deb` and `.rpm`.
 
-Two bridge files go into the `b-N` release for installs that predate Tauri: `latest.yml` for the Windows Electron build and `latest-linux.yml` for the Electron and GTK Linux builds. Both point at the Tauri installers, so those installs update into the Tauri app.
+Windows builds up to 16 read `latest-windows.json` from a release named `updater-windows`, so the publish job also copies the feed there. Drop that step once those installs have updated.
+
+Two bridge files also go into the `b-N` release, for installs that predate Tauri: `latest.yml` for the Windows Electron build and `latest-linux.yml` for the Electron and GTK Linux builds. Both point at the Tauri installers, so those installs update into the Tauri app.
 
 ## Tags are permanent
 
