@@ -45,6 +45,11 @@ struct ContentView: View {
         .tint(model.appearance.accent.color(\.base))
         .frame(minWidth: 720, minHeight: 480)
         .task { await model.updates.check() }
+        .task {
+            // Tests run inside the app; they must never load the user's real model.
+            guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+            await model.startEngineIfReady()
+        }
         .sheet(isPresented: $shell.isSearching) {
             SearchPalette(model: model, shell: shell)
         }

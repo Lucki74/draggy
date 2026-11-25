@@ -8418,6 +8418,75 @@
           }
         }
       }
+    },
+    "The model is still downloading. You can type now and send once it has arrived.": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le modèle est encore en téléchargement. Vous pouvez écrire maintenant et envoyer dès qu'il sera arrivé."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El modelo aún se está descargando. Puedes escribir ya y enviar en cuanto llegue."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Модель всё ещё загружается. Можно печатать и отправить, когда она будет готова."
+          }
+        }
+      }
+    },
+    "Getting %@ from disk...": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecture de %@ depuis le disque..."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leyendo %@ del disco..."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загружаем %@ с диска..."
+          }
+        }
+      }
+    },
+    "No model is loaded, so messages have nowhere to go yet.": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun modèle n'est chargé, les messages n'ont donc encore nulle part où aller."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay ningún modelo cargado, así que los mensajes aún no tienen adónde ir."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Модель не загружена, поэтому сообщениям пока некуда идти."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

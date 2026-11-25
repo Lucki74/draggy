@@ -111,6 +111,7 @@ final class AppModel {
         static let mode = "appMode"
         static let projects = "projects"
         static let activeProject = "activeProject"
+        static let engineURL = "engineURL"
     }
 
     private let defaults: UserDefaults
@@ -311,6 +312,8 @@ final class AppModel {
         engine.onReady = { [weak self] info in
             self?.baseURL = info.baseUrl
             self?.modelName = info.model
+            // Remembered so a later launch can tell the engine's address from a provider's.
+            self?.defaults.set(info.baseUrl, forKey: Key.engineURL)
         }
         _ = try? researchStore?.applyRetention(keep: researchKeep)
     }
@@ -384,6 +387,31 @@ final class AppModel {
             return SessionRow(id: summary.id, title: meta.title ?? summary.title, updated: summary.updated,
                               pinned: meta.pinned, project: meta.project)
         }
+    }
+
+    /// Chats go to Draggy's own engine rather than a provider: no model chosen yet, or the engine's last address.
+    var usesEngine: Bool {
+        modelName.isEmpty || baseURL == defaults.string(forKey: Key.engineURL)
+    }
+
+    /// Loads the model on the engine, as Windows does at launch, when both are on disk and no provider is in use.
+    func startEngineIfReady() async {
+        guard usesEngine, !engine.isRunning, !engine.isBusy,
+              !engine.binaryPath.isEmpty, !engine.modelPath.isEmpty else { return }
+        await engine.start()
+    }
+
+    /// Why a message cannot go yet, in the Windows wording, or nil when it can.
+    var sendBlocker: String? {
+        guard modelName.isEmpty || baseURL.isEmpty else { return nil }
+        if models.downloading != nil {
+            return String(localized: "The model is still downloading. You can type now and send once it has arrived.")
+        }
+        if engine.isBusy {
+            let name = URL(fileURLWithPath: engine.modelPath).deletingPathExtension().lastPathComponent
+            return engine.loadStage ?? String(format: String(localized: "Getting %@ from disk..."), name)
+        }
+        return String(localized: "No model is loaded, so messages have nowhere to go yet.")
     }
 
     func switchMode(_ next: AppMode) {
@@ -598,6 +626,12 @@ final class AppModel {
     func send() async {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isRunning else { return }
+        // The draft stays put until there is a model to take it; an engine that could load is started.
+        if let blocker = sendBlocker {
+            errorMessage = blocker
+            await startEngineIfReady()
+            return
+        }
         draft = ""
         let images = pendingImages
         pendingImages = []

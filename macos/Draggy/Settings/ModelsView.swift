@@ -123,7 +123,14 @@ struct ModelsView: View {
                 .buttonStyle(.plain)
                 Spacer()
                 if !inUse {
-                    Button("Use") { models.use(installed) }
+                    Button("Use") {
+                        models.use(installed)
+                        // Loaded at once, as the composer's model list does.
+                        Task {
+                            if engine.isRunning { await engine.stop() }
+                            await engine.start()
+                        }
+                    }
                         .buttonStyle(PillButtonStyle())
                 }
                 IconButton(glyph: .trash, label: String(localized: "Delete"), size: 16) { pendingDelete = installed }
