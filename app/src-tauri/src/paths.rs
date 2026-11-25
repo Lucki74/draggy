@@ -19,7 +19,7 @@ const MARKER: &str = "draggy.db";
 /// The marker under the previous name. It must arrive renamed, or it sits beside a fresh empty database.
 const LEGACY_MARKER: &str = "localai.db";
 
-/// `%APPDATA%\Draggy`. Off macOS a missing `APPDATA` is an error: guessing another folder would start a
+/// `%APPDATA%\Draggy`. On Windows a missing `APPDATA` is an error: guessing another folder would start a
 /// fresh, empty profile beside the real one.
 pub fn data_dir(appdata: Option<OsString>) -> Result<PathBuf, String> {
     let base = appdata
@@ -29,9 +29,19 @@ pub fn data_dir(appdata: Option<OsString>) -> Result<PathBuf, String> {
     Ok(PathBuf::from(base).join(APP_FOLDER))
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(windows)]
 fn default_base() -> Option<OsString> {
     None
+}
+
+/// `$XDG_DATA_HOME`, or `~/.local/share` when it is unset. The GTK app's `draggy` folder there holds other files.
+#[cfg(all(unix, not(target_os = "macos")))]
+fn default_base() -> Option<OsString> {
+    if let Some(data) = std::env::var_os("XDG_DATA_HOME").filter(|value| !value.is_empty()) {
+        return Some(data);
+    }
+    let home = std::env::var_os("HOME").filter(|value| !value.is_empty())?;
+    Some(PathBuf::from(home).join(".local/share").into_os_string())
 }
 
 /// `~/Library/Application Support`, where the macOS app already keeps its models and settings.
@@ -182,7 +192,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
     #[test]
     fn refuses_to_guess_without_appdata() {
         assert!(data_dir(None).is_err());
@@ -198,7 +208,20 @@ mod tests {
         assert_eq!(data_dir(Some(OsString::new())).unwrap(), expected);
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(all(unix, not(target_os = "macos")))]
+    #[test]
+    fn falls_back_to_the_xdg_data_folder_without_appdata() {
+        let expected = match std::env::var_os("XDG_DATA_HOME").filter(|value| !value.is_empty()) {
+            Some(data) => PathBuf::from(data).join("Draggy"),
+            None => {
+                PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".local/share/Draggy")
+            }
+        };
+        assert_eq!(data_dir(None).unwrap(), expected);
+        assert_eq!(data_dir(Some(OsString::new())).unwrap(), expected);
+    }
+
+    #[cfg(unix)]
     #[test]
     fn appdata_still_wins_over_the_fallback() {
         let dir = data_dir(Some(OsString::from("/tmp/throwaway"))).unwrap();
