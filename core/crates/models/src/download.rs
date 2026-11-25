@@ -126,7 +126,8 @@ impl Env for SystemEnv {
     #[cfg(unix)]
     fn free_bytes(&self, dir: &Path) -> Option<u64> {
         let stats = nix::sys::statvfs::statvfs(dir).ok()?;
-        Some(widen(stats.blocks_available())?.saturating_mul(widen(stats.block_size())?))
+        // Blocks are counted in fragments; on macOS the block size is the larger I/O size.
+        Some(widen(stats.blocks_available())?.saturating_mul(widen(stats.fragment_size())?))
     }
 
     #[cfg(windows)]
@@ -1043,6 +1044,20 @@ fn partial_to_continue(temp: &Path, now: u64) -> io::Result<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// On APFS the block size is 1 MiB beside 4 KiB fragments, which inflated the figure 256 times.
+    #[cfg(unix)]
+    #[test]
+    fn free_space_fits_inside_the_volume() {
+        let dir = std::env::temp_dir();
+        let stats = nix::sys::statvfs::statvfs(&dir).expect("statvfs");
+        let blocks = widen(stats.blocks()).expect("blocks");
+        let total = blocks.saturating_mul(widen(stats.fragment_size()).expect("fragment size"));
+
+        let free = SystemEnv.free_bytes(&dir).expect("free bytes");
+
+        assert!(free <= total, "{free} bytes free on a {total} byte volume");
+    }
 
     #[test]
     fn a_name_without_the_suffix_gets_it() {
