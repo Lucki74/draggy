@@ -126,7 +126,8 @@ impl Env for SystemEnv {
     #[cfg(unix)]
     fn free_bytes(&self, dir: &Path) -> Option<u64> {
         let stats = nix::sys::statvfs::statvfs(dir).ok()?;
-        Some(widen(stats.blocks_available())?.saturating_mul(widen(stats.block_size())?))
+        // Blocks are counted in fragments; macOS reports a block size 256 times larger.
+        Some(widen(stats.blocks_available())?.saturating_mul(widen(stats.fragment_size())?))
     }
 
     #[cfg(windows)]
