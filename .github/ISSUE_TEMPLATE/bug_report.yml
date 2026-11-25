@@ -38,7 +38,7 @@ body:
     attributes:
       label: Draggy build
       description: The build number shown in the app.
-      placeholder: "build 12"
+      placeholder: "build 16"
     validations:
       required: true
 

@@ -31,11 +31,6 @@ THIRD-PARTY-LICENSES-main.txt (main process) and
 THIRD-PARTY-LICENSES-renderer.txt (renderer bundle), both in the app's
 dist folder.
 
-@ghostery/adblocker-electron and the @ghostery/* and @remusao/* packages it
-depends on are licensed under MPL-2.0. They are used unmodified from npm; the
-source is available from https://github.com/ghostery/adblocker and
-https://github.com/remusao/tldts.
-
 jszip is available under MIT or GPL-3.0-or-later. Draggy uses it under the MIT
 license.
 

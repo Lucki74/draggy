@@ -4,7 +4,7 @@ Read [AGENTS.md](AGENTS.md) first. It holds the commands, the invariants the tes
 
 ## Repository layout
 
-The Tauri app for Windows, macOS and Linux lives in `app/`, so run every `npm` command there. `legacy-macos/` (Swift) is not built while macOS is paused; macOS CI runs only by hand. New macOS and Linux work goes into `app/`, which also builds on a Mac and on Linux (see "macOS, for development" and "Linux, for development" in AGENTS.md). The GTK app in `linux/` still ships for Linux until then. `core/` and `linux/` are Rust: run `cargo test -p <crate> -q` from `core/` or `linux/` (cargo is at `~/.cargo/bin`). Shared fixtures in `shared/fixtures/` must pass in vitest and cargo. See AGENTS.md for the table.
+The Tauri app for Windows, macOS and Linux lives in `app/`, so run every `npm` command there. It is the only app that ships. `legacy-macos/` (Swift) and `linux/` (GTK) are retired and no longer ship, and all new work goes into `app/` (see "macOS" and "Linux" in AGENTS.md). `core/` and `linux/` are Rust: run `cargo test -p <crate> -q` from `core/` or `linux/` (cargo is at `~/.cargo/bin`). Shared fixtures in `shared/fixtures/` must pass in vitest and cargo. See AGENTS.md for the table.
 
 ## Development and test workflow
 

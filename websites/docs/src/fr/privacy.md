@@ -35,7 +35,7 @@ Le tableau liste les requêtes faites par Draggy. Le blocage des publicités res
 | --- | --- |
 | Windows | `%APPDATA%\Draggy` |
 | macOS | `~/Library/Application Support/Draggy` |
-| Linux | `~/.config/Draggy` |
+| Linux | `$XDG_DATA_HOME/Draggy`, ou `~/.local/share/Draggy` si cette variable n'est pas définie |
 
 Dedans : `draggy.db` pour les conversations et les paramètres, `library.db` pour l'index des documents, `secrets.bin` pour les clés des fournisseurs et les identifiants d'extensions chiffrés par le trousseau de votre système, les dossiers de connexion ChatGPT et Claude, et des dossiers pour les fichiers créés, les dossiers de chat (`chats`, sous Windows), les exécutions de code, les modèles vocaux et les serveurs installés.
 

@@ -38,7 +38,7 @@ The model may only reach the project folder, and may only fetch public `http` an
 
 ## Updates never appear
 
-Updates only run in an installed build. From source, updates are disabled.
+Updates only run in an installed build. Builds run from source do not update.
 
 ## Still stuck
 
