@@ -101,7 +101,7 @@ test("a download link names the release tag and the file, never latest", () => {
 test("every link in release.json is pinned to the tag its checksum was taken from", () => {
   const release = JSON.parse(readFileSync(join(root, "release.json"), "utf8"));
   for (const [key, asset] of Object.entries(release.assets)) {
-    assert.equal(asset.url, downloadUrl(release.tag, asset.name), key);
+    assert.equal(asset.url, downloadUrl(asset.tag ?? release.tag, asset.name), key);
   }
 });
 

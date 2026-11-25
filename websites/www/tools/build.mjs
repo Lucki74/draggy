@@ -785,7 +785,7 @@ function releaseValue(path) {
   if (!asset) throw new Error(`{{r:${path}}}: the release has no "${key}"`);
   if (field === "mb") return `${Math.round(asset.size / 1024 / 1024)} MB`;
   // Built from the tag, not read from release.json, so the link is the tagged file the checksum describes.
-  if (field === "url") return downloadUrl(release.tag, asset.name);
+  if (field === "url") return downloadUrl(asset.tag ?? release.tag, asset.name);
   if (typeof asset[field] !== "string") throw new Error(`{{r:${path}}}: no such field`);
   return asset[field];
 }
