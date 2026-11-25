@@ -19,7 +19,7 @@ gh workflow run release.yml --ref main -f notes="$(cat notes.md)"
 
 The workflow only runs from `main` and only by hand. The Windows job runs `npm run check` before it
 builds, and the Linux job runs the Rust tests. The publish job waits for both, so a failure on either
-system means nothing is published. The macOS job is switched off (`if: false`) while macOS builds are
+system means nothing is published. The macOS job builds the Tauri app in `app/` and is switched off (`if: false`) while macOS builds are
 paused; search the workflows for `TODO: re-enable macOS` to turn it back on.
 
 The release is created as a draft, the files are uploaded, and only then is it published and marked

@@ -1,6 +1,6 @@
 name: CI
 
-# Typecheck, lint, the full test suite and the Rust checks for the Tauri app on Windows, and the Rust checks on Linux.
+# Typecheck, lint, the full test suite and the Rust checks for the Tauri app on Windows, and the Rust checks on Linux and macOS.
 on:
   push:
     branches: [main]
@@ -103,13 +103,23 @@ jobs:
         working-directory: app/src-tauri
         run: cargo test -q
 
-  # The same Rust checks on Linux, so code behind cfg(not(windows)) compiles and stays free of dead code.
-  linux:
-    name: Rust checks (ubuntu-24.04)
-    runs-on: ubuntu-24.04
+  # The same Rust checks on Linux and macOS, so code behind cfg(not(windows)) compiles and stays free of dead code.
+  unix:
+    name: Rust checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: app
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            pin: scripts/node-pin-linux.json
+            stage: scripts/stage-sidecars-linux.sh
+          - os: macos-15
+            pin: scripts/node-pin-macos.json
+            stage: scripts/stage-sidecars-mac.sh
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -123,6 +133,7 @@ jobs:
           cache-dependency-path: app/package-lock.json
 
       - name: Install the Tauri system libraries
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
@@ -136,20 +147,23 @@ jobs:
 
       - run: npm ci
 
-      # vendor/ is git-ignored, so the pinned node is fetched and checked against app/scripts/node-pin-linux.json.
+      # vendor/ is git-ignored, so the pinned node is fetched and checked against the platform's node pin.
       # cargo only checks that ffmpeg and ffprobe exist, so empty files stand in for them.
       - name: Stage the sidecars
+        env:
+          PIN: ${{ matrix.pin }}
+          STAGE: ${{ matrix.stage }}
         run: |
-          version="$(node -p "require('./scripts/node-pin-linux.json').version")"
-          archive="$(node -p "require('./scripts/node-pin-linux.json').archive")"
-          expected="$(node -p "require('./scripts/node-pin-linux.json').archiveSha256")"
+          version="$(node -p "require('./$PIN').version")"
+          archive="$(node -p "require('./$PIN').archive")"
+          expected="$(node -p "require('./$PIN').archiveSha256")"
           curl -sSfL -o "$RUNNER_TEMP/$archive" "https://nodejs.org/dist/$version/$archive"
-          echo "$expected  $RUNNER_TEMP/$archive" | sha256sum -c -
+          echo "$expected  $RUNNER_TEMP/$archive" | shasum -a 256 -c -
           mkdir -p vendor/node vendor/ffmpeg
-          tar -xJf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
-          cp "$RUNNER_TEMP/${archive%.tar.xz}/bin/node" vendor/node/node
+          tar -xf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          cp "$RUNNER_TEMP/${archive%.tar.*}/bin/node" vendor/node/node
           touch vendor/ffmpeg/ffmpeg vendor/ffmpeg/ffprobe
-          TAURI_ENV_DEBUG=true bash scripts/stage-sidecars-linux.sh
+          TAURI_ENV_DEBUG=true bash "$STAGE"
 
       # Tauri's frontendDist must exist before cargo builds the crate.
       - run: npm run build

@@ -18,7 +18,7 @@ One repository, three apps and a shared core:
 
 Every path below that starts with `src/`, `src-tauri/` or `scripts/` is relative to `app/`. Swift cannot be compiled on Windows, so a Swift change is verified only by the macOS CI job.
 
-Platform code in `app/src-tauri/` comes in `#[cfg(windows)]` and `#[cfg(not(windows))]` pairs, or `target_os = "macos"` where only the Mac differs, and a non-Windows branch leaves Windows behaviour unchanged. The Linux job in `ci.yml` runs clippy and the Rust tests on the non-Windows side, so dead code there fails CI. No CI job builds `app/` on a Mac, so check a `target_os = "macos"` branch by hand. A fixture change must keep the TypeScript and Rust sides passing.
+Platform code in `app/src-tauri/` comes in `#[cfg(windows)]` and `#[cfg(not(windows))]` pairs, or `target_os = "macos"` where only the Mac differs, and a non-Windows branch leaves Windows behaviour unchanged. The Linux and macOS jobs in `ci.yml` run clippy and the Rust tests on the non-Windows side, so dead code there fails CI. A fixture change must keep the TypeScript and Rust sides passing.
 
 ## What Draggy is
 
@@ -34,7 +34,7 @@ Run every command below from `app/`.
 npm run check
 ```
 
-Typecheck, lint, and run the test suite (`tsc -b`, `eslint .`, `vitest run`). Run it before concluding work. CI runs the same check on Node 24, the version in `app/.nvmrc`. CI also runs `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test -q` in `app/src-tauri/`, on Windows and on Linux.
+Typecheck, lint, and run the test suite (`tsc -b`, `eslint .`, `vitest run`). Run it before concluding work. CI runs the same check on Node 24, the version in `app/.nvmrc`. CI also runs `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test -q` in `app/src-tauri/`, on Windows, Linux and macOS.
 
 ```bash
 npm run tauri:dev
