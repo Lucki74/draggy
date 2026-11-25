@@ -4,7 +4,7 @@ Read [AGENTS.md](AGENTS.md) first. It holds the commands, the invariants the tes
 
 ## Repository layout
 
-Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift) is compiled only by macOS CI. `core/` and `linux/` are Rust: run `cargo test -p <crate> -q` from `core/` or `linux/` (cargo is at `~/.cargo/bin`). Shared fixtures in `shared/fixtures/` must pass in vitest and cargo. See AGENTS.md for the table.
+The Tauri app for Windows, macOS and Linux lives in `app/`, so run every `npm` command there. `legacy-macos/` (Swift) is not built while macOS is paused; macOS CI runs only by hand. New macOS and Linux work goes into `app/`, which also builds on a Mac and on Linux (see "macOS, for development" and "Linux, for development" in AGENTS.md). The GTK app in `linux/` still ships for Linux until then. `core/` and `linux/` are Rust: run `cargo test -p <crate> -q` from `core/` or `linux/` (cargo is at `~/.cargo/bin`). Shared fixtures in `shared/fixtures/` must pass in vitest and cargo. See AGENTS.md for the table.
 
 ## Development and test workflow
 
@@ -14,7 +14,7 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 - During iteration run one file: `npx vitest run src/__tests__/<file>.test.ts` or `-t "test name"`. Vitest takes `--reporter=dot` for short output, not `-q`.
 - The development server is `npm run tauri:dev` on port 5173. Kill a stale Vite process if the port is taken.
 - On Windows without Developer Mode, tests that create symlinks fail with EPERM. Treat them as environmental, not as regressions.
-- An untracked `win/chat` file may be lying around; leave it out of commits.
+- An untracked `app/chat` file may be lying around; leave it out of commits.
 
 ## Screenshots
 
@@ -32,8 +32,8 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 
 - Swift files and `.xcstrings` use CRLF in the working copy. Edit `Localizable.xcstrings` as text, since a JSON re-dump rewrites the whole file.
 - After a Swift change, watch the "Build and test" macOS job, which is the only compile check.
-- The macOS look follows the Windows tokens in `macos/Draggy/Theme/Theme.swift`. `Icons.xcassets` and `Glyph.generated.swift` come from
-  `python3 macos/scripts/build-icons.py`; rerun it after changing `win/src/ui/icons/glyphs.generated.ts`.
+- The macOS look follows the Windows tokens in `legacy-macos/Draggy/Theme/Theme.swift`. `Icons.xcassets` and `Glyph.generated.swift` come from
+  `python3 legacy-macos/scripts/build-icons.py`; rerun it after changing `app/src/ui/icons/glyphs.generated.ts`.
 - Commits carry a subject only. A PR carries a title and a description of two sentences at most, written with the `/humanizer` skill, as Issues and pull requests in AGENTS.md says. Neither carries attribution. Squash merge with `gh pr merge N --squash --subject "<title> (#N)" --body ""`.
 
 ## Compact instructions

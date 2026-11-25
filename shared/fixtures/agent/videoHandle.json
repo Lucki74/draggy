@@ -1,6 +1,6 @@
 {
   "area": "agent",
-  "description": "The handle line a turn carries for an attached video (win/src/tools/video.ts, core/crates/agent/src/video_handle.rs).",
+  "description": "The handle line a turn carries for an attached video (app/src/tools/video.ts, core/crates/agent/src/video_handle.rs).",
   "cases": [
     {
       "name": "an indexed video names its segments",

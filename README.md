@@ -4,7 +4,7 @@
 
 # Draggy
 
-A local AI assistant and coding agent for Windows, macOS and Linux. Free, open source, no account.
+A local AI assistant and coding agent for Windows and Linux. macOS is coming back soon. Free, open source, no account.
 
 [![Website](https://img.shields.io/badge/Website-draggy.org-2b2b2b?style=flat&logo=vercel&logoColor=white)](https://draggy.org)
 [![Download](https://img.shields.io/badge/Download-installers-2b2b2b?style=flat&logo=github&logoColor=white)](https://github.com/Lucki74/draggy/releases)
@@ -30,7 +30,7 @@ The models run locally through an embedded `llama.cpp` engine, with GGUF weights
 - ad-block lists
 - the price refresh behind the cost counters (you can turn this one off in Settings)
 
-Updates are always on in packaged builds. On Windows it's a Tauri 2 app, on macOS a native SwiftUI app and on Linux a native GTK 4 app.
+Updates are always on in packaged builds. On Windows it's a Tauri 2 app and on Linux a native GTK 4 app. The native SwiftUI app for macOS is paused for now.
 
 If you've used LM Studio, Jan or Ollama, the big difference is the coding agent. It reads, edits and runs commands in a project folder, shows every change as a diff you can undo, and works under one of five permission modes. It can also run big Mixture-of-Experts models that don't fit in memory, straight from your drive.
 
@@ -58,7 +58,7 @@ The full docs are at [docs.draggy.org](https://docs.draggy.org), in English, Fre
 
 ## Installing
 
-You can get installers for Windows (`.exe`), macOS (`.zip`) and Linux (`.deb`, `.rpm`) from [draggy.org](https://draggy.org) or the [Releases page](https://github.com/Lucki74/draggy/releases/latest). The first time you open it, Draggy suggests a model that fits your hardware and downloads it for you. System requirements and setup per platform are in [Installation](https://docs.draggy.org/installation).
+You can get installers for Windows (`.exe`) and Linux (`.deb`, `.rpm`) from [draggy.org](https://draggy.org) or the [Releases page](https://github.com/Lucki74/draggy/releases/latest). The first time you open it, Draggy suggests a model that fits your hardware and downloads it for you. System requirements and setup per platform are in [Installation](https://docs.draggy.org/installation).
 
 Image generation is optional. You install it from Settings, under Models. The engine is its own download, 17 to 900 MB depending on the build. Stable Diffusion 1.5 needs about 2 GB of video memory and Z-Image Turbo about 6 GB. With less, the weights stay in system memory. You can also pick a cloud image model from a provider you connected, and that one needs no engine at all.
 
@@ -83,19 +83,12 @@ If Draggy is useful to you, starring the repo helps other people find it.
 On Windows:
 
 ```bash
-cd win
+cd app
 npm install
 npm run tauri:dev
 ```
 
 That starts Vite and the Tauri window with hot reload. The first run needs the Rust toolchain and the pinned `node.exe` sidecar, see [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### macOS (SwiftUI)
-```bash
-macos/scripts/build-core.sh
-xcodegen generate
-xcodebuild -scheme Draggy -configuration Debug
-```
 
 ### Linux (GTK 4 & libadwaita)
 ```bash

@@ -8,7 +8,7 @@ What's left still matters though. Draggy reads web pages, opens files you give i
 
 ## Which versions get fixes
 
-The latest build. Packaged builds update themselves on Windows, macOS and Linux, so a fix ships as a new build, not as a backport.
+The latest build. Packaged builds update themselves on Windows and Linux, so a fix ships as a new build, not as a backport.
 
 ## Reporting something
 
@@ -20,18 +20,18 @@ I'm one person, so give me a few days. I'll tell you what I think, whether I'm f
 
 Anything that turns content Draggy reads (a web page, a document, an extension's output) into actions nobody asked for. For example:
 
-- The webview reaching the filesystem or a command through the Tauri IPC bridge. Only the `main` webview gets IPC (`win/src-tauri/capabilities/main.json`). Browser pane webviews get nothing (`browser-pane.json`).
+- The webview reaching the filesystem or a command through the Tauri IPC bridge. Only the `main` webview gets IPC (`app/src-tauri/capabilities/main.json`). Browser pane webviews get nothing (`browser-pane.json`).
 - Reading or writing outside the folders Draggy is supposed to touch, a credentials file (`.env`, `.ssh`) the file tools should refuse, or a repo that runs a program just by being looked at.
 - Running a tool, a command or an edit without the permission mode allowing it, or a remembered allowance covering more than it was given for.
 - A command or an undo outliving its turn, running outside the project folder, or writing somewhere other than where it came from.
-- A command escaping the Windows sandbox (the AppContainer launcher in `win/sandbox/`), or running outside it without the user saying yes.
+- A command escaping the Windows sandbox (the AppContainer launcher in `app/sandbox/`), or running outside it without the user saying yes.
 - The local API answering anyone other than a local client with the key, or an extension widget reaching the window, the network, or a tool that isn't read-only.
 - The code execution tool escaping its scratch directory or its timeout, or extension credentials leaking into a log, a crash report or a window title.
 - The updater accepting a build that didn't come from this repo, or the embedded browser leaking a session between the app and a page.
 - The `draggy-ai://` model gateway answering anything other than Draggy's own window, or fetching anywhere other than a provider you added and turned on.
 - A provider's API key or the Brave Search key leaving the system keystore: reaching the renderer, a URL, a log, or a plain text file.
 - A provider's own hosted tools (web search, code execution) running on a request Draggy sent.
-- A cloud image or voice request (`win/src-tauri/src/images/cloud/`, `win/src-tauri/src/tts/cloud/`) going anywhere other than the provider the user picked, or its key reaching the renderer.
+- A cloud image or voice request (`app/src-tauri/src/images/cloud/`, `app/src-tauri/src/tts/cloud/`) going anywhere other than the provider the user picked, or its key reaching the renderer.
 - A cloud voice getting reply text without a grant for that provider.
 - A picture from the web shown in an answer loading anything other than the image itself.
 - The image engine accepting an engine archive or model without the SHA-256 pinned in the app, unpacking an archive entry outside its folder, or writing an image outside the project or output folder it was meant for.
@@ -41,7 +41,7 @@ Anything that turns content Draggy reads (a web page, a document, an extension's
 
 I'd rather say these out loud than hide them.
 
-Builds aren't code signed. The Windows updater checks each update against a minisign key whose private half only lives in this repo's secrets. On macOS and Linux, the checksums in `SHA256SUMS.txt` come from the same release as the package, so they catch corruption but not tampering. There, write access to the releases is the trust boundary.
+Builds aren't code signed. The Windows updater checks each update against a minisign key whose private half only lives in this repo's secrets. On Linux, the checksums in `SHA256SUMS.txt` come from the same release as the package, so they catch corruption but not tampering. There, write access to the releases is the trust boundary.
 
 colibri is pinned to one release (`RELEASE` in `core/crates/engine/src/colibri_runtime.rs`), and each archive is checked against the `SHA256SUMS.txt` published next to it. That proves the download is intact, not that the upstream release is trustworthy. The Python runtime is pinned by hash on Windows and Linux.
 

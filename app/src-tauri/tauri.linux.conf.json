@@ -1,0 +1,24 @@
+{
+  "build": {
+    "beforeDevCommand": "bash scripts/stage-sidecars-linux.sh && npm run dev",
+    "beforeBuildCommand": "bash scripts/stage-sidecars-linux.sh && npm run build"
+  },
+  "bundle": {
+    "targets": [
+      "deb",
+      "appimage"
+    ],
+    "icon": [
+      "icons/icon.png"
+    ],
+    "resources": {
+      "../sandbox/target/release/draggy-sandbox.exe": null
+    },
+    "windows": null
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": []
+    }
+  }
+}

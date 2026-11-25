@@ -7,13 +7,13 @@ on:
     paths:
       - "core/**"
       - "shared/fixtures/**"
-      - "win/src/__tests__/fixtures/**"
+      - "app/src/__tests__/fixtures/**"
       - ".github/workflows/core.yml"
   pull_request:
     paths:
       - "core/**"
       - "shared/fixtures/**"
-      - "win/src/__tests__/fixtures/**"
+      - "app/src/__tests__/fixtures/**"
       - ".github/workflows/core.yml"
   workflow_dispatch:
 
@@ -36,7 +36,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15, windows-2025]
+        # TODO: re-enable macOS: add macos-15 back
+        os: [ubuntu-24.04, windows-2025]
 
     defaults:
       run:
@@ -61,7 +62,7 @@ jobs:
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: win
+        working-directory: app
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -70,9 +71,9 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: win/.nvmrc
+          node-version-file: app/.nvmrc
           cache: npm
-          cache-dependency-path: win/package-lock.json
+          cache-dependency-path: app/package-lock.json
 
       - run: npm ci
 

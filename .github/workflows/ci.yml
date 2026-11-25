@@ -1,6 +1,6 @@
 name: CI
 
-# Typecheck, lint, the full test suite and the Rust checks for the Tauri app on Windows, the only OS this app ships for.
+# Typecheck, lint, the full test suite and the Rust checks for the Tauri app on Windows, and the Rust checks on Linux.
 on:
   push:
     branches: [main]
@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     defaults:
       run:
-        working-directory: win
+        working-directory: app
     strategy:
       fail-fast: false
       matrix:
@@ -36,24 +36,24 @@ jobs:
       # The release workflow builds on the same Node version.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: win/.nvmrc
+          node-version-file: app/.nvmrc
           cache: npm
-          cache-dependency-path: win/package-lock.json
+          cache-dependency-path: app/package-lock.json
 
       - name: Install Rust with rustfmt and clippy
         run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: win/src-tauri
+          workspaces: app/src-tauri
 
       - run: npm ci
 
       - name: Test and build the sandbox launcher
-        working-directory: win/sandbox
+        working-directory: app/sandbox
         run: cargo test -q && cargo build --release
 
-      # vendor/ is git-ignored, so the pinned node.exe sidecar is fetched and checked against win/scripts/node-pin.json.
+      # vendor/ is git-ignored, so the pinned node.exe sidecar is fetched and checked against app/scripts/node-pin.json.
       - name: Fetch the pinned node.exe sidecar
         shell: pwsh
         run: |
@@ -92,13 +92,76 @@ jobs:
       - run: npm run build
 
       - name: Rust format
-        working-directory: win/src-tauri
+        working-directory: app/src-tauri
         run: cargo fmt --check
 
       - name: Rust clippy
-        working-directory: win/src-tauri
+        working-directory: app/src-tauri
         run: cargo clippy --all-targets -- -D warnings
 
       - name: Rust tests
-        working-directory: win/src-tauri
+        working-directory: app/src-tauri
+        run: cargo test -q
+
+  # The same Rust checks on Linux, so code behind cfg(not(windows)) compiles and stays free of dead code.
+  linux:
+    name: Rust checks (ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install the Tauri system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install Rust with rustfmt and clippy
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: app/src-tauri
+
+      - run: npm ci
+
+      # vendor/ is git-ignored, so the pinned node is fetched and checked against app/scripts/node-pin-linux.json.
+      # cargo only checks that ffmpeg and ffprobe exist, so empty files stand in for them.
+      - name: Stage the sidecars
+        run: |
+          version="$(node -p "require('./scripts/node-pin-linux.json').version")"
+          archive="$(node -p "require('./scripts/node-pin-linux.json').archive")"
+          expected="$(node -p "require('./scripts/node-pin-linux.json').archiveSha256")"
+          curl -sSfL -o "$RUNNER_TEMP/$archive" "https://nodejs.org/dist/$version/$archive"
+          echo "$expected  $RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p vendor/node vendor/ffmpeg
+          tar -xJf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          cp "$RUNNER_TEMP/${archive%.tar.xz}/bin/node" vendor/node/node
+          touch vendor/ffmpeg/ffmpeg vendor/ffmpeg/ffprobe
+          TAURI_ENV_DEBUG=true bash scripts/stage-sidecars-linux.sh
+
+      # Tauri's frontendDist must exist before cargo builds the crate.
+      - run: npm run build
+
+      - name: Rust format
+        working-directory: app/src-tauri
+        run: cargo fmt --check
+
+      - name: Rust clippy
+        working-directory: app/src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Rust tests
+        working-directory: app/src-tauri
         run: cargo test -q

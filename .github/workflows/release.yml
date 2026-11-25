@@ -1,9 +1,9 @@
 name: Release
 
-# Run from the Actions tab on main. Builds Windows, macOS and Linux as 3.0.N, where N is one more than
+# Run from the Actions tab on main. Builds Windows and Linux as 3.0.N, where N is one more than
 # the highest b-N tag, then publishes a release named build-N with the installers and the
-# latest*.yml files the in-app updater reads. The native macOS zip and the Linux .deb and .rpm
-# ride along in the same release.
+# latest*.yml files the in-app updater reads. The Linux .deb and .rpm ride along in the same release.
+# macOS builds are paused (TODO: re-enable macOS).
 on:
   workflow_dispatch:
     inputs:
@@ -46,7 +46,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: win
+        working-directory: app
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -54,15 +54,15 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: win/.nvmrc
+          node-version-file: app/.nvmrc
           cache: npm
-          cache-dependency-path: win/package-lock.json
+          cache-dependency-path: app/package-lock.json
 
       - run: rustup toolchain install stable --profile minimal
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: win/src-tauri
+          workspaces: app/src-tauri
 
       - run: npm ci
 
@@ -157,10 +157,12 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist-windows
-          path: win/dist-tauri/*
+          path: app/dist-tauri/*
           if-no-files-found: error
 
   macos:
+    # TODO: re-enable macOS: remove this line and add macos back to publish.needs
+    if: false
     needs: prepare
     runs-on: macos-15
     permissions:
@@ -174,10 +176,10 @@ jobs:
 
       - run: brew install xcodegen
 
-      - run: macos/scripts/build-core.sh
+      - run: legacy-macos/scripts/build-core.sh
 
       - run: xcodegen generate
-        working-directory: macos
+        working-directory: legacy-macos
 
       - name: Test
         run: >
@@ -186,7 +188,7 @@ jobs:
           -scheme Draggy
           -destination "platform=macOS,arch=arm64"
           CODE_SIGNING_ALLOWED=NO
-        working-directory: macos
+        working-directory: legacy-macos
 
       - name: Build and sign ad hoc
         env:
@@ -202,13 +204,13 @@ jobs:
           CODE_SIGNING_REQUIRED=NO
           MARKETING_VERSION="3.0.$N"
           CURRENT_PROJECT_VERSION="$N"
-        working-directory: macos
+        working-directory: legacy-macos
 
       - name: Package
         env:
           N: ${{ needs.prepare.outputs.n }}
         run: |
-          app="macos/build/derived/Build/Products/Release/Draggy.app"
+          app="legacy-macos/build/derived/Build/Products/Release/Draggy.app"
           codesign --force --deep --sign - --options runtime "$app"
           codesign --verify --deep --strict "$app"
           mkdir -p out
@@ -270,7 +272,7 @@ jobs:
   # Drafting first and publishing last means a failed upload never leaves a half-empty Latest
   # release that installed apps would pick up.
   publish:
-    needs: [prepare, windows, macos, linux]
+    needs: [prepare, windows, linux]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     permissions:

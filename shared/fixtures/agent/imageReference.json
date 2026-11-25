@@ -1,6 +1,6 @@
 {
   "area": "agent",
-  "description": "The picture index the model sees and the strength a reference starts at (win/src/images/imageTracker.ts, core/crates/agent/src/image_reference.rs).",
+  "description": "The picture index the model sees and the strength a reference starts at (app/src/images/imageTracker.ts, core/crates/agent/src/image_reference.rs).",
   "cases": [
     {
       "name": "no pictures gives no index",

@@ -1,4 +1,4 @@
-//! What a reply cost, from the tokens it used and a price table. The twin of `win/src/stats/cost.ts`, held to the same
+//! What a reply cost, from the tokens it used and a price table. The twin of `app/src/stats/cost.ts`, held to the same
 //! golden file in `shared/fixtures/cost`.
 //!
 //! Money is counted in micro-dollars (1e-6 USD). A rate in dollars per million tokens times a token count is already in

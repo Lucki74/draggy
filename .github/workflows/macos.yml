@@ -1,20 +1,8 @@
 name: macOS
 
 # Build and test the native macOS app. It only runs for changes to the app, the core it uses, or this file.
+# TODO: re-enable macOS: restore the push and pull_request triggers from git history.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "macos/**"
-      - "core/**"
-      - "shared/fixtures/**"
-      - ".github/workflows/macos.yml"
-  pull_request:
-    paths:
-      - "macos/**"
-      - "core/**"
-      - "shared/fixtures/**"
-      - ".github/workflows/macos.yml"
   workflow_dispatch:
 
 permissions:
@@ -42,10 +30,10 @@ jobs:
       - run: brew install xcodegen
 
       # Builds the core, generates the Swift bindings and packs the XCFramework.
-      - run: macos/scripts/build-core.sh
+      - run: legacy-macos/scripts/build-core.sh
 
       - run: xcodegen generate
-        working-directory: macos
+        working-directory: legacy-macos
 
       - run: >
           xcodebuild test
@@ -53,4 +41,4 @@ jobs:
           -scheme Draggy
           -destination "platform=macOS,arch=arm64"
           CODE_SIGNING_ALLOWED=NO
-        working-directory: macos
+        working-directory: legacy-macos

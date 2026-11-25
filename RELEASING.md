@@ -1,6 +1,6 @@
 # Releasing Draggy
 
-Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds the Windows installer with Tauri, the macOS app and the Linux packages natively, then publishes a release with the packages, the `latest.yml` files and `SHA256SUMS.txt`, which the app reads or checks against.
+Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds the Windows installer with Tauri and the Linux packages natively, then publishes a release with the packages, the `latest.yml` files and `SHA256SUMS.txt`, which the app reads or checks against.
 
 ## Cutting a build
 
@@ -9,7 +9,7 @@ builds the app as version `3.0.N`. The release is named `build-N`, the tag is `b
 shows it as "build N". Version `3.0.0` in `package.json` is the development build and is never
 released.
 
-1. Check that `main` is green on all three systems.
+1. Check that `main` is green on Windows and Linux.
 2. Write the notes (see below).
 3. From the Actions tab, run Release on `main` with the notes, or from a terminal:
 
@@ -18,8 +18,9 @@ gh workflow run release.yml --ref main -f notes="$(cat notes.md)"
 ```
 
 The workflow only runs from `main` and only by hand. The Windows job runs `npm run check` before it
-builds, and the macOS and Linux jobs run the Rust tests for their system. The publish job waits for
-all three, so a failure on any system means nothing is published.
+builds, and the Linux job runs the Rust tests. The publish job waits for both, so a failure on either
+system means nothing is published. The macOS job is switched off (`if: false`) while macOS builds are
+paused; search the workflows for `TODO: re-enable macOS` to turn it back on.
 
 The release is created as a draft, the files are uploaded, and only then is it published and marked
 Latest. A failed upload therefore never leaves a half-empty release that installed apps would pick up.
@@ -41,12 +42,12 @@ it to `RELEASE-NOTES-BUILD-<n>.md` once the build number is known, and keep only
 gh workflow run release.yml --ref main -f dry_run=true -f notes="dry run"
 ```
 
-A dry run builds all three systems, skips the publish job, and keeps the installers as workflow artifacts. It creates no
+A dry run builds both systems, skips the publish job, and keeps the installers as workflow artifacts. It creates no
 tag and no release, so it does not use up a build number.
 
 ## The Windows build
 
-The Windows job runs on `windows-latest` in `win/`. It:
+The Windows job runs on `windows-latest` in `app/`. It:
 
 1. Fetches the pinned `node.exe` into `vendor/node/` and checks its SHA-256 against `scripts/node-pin.json`.
 2. Runs `npm run stage:sidecars`, which copies that `node.exe` into `src-tauri/binaries/`.
@@ -63,9 +64,9 @@ The Tauri updater verifies each update against a minisign public key. The releas
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
-The public key is `plugins.updater.pubkey` in `win/src-tauri/tauri.conf.json`. The private key and its password exist only in the repository secrets. A new key pair breaks updates for every install that has the old public key, so rotate it only after a compromise, and ship the new public key in a build signed with the old key first.
+The public key is `plugins.updater.pubkey` in `app/src-tauri/tauri.conf.json`. The private key and its password exist only in the repository secrets. A new key pair breaks updates for every install that has the old public key, so rotate it only after a compromise, and ship the new public key in a build signed with the old key first.
 
-The Windows signature is the trust boundary for the Tauri feed. The macOS and Linux checksums come from the same release as the packages, so whoever can write to a release can still ship code to those platforms. That is why the workflow holds the only token that publishes, and why `SECURITY.md` says so.
+The Windows signature is the trust boundary for the Tauri feed. The Linux checksums come from the same release as the packages, so whoever can write to a release can still ship code to those platforms. That is why the workflow holds the only token that publishes, and why `SECURITY.md` says so.
 
 ## Where the Windows updates go
 
@@ -85,7 +86,7 @@ fixed by releasing the next number.
 
 ## Moving the image engine to a newer build
 
-The image engine is pinned to one stable-diffusion.cpp release, with the SHA-256 of every archive built into the app. It never follows "latest". The pin lives in `core/crates/engine/src/sd_runner.rs`: the Windows and Unix release tags (`WINDOWS_RELEASE`, `UNIX_RELEASE`), the archive names, and their SHA-256 and size. Bumping it is a pull request of its own. Copy the new tag and the digests of every archive from GitHub's published release, update that file, and run `cargo test` in `core/` and `npm run check` in `win/`. Install each runner you can on real hardware before merging.
+The image engine is pinned to one stable-diffusion.cpp release, with the SHA-256 of every archive built into the app. It never follows "latest". The pin lives in `core/crates/engine/src/sd_runner.rs`: the Windows and Unix release tags (`WINDOWS_RELEASE`, `UNIX_RELEASE`), the archive names, and their SHA-256 and size. Bumping it is a pull request of its own. Copy the new tag and the digests of every archive from GitHub's published release, update that file, and run `cargo test` in `core/` and `npm run check` in `app/`. Install each runner you can on real hardware before merging.
 
 ## The large-model engine
 
@@ -97,7 +98,7 @@ The site at draggy.org lives in its own repository (`../draggy-website`) and the
 
 Before running the workflow, make sure:
 - the documentation and site pages reflect what changed, in English, French, Spanish, and Russian;
-- screenshots and clips match the release interface. Retake them with `npm run shots` and `npm run clips` in `win/`, which write into the docs and website checkouts;
+- screenshots and clips match the release interface. Retake them with `npm run shots` and `npm run clips` in `app/`, which write into the docs and website checkouts;
 - the privacy policy date is updated if network behavior changed, listing any new endpoints.
 
 For details on how updates apply after install, see the docs' [Installation](https://docs.draggy.org/installation) page.

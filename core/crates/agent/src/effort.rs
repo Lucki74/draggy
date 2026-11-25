@@ -1,4 +1,4 @@
-//! The effort levels and the rules that set the level a turn runs at. Mirrors `win/src/ai/effort.ts`;
+//! The effort levels and the rules that set the level a turn runs at. Mirrors `app/src/ai/effort.ts`;
 //! `shared/fixtures/agent/effort.json` holds the cases both sides must agree on.
 
 /// How much reasoning a turn asks a model for, from none up to the most. Declaration order is the order of the levels.
