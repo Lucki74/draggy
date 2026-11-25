@@ -2,7 +2,9 @@
 //! Reads and writes Electron's `secrets.bin` in the same `v10` AES-GCM layout and key location, so an
 //! Electron rollback still reads what this wrote.
 
+#[cfg(windows)]
 mod dpapi;
+#[cfg(windows)]
 mod local_state;
 mod vault;
 
@@ -35,6 +37,7 @@ pub struct Keystore {
 impl Keystore {
     /// Opens the store in `user_data`, creating the `Local State` key on first use. `register` receives every
     /// stored value so the log scrubber can drop it.
+    #[cfg(windows)]
     pub fn open(
         user_data: &Path,
         register: impl Fn(&str) + Send + Sync + 'static,
@@ -42,6 +45,17 @@ impl Keystore {
         let key = local_state::load_or_create(user_data).map_err(KeystoreError)?;
         let store = SecretStore::new(user_data, WindowsVault::new(key)).with_registrar(register);
         Ok(Self { store })
+    }
+
+    /// No keystore off Windows yet, so callers fall back to keeping keys for this run only.
+    #[cfg(not(windows))]
+    pub fn open(
+        _user_data: &Path,
+        _register: impl Fn(&str) + Send + Sync + 'static,
+    ) -> Result<Self, KeystoreError> {
+        Err(KeystoreError(
+            "Saving keys is not available on macOS yet".to_owned(),
+        ))
     }
 
     pub fn available(&self) -> bool {
@@ -109,7 +123,7 @@ impl Keystore {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, windows))]
 mod tests {
     use super::*;
     use std::fs;
@@ -249,5 +263,22 @@ mod tests {
             .expect("set");
 
         assert!(seen.lock().expect("lock").iter().any(|v| v == "ghp_secret"));
+    }
+}
+
+#[cfg(all(test, not(windows)))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn refuses_to_open_and_writes_nothing() {
+        let dir = tempfile::tempdir().expect("tempdir");
+
+        let error = Keystore::open(dir.path(), |_: &str| {})
+            .err()
+            .expect("no keystore off Windows");
+
+        assert!(error.to_string().contains("not available on macOS"));
+        assert_eq!(std::fs::read_dir(dir.path()).expect("dir").count(), 0);
     }
 }
