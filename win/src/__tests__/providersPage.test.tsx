@@ -117,7 +117,7 @@ describe("the Providers page", () => {
   });
 
   it("asks for a custom provider's address in the Add list, and adds it with that address", async () => {
-    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: "" })] });
+    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null })] });
     page();
     fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
     fireEvent.click(await screen.findByRole("button", { name: "Custom (OpenAI-compatible)" }));
@@ -131,7 +131,7 @@ describe("the Providers page", () => {
   });
 
   it("says why an add was refused, and keeps the address to correct", async () => {
-    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: "" })] });
+    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null })] });
     api.add.mockImplementation(async () => ({ success: false, error: { kind: "provider-unknown-error", message: "That address is not a URL." } }) as never);
     page();
     fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
@@ -145,10 +145,23 @@ describe("the Providers page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: en("cancel") }));
     expect(screen.queryByText(en("providerChangeFailed"))).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("textbox", { name: en("searchProviders") }));
+  });
+
+  it("leaves the Enter that confirms an IME candidate to the IME", async () => {
+    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null })] });
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "Custom (OpenAI-compatible)" }));
+    const field = screen.getByRole("textbox", { name: en("providerAddress") });
+    fireEvent.change(field, { target: { value: "http://192.168.64.1:1234/v1" } });
+    fireEvent.keyDown(field, { key: "Enter", keyCode: 229 });
+    expect(api.add).not.toHaveBeenCalled();
+    expect(screen.getByRole("textbox", { name: en("providerAddress") })).toBeTruthy();
   });
 
   it("adds a custom provider once when Enter is pressed again before the answer", async () => {
-    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: "" })] });
+    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null })] });
     api.add.mockImplementation(() => new Promise<never>(() => {}));
     page();
     fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));

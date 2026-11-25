@@ -323,7 +323,7 @@ describe("a plan on the provider step", () => {
   });
 
   it("asks a custom provider's address on the step, where Escape leaves the field and not the step", async () => {
-    const custom: ProviderCatalogEntry = { ...entry(), id: "custom", name: "Custom (OpenAI-compatible)", vendor: null, needsKey: false, baseUrl: "", editableBaseUrl: true };
+    const custom: ProviderCatalogEntry = { ...entry(), id: "custom", name: "Custom (OpenAI-compatible)", vendor: null, needsKey: false, baseUrl: null, editableBaseUrl: true };
     const { api } = withPlan();
     api.catalog.mockResolvedValue([custom]);
     render(<Harness onFinish={() => {}} />);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import { Badge, Button, ConfirmDialog, Segmented, Toggle } from "../settings/Controls";
 import { engineFailure } from "../ai/engineErrors";
@@ -725,6 +725,12 @@ export function AddProvider({
   const [addressing, setAddressing] = useState<ProviderCatalogEntry | null>(null);
   const [address, setAddress] = useState("");
   const [refused, setRefused] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const refusalRef = useRef<HTMLParagraphElement>(null);
+  // The panel ends the page, so the reason is scrolled to once rather than left below the fold.
+  useEffect(() => {
+    if (refused) refusalRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [refused]);
   const needle = query.trim().toLowerCase();
   // Accounts are signed in to from their own group, never added with a key.
   const shown = catalog.filter((entry) => entry.kind !== "account" && (!needle || entry.name.toLowerCase().includes(needle)));
@@ -748,6 +754,7 @@ export function AddProvider({
     setChoosing(null);
     setAddressing(null);
     setAddress("");
+    setRefused(false);
   };
 
   const add = async (entry: ProviderCatalogEntry, baseUrl?: string) => {
@@ -768,6 +775,7 @@ export function AddProvider({
   const dismiss = () => {
     setAddressing(null);
     setRefused(false);
+    searchRef.current?.focus();
   };
 
   if (!open) {
@@ -788,6 +796,7 @@ export function AddProvider({
       <label className="flex items-center gap-2 rounded-sm bg-surface-base px-3 py-2 text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] outline-none focus-within:ring-2 focus-within:ring-focus">
         <Icon name="magnifying-glass" size={14} className="text-text-secondary" />
         <input
+          ref={searchRef}
           autoFocus
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -862,6 +871,8 @@ export function AddProvider({
               value={address}
               onChange={(event) => setAddress(event.target.value)}
               onKeyDown={(event) => {
+                // An IME confirms its candidate with Enter; that key is not an add.
+                if (event.nativeEvent.isComposing || event.keyCode === 229) return;
                 if (event.key === "Enter") addAddressed();
                 else if (event.key === "Escape") {
                   // Onboarding takes Escape as a step back; here it only closes the field.
@@ -884,8 +895,7 @@ export function AddProvider({
         </div>
       )}
       {refused && (
-        // The panel ends the page, so the reason is scrolled to rather than left below the fold.
-        <p ref={(node) => node?.scrollIntoView?.({ block: "nearest" })} className="px-2 text-xs font-medium text-danger break-words">
+        <p ref={refusalRef} className="px-2 text-xs font-medium text-danger break-words">
           {t("providerChangeFailed")}
         </p>
       )}
