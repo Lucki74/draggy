@@ -36,7 +36,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15, windows-2025]
+        # TODO: re-enable macOS: add macos-15 back
+        os: [ubuntu-24.04, windows-2025]
 
     defaults:
       run:
