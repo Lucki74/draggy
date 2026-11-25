@@ -208,16 +208,27 @@ export async function fetchRelease() {
   if (!version) throw new Error(`release ${release.tag_name} has no version in its update manifests`);
 
   const assets = {};
+  let older = null;
   for (const [key, matches] of Object.entries(ASSETS)) {
-    const asset = release.assets.find((item) => matches(item.name));
+    let tag = release.tag_name;
+    let asset = release.assets.find((item) => matches(item.name));
     if (!asset && OPTIONAL.has(key)) continue;
-    if (!asset) throw new Error(`release ${release.tag_name} has no file for ${key}`);
+    if (!asset) {
+      // A build that skipped one system (macOS in build 16) links that system's newest earlier file.
+      older ??= await get(`https://api.github.com/repos/${REPO}/releases?per_page=20`, "json");
+      const from = older.find((item) => /^b-\d+$/.test(item.tag_name) && !item.draft && !item.prerelease && item.assets?.some((file) => matches(file.name)));
+      if (!from) throw new Error(`release ${release.tag_name} has no file for ${key}`);
+      tag = from.tag_name;
+      asset = from.assets.find((file) => matches(file.name));
+      warn(`release ${release.tag_name} has no file for ${key}; linking ${asset.name} from ${tag}`);
+    }
 
-    const base64 = byName[asset.name];
+    const base64 = tag === release.tag_name ? byName[asset.name] : undefined;
 
     assets[key] = {
       name: asset.name,
-      url: downloadUrl(release.tag_name, asset.name),
+      url: downloadUrl(tag, asset.name),
+      ...(tag === release.tag_name ? {} : { tag }),
       size: asset.size,
       ...(base64 ? { sha512: Buffer.from(base64, "base64").toString("hex") } : {}),
     };
@@ -252,6 +263,7 @@ export function checkRelease(data) {
     for (const entry of data.recent) checkRecent(entry);
   }
   for (const [key, asset] of Object.entries(data.assets ?? {})) {
+    if (asset.tag !== undefined && !/^b-[1-9]\d*$/.test(asset.tag)) throw new Error(`${key}: tag "${asset.tag}" is not b-N`);
     if (!/^[\w.-]+$/.test(asset.name)) throw new Error(`${key}: file name "${asset.name}" is not a plain name`);
     if (!Number.isSafeInteger(asset.size) || asset.size <= 0) throw new Error(`${key}: size is not a byte count`);
     if (asset.sha512 !== undefined && !/^[0-9a-f]{128}$/.test(asset.sha512)) throw new Error(`${key}: sha512 is not 128 hex digits`);
