@@ -1,8 +1,10 @@
 //! Handlers for the app shell channels: quit, boot hand-off, native toast, disk space, connectivity and
 //! opening a created file.
 
+#[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
+#[cfg(windows)]
 use std::ptr::null_mut;
 use std::sync::{Arc, OnceLock};
 
@@ -13,6 +15,7 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
 use tokio::sync::Mutex;
+#[cfg(windows)]
 use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 
 use super::{IpcError, Registry};
@@ -151,12 +154,19 @@ fn truncate(text: &str, limit: usize) -> String {
 }
 
 /// Bytes the caller may use on the volume holding `path`. Zero when the call fails.
+#[cfg(windows)]
 fn free_bytes(path: &Path) -> u64 {
     let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
     let mut free: u64 = 0;
     // SAFETY: `wide` is NUL-terminated and alive for the call; the two optional out pointers are null.
     let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut free, null_mut(), null_mut()) };
     if ok == 0 { 0 } else { free }
+}
+
+#[cfg(not(windows))]
+fn free_bytes(path: &Path) -> u64 {
+    use draggy_models::download::{Env, SystemEnv};
+    SystemEnv.free_bytes(path).unwrap_or(0)
 }
 
 #[cfg(test)]

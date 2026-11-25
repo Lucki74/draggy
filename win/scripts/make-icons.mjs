@@ -28,6 +28,18 @@ const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
 /** Beyond this, an entry goes in as a PNG; below it, as a bitmap. */
 const ICO_PNG_FROM = 128;
 
+/** macOS picks by type code. The source drawing is 500 px, so the 1024 px entry is left out
+ * rather than upscaled. */
+const ICNS_ENTRIES = [
+  ["ic11", 32],
+  ["ic12", 64],
+  ["ic07", 128],
+  ["ic13", 256],
+  ["ic08", 256],
+  ["ic14", 512],
+  ["ic09", 512],
+];
+
 /** The drawing sits in a wide transparent margin. Scaling the whole canvas would halve the dragon,
  * so the margin is measured and cut away first. */
 async function readArtwork() {
@@ -157,6 +169,23 @@ async function buildIco(artwork) {
   return Buffer.concat([directory, ...images.map((image) => image.data)]);
 }
 
+/** Every entry is a PNG behind a type code and a big-endian length that counts its own header. */
+async function buildIcns(artwork) {
+  const entries = [];
+  for (const [type, size] of ICNS_ENTRIES) {
+    const data = await png(artwork, size);
+    const header = Buffer.alloc(8);
+    header.write(type, 0, "ascii");
+    header.writeUInt32BE(data.length + 8, 4);
+    entries.push(header, data);
+  }
+  const body = Buffer.concat(entries);
+  const header = Buffer.alloc(8);
+  header.write("icns", 0, "ascii");
+  header.writeUInt32BE(body.length + 8, 4);
+  return Buffer.concat([header, body]);
+}
+
 async function main() {
   const meta = await sharp(SOURCE).metadata();
   if (!meta.width || !meta.height) throw new Error(`${SOURCE} is unreadable`);
@@ -167,6 +196,11 @@ async function main() {
   // The Tauri build reads its window and installer icon from this file.
   await writeFile(path.join(ROOT, "src-tauri", "icons", "icon.ico"), ico);
 
+  // macOS reads the bundle icon from the .icns, and the window icon from a PNG.
+  const icns = await buildIcns(artwork);
+  await writeFile(path.join(ROOT, "src-tauri", "icons", "icon.icns"), icns);
+  await writeFile(path.join(ROOT, "src-tauri", "icons", "icon.png"), await png(artwork, 512));
+
   // The mark the interface draws, without the tile: inside the app it takes
   // its colour from the text around it, so only the shape is needed.
   const inApp = path.join(ROOT, "src", "assets");
@@ -175,6 +209,7 @@ async function main() {
 
   console.log(
     `icon.ico (${ICO_SIZES.length} sizes, ${(ico.length / 1024).toFixed(1)} kB), ` +
+      `icon.icns (${ICNS_ENTRIES.length} entries, ${(icns.length / 1024).toFixed(1)} kB), icon.png, ` +
       `and src/assets/dragon.png ` +
       `for the interface — all from ${path.basename(SOURCE)}`,
   );

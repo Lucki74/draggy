@@ -19,13 +19,30 @@ const MARKER: &str = "draggy.db";
 /// The marker under the previous name. It must arrive renamed, or it sits beside a fresh empty database.
 const LEGACY_MARKER: &str = "localai.db";
 
-/// `%APPDATA%\Draggy`. A missing `APPDATA` is an error: guessing another folder would start a fresh,
-/// empty profile beside the real one.
+/// `%APPDATA%\Draggy`. Off macOS a missing `APPDATA` is an error: guessing another folder would start a
+/// fresh, empty profile beside the real one.
 pub fn data_dir(appdata: Option<OsString>) -> Result<PathBuf, String> {
     let base = appdata
         .filter(|value| !value.is_empty())
+        .or_else(default_base)
         .ok_or_else(|| "APPDATA is not set".to_owned())?;
     Ok(PathBuf::from(base).join(APP_FOLDER))
+}
+
+#[cfg(not(target_os = "macos"))]
+fn default_base() -> Option<OsString> {
+    None
+}
+
+/// `~/Library/Application Support`, where the macOS app already keeps its models and settings.
+#[cfg(target_os = "macos")]
+fn default_base() -> Option<OsString> {
+    let home = std::env::var_os("HOME").filter(|value| !value.is_empty())?;
+    Some(
+        PathBuf::from(home)
+            .join("Library/Application Support")
+            .into_os_string(),
+    )
 }
 
 /// What the carry-over would do. `Adopt` moves the old folder in, `KeepNew` leaves both alone.
@@ -165,10 +182,27 @@ mod tests {
         );
     }
 
+    #[cfg(not(target_os = "macos"))]
     #[test]
     fn refuses_to_guess_without_appdata() {
         assert!(data_dir(None).is_err());
         assert!(data_dir(Some(OsString::new())).is_err());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn falls_back_to_application_support_without_appdata() {
+        let home = PathBuf::from(std::env::var_os("HOME").expect("HOME"));
+        let expected = home.join("Library/Application Support/Draggy");
+        assert_eq!(data_dir(None).unwrap(), expected);
+        assert_eq!(data_dir(Some(OsString::new())).unwrap(), expected);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn appdata_still_wins_over_the_fallback() {
+        let dir = data_dir(Some(OsString::from("/tmp/throwaway"))).unwrap();
+        assert_eq!(dir, PathBuf::from("/tmp/throwaway/Draggy"));
     }
 
     #[test]

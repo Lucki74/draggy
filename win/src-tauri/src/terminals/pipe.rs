@@ -48,7 +48,10 @@ pub fn spawn(
     let mut command = if launch.verbatim {
         hidden_command(launch.file, &no_args, |command| {
             for arg in launch.args {
+                #[cfg(windows)]
                 command.raw_arg(arg);
+                #[cfg(not(windows))]
+                command.arg(arg);
             }
         })
     } else {

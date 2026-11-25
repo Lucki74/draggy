@@ -1,9 +1,12 @@
 //! Writes a PDF from Markdown or HTML. WebView2 lays the document out and prints it in a hidden window
 //! with no capabilities and scripts switched off. The Markdown converter is a line walk.
+// Off Windows only the tests reach the printing code.
+#![cfg_attr(not(windows), allow(dead_code))]
 
 use std::fs;
 use std::path::Path;
 use std::sync::LazyLock;
+#[cfg(windows)]
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
@@ -11,9 +14,12 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use regex::{Captures, Regex};
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder};
+use tauri::AppHandle;
+#[cfg(windows)]
+use tauri::{Manager, Url, WebviewUrl, WebviewWindowBuilder};
 
 use crate::browser::cdp::Cdp;
+#[cfg(windows)]
 use crate::browser::cdp_webview2::WebView2Cdp;
 
 /// How long Chromium is given to lay out and to print one document.
@@ -25,6 +31,7 @@ const PAPER_HEIGHT: f64 = 11.69;
 
 const FOOTER_TEMPLATE: &str = r##"<div style="width:100%; font-family:sans-serif; font-size:8px; color:#888; text-align:center; margin:0 12mm;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>"##;
 
+#[cfg(windows)]
 static WINDOWS: AtomicU64 = AtomicU64::new(0);
 
 const PRINT_STYLES: &str = r##"
@@ -431,14 +438,20 @@ pub fn build_document(content: &str, title: &str) -> String {
     )
 }
 
-/// Writes `content` as a PDF at `path`. The window is destroyed whether or not printing works.
+/// Writes `content` as a PDF at `path`.
 pub async fn write_pdf(app: &AppHandle, path: &Path, content: &str) -> Result<(), String> {
     let title = path
         .file_stem()
         .and_then(|stem| stem.to_str())
         .unwrap_or("Document");
     let html = build_document(content, title);
+    let bytes = print_in_window(app, &html).await?;
+    fs::write(path, bytes).map_err(|error| error.to_string())
+}
 
+/// Prints `html` in a hidden window. The window is destroyed whether or not printing works.
+#[cfg(windows)]
+async fn print_in_window(app: &AppHandle, html: &str) -> Result<Vec<u8>, String> {
     let label = format!("pdf-writer-{}", WINDOWS.fetch_add(1, Ordering::Relaxed));
     let blank = Url::parse("about:blank").map_err(|error| error.to_string())?;
     // No capability names this label, so the page has no IPC, events or plugins.
@@ -450,13 +463,17 @@ pub async fn write_pdf(app: &AppHandle, path: &Path, content: &str) -> Result<()
         .map_err(|error| error.to_string())?;
 
     let printed = match app.get_webview(&label) {
-        Some(webview) => print(&WebView2Cdp::new(webview), &html).await,
+        Some(webview) => print(&WebView2Cdp::new(webview), html).await,
         None => Err("the print window is not available".to_owned()),
     };
     let _ = window.destroy();
+    printed
+}
 
-    let bytes = printed?;
-    fs::write(path, bytes).map_err(|error| error.to_string())
+/// Printing goes through WebView2's DevTools Protocol, which WKWebView does not have.
+#[cfg(not(windows))]
+async fn print_in_window(_app: &AppHandle, _html: &str) -> Result<Vec<u8>, String> {
+    Err("Exporting a PDF is not available on macOS yet.".to_owned())
 }
 
 /// Sends one command, failing with `message` if the page does not answer in time.
