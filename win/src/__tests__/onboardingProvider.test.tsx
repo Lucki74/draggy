@@ -322,6 +322,24 @@ describe("a plan on the provider step", () => {
     expect(api.add).toHaveBeenCalledWith({ type: "chatgpt" });
   });
 
+  it("asks a custom provider's address on the step, where Escape leaves the field and not the step", async () => {
+    const custom: ProviderCatalogEntry = { ...entry(), id: "custom", name: "Custom (OpenAI-compatible)", vendor: null, needsKey: false, baseUrl: null, editableBaseUrl: true };
+    const { api } = withPlan();
+    api.catalog.mockResolvedValue([custom]);
+    render(<Harness onFinish={() => {}} />);
+    await toProvider("onbSourceProvider");
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(screen.getByRole("button", { name: "Custom (OpenAI-compatible)" }));
+    fireEvent.keyDown(screen.getByRole("textbox", { name: en("providerAddress") }), { key: "Escape" });
+    expect(screen.queryByRole("textbox", { name: en("providerAddress") })).toBeNull();
+    expect(screen.getByRole("heading", { name: en("onbProviderTitle") })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Custom (OpenAI-compatible)" }));
+    fireEvent.change(screen.getByRole("textbox", { name: en("providerAddress") }), { target: { value: "http://192.168.64.1:1234/v1" } });
+    fireEvent.click(screen.getByRole("button", { name: en("confirm") }));
+    await waitFor(() => expect(api.add).toHaveBeenCalledWith({ type: "custom", baseUrl: "http://192.168.64.1:1234/v1" }));
+  });
+
   it("switches nothing on when the sign-in is cancelled", async () => {
     const { api, settle } = withPlan();
     render(<Harness onFinish={() => {}} />);

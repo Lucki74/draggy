@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import { Badge, Button, ConfirmDialog, Segmented, Toggle } from "../settings/Controls";
 import { engineFailure } from "../ai/engineErrors";
@@ -722,16 +722,29 @@ export function AddProvider({
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState<ProviderCatalogEntry | null>(null);
   const [choosing, setChoosing] = useState<{ key: ProviderCatalogEntry; plan: ProviderCatalogEntry } | null>(null);
+  const [addressing, setAddressing] = useState<ProviderCatalogEntry | null>(null);
+  const [address, setAddress] = useState("");
+  const [refused, setRefused] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const refusalRef = useRef<HTMLParagraphElement>(null);
+  // The panel ends the page, so the reason is scrolled to once rather than left below the fold.
+  useEffect(() => {
+    if (refused) refusalRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [refused]);
   const needle = query.trim().toLowerCase();
   // Accounts are signed in to from their own group, never added with a key.
   const shown = catalog.filter((entry) => entry.kind !== "account" && (!needle || entry.name.toLowerCase().includes(needle)));
 
   const planOf = (entry: ProviderCatalogEntry) =>
     onPlan && entry.vendor ? catalog.find((other) => other.kind === "account" && other.vendor === entry.vendor) : undefined;
-  const byKey = (entry: ProviderCatalogEntry) => (entry.remote ? setConfirming(entry) : void add(entry));
+  // The registry keeps no custom provider without an address, so it is asked before adding.
+  const byKey = (entry: ProviderCatalogEntry) =>
+    entry.id === "custom" ? setAddressing(entry) : entry.remote ? setConfirming(entry) : void add(entry);
   const pick = (entry: ProviderCatalogEntry) => {
     const plan = planOf(entry);
     setConfirming(null);
+    setAddressing(null);
+    setRefused(false);
     if (plan) setChoosing({ key: entry, plan });
     else byKey(entry);
   };
@@ -739,17 +752,30 @@ export function AddProvider({
     setOpen(false);
     setQuery("");
     setChoosing(null);
+    setAddressing(null);
+    setAddress("");
+    setRefused(false);
   };
 
-  const add = async (entry: ProviderCatalogEntry) => {
+  const add = async (entry: ProviderCatalogEntry, baseUrl?: string) => {
     setBusy(true);
-    const added = await providers.add({ type: entry.id });
+    setRefused(false);
+    const added = await providers.add({ type: entry.id, baseUrl });
     setBusy(false);
     setConfirming(null);
     if (added.ok && added.instance) {
       close();
       onAdded(added.instance.id);
+    } else {
+      setRefused(true);
     }
+  };
+  // Enter reaches this while an add is still on its way, and a second one would add twice.
+  const addAddressed = () => !busy && addressing && address.trim() && void add(addressing, address.trim());
+  const dismiss = () => {
+    setAddressing(null);
+    setRefused(false);
+    searchRef.current?.focus();
   };
 
   if (!open) {
@@ -770,6 +796,7 @@ export function AddProvider({
       <label className="flex items-center gap-2 rounded-sm bg-surface-base px-3 py-2 text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] outline-none focus-within:ring-2 focus-within:ring-focus">
         <Icon name="magnifying-glass" size={14} className="text-text-secondary" />
         <input
+          ref={searchRef}
           autoFocus
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -834,6 +861,43 @@ export function AddProvider({
             <Button onClick={() => setConfirming(null)}>{t("cancel")}</Button>
           </div>
         </div>
+      )}
+      {addressing && (
+        <div role="group" aria-label={addressing.name} className="flex flex-col gap-2 px-2 py-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-text-secondary">{t("providerAddress")}</span>
+            <input
+              autoFocus
+              value={address}
+              onChange={(event) => setAddress(event.target.value)}
+              onKeyDown={(event) => {
+                // An IME confirms its candidate with Enter; that key is not an add.
+                if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+                if (event.key === "Enter") addAddressed();
+                else if (event.key === "Escape") {
+                  // Onboarding takes Escape as a step back; here it only closes the field.
+                  event.stopPropagation();
+                  dismiss();
+                }
+              }}
+              dir="ltr"
+              className="h-8 w-full rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              spellCheck={false}
+              autoComplete="off"
+            />
+          </label>
+          <div className="flex gap-2">
+            <Button onClick={addAddressed} disabled={busy || !address.trim()}>
+              {t("confirm")}
+            </Button>
+            <Button onClick={dismiss}>{t("cancel")}</Button>
+          </div>
+        </div>
+      )}
+      {refused && (
+        <p ref={refusalRef} className="px-2 text-xs font-medium text-danger break-words">
+          {t("providerChangeFailed")}
+        </p>
       )}
     </div>
   );

@@ -116,6 +116,63 @@ describe("the Providers page", () => {
     await waitFor(() => expect(api.add).toHaveBeenCalledWith({ type: "newcloud" }));
   });
 
+  it("asks for a custom provider's address in the Add list, and adds it with that address", async () => {
+    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null })] });
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "Custom (OpenAI-compatible)" }));
+    const field = screen.getByRole("textbox", { name: en("providerAddress") });
+    expect(document.activeElement).toBe(field);
+    expect(api.add).not.toHaveBeenCalled();
+    fireEvent.change(field, { target: { value: " http://192.168.64.1:1234/v1 " } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => expect(api.add).toHaveBeenCalledWith({ type: "custom", baseUrl: "http://192.168.64.1:1234/v1" }));
+    expect(await screen.findByRole("switch", { name: "custom" })).toBeTruthy();
+  });
+
+  it("says why an add was refused, and keeps the address to correct", async () => {
+    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null })] });
+    api.add.mockImplementation(async () => ({ success: false, error: { kind: "provider-unknown-error", message: "That address is not a URL." } }) as never);
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "Custom (OpenAI-compatible)" }));
+    fireEvent.change(screen.getByRole("textbox", { name: en("providerAddress") }), { target: { value: "not a url" } });
+    fireEvent.click(screen.getByRole("button", { name: en("confirm") }));
+    expect(await screen.findByText(en("providerChangeFailed"))).toBeTruthy();
+    expect(api.add).toHaveBeenCalledWith({ type: "custom", baseUrl: "not a url" });
+    expect((screen.getByRole("textbox", { name: en("providerAddress") }) as HTMLInputElement).value).toBe("not a url");
+    expect(screen.queryByRole("switch", { name: "custom" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: en("cancel") }));
+    expect(screen.queryByText(en("providerChangeFailed"))).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("textbox", { name: en("searchProviders") }));
+  });
+
+  it("leaves the Enter that confirms an IME candidate to the IME", async () => {
+    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null })] });
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "Custom (OpenAI-compatible)" }));
+    const field = screen.getByRole("textbox", { name: en("providerAddress") });
+    fireEvent.change(field, { target: { value: "http://192.168.64.1:1234/v1" } });
+    fireEvent.keyDown(field, { key: "Enter", keyCode: 229 });
+    expect(api.add).not.toHaveBeenCalled();
+    expect(screen.getByRole("textbox", { name: en("providerAddress") })).toBeTruthy();
+  });
+
+  it("adds a custom provider once when Enter is pressed again before the answer", async () => {
+    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null })] });
+    api.add.mockImplementation(() => new Promise<never>(() => {}));
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "Custom (OpenAI-compatible)" }));
+    const field = screen.getByRole("textbox", { name: en("providerAddress") });
+    fireEvent.change(field, { target: { value: "http://192.168.64.1:1234/v1" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(api.add).toHaveBeenCalledTimes(1);
+  });
+
   it("shows each provider's logo beside its name, on its row and in the Add list", async () => {
     stubMain({
       instances: [instance("openai")],
