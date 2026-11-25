@@ -1,12 +1,13 @@
 //! Writes a PDF from Markdown or HTML. WebView2 lays the document out and prints it in a hidden window
 //! with no capabilities and scripts switched off. The Markdown converter is a line walk.
+// Off Windows only the tests reach the printing code.
+#![cfg_attr(not(windows), allow(dead_code))]
 
 use std::fs;
 use std::path::Path;
 use std::sync::LazyLock;
-use std::sync::atomic::AtomicU64;
 #[cfg(windows)]
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use base64::Engine as _;
@@ -30,6 +31,7 @@ const PAPER_HEIGHT: f64 = 11.69;
 
 const FOOTER_TEMPLATE: &str = r##"<div style="width:100%; font-family:sans-serif; font-size:8px; color:#888; text-align:center; margin:0 12mm;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>"##;
 
+#[cfg(windows)]
 static WINDOWS: AtomicU64 = AtomicU64::new(0);
 
 const PRINT_STYLES: &str = r##"
