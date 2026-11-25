@@ -332,7 +332,9 @@ mod tests {
     }
 
     use super::*;
+    #[cfg(windows)]
     use std::sync::mpsc;
+    #[cfg(windows)]
     use std::time::Duration;
 
     #[test]
