@@ -1,9 +1,9 @@
 name: Release
 
-# Run from the Actions tab on main. Builds Windows, macOS and Linux as 3.0.N, where N is one more than
+# Run from the Actions tab on main. Builds Windows and Linux as 3.0.N, where N is one more than
 # the highest b-N tag, then publishes a release named build-N with the installers and the
-# latest*.yml files the in-app updater reads. The native macOS zip and the Linux .deb and .rpm
-# ride along in the same release.
+# latest*.yml files the in-app updater reads. The Linux .deb and .rpm ride along in the same release.
+# macOS builds are paused (TODO: re-enable macOS).
 on:
   workflow_dispatch:
     inputs:
@@ -161,6 +161,8 @@ jobs:
           if-no-files-found: error
 
   macos:
+    # TODO: re-enable macOS: remove this line and add macos back to publish.needs
+    if: false
     needs: prepare
     runs-on: macos-15
     permissions:
@@ -270,7 +272,7 @@ jobs:
   # Drafting first and publishing last means a failed upload never leaves a half-empty Latest
   # release that installed apps would pick up.
   publish:
-    needs: [prepare, windows, macos, linux]
+    needs: [prepare, windows, linux]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     permissions:
