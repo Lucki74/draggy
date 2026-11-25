@@ -34,7 +34,7 @@ fn default_base() -> Option<OsString> {
     None
 }
 
-/// `$XDG_DATA_HOME`, or `~/.local/share` when it is unset. The GTK app's `draggy` folder there holds other files.
+/// `$XDG_DATA_HOME`, or `~/.local/share` when it is unset.
 #[cfg(all(unix, not(target_os = "macos")))]
 fn default_base() -> Option<OsString> {
     if let Some(data) = std::env::var_os("XDG_DATA_HOME").filter(|value| !value.is_empty()) {

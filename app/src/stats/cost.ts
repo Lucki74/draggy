@@ -1,5 +1,5 @@
-/** What a reply cost, from the tokens it used and a price table. Pure and free of I/O so the Rust twin
- * (core/crates/draggy-core/src/cost.rs) can be held to the same shared fixtures in shared/fixtures/cost.
+/** What a reply cost, from the tokens it used and a price table. Pure and free of I/O, and held to the
+ * golden cases in shared/fixtures/cost.
  *
  * Money is counted in micro-dollars (1e-6 USD). A rate in dollars per million tokens times a token count is
  * already in micro-dollars, so the parts add exactly and rounding happens once, on the total. */

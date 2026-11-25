@@ -222,7 +222,7 @@ function shell(ctx, { title, description, body, toc = [], tab, noindex = false }
   const pager = slug !== "404" && idx >= 0 ? `<nav class="pager" aria-label="${esc(t.pageNav)}">${pn(prev, "prev")}${pn(next, "next")}</nav>` : "";
   const suggest =
     idx >= 0 && slug !== "index"
-      ? `<p class="suggest"><a href="${REPO}/issues/new?title=${encodeURIComponent(`Docs: ${title}`)}" rel="noopener">${esc(t.suggest)}</a></p>`
+      ? `<p class="suggest"><a href="${REPO}/issues/new?template=documentation.yml&amp;title=${encodeURIComponent(`[Docs]: ${title}`)}&amp;location=${encodeURIComponent(canonical)}" rel="noopener">${esc(t.suggest)}</a></p>`
       : "";
   const sectionStart = tab && nav.tabs.find((x) => x.key === tab).groups[0].slugs.find((s) => ctx.titles[s]);
   const crumb = tab && slug !== "index"

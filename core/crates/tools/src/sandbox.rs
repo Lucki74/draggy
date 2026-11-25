@@ -219,7 +219,7 @@ mod tests {
         assert!(seatbelt_profile(&spec(true)).contains("(allow network*)"));
     }
 
-    /// The golden policy both launchers must generate: shared/fixtures/sandbox/policy.json, also read by Swift tests.
+    /// The golden policy both launchers must generate: shared/fixtures/sandbox/policy.json.
     fn golden_cases() -> Vec<(SandboxSpec, Vec<String>, Vec<String>)> {
         let raw = include_str!("../../../../shared/fixtures/sandbox/policy.json");
         let doc: serde_json::Value = serde_json::from_str(raw).expect("policy.json parses");

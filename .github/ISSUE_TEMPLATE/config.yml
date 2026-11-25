@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/Lucki74/draggy/security/advisories/new
+    about: Send it privately, not in a public issue. SECURITY.md says what happens next.
   - name: draggy.org
     url: https://draggy.org
     about: Downloads and news about draggy.

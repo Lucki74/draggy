@@ -32,8 +32,6 @@ Typecheck, lint and the tests (`tsc -b`, `eslint .`, `vitest run`). CI runs the 
 | --- | --- |
 | `core/` | Shared Rust workspace: engine, providers, tools, documents, MCP and storage |
 | `app/` | The Draggy app for Windows, macOS and Linux: `src-tauri/` for the Rust shell and `src/` for the React frontend |
-| `legacy-macos/` | Retired. The Swift macOS app, no longer shipped |
-| `linux/` | Retired. The GTK 4 and libadwaita Linux app, no longer shipped |
 | `shared/` | Shared fixtures, pricing data and app icons |
 
 ## The two boundaries

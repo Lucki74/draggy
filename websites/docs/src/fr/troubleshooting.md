@@ -42,4 +42,4 @@ Les mises à jour ne fonctionnent que dans une version installée. Les builds la
 
 ## Toujours bloqué
 
-`Paramètres → Diagnostics → Ouvrir le dossier des journaux` ouvre les journaux. **`app.log`** contient les événements, avec les requêtes et les secrets réduits. Pour un signalement de bug, utilisez `Paramètres → Diagnostics → Exporter les diagnostics`, qui remplace aussi votre dossier personnel et votre nom d'utilisateur. Ensuite, [ouvrez un ticket](https://github.com/Lucki74/draggy/issues) avec le message que vous avez vu.
+`Paramètres → Diagnostics → Ouvrir le dossier des journaux` ouvre les journaux. **`app.log`** contient les événements, avec les requêtes et les secrets réduits. Pour un signalement de bug, utilisez `Paramètres → Diagnostics → Exporter les diagnostics`, qui remplace aussi votre dossier personnel et votre nom d'utilisateur. Ensuite, [ouvrez un ticket](https://github.com/Lucki74/draggy/issues/new?template=bug_report.yml) avec le message que vous avez vu.

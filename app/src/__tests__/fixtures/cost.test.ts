@@ -1,5 +1,4 @@
-// Golden fixtures for the cost engine (src/stats/cost.ts). core/crates/draggy-core/tests/fixtures.rs runs the same
-// files against the Rust port, so both must price every case to the same micro-dollar.
+// Golden fixtures for the cost engine (src/stats/cost.ts). The cases are micro-dollar totals, so every price must match exactly.
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";

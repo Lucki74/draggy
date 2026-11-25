@@ -57,7 +57,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVFRDY5MTFGRTgxNEEyRUIKUldUcm9oVG9INUhXN2xpamZ3NHRDQnVrZmtKMW1FeXViREZKelJEUXhmMGhmSnFFY2tjcFFsREkK",
       "endpoints": [
-        "https://github.com/Lucki74/draggy/releases/download/updater-windows/latest-windows.json"
+        "https://github.com/Lucki74/draggy/releases/latest/download/latest-windows.json"
       ],
       "windows": {
         "installMode": "quiet"

@@ -32,8 +32,6 @@ Typage, lint et les tests (`tsc -b`, `eslint .`, `vitest run`). La CI lance la m
 | --- | --- |
 | `core/` | Espace de travail Rust partagé : moteur, fournisseurs, outils, documents, MCP et stockage |
 | `app/` | L'application Draggy pour Windows, macOS et Linux : `src-tauri/` pour le shell Rust et `src/` pour l'interface React |
-| `legacy-macos/` | Retiré. L'application macOS en Swift, qui n'est plus livrée |
-| `linux/` | Retiré. L'application Linux en GTK 4 et libadwaita, qui n'est plus livrée |
 | `shared/` | Données de tarifs, jeux de test et icônes |
 
 ## Les deux frontières

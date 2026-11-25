@@ -1,5 +1,6 @@
 name: Website
 description: Something on draggy.org is wrong, missing or out of date.
+title: "[Website]: "
 labels: ["content"]
 body:
   - type: input
@@ -37,6 +38,6 @@ body:
     id: details
     attributes:
       label: Details
-      description: What it says now and what it should say. Mention the app version if it matters.
+      description: What it says now and what it should say. Mention the Draggy build if it matters.
     validations:
       required: true

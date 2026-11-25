@@ -1,13 +1,11 @@
 name: Website deploy
 
-# The draggy.org build reads the latest release and star count from GitHub, so a redeploy is all
-# it takes to refresh them: after each app release, and once a week for the star count.
+# The draggy.org build reads the latest release from GitHub, so a finished Release run redeploys it.
+# Pushes deploy through Vercel's Git integration, which skips a site whose folder did not change.
 on:
   workflow_run: # zizmor: ignore[dangerous-triggers] no checkout, no permissions, only calls the hook
     workflows: [Release]
     types: [completed]
-  schedule:
-    - cron: "0 6 * * 1"
   workflow_dispatch:
 
 permissions: {}
