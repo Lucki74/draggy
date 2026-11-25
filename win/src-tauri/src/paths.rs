@@ -19,7 +19,7 @@ const MARKER: &str = "draggy.db";
 /// The marker under the previous name. It must arrive renamed, or it sits beside a fresh empty database.
 const LEGACY_MARKER: &str = "localai.db";
 
-/// `%APPDATA%\Draggy`. On Windows a missing `APPDATA` is an error: guessing another folder would start a
+/// `%APPDATA%\Draggy`. Off macOS a missing `APPDATA` is an error: guessing another folder would start a
 /// fresh, empty profile beside the real one.
 pub fn data_dir(appdata: Option<OsString>) -> Result<PathBuf, String> {
     let base = appdata
@@ -29,13 +29,13 @@ pub fn data_dir(appdata: Option<OsString>) -> Result<PathBuf, String> {
     Ok(PathBuf::from(base).join(APP_FOLDER))
 }
 
-#[cfg(windows)]
+#[cfg(not(target_os = "macos"))]
 fn default_base() -> Option<OsString> {
     None
 }
 
 /// `~/Library/Application Support`, where the macOS app already keeps its models and settings.
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
 fn default_base() -> Option<OsString> {
     let home = std::env::var_os("HOME").filter(|value| !value.is_empty())?;
     Some(
@@ -182,14 +182,14 @@ mod tests {
         );
     }
 
-    #[cfg(windows)]
+    #[cfg(not(target_os = "macos"))]
     #[test]
     fn refuses_to_guess_without_appdata() {
         assert!(data_dir(None).is_err());
         assert!(data_dir(Some(OsString::new())).is_err());
     }
 
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
     #[test]
     fn falls_back_to_application_support_without_appdata() {
         let home = PathBuf::from(std::env::var_os("HOME").expect("HOME"));
@@ -198,7 +198,7 @@ mod tests {
         assert_eq!(data_dir(Some(OsString::new())).unwrap(), expected);
     }
 
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
     #[test]
     fn appdata_still_wins_over_the_fallback() {
         let dir = data_dir(Some(OsString::from("/tmp/throwaway"))).unwrap();
