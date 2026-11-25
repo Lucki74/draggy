@@ -490,7 +490,7 @@ fn front_label(app: &AppHandle) -> Option<String> {
     front_webview(app).map(|webview| webview.label().to_owned())
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, test))]
 fn host_of(raw: &str) -> Option<String> {
     Url::parse(raw).ok()?.host_str().map(str::to_owned)
 }
