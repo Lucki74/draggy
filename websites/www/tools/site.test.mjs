@@ -188,7 +188,7 @@ function withoutScripts(html) {
   let previous;
   do {
     previous = html;
-    html = html.replace(/<script\b[^]*?<\/script\s*>/gi, "");
+    html = html.replace(/<script\b[^]*?<\/script\b[^>]*>/gi, "");
   } while (html !== previous);
   return html;
 }

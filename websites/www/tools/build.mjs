@@ -1118,9 +1118,15 @@ Sitemap: ${SITE}/sitemap.xml
  * question about Draggy: what it is in a sentence, then every English page
  * with its own summary, so a model can fetch the one it needs.
  */
-/** Plain text from a translation: drops tags, then any stray angle bracket. */
+/** Plain text from markup, stripped until nothing changes so no tag is left half removed. */
 function stripTags(text) {
-  return String(text).replace(/<[^>]*>/g, "").replace(/[<>]/g, "");
+  let out = String(text);
+  let previous;
+  do {
+    previous = out;
+    out = out.replace(/<[^>]*>/g, "");
+  } while (out !== previous);
+  return out;
 }
 
 function llms() {

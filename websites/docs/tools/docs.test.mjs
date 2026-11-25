@@ -51,9 +51,20 @@ test("every internal link and anchor in the docs resolves", () => {
   }
 });
 
+/** The page without scripts, styles and code, stripped until nothing changes. */
+function withoutCode(text) {
+  let out = String(text);
+  let previous;
+  do {
+    previous = out;
+    out = out.replace(/<(script|style|pre|code)\b[^]*?<\/\1\b[^>]*>/gi, "");
+  } while (out !== previous);
+  return out;
+}
+
 test("no em dashes in any English docs page", () => {
   for (const file of pages.filter((f) => !/^(fr|es|ru)\//.test(relative(base, f).split(sep).join("/")))) {
-    const text = read(file).replace(/<script[^]*?<\/script>|<style[^]*?<\/style>|<pre[^]*?<\/pre>|<code[^]*?<\/code>/g, "");
+    const text = withoutCode(read(file));
     assert.doesNotMatch(text, /\u2014/, `${file} has an em dash`);
   }
 });

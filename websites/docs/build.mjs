@@ -45,7 +45,18 @@ function parseFile(path) {
   return { meta, body: m ? raw.slice(m[0].length) : raw };
 }
 
-const slugify = (s) => s.toLowerCase().replace(/<[^>]+>/g, "").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "section";
+/** Plain text from markup, stripped until nothing changes so no tag is left half removed. */
+function stripTags(text) {
+  let out = String(text);
+  let previous;
+  do {
+    previous = out;
+    out = out.replace(/<[^>]*>/g, "");
+  } while (out !== previous);
+  return out;
+}
+
+const slugify = (s) => stripTags(s.toLowerCase()).replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "section";
 const plain = (md) =>
   md
     .replace(/```[\s\S]*?```/g, " ")
@@ -87,8 +98,8 @@ function renderer(ctx) {
       let n = id, i = 2;
       while (used.has(n)) n = `${id}-${i++}`;
       used.add(n);
-      if (depth === 2 || depth === 3) toc.push({ depth, id: n, text: inner.replace(/<[^>]+>/g, "") });
-      return `<h${depth} id="${n}">${inner}<a class="anchor" href="#${n}" aria-label="${esc(ctx.t["onThisPage"])}: ${esc(inner.replace(/<[^>]+>/g, ""))}">#</a></h${depth}>\n`;
+      if (depth === 2 || depth === 3) toc.push({ depth, id: n, text: stripTags(inner) });
+      return `<h${depth} id="${n}">${inner}<a class="anchor" href="#${n}" aria-label="${esc(ctx.t["onThisPage"])}: ${esc(stripTags(inner))}">#</a></h${depth}>\n`;
     },
     link({ href, tokens, title }) {
       const inner = this.parser.parseInline(tokens);
@@ -228,7 +239,7 @@ function shell(ctx, { title, description, body, toc = [], tab, noindex = false }
         { "@type": "TechArticle", headline: title, description, url: canonical, inLanguage: l.html, isPartOf: { "@id": `${SITE}/#website` }, publisher: { "@id": `${MAIN}/#organization` }, image: `${SITE}/assets/img/og${lang === "en" ? "" : `-${lang}`}.png` },
         { "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Draggy Docs", item: SITE + (urlOf(lang, "index") || "/") }, { "@type": "ListItem", position: 2, name: title, item: canonical }] },
       ];
-  const jsonLd = `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@graph": ldGraph }).replace(/</g, "\u003c")}</script>`;
+  const jsonLd = `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@graph": ldGraph }).replace(/</g, "\\u003c")}</script>`;
   return `<!doctype html>
 <html lang="${l.html}">
 <head>
