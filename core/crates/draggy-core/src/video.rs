@@ -1,6 +1,6 @@
 //! Video attachments for the macOS and Linux shells: import into the blob store, background indexing, and the
-//! `video_info`, `video_view` and `video_frame` tools. Ported from `win/src-tauri/src/ipc/video.rs` and
-//! `win/src/tools/video.ts`, which stay the reference.
+//! `video_info`, `video_view` and `video_frame` tools. Ported from `app/src-tauri/src/ipc/video.rs` and
+//! `app/src/tools/video.ts`, which stay the reference.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};

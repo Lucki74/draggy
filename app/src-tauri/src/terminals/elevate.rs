@@ -30,6 +30,7 @@ pub fn cmd_args(batch: &Path, out: &Path) -> String {
 }
 
 /// How the elevated run ended.
+#[cfg_attr(not(windows), allow(dead_code))]
 enum Ended {
     Exit(i64),
     Declined,

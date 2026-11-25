@@ -20,6 +20,7 @@ use tokio::time::sleep;
 
 use super::{IpcError, Registry, emit};
 use crate::AppState;
+#[cfg(windows)]
 use crate::browser::adblock;
 use crate::browser::cdp::Cdp;
 #[cfg(not(windows))]
@@ -44,7 +45,9 @@ const BLANK: &str = "about:blank";
 /// How long a request waits for the renderer to open the pane before it gives up.
 const OPEN_WAIT: Duration = Duration::from_secs(4);
 const OPEN_POLL: Duration = Duration::from_millis(100);
+#[cfg(windows)]
 const NAVIGATE_PACE: Duration = Duration::from_secs(2);
+#[cfg(windows)]
 const HISTORY_PACE: Duration = Duration::from_millis(300);
 const TABS_ACTION: &str = "The tabs action is list, new, select or close.";
 const HISTORY_ACTION: &str = "The history action is back, forward or reload.";
@@ -57,6 +60,7 @@ const DENY: &str = "deny";
 const ADBLOCK_KEY: &str = "adblockEnabled";
 const SETTINGS_KEY: &str = "draggy_settings";
 const TRACE_KIND: &str = "The trace kind is console or network.";
+#[cfg(windows)]
 const TRACE_EVENTS: [&str; 5] = [
     "Runtime.consoleAPICalled",
     "Runtime.exceptionThrown",
@@ -481,10 +485,12 @@ async fn install_pre_script(cdp: &WebView2Cdp, label: &str, url: &str) {
 #[cfg(not(windows))]
 fn watch_tab(_app: &AppHandle, _webview: &Webview) {}
 
+#[cfg(windows)]
 fn front_label(app: &AppHandle) -> Option<String> {
     front_webview(app).map(|webview| webview.label().to_owned())
 }
 
+#[cfg(any(windows, test))]
 fn host_of(raw: &str) -> Option<String> {
     Url::parse(raw).ok()?.host_str().map(str::to_owned)
 }
@@ -635,12 +641,8 @@ enum PageCdp {}
 
 #[cfg(not(windows))]
 impl Cdp for PageCdp {
-    fn call(
-        &self,
-        _method: &str,
-        _params: Value,
-    ) -> impl Future<Output = Result<Value, CdpError>> + Send {
-        async move { match *self {} }
+    async fn call(&self, _method: &str, _params: Value) -> Result<Value, CdpError> {
+        match *self {}
     }
 
     fn subscribe(&self, _event: &str) -> broadcast::Receiver<Value> {

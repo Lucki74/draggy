@@ -47,7 +47,7 @@ tag and no release, so it does not use up a build number.
 
 ## The Windows build
 
-The Windows job runs on `windows-latest` in `win/`. It:
+The Windows job runs on `windows-latest` in `app/`. It:
 
 1. Fetches the pinned `node.exe` into `vendor/node/` and checks its SHA-256 against `scripts/node-pin.json`.
 2. Runs `npm run stage:sidecars`, which copies that `node.exe` into `src-tauri/binaries/`.
@@ -64,7 +64,7 @@ The Tauri updater verifies each update against a minisign public key. The releas
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
-The public key is `plugins.updater.pubkey` in `win/src-tauri/tauri.conf.json`. The private key and its password exist only in the repository secrets. A new key pair breaks updates for every install that has the old public key, so rotate it only after a compromise, and ship the new public key in a build signed with the old key first.
+The public key is `plugins.updater.pubkey` in `app/src-tauri/tauri.conf.json`. The private key and its password exist only in the repository secrets. A new key pair breaks updates for every install that has the old public key, so rotate it only after a compromise, and ship the new public key in a build signed with the old key first.
 
 The Windows signature is the trust boundary for the Tauri feed. The Linux checksums come from the same release as the packages, so whoever can write to a release can still ship code to those platforms. That is why the workflow holds the only token that publishes, and why `SECURITY.md` says so.
 
@@ -86,7 +86,7 @@ fixed by releasing the next number.
 
 ## Moving the image engine to a newer build
 
-The image engine is pinned to one stable-diffusion.cpp release, with the SHA-256 of every archive built into the app. It never follows "latest". The pin lives in `core/crates/engine/src/sd_runner.rs`: the Windows and Unix release tags (`WINDOWS_RELEASE`, `UNIX_RELEASE`), the archive names, and their SHA-256 and size. Bumping it is a pull request of its own. Copy the new tag and the digests of every archive from GitHub's published release, update that file, and run `cargo test` in `core/` and `npm run check` in `win/`. Install each runner you can on real hardware before merging.
+The image engine is pinned to one stable-diffusion.cpp release, with the SHA-256 of every archive built into the app. It never follows "latest". The pin lives in `core/crates/engine/src/sd_runner.rs`: the Windows and Unix release tags (`WINDOWS_RELEASE`, `UNIX_RELEASE`), the archive names, and their SHA-256 and size. Bumping it is a pull request of its own. Copy the new tag and the digests of every archive from GitHub's published release, update that file, and run `cargo test` in `core/` and `npm run check` in `app/`. Install each runner you can on real hardware before merging.
 
 ## The large-model engine
 
@@ -98,7 +98,7 @@ The site at draggy.org lives in its own repository (`../draggy-website`) and the
 
 Before running the workflow, make sure:
 - the documentation and site pages reflect what changed, in English, French, Spanish, and Russian;
-- screenshots and clips match the release interface. Retake them with `npm run shots` and `npm run clips` in `win/`, which write into the docs and website checkouts;
+- screenshots and clips match the release interface. Retake them with `npm run shots` and `npm run clips` in `app/`, which write into the docs and website checkouts;
 - the privacy policy date is updated if network behavior changed, listing any new endpoints.
 
 For details on how updates apply after install, see the docs' [Installation](https://docs.draggy.org/installation) page.

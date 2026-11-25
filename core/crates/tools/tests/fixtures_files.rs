@@ -969,7 +969,7 @@ async fn diff_case(input: &Value) -> Value {
 /// The skills the shipped library lists, as the app lists them. Folder paths are left out: they differ per machine.
 fn library_case() -> Value {
     let roots = Roots {
-        library: Some(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../win/skills-library")),
+        library: Some(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../app/skills-library")),
         user: None,
         project: None,
     };

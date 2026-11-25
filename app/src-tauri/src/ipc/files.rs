@@ -1152,6 +1152,7 @@ async fn delete_created_file(app: AppHandle, args: Vec<Value>) -> Result<Value, 
 mod tests {
     use super::*;
 
+    #[cfg(windows)]
     #[test]
     fn only_paths_below_the_created_files_folder_open() {
         let data = PathBuf::from(r"C:\Users\x\AppData\Roaming\Draggy");
@@ -1170,12 +1171,14 @@ mod tests {
         assert!(created_file_path(&data, r"C:\data\created_files\..\secret.txt").is_none());
     }
 
+    #[cfg(windows)]
     #[test]
     fn folder_match_ignores_case_on_windows() {
         let dir = PathBuf::from(r"C:\data\created_files");
         assert!(is_inside(&dir, Path::new(r"c:\data\created_files\a.txt")));
     }
 
+    #[cfg(windows)]
     #[test]
     fn lexical_folds_parent_and_current_steps() {
         assert_eq!(

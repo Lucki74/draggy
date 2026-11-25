@@ -10,14 +10,14 @@ Draggy doesn't phone home, collect analytics, ask for an account or send anythin
 
 ## Getting it running
 
-You need Node 24 (the version in `win/.nvmrc`, same as CI) and the Rust toolchain for the Tauri shell. Run everything below from `win/`.
+You need Node 24 (the version in `app/.nvmrc`, same as CI) and the Rust toolchain for the Tauri shell. Run everything below from `app/`.
 
 ```bash
-cd win
+cd app
 npm install
 ```
 
-The app ships a pinned `node.exe` as a sidecar. `vendor/` is git-ignored, so before the first run, grab the version listed in `win/scripts/node-pin.json` and put it at `win/vendor/node/node.exe`. CI downloads the same file and checks its SHA-256.
+The app ships a pinned `node.exe` as a sidecar. `vendor/` is git-ignored, so before the first run, grab the version listed in `app/scripts/node-pin.json` and put it at `app/vendor/node/node.exe`. CI downloads the same file and checks its SHA-256.
 
 ```bash
 npm run tauri:dev
@@ -31,7 +31,7 @@ That stages the sidecar, then starts Vite on port 5173 with hot reload inside th
 npm run check
 ```
 
-That runs the typecheck, the linter and the tests. CI runs the same command on every pull request, plus the Rust format, clippy and test checks in `win/src-tauri/`. Pull requests get squash merged.
+That runs the typecheck, the linter and the tests. CI runs the same command on every pull request, plus the Rust format, clippy and test checks in `app/src-tauri/`. Pull requests get squash merged.
 
 Tests run without a GPU and without a Tauri window, so keep new logic away from the hardware and the window shell, that way it stays testable.
 
@@ -43,8 +43,8 @@ The website and the docs live in their own repos: [Lucki74/draggy-website](https
 
 The folder layout is in the [docs](https://docs.draggy.org/development). Two boundaries matter more than the rest:
 
-- The Tauri capabilities in `win/src-tauri/capabilities/` and the IPC commands in `win/src-tauri/src/ipc/` are the only way the renderer reaches the filesystem, the network and the database.
-- The Content Security Policy in `win/src-tauri/tauri.conf.json` covers the app's own webview. Never loosen it.
+- The Tauri capabilities in `app/src-tauri/capabilities/` and the IPC commands in `app/src-tauri/src/ipc/` are the only way the renderer reaches the filesystem, the network and the database.
+- The Content Security Policy in `app/src-tauri/tauri.conf.json` covers the app's own webview. Never loosen it.
 
 Every child process has to start through the hidden-spawn helpers in `core/crates/tools/src/spawn.rs`. Never use `npx` at runtime.
 

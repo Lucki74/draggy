@@ -39,7 +39,7 @@ graphify-out
 # Local planning docs
 docs/
 scratch/
-win/build/release-notes.md
+app/build/release-notes.md
 .env.local
 
 # Rust core build output
@@ -51,10 +51,10 @@ shared/fixtures/**/*.db-wal
 linux/target/
 
 # macOS app build output and generated files
-macos/Draggy.xcodeproj/
-macos/build/
-macos/Draggy/Resources/Info.plist
-macos/Packages/DraggyCore/DraggyCoreFFI.xcframework/
-macos/Packages/DraggyCore/Sources/DraggyCore/draggy_core.swift
-macos/Packages/DraggyCore/.build/
+legacy-macos/Draggy.xcodeproj/
+legacy-macos/build/
+legacy-macos/Draggy/Resources/Info.plist
+legacy-macos/Packages/DraggyCore/DraggyCoreFFI.xcframework/
+legacy-macos/Packages/DraggyCore/Sources/DraggyCore/draggy_core.swift
+legacy-macos/Packages/DraggyCore/.build/
 vendor/

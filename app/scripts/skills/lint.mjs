@@ -1,4 +1,4 @@
-// Lints win/skills-library against the draggy skill contract (docs/skills-remake-plan.md).
+// Lints app/skills-library against the draggy skill contract (docs/skills-remake-plan.md).
 // Usage: node scripts/skills/lint.mjs [--strict] [--json] [skill-id ...]
 // Errors fail the run. Warnings fail it only with --strict.
 import fs from "node:fs";

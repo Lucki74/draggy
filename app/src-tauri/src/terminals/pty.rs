@@ -332,7 +332,9 @@ mod tests {
     }
 
     use super::*;
+    #[cfg(windows)]
     use std::sync::mpsc;
+    #[cfg(windows)]
     use std::time::Duration;
 
     #[test]
@@ -369,6 +371,7 @@ mod tests {
         }
     }
 
+    #[cfg(windows)]
     #[test]
     fn runs_a_command_reports_its_exit_once_and_drops_secrets() {
         let host = Host::default();

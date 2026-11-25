@@ -1,5 +1,5 @@
 //! The picture index the model sees and the default strength of a reference, ported from
-//! `win/src/images/imageTracker.ts`. `shared/fixtures/agent/imageReference.json` pins both.
+//! `app/src/images/imageTracker.ts`. `shared/fixtures/agent/imageReference.json` pins both.
 
 /// How far a reference may move when nobody asked for a value.
 pub const DEFAULT_REFERENCE_STRENGTH: f64 = 0.35;

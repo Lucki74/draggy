@@ -47,6 +47,6 @@ modules:
           - .git
           - target
           - node_modules
-          - win
-          - macos
+          - app
+          - legacy-macos
           - draggy-website

@@ -1,5 +1,5 @@
 //! Scans tool-call arguments that are still arriving. Display state only: never stored, sent to the model or run.
-//! `win/src/agent/partialArgs.ts` is the TypeScript twin, and `shared/fixtures/agent/partialArgs.json` pins both.
+//! `app/src/agent/partialArgs.ts` is the TypeScript twin, and `shared/fixtures/agent/partialArgs.json` pins both.
 
 /// One key and value pair. `open` is true while the value is still being written.
 #[derive(Debug, Clone, PartialEq, Eq)]

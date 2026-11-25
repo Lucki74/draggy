@@ -17,7 +17,7 @@ fn fixture(name: &str) -> PathBuf {
 /// DRAGGY_FFMPEG_DIR, then the dev vendor folder, then PATH.
 fn ffmpeg() -> Option<FfmpegPaths> {
     let env_dir = std::env::var_os("DRAGGY_FFMPEG_DIR").map(PathBuf::from);
-    let vendor = root().join("win/vendor/ffmpeg");
+    let vendor = root().join("app/vendor/ffmpeg");
     for dir in [env_dir.as_deref(), Some(vendor.as_path())] {
         if let Some(dir) = dir
             && let Ok(paths) = FfmpegPaths::find(Some(dir), false)
