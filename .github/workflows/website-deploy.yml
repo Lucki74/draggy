@@ -3,7 +3,7 @@ name: Website deploy
 # The draggy.org build reads the latest release and star count from GitHub, so a redeploy is all
 # it takes to refresh them: after each app release, and once a week for the star count.
 on:
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] no checkout, no permissions, only calls the hook
     workflows: [Release]
     types: [completed]
   schedule:

@@ -1,0 +1,20 @@
+{
+  "name": "draggy-docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The documentation for Draggy, served at docs.draggy.org.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test tools/*.test.mjs",
+    "tokens:check": "node tools/check-tokens.mjs"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "marked": "18.1.2"
+  },
+  "devDependencies": {
+    "axe-core": "4.14.0"
+  }
+}

@@ -37,5 +37,6 @@ jobs:
           cache: npm
           cache-dependency-path: websites/${{ matrix.site }}/package-lock.json
       - run: npm ci
+      - run: npm run build
       - run: npm test
       - run: npm run tokens:check

@@ -37,8 +37,8 @@ dotnet-install.ps1
 .impeccable
 graphify-out
 # Local planning docs
-docs/
-scratch/
+/docs/
+/scratch/
 app/build/release-notes.md
 .env.local
 
