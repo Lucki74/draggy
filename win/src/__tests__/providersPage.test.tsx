@@ -142,6 +142,22 @@ describe("the Providers page", () => {
     expect(api.add).toHaveBeenCalledWith({ type: "custom", baseUrl: "not a url" });
     expect((screen.getByRole("textbox", { name: en("providerAddress") }) as HTMLInputElement).value).toBe("not a url");
     expect(screen.queryByRole("switch", { name: "custom" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: en("cancel") }));
+    expect(screen.queryByText(en("providerChangeFailed"))).toBeNull();
+  });
+
+  it("adds a custom provider once when Enter is pressed again before the answer", async () => {
+    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: "" })] });
+    api.add.mockImplementation(() => new Promise<never>(() => {}));
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "Custom (OpenAI-compatible)" }));
+    const field = screen.getByRole("textbox", { name: en("providerAddress") });
+    fireEvent.change(field, { target: { value: "http://192.168.64.1:1234/v1" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(api.add).toHaveBeenCalledTimes(1);
   });
 
   it("shows each provider's logo beside its name, on its row and in the Add list", async () => {

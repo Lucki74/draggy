@@ -763,7 +763,12 @@ export function AddProvider({
       setRefused(true);
     }
   };
-  const addAddressed = () => addressing && address.trim() && void add(addressing, address.trim());
+  // Enter reaches this while an add is still on its way, and a second one would add twice.
+  const addAddressed = () => !busy && addressing && address.trim() && void add(addressing, address.trim());
+  const dismiss = () => {
+    setAddressing(null);
+    setRefused(false);
+  };
 
   if (!open) {
     return (
@@ -861,7 +866,7 @@ export function AddProvider({
                 else if (event.key === "Escape") {
                   // Onboarding takes Escape as a step back; here it only closes the field.
                   event.stopPropagation();
-                  setAddressing(null);
+                  dismiss();
                 }
               }}
               dir="ltr"
@@ -874,11 +879,16 @@ export function AddProvider({
             <Button onClick={addAddressed} disabled={busy || !address.trim()}>
               {t("confirm")}
             </Button>
-            <Button onClick={() => setAddressing(null)}>{t("cancel")}</Button>
+            <Button onClick={dismiss}>{t("cancel")}</Button>
           </div>
         </div>
       )}
-      {refused && <p className="px-2 text-xs font-medium text-danger break-words">{t("providerChangeFailed")}</p>}
+      {refused && (
+        // The panel ends the page, so the reason is scrolled to rather than left below the fold.
+        <p ref={(node) => node?.scrollIntoView?.({ block: "nearest" })} className="px-2 text-xs font-medium text-danger break-words">
+          {t("providerChangeFailed")}
+        </p>
+      )}
     </div>
   );
 }
