@@ -348,15 +348,3 @@ jobs:
             --title "build-$N" --notes "$body" --draft
           gh release edit "b-$N" --repo "$GITHUB_REPOSITORY" --draft=false --latest
 
-      # The app reads latest-windows.json from releases/latest. Builds up to 16 read the rolling updater-windows
-      # release instead, so it gets a copy of the same feed until those installs have moved on.
-      - name: Copy the Windows feed to the old updater release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if ! gh release view updater-windows --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release create updater-windows --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-              --title "Windows updater feed" --notes "Feed read by builds up to 16. Replaced on every release." --latest=false
-          fi
-          gh release upload updater-windows out/latest-windows.json --repo "$GITHUB_REPOSITORY" --clobber

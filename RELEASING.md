@@ -86,8 +86,6 @@ Every `b-N` release carries the Tauri feed for each system next to the installer
 
 The macOS feed lists the universal `.app.tar.gz` for both architectures. The Linux feed lists the AppImage, `.deb` and `.rpm`.
 
-Windows builds up to 16 read `latest-windows.json` from a release named `updater-windows`, so the publish job also copies the feed there. Drop that step once those installs have updated.
-
 Two bridge files also go into the `b-N` release, for installs that predate Tauri: `latest.yml` for the Windows Electron build and `latest-linux.yml` for the Electron and GTK Linux builds. Both point at the Tauri installers, so those installs update into the Tauri app.
 
 ## Tags are permanent
