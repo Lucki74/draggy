@@ -35,7 +35,7 @@ The table lists the requests Draggy makes. Ad-block lists stay on until you swit
 | --- | --- |
 | Windows | `%APPDATA%\Draggy` |
 | macOS | `~/Library/Application Support/Draggy` |
-| Linux | `~/.config/Draggy` |
+| Linux | `$XDG_DATA_HOME/Draggy`, or `~/.local/share/Draggy` when that is not set |
 
 Inside: `draggy.db` for conversations and settings, `library.db` for the document index, `secrets.bin` for provider keys and extension credentials encrypted by your OS keystore, the sign-in folders for ChatGPT and Claude, and folders for created files, chat folders (`chats`, on Windows), code runs, speech models and installed servers.
 

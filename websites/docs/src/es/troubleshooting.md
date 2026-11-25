@@ -38,7 +38,7 @@ El modelo solo puede acceder a la carpeta del proyecto, y solo puede obtener dir
 
 ## Las actualizaciones nunca aparecen
 
-Las actualizaciones solo funcionan en una versión instalada. Desde el código fuente están desactivadas.
+Las actualizaciones solo funcionan en una versión instalada. Las compilaciones ejecutadas desde el código fuente no se actualizan.
 
 ## Sigue sin funcionar
 

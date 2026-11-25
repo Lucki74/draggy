@@ -35,7 +35,7 @@ La tabla enumera las solicitudes de Draggy. Los listados del bloqueador de anunc
 | --- | --- |
 | Windows | `%APPDATA%\Draggy` |
 | macOS | `~/Library/Application Support/Draggy` |
-| Linux | `~/.config/Draggy` |
+| Linux | `$XDG_DATA_HOME/Draggy`, o `~/.local/share/Draggy` si esa variable no está definida |
 
 Dentro: `draggy.db` para conversaciones y ajustes, `library.db` para el índice de documentos, `secrets.bin` para las claves de proveedores y las credenciales de extensiones cifradas con el llavero de tu sistema, las carpetas de inicio de sesión de ChatGPT y Claude, y carpetas para los archivos creados, las carpetas de chat (`chats`, en Windows), las ejecuciones de código, los modelos de voz y los servidores instalados.
 

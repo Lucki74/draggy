@@ -34,11 +34,11 @@ En el modo predeterminado, Aceptar cambios, las ediciones normales de archivos p
 
 ## ¿Por qué mi ordenador me avisa al abrirlo?
 
-La versión de Draggy todavía no está firmada con un certificado de desarrollador. Windows muestra un aviso en el primer inicio. Los pasos para continuar están en la [página de descarga](site:download#first-run).
+Las versiones de Draggy todavía no están firmadas con un certificado de desarrollador, así que Windows y macOS muestran un aviso en el primer inicio. Los pasos para continuar están en la [página de descarga](site:download#first-run).
 
 ## ¿Se actualiza solo?
 
-Sí. Draggy comprueba en cada inicio y cada seis horas. En Windows, una actualización encontrada al iniciar se descarga e instala en la ventana de arranque, salvo que elijas **Iniciar sin actualizar**. Una encontrada más tarde se descarga en segundo plano, y un aviso **Actualización lista** ofrece **Instalar ahora** o **Más tarde**. Instalar ahora la instala en silencio y reinicia Draggy.
+Sí. Draggy se actualiza solo en Windows, macOS y Linux, desde un feed firmado. Comprueba al iniciar y cada seis horas. Una actualización encontrada al iniciar se instala en la ventana de arranque, salvo que elijas **Iniciar sin actualizar**. Una encontrada más tarde se descarga en segundo plano, y un aviso **Actualización lista** ofrece **Instalar ahora** o **Más tarde**. Instalar ahora la instala en silencio y reinicia Draggy.
 
 ## ¿Qué idiomas habla?
 

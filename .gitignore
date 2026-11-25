@@ -24,7 +24,6 @@ dist-ssr
 *.sw?
 
 # Build output
-dist-electron
 Draggy_Setup
 
 # Local toolchains

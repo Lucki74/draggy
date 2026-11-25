@@ -4,37 +4,43 @@ description: "Running from source, the layout of the code, and the two boundarie
 section: reference
 ---
 
+## Prerequisites
+
+- **Windows**: Visual Studio C++ Build Tools and WebView2.
+- **macOS**: Xcode Command Line Tools.
+- **Linux**: `libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev`, plus `rpm` to build the rpm package.
+
 ## Running from source
 
 ```bash
-cd win
+cd app
 npm install
 npm run tauri:dev
 ```
 
-`tauri dev` stages the `node.exe` sidecar, then starts Vite on port 5173 with hot reload inside the Tauri window. If a stale Vite process holds the port, the next launch fails, so stop it first.
+`tauri dev` stages the pinned `node` sidecar, then starts Vite on port 5173 with hot reload inside the Tauri window. The pin comes from `app/scripts/node-pin.json` on Windows, `node-pin-macos.json` on macOS and `node-pin-linux.json` on Linux. If a stale Vite process holds the port, the next launch fails, so stop it first.
 
 ```bash
 npm run check
 ```
 
-Typecheck, lint and the tests (`tsc -b`, `eslint .`, `vitest run`). CI runs the same command, plus `cargo fmt --check`, `cargo clippy` and `cargo test` in `win/src-tauri/`. `npm run tauri:build` stages the sidecar and writes the NSIS installer into `src-tauri/target/release/bundle/nsis/`.
+Typecheck, lint and the tests (`tsc -b`, `eslint .`, `vitest run`). CI runs the same command, plus `cargo fmt --check`, `cargo clippy` and `cargo test` in `app/src-tauri/`. On Windows, `npm run tauri:build` stages the sidecar and writes the NSIS installer into `src-tauri/target/release/bundle/nsis/`. On macOS and Linux, use `npx tauri build`.
 
 ## How it is laid out
 
 | Folder | Holds |
 | --- | --- |
 | `core/` | Shared Rust workspace: engine, providers, tools, documents, MCP and storage |
-| `win/` | Windows Tauri 2 app: `src-tauri/` for the Rust shell and `src/` for the React frontend |
-| `macos/` | Native macOS SwiftUI application |
-| `linux/` | Native Linux GTK 4 and libadwaita application |
+| `app/` | The Draggy app for Windows, macOS and Linux: `src-tauri/` for the Rust shell and `src/` for the React frontend |
+| `legacy-macos/` | Retired. The Swift macOS app, no longer shipped |
+| `linux/` | Retired. The GTK 4 and libadwaita Linux app, no longer shipped |
 | `shared/` | Shared fixtures, pricing data and app icons |
 
 ## The two boundaries
 
-The first is the Tauri capability files. `win/src-tauri/capabilities/main.json` lists what the main window may call, and `browser-pane.json` grants the browser pane nothing. The renderer reaches the filesystem, network and database only through the commands in `win/src-tauri/src/ipc/`. Adding a command or a permission is a deliberate act, and `win/src-tauri/tests/capabilities.rs` checks the files.
+The first is the Tauri capability files. `app/src-tauri/capabilities/main.json` lists what the main window may call, and `browser-pane.json` grants the browser pane nothing. The renderer reaches the filesystem, network and database only through the commands in `app/src-tauri/src/ipc/`. Adding a command or a permission is a deliberate act, and `app/src-tauri/tests/capabilities.rs` checks the files.
 
-The second is the Content Security Policy in `win/src-tauri/tauri.conf.json` (`app.security.csp`). It applies to Draggy's own window. `devCsp` applies only under `tauri dev`. Pages the browser pane opens are not under this policy, so they are kept apart from the main window.
+The second is the Content Security Policy in `app/src-tauri/tauri.conf.json` (`app.security.csp`). It applies to Draggy's own window. `devCsp` applies only under `tauri dev`. Pages the browser pane opens are not under this policy, so they are kept apart from the main window.
 
 ## Logging and diagnostics
 

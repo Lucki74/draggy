@@ -34,11 +34,11 @@ In the default Accept edits mode, ordinary file edits go ahead without asking, b
 
 ## Why does my computer warn me when I open it?
 
-Draggy's build is not signed with a developer certificate yet. Windows shows a warning on the first run. The steps to get past it are on the [download page](site:download#first-run).
+Draggy's builds are not signed with a developer certificate yet, so Windows and macOS show a warning on the first run. The steps to get past it are on the [download page](site:download#first-run).
 
 ## Does it update itself?
 
-Yes. Draggy checks at every launch and every six hours. On Windows, an update found at launch downloads and installs in the startup window, unless you pick **Start without updating**. One found later downloads in the background, and an **Update ready** notice offers **Install now** or **Maybe later**. Install now installs it quietly and restarts Draggy.
+Yes. Draggy updates itself on Windows, macOS and Linux from a signed feed. It checks at launch and every six hours. An update found at launch installs in the startup window, unless you pick **Start without updating**. One found later downloads in the background, and an **Update ready** notice offers **Install now** or **Maybe later**. Install now installs it quietly and restarts Draggy.
 
 ## Which languages does it speak?
 

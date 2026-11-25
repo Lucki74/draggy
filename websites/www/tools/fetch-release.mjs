@@ -10,7 +10,7 @@
  *
  * What it reads: the release itself for the version and the file names, and the
  * update manifest (latest.yml) that the app's release workflow uploads next to the
- * Windows installer, for its SHA-512. That file is the bridge the Electron builds
+ * Windows installer, for its SHA-512. That file is the bridge older installs
  * read, so it is in the numbered release (b-N) and carries the Tauri setup.
  * Those hashes are base64 there; Get-FileHash and shasum print hex, so they are
  * converted here, once, rather than in front of the reader. The publish day comes from the release's
@@ -36,10 +36,14 @@ const REPO = "Lucki74/draggy";
 /** The downloads the page offers, and how to recognise each in the release. Only the Windows installer is in an update manifest, so only it carries a checksum. */
 const ASSETS = {
   "windows-exe": (name) => name === "draggy_setup.exe",
-  "macos-zip": (name) => /^Draggy-[\d.]+-macos-arm64\.zip$/.test(name),
-  "linux-deb": (name) => /^draggy_[\d.]+-\d+_amd64\.deb$/.test(name),
-  "linux-rpm": (name) => /^draggy-[\d.]+-\d+\.x86_64\.rpm$/.test(name),
+  "macos-zip": (name) => /^Draggy-[\d.]+-macos-(arm64|universal)\.zip$/.test(name),
+  "linux-deb": (name) => /^draggy_[\d.]+(-\d+)?_amd64\.deb$/i.test(name),
+  "linux-rpm": (name) => /^draggy-[\d.]+-\d+\.x86_64\.rpm$/i.test(name),
+  "linux-appimage": (name) => /^draggy_[\d.]+_amd64\.AppImage$/i.test(name),
 };
+
+/** Downloads a release may lack. Older builds have no AppImage, and the page only links one when it is there. */
+const OPTIONAL = new Set(["linux-appimage"]);
 
 const MANIFESTS = ["latest.yml"];
 
@@ -206,6 +210,7 @@ export async function fetchRelease() {
   const assets = {};
   for (const [key, matches] of Object.entries(ASSETS)) {
     const asset = release.assets.find((item) => matches(item.name));
+    if (!asset && OPTIONAL.has(key)) continue;
     if (!asset) throw new Error(`release ${release.tag_name} has no file for ${key}`);
 
     const base64 = byName[asset.name];
