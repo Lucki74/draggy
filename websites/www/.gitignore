@@ -1,0 +1,20 @@
+node_modules
+
+# Written by "npm run build". The whole folder is output.
+public
+
+.vercel
+
+# Review captures, remade on demand.
+.impeccable/review
+.impeccable/questions/
+
+# Trailer output and prompts, git-excluded
+.trailer/
+tools/trailer/
+
+# Local scratch output
+scratch/
+
+# Agent worktrees
+.claude/worktrees/

@@ -1,0 +1,705 @@
+<!--# image-not-supported | This model cannot read images | Why an attached image is refused, and how to get a model that can read it. -->
+<h2>What it means</h2>
+
+<p>
+  A model can only look at a picture if it has a second file beside it, called an
+  image projector. Draggy downloads that file with the model when the repository has
+  one, and starts the model with it. When the engine cannot load the projector,
+  Draggy starts the model without it so text chat keeps working. From then on the
+  model cannot take images, and sending one is refused with this message.
+</p>
+
+<h2>Why the projector may not load</h2>
+
+<p>
+  The engine understands a fixed set of projector types. A projector of a type it
+  does not know is refused. A few models ship one that only a modified build of
+  llama.cpp can read, and say so on their own page. Draggy runs the standard
+  llama.cpp release, so those models can be used for text but not for images.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Send the message again without the image. The model still works for text.</li>
+  <li>Choose a different vision model from the model list in <code>Settings → Models</code>.</li>
+  <li>
+    Restarting Draggy, or downloading the model again, makes Draggy try the projector
+    once more. That is worth doing after Draggy has been updated.
+  </li>
+</ul>
+
+<!--# context-too-long | The conversation is too long for the model | The message no longer fits in the model's context window, and how to make room. -->
+<h2>What it means</h2>
+
+<p>
+  Every model has a context window: the amount of text it can hold at once. Your
+  messages, its replies, tool results and attached files all count. This request is
+  larger than the window the engine was started with, so the engine refused it.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Start a new chat. The old one stays in your history.</li>
+  <li>
+    Lower the compaction limit in <code>Settings → Models</code> so Draggy folds up
+    older messages sooner.
+  </li>
+  <li>
+    Raise the <strong>Context window</strong> in the same place. A larger window
+    needs more memory, so a model that fits comfortably may stop fitting; see
+    <a href="{{error:out-of-memory}}">not enough memory</a> if that happens.
+  </li>
+  <li>Attach less at once. A long file or a large paste can fill a small window by itself.</li>
+</ul>
+
+<!--# tool-call-unreadable | The engine could not read a tool call | A tool call in the conversation is malformed, and how to get past it. -->
+<h2>What it means</h2>
+
+<p>
+  A model uses a tool by writing a structured call: the tool's name and its
+  arguments. The engine checks every call in the conversation before it answers,
+  and when one is malformed, for example a call with no type or with arguments it
+  cannot parse, it refuses the whole request rather than guess.
+</p>
+
+<p>
+  The bad call may be one the model has just written, or one that is already in the
+  history of the chat, in which case sending again fails the same way.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Send the message again. A one-off slip usually does not repeat.</li>
+  <li>Start a new chat if it keeps failing. That removes the malformed call from the history.</li>
+  <li>
+    Use a larger model, or switch some tools off. A small model with many tools on
+    may not call them reliably.
+  </li>
+</ul>
+
+<!--# model-still-loading | The model is still loading | The engine is reading the model into memory and cannot answer yet. -->
+<h2>What it means</h2>
+
+<p>
+  A model has to be read from disk into memory before it can answer, and a large one
+  takes a while. Until that finishes, the engine answers that it is loading. Nothing
+  is wrong.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Wait a moment and send the message again.</li>
+  <li>
+    If it never finishes, see
+    <a href="{{error:load-timeout}}">the model took too long to load</a>.
+  </li>
+</ul>
+
+<!--# out-of-memory | Not enough memory to run the model | The model and its context do not fit in the memory available, and how to make them fit. -->
+<h2>What it means</h2>
+
+<p>
+  A model needs room for its weights and for the context it is working through, in
+  your graphics card's memory or, without one, in system memory. The engine asked for
+  more than was free and was refused.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>
+    Choose a smaller model, or a smaller quantization of the same one. The tables in
+    <a href="{{docs:models}}">the documentation</a> show what fits which hardware.
+  </li>
+  <li>Lower the <strong>Context window</strong> in <code>Settings → Models</code>.</li>
+  <li>
+    Close programs that use the graphics card, such as games, video editors, and other
+    AI tools, then try again.
+  </li>
+</ul>
+
+<!--# unsupported-architecture | The engine does not support this model yet | The model belongs to a family this version of the engine cannot run. -->
+<h2>What it means</h2>
+
+<p>
+  Every model belongs to a family, its architecture, and the engine has to know how
+  to run that family. A model released after the engine version Draggy uses may be
+  of a kind the engine has never seen, and it refuses to load it.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>
+    Update Draggy. The engine is a llama.cpp release, and support for a new family
+    arrives in newer releases.
+  </li>
+  <li>Choose a model from a family the engine already runs, such as one in the model tables in the documentation.</li>
+</ul>
+
+<!--# damaged-model-file | The model file is damaged or incomplete | The model file cannot be read as a model, usually because a download was cut short. -->
+<h2>What it means</h2>
+
+<p>
+  The engine reads a model file from its first byte, and it found something that is
+  not a valid model, or a file that ends before it should. Usually a download was
+  interrupted, the disk filled up, or the file is not a <code>.gguf</code> model at
+  all.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Remove the model in <code>Settings → Models</code>, then download it again.</li>
+  <li>Check that the drive has room for it. The download needs the full size of the model.</li>
+  <li>For the llama engine, only <code>.gguf</code> files work. Other formats have to be converted first.</li>
+</ul>
+
+<!--# missing-model-file | A file the model needs could not be opened | Part of the model is missing from the models folder. -->
+<h2>What it means</h2>
+
+<p>
+  The model, or a file it depends on, is not where Draggy expects it. It may have
+  been moved or deleted by hand, or removed by a cleanup tool or antivirus program.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>
+    Remove the model in <code>Settings → Models</code> and download it again, so every
+    file it needs is put back.
+  </li>
+  <li>Do not move files out of the models folder. Draggy finds them by name and by where they sit.</li>
+</ul>
+
+<!--# model-parts-missing | Part of a split model is missing | A model stored in several files needs every one of them. -->
+<h2>What it means</h2>
+
+<p>
+  Very large models are stored as several files, named like
+  <code>model-00001-of-00004.gguf</code>. The engine opens the other parts itself and
+  cannot start unless every one is in the same folder. Draggy checks for them before
+  it starts, and this is what it found missing.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>
+    Remove the model in <code>Settings → Models</code> and download it again to get
+    every part. A partly finished download leaves the later parts absent.
+  </li>
+  <li>If you copied the files in by hand, copy all of the parts, not just the first.</li>
+</ul>
+
+<!--# port-in-use | Another program is using the engine's port | The engine listens on a local port that something else is holding. -->
+<h2>What it means</h2>
+
+<p>
+  Draggy talks to its engine on port <code>11435</code> of your own computer. Another
+  program is holding that port, so the engine cannot start. It is often a second
+  copy of Draggy, or an engine left running after a crash.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Close any other copy of Draggy, quit Draggy fully, and open it again.</li>
+  <li>
+    On Windows, <code>netstat -ano | findstr :11435</code> shows which process holds
+    the port. On macOS and Linux, <code>lsof -i :11435</code> does.
+  </li>
+  <li>Restarting the computer clears anything left over.</li>
+</ul>
+
+<!--# engine-unreachable | Draggy could not reach its model engine | The engine stopped or was blocked before it could answer. -->
+<h2>What it means</h2>
+
+<p>
+  Draggy started the engine and then could not connect to it. The engine has stopped,
+  most often because it ran out of memory partway through, or something on the
+  computer blocked the connection. The connection never leaves your machine.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Send the message again. Draggy starts the engine again for you.</li>
+  <li>
+    If it keeps happening, the model is probably too large for the memory you have.
+    See <a href="{{error:out-of-memory}}">not enough memory</a>.
+  </li>
+  <li>
+    Check that a firewall or antivirus program is not blocking connections between
+    Draggy and <code>127.0.0.1</code>.
+  </li>
+</ul>
+
+<!--# engine-would-not-start | The model engine could not be started | Draggy could not launch the engine, and gave no further reason. -->
+<h2>What it means</h2>
+
+<p>
+  Draggy runs a small engine program to run models. Launching it failed and nothing
+  said why. The usual cause is that the program is missing, or was quarantined or
+  blocked by security software.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Restart Draggy and try again.</li>
+  <li>Look in your security software's quarantine for <code>llama-server</code>, and allow it.</li>
+  <li>Reinstall Draggy if the engine is gone. Your chats and models are kept.</li>
+</ul>
+
+<!--# load-timeout | The model took too long to load | The engine did not become ready within the time Draggy allows. -->
+<h2>What it means</h2>
+
+<p>
+  Draggy waits for the engine to finish loading a model, longer for a bigger file:
+  between 30 seconds and 3 minutes. If the model is not ready by then, Draggy gives up
+  rather than leave you waiting.
+</p>
+
+<p>
+  The usual cause is a model that is close to, or over, the size of your memory, so
+  the computer keeps swapping instead of loading. A slow disk, or antivirus
+  scanning a freshly downloaded file, does the same.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Try again. The second load can be quicker.</li>
+  <li>Choose a smaller model, or close other heavy programs first.</li>
+  <li>
+    If it happens with every model, see
+    <a href="{{error:out-of-memory}}">not enough memory</a>.
+  </li>
+</ul>
+
+<!--# engine-stopped-loading | The engine stopped while loading the model | The engine exited during loading, and the words after the exit code say why. -->
+<h2>What it means</h2>
+
+<p>
+  The engine started and then quit before the model finished loading. The message
+  ends with the exit code and the engine's own last words, and those are the part
+  that says what went wrong.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>
+    If the words mention memory, see
+    <a href="{{error:out-of-memory}}">not enough memory</a>.
+  </li>
+  <li>
+    If they mention an unknown architecture, see
+    <a href="{{error:unsupported-architecture}}">the engine does not support this model yet</a>.
+  </li>
+  <li>
+    If they mention the file, see
+    <a href="{{error:damaged-model-file}}">the model file is damaged</a>.
+  </li>
+  <li>Otherwise send the words to us with your log; the last section below says how.</li>
+</ul>
+
+<!--# another-model-started | Another model was started first | Choosing a second model while the first was loading abandoned the first. -->
+<h2>What it means</h2>
+
+<p>
+  Draggy runs one model at a time. If you pick another model, or send a message with
+  a different one selected, while the first is still loading, the first load is
+  abandoned so the newer request can have the engine. This message is about the
+  abandoned one.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Nothing is broken. Wait for the model you chose last to finish loading.</li>
+  <li>Send the message again once it has.</li>
+</ul>
+
+<!--# unknown-engine-error | The engine reported a problem Draggy does not recognise | The engine said something Draggy has no explanation for yet. -->
+<h2>What it means</h2>
+
+<p>
+  The engine reported a problem that Draggy has no plain-words explanation for. The
+  message repeats the engine's own words after <em>reported a problem</em>, so that
+  nothing is hidden from you.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Send the message again, and start a new chat if it repeats.</li>
+  <li>Try another model. If the problem follows one model, it is that model.</li>
+  <li>
+    Search for the engine's words, and tell us about them below. Each one we hear
+    about can be explained here.
+  </li>
+</ul>
+
+<!--# provider-unreachable | The provider could not be reached | Why Draggy got no answer from a cloud provider or a local server, and what to check. -->
+<h2>What it means</h2>
+
+<p>
+  Draggy sent the message to the provider and got nothing back: no connection, a
+  name that did not resolve, or a server that was not listening. For a cloud
+  provider, that is usually the network. For a local server such as Ollama or
+  LM Studio, it is usually the server not running.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Check that this computer is connected to the internet, then send the message again.</li>
+  <li>For a local server, start it, then press <strong>Scan</strong> in <code>Settings → Providers</code>.</li>
+  <li>For a custom server, check its <strong>Address</strong> under <strong>Advanced</strong> in the provider's row.</li>
+  <li>A VPN, proxy or firewall can block one provider and not others. Try without it.</li>
+</ul>
+
+<!--# provider-invalid-key | The provider did not accept the API key | Why a provider turns down the key Draggy sent, and how to put in a working one. -->
+<h2>What it means</h2>
+
+<p>
+  The provider answered, but refused the key. The key may have been mistyped,
+  revoked, or made for another provider or another project on the same one.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Create a new key on the provider's own site and copy it whole.</li>
+  <li>In <code>Settings → Providers</code>, open the provider, paste the new key into <strong>API key</strong>, then press <strong>Test</strong>.</li>
+  <li>If the test lists models, the key works. Send the message again.</li>
+</ul>
+
+<!--# provider-no-credit | The provider account has no credit left | Why a provider stops answering when its account runs out of credit or quota, and what to do. -->
+<h2>What it means</h2>
+
+<p>
+  The key is valid, but the account behind it has no credit, no remaining quota,
+  or no payment method. API keys are billed by the provider per use, apart from
+  any subscription you have with them.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Open the billing page on the provider's site and add credit or a payment method.</li>
+  <li>If you pay for ChatGPT or Claude, sign in with that plan instead of a key, in <code>Settings → Providers</code>.</li>
+  <li>Or pick a model on this computer from the model menu. It costs nothing.</li>
+</ul>
+
+<!--# provider-rate-limited | The provider is limiting requests | Why a provider asks Draggy to slow down, and how long to wait. -->
+<h2>What it means</h2>
+
+<p>
+  The provider has a cap on how many requests or how much text an account can send
+  in a minute. Draggy already waited and tried again. The cap was still reached, so
+  it stopped rather than keep trying.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Wait a minute, then send the message again.</li>
+  <li>A long task in Code sends many requests. A higher tier on the provider's site raises the cap.</li>
+  <li>Or switch to another provider or a model on this computer for now.</li>
+</ul>
+
+<!--# provider-model-not-found | The provider does not offer this model | Why a provider no longer recognises a model, and how to choose another. -->
+<h2>What it means</h2>
+
+<p>
+  The provider did not recognise the model name. Providers retire models and rename
+  them, and some models are only open to certain accounts.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Choose another model in the model menu.</li>
+  <li>In <code>Settings → Providers</code>, open the provider and press <strong>Test</strong> to fetch its current list.</li>
+  <li>Untick the model there so it stops appearing in the menus.</li>
+</ul>
+
+<!--# provider-context-too-long | The conversation is too long for this model | Why a provider refuses a conversation past the model's limit, and how to carry on. -->
+<h2>What it means</h2>
+
+<p>
+  Every model reads a fixed amount of text at once. The conversation, with its
+  files and tool results, has grown past what this model takes.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Start a new chat. A short summary of the earlier one is often enough to carry on.</li>
+  <li>Attach only the files the question is about.</li>
+  <li>Or pick a model with a larger context from the model menu.</li>
+</ul>
+
+<!--# provider-refused | The provider declined the request | Why a provider refuses to answer, and what changes the outcome. -->
+<h2>What it means</h2>
+
+<p>
+  The provider's own safety checks stopped the request. Each provider sets its own
+  rules, and they can be stricter than the model would be by itself. Draggy does
+  not filter anything here.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Rephrase the request, or say more about what it is for.</li>
+  <li>Try another provider, or a model on this computer.</li>
+</ul>
+
+<!--# provider-region-unavailable | The provider is not available in your region | Why a provider refuses to serve some countries, and what is left to use. -->
+<h2>What it means</h2>
+
+<p>
+  The provider does not serve the country or region your connection appears to come
+  from. That is their decision, and Draggy has no way around it.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Use another provider that serves your region.</li>
+  <li>Or use a model on this computer. It needs no provider at all.</li>
+</ul>
+
+<!--# provider-unknown-error | The provider reported a problem | What to do when a provider fails in a way Draggy does not recognise. -->
+<h2>What it means</h2>
+
+<p>
+  The provider sent back an error Draggy has no article for. The message shows the
+  provider's own words after its name, which usually say what went wrong.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Read the provider's words in the message, and send the message again.</li>
+  <li>Check the provider's status page.</li>
+  <li>If it keeps happening, open an issue on GitHub with those words, without your key.</li>
+</ul>
+
+<!--# account-signed-out | The account is signed out | Why a ChatGPT or Claude sign-in stops working, and how to sign in again. -->
+<h2>What it means</h2>
+
+<p>
+  Draggy reaches ChatGPT and Claude plans through each company's own tool,
+  signed in with your account. That sign-in has ended: it expired, was revoked from
+  the account's security page, or the password was changed.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>In <code>Settings → Providers</code>, under Accounts, sign in again.</li>
+  <li>The browser opens the company's own sign-in page. Draggy has no password field for these accounts.</li>
+</ul>
+
+<!--# account-limit-reached | The plan's allowance is used up for now | Why a ChatGPT or Claude plan stops answering for a while, and when it comes back. -->
+<h2>What it means</h2>
+
+<p>
+  A plan comes with an allowance for each stretch of time, set by the company. It has
+  been used up. When the company says when it resets, the message gives the time.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Wait for the reset, then send the message again.</li>
+  <li>For ChatGPT, the row in <code>Settings → Providers</code> shows how much of each window is used.</li>
+  <li>Meanwhile, pick another model from the menu: another provider, or one on this computer.</li>
+</ul>
+
+<!--# account-runtime-unavailable | The account's tool could not be started | Why the tool that reaches a ChatGPT or Claude plan did not start, and how to get it running. -->
+<h2>What it means</h2>
+
+<p>
+  Each plan runs through the company's own tool: Codex for ChatGPT and Claude Code for
+  Claude. Draggy downloads it once, the first time you
+  sign in. This time the tool was missing, the download failed, or it stopped
+  several times in a row.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Check that this computer is connected to the internet, wait a moment, then send the message again.</li>
+  <li>Sign out and in again in <code>Settings → Providers</code>. Signing in fetches the tool again when it is missing.</li>
+  <li>Security software can block a newly downloaded program. Allow it, then try again.</li>
+</ul>
+
+<!--# colibri-out-of-memory | Not enough memory for the colibri engine | The model needs more memory than this computer has free, and how to free some. -->
+<h2>What it means</h2>
+
+<p>
+  colibri is Draggy's engine for large Mixture-of-Experts models that do not fit in
+  memory. It reads parts of the model from your drive, so it runs slowly. This computer
+  does not have enough free memory for the chosen model, so the engine refused to load it.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Close other programs, especially ones that use a lot of memory, then try again.</li>
+  <li>Lower the <strong>Context window</strong> in <code>Settings → Models</code>.</li>
+  <li>
+    Choose a smaller model. The tables in <a href="{{docs:models}}">the documentation</a> show
+    what fits which hardware.
+  </li>
+</ul>
+
+<!--# colibri-disk-read | colibri could not read the model from disk | The engine could not read the model files from the drive, and what to check. -->
+<h2>What it means</h2>
+
+<p>
+  colibri is Draggy's engine for large Mixture-of-Experts models. It reads parts of the
+  model from the drive that holds the models folder while it runs. The read failed
+  partway through, so the engine could not load the model. The drive may be disconnected
+  or unreliable, or another program may be holding the file.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Check that the drive holding the models folder is connected, then try again.</li>
+  <li>Close programs that may be scanning or locking the model file, then try again.</li>
+  <li>
+    If it keeps failing, remove the model in <code>Settings → Models</code> and download
+    it again.
+  </li>
+</ul>
+
+<!--# colibri-model-format | The model files are not in a format colibri reads | The files for the chosen model do not match a format colibri can load, and how to get a working copy. -->
+<h2>What it means</h2>
+
+<p>
+  colibri is Draggy's engine for large Mixture-of-Experts models, and it reads one
+  specific model format. The files for the chosen model are damaged, incomplete, or not
+  in that format, so the engine could not open them as a model.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Remove the model in <code>Settings → Models</code>, then download it again.</li>
+  <li>Check that the download finished. A download cut short can leave files that do not open.</li>
+  <li>If you copied the files in by hand, replace them with a fresh download.</li>
+</ul>
+
+<!--# colibri-unsupported-model | This colibri version cannot run the model | The chosen model needs a newer or different version of colibri than the one installed. -->
+<h2>What it means</h2>
+
+<p>
+  colibri is Draggy's engine for large Mixture-of-Experts models. Each version of it can
+  run only some models. The model you chose needs a version that is newer or different
+  from the one installed, so the engine refused to load it.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Choose another model in <code>Settings → Models</code>.</li>
+</ul>
+
+<!--# colibri-blocked-by-windows | Windows blocked the colibri engine | Windows security settings stopped the engine from starting, and how to allow it. -->
+<h2>What it means</h2>
+
+<p>
+  colibri is Draggy's engine for large Mixture-of-Experts models. Windows refused to
+  start it. Smart App Control may be on, and it blocks programs it does not recognise.
+  Draggy does not change that setting, so the engine stays blocked until Windows allows
+  it.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Open Windows Security and look for a blocked item that names colibri. Allow it if it is there.</li>
+  <li>
+    Smart App Control is a Windows setting. Review it in Windows Security if you want
+    to change how it treats new programs.
+  </li>
+  <li>Restart Draggy and try again.</li>
+</ul>
+
+<!--# image-out-of-memory | Not enough memory for the image model | The image model needs more memory than is free, and how to make room. -->
+<h2>What it means</h2>
+
+<p>
+  An image model needs its own memory while it draws. The chat model, or other
+  programs, may be using most of it. Draggy checks the requirement before it loads the
+  image model and stops if there is not enough free.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Unload the chat model, or close programs that use the graphics card, then try again.</li>
+  <li>Choose a smaller image model.</li>
+  <li>Restart the computer to clear memory held by earlier programs.</li>
+</ul>
+
+<!--# image-engine-would-not-start | The image engine could not be started | Draggy could not start the image engine, or it stopped while starting or drawing. -->
+<h2>What it means</h2>
+
+<p>
+  The image engine is a separate program from the chat engine. Draggy could not start
+  it, or it stopped during loading or drawing. When the cause is known, the message
+  names it after the text above.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Try again. Restart Draggy if it keeps failing.</li>
+  <li>If the message names a missing library, reinstall the image engine in <code>Settings → Models</code>.</li>
+  <li>Check that security software has not quarantined the engine. Allow it, then try again.</li>
+</ul>
+
+<!--# image-engine-unsupported-cpu | This processor cannot run the image engine | The processor lacks an instruction the image engine needs, so it cannot run here. -->
+<h2>What it means</h2>
+
+<p>
+  The image engine uses a processor instruction that this CPU does not have. It cannot
+  run on this computer, whatever the settings are.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Image generation needs a computer with a newer processor.</li>
+  <li>Text chat is not affected, since the image engine is separate from the chat engine.</li>
+</ul>
+
+<!--# image-model-damaged | The image model did not match its checksum | The downloaded image model failed its checksum, so Draggy removed it. -->
+<h2>What it means</h2>
+
+<p>
+  Draggy checks each downloaded image model against a checksum. This one did not match,
+  so the file is incomplete or was changed, and Draggy removed it.
+</p>
+
+<h2>What to do</h2>
+
+<ul class="ticks">
+  <li>Download the image model again in <code>Settings → Models</code>.</li>
+  <li>Check that the drive has room for it. A full drive can cut a download short.</li>
+  <li>If it fails again, try later on a stable connection.</li>
+</ul>

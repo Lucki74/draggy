@@ -37,8 +37,8 @@ dotnet-install.ps1
 .impeccable
 graphify-out
 # Local planning docs
-docs/
-scratch/
+/docs/
+/scratch/
 app/build/release-notes.md
 .env.local
 
@@ -58,3 +58,7 @@ legacy-macos/Packages/DraggyCore/DraggyCoreFFI.xcframework/
 legacy-macos/Packages/DraggyCore/Sources/DraggyCore/draggy_core.swift
 legacy-macos/Packages/DraggyCore/.build/
 vendor/
+
+# Websites
+websites/*/public
+websites/*/.vercel

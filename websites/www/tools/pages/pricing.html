@@ -1,0 +1,83 @@
+    <main class="page-pricing">
+      <section class="pricing-hero">
+        <div class="wrap">
+          <div class="pricing-hero-header">
+            <h1>{{t:pricing.heading}}</h1>
+            <p class="lede">{{t:pricing.lede}}</p>
+          </div>
+
+          <div class="pricing-main-card">
+            <div class="pricing-card-header">
+              <div class="pricing-card-title-group">
+                <span class="pricing-badge">{{t:pricing.tierFreeSubtitle}}</span>
+                <h2>{{t:pricing.tierFreeTitle}}</h2>
+              </div>
+              <div class="pricing-price-box">
+                <span class="pricing-price">{{t:pricing.tierFreePrice}}</span>
+                <span class="pricing-price-sub">{{t:pricing.tierFreePeriod}}</span>
+              </div>
+            </div>
+
+            <ul class="pricing-feature-list" role="list">
+              <li>
+                <svg class="icon icon-check" aria-hidden="true"><use href="#i-check" /></svg>
+                <span>{{t:pricing.tierFreeFeature1}}</span>
+              </li>
+              <li>
+                <svg class="icon icon-check" aria-hidden="true"><use href="#i-check" /></svg>
+                <span>{{t:pricing.tierFreeFeature2}}</span>
+              </li>
+              <li>
+                <svg class="icon icon-check" aria-hidden="true"><use href="#i-check" /></svg>
+                <span>{{t:pricing.tierFreeFeature3}}</span>
+              </li>
+              <li>
+                <svg class="icon icon-check" aria-hidden="true"><use href="#i-check" /></svg>
+                <span>{{t:pricing.tierFreeFeature4}}</span>
+              </li>
+            </ul>
+
+            <div class="pricing-cta-wrap">
+              <a class="btn btn-primary" href="{{clean:download}}">
+                <svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>
+                {{t:nav.download}}
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pricing-section">
+        <div class="wrap">
+          <h2>{{t:pricing.byokHeading}}</h2>
+          <div class="pricing-grid-2">
+            <div class="pricing-info-card">
+              <h3>{{t:pricing.byokLocalTitle}}</h3>
+              <p>{{t:pricing.byokLocal}}</p>
+            </div>
+            <div class="pricing-info-card">
+              <h3>{{t:pricing.byokCloudTitle}}</h3>
+              <p>{{t:pricing.byokCloud}}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pricing-section">
+        <div class="wrap">
+          <div class="pricing-support-card">
+            <div class="pricing-support-content">
+              <h2>{{t:pricing.supportHeading}}</h2>
+              <p>{{t:pricing.supportText}}</p>
+              <p class="pricing-support-goal">{{t:pricing.supportGoal}}</p>
+            </div>
+            <div class="pricing-support-action">
+              <a class="btn btn-primary" href="https://ko-fi.com/lucki74">
+                <svg class="icon" aria-hidden="true"><use href="#i-kofi" /></svg>
+                {{t:pricing.supportButton}}
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>

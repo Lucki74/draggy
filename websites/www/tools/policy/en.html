@@ -1,0 +1,70 @@
+<h2>The short version</h2>
+
+<p>Draggy sends no telemetry and needs no account. Your chats and settings stay on your computer. Some things do leave it: a cloud provider you add receives your conversations, web searches send their queries to a search provider, and a few requests go out by default, such as update checks and ad-block lists. The sections below list each one. Conversations never go to this website.</p>
+
+<h2>The app: what stays on your computer</h2>
+
+<p>Chats, settings, the document index, statistics and extension credentials are stored in Draggy's data folder on your own disk. API keys and extension credentials are encrypted with your operating system's keystore. The ChatGPT sign-in is a file in the same folder. Claude decides how its own sign-in is stored. The model that answers you is a process on your computer, reached over <code>127.0.0.1</code>.</p>
+
+<div class="wiki-table"><table>
+  <thead>
+    <tr><th>System</th><th>Folder</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Windows</td><td><code>%APPDATA%\Draggy</code></td></tr>
+    <tr><td>macOS</td><td><code>~/Library/Application Support/Draggy</code></td></tr>
+    <tr><td>Linux</td><td><code>~/.config/draggy</code> (settings) and <code>~/.local/share/draggy</code> (models and chats)</td></tr>
+  </tbody>
+</table></div>
+
+<p>Delete that folder to remove everything Draggy keeps, including the sign-in files. On Windows, Claude Code also keeps a working folder in <code>%ProgramData%\Draggy</code>. Uninstalling the app does not delete it, so a reinstall still has your chats.</p>
+
+<h2>The app: what reaches the network</h2>
+
+<p>Some of these requests start when you ask for something, such as a download or a search. Others start on their own, such as update checks and ad-block lists. Each service below sees your IP address and whatever the request contains, and handles it under its own policy.</p>
+
+<div class="wiki-table"><table>
+  <thead>
+    <tr><th>What</th><th>Where</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Model downloads</td><td>Hugging Face (huggingface.co)</td></tr>
+    <tr><td>Connection check</td><td>Hugging Face, one request at startup and first setup, while no model is installed</td></tr>
+    <tr><td>Web searches</td><td>The search provider you choose. In Automatic mode, Draggy tries several in turn, including DuckDuckGo, Startpage and Brave Search. If you set one up, your own SearXNG address or a Brave Search API key</td></tr>
+    <tr><td>Pages read or opened</td><td>That site</td></tr>
+    <tr><td>Result icons</td><td>Each result's own site, not a favicon service</td></tr>
+    <tr><td>Engine downloads</td><td>GitHub (llama.cpp releases), at first setup. Checked again every 3 days</td></tr>
+    <tr><td>Image engine and models</td><td>GitHub (stable-diffusion.cpp) and Hugging Face, only when you ask for them</td></tr>
+    <tr><td>Colibri engine</td><td>GitHub and python.org, only when you ask for it</td></tr>
+    <tr><td>Extension search</td><td>The MCP registry (registry.modelcontextprotocol.io), when you search for extensions</td></tr>
+    <tr><td>Prices and exchange rates</td><td>GitHub (LiteLLM price list), OpenRouter and Frankfurter. On by default, about every 6 hours. Can be turned off in Settings</td></tr>
+    <tr><td>Update checks and downloads</td><td>GitHub releases. Checked at launch and every 6 hours. There is no switch to turn them off</td></tr>
+    <tr><td>Ad-block lists</td><td>GitHub (the ghostery and AdGuard filter lists), easylist-downloads.adblockplus.org and small.oisd.nl. Downloaded once after setup, then kept on your computer</td></tr>
+    <tr><td>Speech models</td><td>Hugging Face, first use only</td></tr>
+    <tr><td>Cloud voice, if you choose it</td><td>OpenAI or Google Gemini receives the reply text, once you agree for that provider. Your speech is not sent</td></tr>
+    <tr><td>Extensions you switch on</td><td>npm, then that service</td></tr>
+    <tr><td>A cloud provider you add</td><td>That provider receives your conversations and the files and images its model reads</td></tr>
+    <tr><td>ChatGPT sign-in</td><td>OpenAI, through Codex, downloaded once from GitHub</td></tr>
+    <tr><td>Claude sign-in</td><td>Anthropic, through Claude Code, downloaded once from downloads.claude.ai. Claude Code also makes a start-up request to Anthropic's API</td></tr>
+    <tr><td>Provider list</td><td>draggy.org, a signed list of providers. Only once a cloud provider is turned on, and at most once a day</td></tr>
+  </tbody>
+</table></div>
+
+
+<p>To keep requests to a minimum, set web search to Off, leave extensions off, add no cloud provider, and turn off the ad blocker in the browser pane. Draggy still makes one connection check at startup while no model is installed. Model downloads and first-use speech models also need the network.</p>
+
+<h2>This website</h2>
+
+<p>draggy.org is a static site hosted on Vercel. It loads nothing from other servers. Like any host, Vercel receives your IP address and the address of the page you ask for, and may keep standard server logs.</p>
+
+<p>The site counts visits with Vercel Web Analytics, served from draggy.org itself. Vercel Web Analytics does not use cookies. It recognises a visit by a hash of the request, which Vercel discards after 24 hours. It records the page, the page you came from, your approximate location, and your browser, operating system and type of device.</p>
+
+<p>The site stores one thing in your browser, and only when you use the control that sets it. Your language is kept in a cookie called <code>draggy-lang</code>. It is set only when you pick a language from the menu, and it lasts one year. The colors follow your system's light or dark setting, and nothing is stored for that.</p>
+
+<p>When you arrive without a language choice, the site uses the first language your browser asks for that it offers. If there is none, it uses the country your request comes from, which Vercel works out from your IP address at that moment. The site does not keep that country.</p>
+
+<p>Download links go to releases on GitHub, which is GitHub's service under GitHub's policy.</p>
+
+<h2>Questions and changes</h2>
+
+<p>Open an issue at <a href="https://github.com/Lucki74/draggy/issues">github.com/Lucki74/draggy</a>. When this policy changes, the date at the top changes with it.</p>

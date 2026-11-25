@@ -49,4 +49,4 @@ modules:
           - node_modules
           - app
           - legacy-macos
-          - draggy-website
+          - websites

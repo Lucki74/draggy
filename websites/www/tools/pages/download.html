@@ -1,0 +1,59 @@
+    <main class="dl-page">
+      <section class="dl-hero">
+        <div class="wrap">
+          <div class="dl-hero-main">
+            <p class="eyebrow">{{t:download.version}} {{r:version}}{{released}}</p>
+            <h1>{{t:download.heading}}</h1>
+          </div>
+
+          <div class="dl-cards">
+            <div class="dl" id="windows">
+              <h2>{{t:os.windows}}</h2>
+              <p class="file-meta">{{t:download.card.windows}} · {{r:windows-exe.mb}}</p>
+              <a class="btn btn-lg" href="{{r:windows-exe.url}}">
+                <svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>
+                {{t:download.button}}
+              </a>
+            </div>
+            <div class="dl" id="macos">
+              <h2>{{t:os.macos}}</h2>
+              <p class="file-meta">{{t:download.card.macos}} · {{r:macos-zip.mb}}</p>
+              <a class="btn btn-lg" href="{{r:macos-zip.url}}">
+                <svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>
+                {{t:download.button}}
+              </a>
+            </div>
+            <div class="dl" id="linux">
+              <h2>{{t:os.linux}}</h2>
+              <p class="file-meta">{{t:download.card.linux}} · {{r:linux-deb.mb}}</p>
+              <a class="btn btn-lg" href="{{r:linux-deb.url}}">
+                <svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>
+                {{t:download.button}} .deb
+              </a>
+              <a class="btn btn-lg" href="{{r:linux-rpm.url}}">
+                <svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>
+                {{t:download.button}} .rpm
+              </a>
+            </div>
+          </div>
+          <p class="file-meta dl-links"><a href="{{r:releaseurl}}">{{t:download.notes}}</a> · <a href="#changelog">{{t:download.changelogTitle}}</a></p>
+        </div>
+      </section>
+
+      <section class="section dl-specs" id="requirements">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>{{t:spec.heading}}</h2>
+          </div>
+{{specs}}
+        </div>
+      </section>
+
+      <section class="section dl-more">
+        <div class="wrap">
+          <p class="dl-note">{{t:download.signpath}}</p>
+        </div>
+      </section>
+
+{{recent}}
+    </main>

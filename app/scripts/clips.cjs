@@ -15,7 +15,7 @@ if (args.includes("--help")) {
   process.exit(0);
 }
 
-const OUT = path.resolve(process.env.DRAGGY_CLIPS_OUT || path.join(__dirname, "..", "..", "..", "draggy-website", "assets", "clips"));
+const OUT = path.resolve(process.env.DRAGGY_CLIPS_OUT || path.join(__dirname, "..", "..", "websites", "www", "assets", "clips"));
 const ONLY = (process.env.DRAGGY_CLIPS_ONLY || "").split(",").filter(Boolean);
 const WIDTH = 1280;
 const HEIGHT = 800;

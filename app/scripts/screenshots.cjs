@@ -13,7 +13,7 @@ if (args.includes("--help")) {
   process.exit(0);
 }
 
-const OUT = path.resolve(process.env.DRAGGY_SHOTS_OUT || path.join(__dirname, "..", "..", "..", "draggy-docs", "assets", "img"));
+const OUT = path.resolve(process.env.DRAGGY_SHOTS_OUT || path.join(__dirname, "..", "..", "websites", "docs", "assets", "img"));
 // The scenes behind the shots the docs use. Name others in DRAGGY_SHOTS_ONLY to take them too.
 const DOCS = ["project", "settings", "skills", "talk", "browser", "permissions"];
 const ONLY = (process.env.DRAGGY_SHOTS_ONLY || DOCS.join(",")).split(",").filter(Boolean);

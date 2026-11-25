@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Draggy, the card</title>
+    <style>
+      /* The 1200x630 card that link previews show, drawn by tools/og.cjs once per language.
+         Same tokens as the site: white page, black type, a hairline frame around the real window. */
+      @font-face {
+        font-family: "Geologica Variable";
+        font-weight: 100 900;
+        src: url(../assets/fonts/geologica-latin-wght-normal.woff2) format("woff2");
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        position: relative;
+        background: #ffffff;
+        color: #111111;
+        font-family: "Geologica Variable", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .copy {
+        position: absolute;
+        top: 120px;
+        left: 72px;
+        width: 440px;
+      }
+
+      .mark {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .mark img {
+        width: 56px;
+        height: 56px;
+      }
+
+      .mark span {
+        font-size: 40px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .tagline {
+        margin-top: 56px;
+        font-size: 40px;
+        font-weight: 500;
+        line-height: 48px;
+        letter-spacing: -0.02em;
+      }
+
+      .meta {
+        margin-top: 28px;
+        font-size: 22px;
+        line-height: 30px;
+        color: #5e5e5e;
+      }
+
+      .shot {
+        position: absolute;
+        top: 120px;
+        left: 584px;
+        width: 544px;
+        height: 340px;
+        overflow: hidden;
+        border-radius: 12px;
+        border: 1px solid #e7e7e7;
+      }
+
+      .shot img {
+        display: block;
+        width: 544px;
+        height: 340px;
+        object-fit: cover;
+        object-position: top left;
+      }
+
+      .domain {
+        position: absolute;
+        bottom: 64px;
+        left: 72px;
+        font-size: 22px;
+        font-weight: 500;
+        color: #5e5e5e;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="copy">
+      <div class="mark">
+        <img src="../assets/img/draggy-icon-128.png" width="56" height="56" alt="" />
+        <span>Draggy</span>
+      </div>
+
+      <p class="tagline" data-t="hero.heading">Web research and coding, with the model on your own computer.</p>
+
+      <p class="meta" data-t="og.meta">no account · no app telemetry · open source</p>
+    </div>
+
+    <div class="shot">
+      <img src="../assets/img/app-chat-light.png" width="544" height="340" alt="" />
+    </div>
+
+    <p class="domain">draggy.org</p>
+  </body>
+</html>
