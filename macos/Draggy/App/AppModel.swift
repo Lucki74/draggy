@@ -108,6 +108,9 @@ final class AppModel {
         static let researchModelStart = "researchModelStart"
         static let researchMaxDepth = "researchMaxDepth"
         static let researchKeep = "researchKeep"
+        static let mode = "appMode"
+        static let projects = "projects"
+        static let activeProject = "activeProject"
     }
 
     private let defaults: UserDefaults
@@ -120,6 +123,9 @@ final class AppModel {
     let browser = BrowserModel()
     /// What this session's replies cost, shown on the Stats page. Kept in memory only.
     let stats = StatsStore()
+    let appearance = AppearanceSettings()
+    /// The first-run setup, kept here so its downloads go on after the app opens.
+    let setup = SetupModel()
     private var session: Session?
     /// The plan the model keeps for this conversation.
     private(set) var plan: [PlanStepRecord] = []
@@ -129,6 +135,13 @@ final class AppModel {
     @ObservationIgnored private let library: ConversationLibrary
     private var currentID = UUID()
     private(set) var conversations: [ConversationSummary] = []
+    /// Names, pins and projects the sidebar keeps for each conversation.
+    private(set) var sessionMeta: [UUID: SessionMeta] = [:]
+    /// Chat or Code, which decides the sessions the sidebar lists and the folder the tools reach.
+    private(set) var mode: AppMode
+    /// Project folders added in Code, in the order they were added.
+    private(set) var projects: [String]
+    private(set) var activeProject: String?
     private(set) var transcript: Transcript
     private(set) var isRunning = false
     private(set) var errorMessage: String?
@@ -144,6 +157,8 @@ final class AppModel {
     /// Failed tasks whose list was opened, so the chip stops counting them.
     private(set) var seenFailures: Set<String> = []
     var isShowingTasks = false
+    /// The Models page, opened over the window from the composer's model list.
+    var isShowingModels = false
 
     var draft = ""
     /// Pictures waiting to go with the next message.
@@ -253,9 +268,23 @@ final class AppModel {
         self.secrets = secrets
         self.library = library
         let latest = library.list()
+        let meta = library.index.load()
+        let savedMode = defaults.string(forKey: Key.mode).flatMap(AppMode.init(rawValue:)) ?? .chat
+        let savedProjects = defaults.stringArray(forKey: Key.projects) ?? []
+        var project = defaults.string(forKey: Key.activeProject).flatMap { savedProjects.contains($0) ? $0 : nil }
+            ?? savedProjects.first
+        // The window reopens on the newest session of the mode it was left in.
+        let first = latest.first { (meta[$0.id]?.project != nil) == (savedMode == .code) }
+        if savedMode == .code, let owner = first.flatMap({ meta[$0.id]?.project }), savedProjects.contains(owner) {
+            project = owner
+        }
         conversations = latest
-        if let first = latest.first { currentID = first.id }
-        transcript = Transcript(restoring: latest.first.map { library.load($0.id) } ?? [])
+        sessionMeta = meta
+        mode = savedMode
+        projects = savedProjects
+        activeProject = project
+        if let first { currentID = first.id }
+        transcript = Transcript(restoring: first.map { library.load($0.id) } ?? [])
         let engine = EngineModel(defaults: defaults)
         self.engine = engine
         models = ModelsModel { [weak engine] path in engine?.modelPath = path }
@@ -328,7 +357,90 @@ final class AppModel {
 
     /// The project folder's name, which the Stats page files each reply under.
     var workspaceName: String {
-        folderPath.isEmpty ? String(localized: "No workspace") : URL(fileURLWithPath: folderPath).lastPathComponent
+        toolFolder.isEmpty ? String(localized: "No workspace") : URL(fileURLWithPath: toolFolder).lastPathComponent
+    }
+
+    /// The folder the file tools reach: the open project in Code, the settings folder in Chat.
+    var toolFolder: String {
+        mode == .code ? (activeProject ?? "") : folderPath
+    }
+
+    var currentConversationID: UUID { currentID }
+
+    /// Every saved conversation of the current mode, with the names and pins the user gave them.
+    var sessionRows: [SessionRow] {
+        conversations.compactMap { summary in
+            let meta = sessionMeta[summary.id] ?? SessionMeta()
+            guard (mode == .code) == (meta.project != nil) else { return nil }
+            return SessionRow(id: summary.id, title: meta.title ?? summary.title, updated: summary.updated,
+                              pinned: meta.pinned, project: meta.project)
+        }
+    }
+
+    /// Every saved conversation of both modes, for search.
+    var allSessionRows: [SessionRow] {
+        conversations.map { summary in
+            let meta = sessionMeta[summary.id] ?? SessionMeta()
+            return SessionRow(id: summary.id, title: meta.title ?? summary.title, updated: summary.updated,
+                              pinned: meta.pinned, project: meta.project)
+        }
+    }
+
+    func switchMode(_ next: AppMode) {
+        guard next != mode, !isRunning else { return }
+        mode = next
+        defaults.set(next.rawValue, forKey: Key.mode)
+        newConversation()
+    }
+
+    /// Adds a folder as a project, or opens it again when it is already one.
+    func addProject(_ url: URL) {
+        let path = url.standardizedFileURL.path
+        if !projects.contains(path) {
+            projects.append(path)
+            defaults.set(projects, forKey: Key.projects)
+        }
+        selectProject(path)
+    }
+
+    /// Opens a new session in the project, in Code.
+    func selectProject(_ path: String) {
+        guard !isRunning, projects.contains(path) else { return }
+        activeProject = path
+        defaults.set(path, forKey: Key.activeProject)
+        if mode != .code {
+            mode = .code
+            defaults.set(AppMode.code.rawValue, forKey: Key.mode)
+        }
+        newConversation()
+    }
+
+    /// Takes the folder off the list. Its sessions stay on disk and come back if it is added again.
+    func removeProject(_ path: String) {
+        guard !isRunning else { return }
+        projects.removeAll { $0 == path }
+        defaults.set(projects, forKey: Key.projects)
+        guard activeProject == path else { return }
+        activeProject = projects.first
+        defaults.set(activeProject, forKey: Key.activeProject)
+        newConversation()
+    }
+
+    func rename(_ id: UUID, to title: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        sessionMeta[id, default: SessionMeta()].title = trimmed.isEmpty ? nil : trimmed
+        library.index.save(sessionMeta)
+    }
+
+    func togglePin(_ id: UUID) {
+        sessionMeta[id, default: SessionMeta()].pinned.toggle()
+        library.index.save(sessionMeta)
+    }
+
+    /// The conversation as Markdown, titled as the sidebar shows it.
+    func markdown(for id: UUID) -> String {
+        let title = allSessionRows.first { $0.id == id }?.title ?? String(localized: "New chat")
+        return SessionArrangement.markdown(title: title, messages: library.load(id))
     }
 
     func newConversation() {
@@ -351,11 +463,25 @@ final class AppModel {
         currentID = id
         transcript = Transcript(restoring: library.load(id))
         errorMessage = nil
+        // Search can open a session of the other mode, so the sidebar follows it there.
+        let project = sessionMeta[id]?.project
+        mode = project == nil ? .chat : .code
+        defaults.set(mode.rawValue, forKey: Key.mode)
+        if let project {
+            // A session of a removed project brings its folder back, so its tools reach the right place.
+            if !projects.contains(project) {
+                projects.append(project)
+                defaults.set(projects, forKey: Key.projects)
+            }
+            activeProject = project
+            defaults.set(project, forKey: Key.activeProject)
+        }
     }
 
     func delete(_ id: UUID) {
         guard !isRunning else { return }
         library.delete(id)
+        if sessionMeta.removeValue(forKey: id) != nil { library.index.save(sessionMeta) }
         if id == currentID { newConversation() }
         conversations = library.list()
     }
@@ -526,6 +652,10 @@ final class AppModel {
         }
         cancel = nil
         library.save(transcript.savedMessages, as: currentID)
+        if sessionMeta[currentID] == nil, mode == .code, let activeProject {
+            sessionMeta[currentID] = SessionMeta(project: activeProject)
+            library.index.save(sessionMeta)
+        }
         conversations = library.list()
     }
 
@@ -533,7 +663,7 @@ final class AppModel {
         if let session { return session }
         // The key is read only here, while the request is being set up.
         let key = (try? secrets.secret(for: Key.apiKey)) ?? nil
-        let folder = folderPath.isEmpty ? nil : folderPath
+        let folder = toolFolder.isEmpty ? nil : toolFolder
         let config = SessionConfig(
             baseUrl: baseURL,
             model: modelName,

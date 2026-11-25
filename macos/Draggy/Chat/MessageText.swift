@@ -10,10 +10,12 @@ final class StepsToggle: NSObject {
 /// headings, lists, quotes and tables drawn. Anything else in markdown shows as typed.
 @MainActor
 enum MessageText {
-    private static let body = NSFont.systemFont(ofSize: 14)
-    private static let bold = NSFont.boldSystemFont(ofSize: 14)
-    private static let mono = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
-    private static let small = NSFont.systemFont(ofSize: 12)
+    // The Windows chat column: Geologica at 15, code in JetBrains Mono, steps a size down.
+    private static var body: NSFont { NSFont.ui(TextSize.current.points) }
+    private static var bold: NSFont { NSFont.ui(TextSize.current.points, .semibold) }
+    private static let mono = NSFont.code(13)
+    private static let small = NSFont.ui(13)
+    private static let gap = NSFont.ui(7)
 
     private static let inline = try? NSRegularExpression(pattern: "`([^`\\n]+)`|\\*\\*([^*\\n]+)\\*\\*|\\[([^\\]\\n]+)\\]\\((https?://[^)\\s]+)\\)|(?<![*\\w])\\*([^*\\s](?:[^*\\n]*[^*\\s])?)\\*(?![*\\w])")
     private static let heading = try? NSRegularExpression(pattern: "^(#{1,6})\\s+(.*)$")
@@ -26,16 +28,19 @@ enum MessageText {
     static func attributed(_ line: Transcript.Line) -> NSAttributedString {
         let out = NSMutableAttributedString()
         if line.foldsSteps {
-            let arrow = line.stepsOpen ? "\u{25BE}" : "\u{25B8}"
-            out.append(NSAttributedString(string: "\(arrow) \(foldTitle(line.steps))\n", attributes: [
+            let summary: [NSAttributedString.Key: Any] = [
                 .font: small,
-                .foregroundColor: NSColor.secondaryLabelColor,
+                .foregroundColor: Theme.NS.textSecondary,
                 .link: StepsToggle(line.id),
-            ]))
+                .paragraphStyle: stepSpacing,
+            ]
+            out.append(NSAttributedString(string: foldTitle(line.steps) + "  ", attributes: summary))
+            out.append(caret(open: line.stepsOpen, attributes: summary))
+            out.append(NSAttributedString(string: "\n", attributes: summary))
         } else if line.role == .assistant, line.steps.contains(where: { !$0.isDone }) {
             out.append(NSAttributedString(string: String(localized: "Working") + "\n", attributes: [
                 .font: small,
-                .foregroundColor: NSColor.secondaryLabelColor,
+                .foregroundColor: Theme.NS.textSecondary,
             ]))
         }
         let run = line.steps.lazy.compactMap { ResearchRunView(step: $0) }.first
@@ -43,14 +48,14 @@ enum MessageText {
         for step in line.steps where step.kind != "research_run" && !(run != nil && isRunPreview(step)) && (!line.foldsSteps || line.stepsOpen) {
             // The node marks the state: accent while live, a quiet dot once done, a red cross on failure.
             let (mark, color): (String, NSColor) = step.failed
-                ? ("\u{00D7}", .systemRed)
+                ? ("\u{00D7}", Theme.NS.danger)
                 : step.isDone || step.kind == "thinking"
-                    ? ("\u{2022}", .tertiaryLabelColor) : ("\u{25CF}", .controlAccentColor)
+                    ? ("\u{2022}", Theme.NS.textTertiary) : ("\u{25CF}", Theme.NS.accent(\.base))
             out.append(NSAttributedString(string: "\(mark) ", attributes: [.font: small, .foregroundColor: color]))
             // A thought sits on the rail as its own text, with no title over it.
             if step.kind == "thinking" {
                 out.append(NSAttributedString(string: step.detail + "\n", attributes: [
-                    .font: thought, .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: hangingAfterNode,
+                    .font: thought, .foregroundColor: Theme.NS.textSecondary, .paragraphStyle: hangingAfterNode,
                 ]))
                 continue
             }
@@ -60,11 +65,50 @@ enum MessageText {
         }
         guard let run, line.role == .assistant else {
             out.append(message(line.text))
-            return out
+            return spaced(out)
         }
         out.append(ResearchText.linkCitations(message(line.text), run: run))
         out.append(ResearchText.sourceList(run))
+        return spaced(out)
+    }
+
+    /// The Phosphor caret after the summary, in the summary's grey, drawn for the current appearance.
+    private static func caret(open: Bool, attributes: [NSAttributedString.Key: Any]) -> NSAttributedString {
+        let glyph = Icon.image(open ? .caretUp : .caretDown, size: 12, filled: false)
+        let tinted = NSImage(size: glyph.size, flipped: false) { rect in
+            glyph.draw(in: rect)
+            Theme.NS.textSecondary.set()
+            rect.fill(using: .sourceAtop)
+            return true
+        }
+        let attachment = NSTextAttachment()
+        attachment.image = tinted
+        attachment.bounds = NSRect(x: 0, y: -1, width: glyph.size.width, height: glyph.size.height)
+        let out = NSMutableAttributedString(attachment: attachment)
+        out.addAttributes(attributes, range: NSRange(location: 0, length: out.length))
         return out
+    }
+
+    /// The step rows sit a little apart, as the Windows rail does.
+    private static let stepSpacing: NSParagraphStyle = {
+        let style = NSMutableParagraphStyle()
+        style.paragraphSpacing = 6
+        return style
+    }()
+
+    /// Reading leading for prose: 15 point text on about 25 point lines, a gap after each paragraph.
+    private static let proseSpacing: NSParagraphStyle = {
+        let style = NSMutableParagraphStyle()
+        style.lineSpacing = 5
+        return style
+    }()
+
+    private static func spaced(_ text: NSMutableAttributedString) -> NSAttributedString {
+        let whole = NSRange(location: 0, length: text.length)
+        text.enumerateAttribute(.paragraphStyle, in: whole) { value, range, _ in
+            if value == nil { text.addAttribute(.paragraphStyle, value: proseSpacing, range: range) }
+        }
+        return text
     }
 
     /// A live call of a tool the research card already reports in its own rows would only repeat it.
@@ -72,13 +116,13 @@ enum MessageText {
         step.kind == "tool_call" && ["add_note", "search_web", "read_url"].contains(step.label)
     }
 
-    private static let detailMono = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
-    private static let thought = NSFont.systemFont(ofSize: 13)
+    private static let detailMono = NSFont.code(12)
+    private static let thought = NSFont.ui(13)
     private static let stepParts = try? NSRegularExpression(pattern: "^(.*?)(?:`([^`\\n]+)`|\\*\\*([^*\\n]+)\\*\\*)(.*)$")
 
     /// A step as one line: the verb, then what it acted on in a quieter tone, then its result once done.
     static func stepLine(_ step: Transcript.Step) -> NSAttributedString {
-        let tone = step.isDone ? NSColor.secondaryLabelColor : NSColor.labelColor
+        let tone = step.isDone ? Theme.NS.textSecondary : Theme.NS.textPrimary
         let row = step.label as NSString
         let out = NSMutableAttributedString()
         guard let match = stepParts?.firstMatch(in: step.label, range: NSRange(location: 0, length: row.length)) else {
@@ -95,11 +139,11 @@ enum MessageText {
         let meta = row.substring(with: match.range(at: 4)).trimmingCharacters(in: CharacterSet(charactersIn: "·() "))
         out.append(NSAttributedString(string: verb + " ", attributes: [.font: small, .foregroundColor: tone]))
         out.append(NSAttributedString(string: target, attributes: [
-            .font: code.location != NSNotFound ? detailMono : small, .foregroundColor: NSColor.tertiaryLabelColor,
+            .font: code.location != NSNotFound ? detailMono : small, .foregroundColor: Theme.NS.textTertiary,
         ]))
         if step.isDone, !meta.isEmpty {
             out.append(NSAttributedString(string: "  " + meta, attributes: [
-                .font: small, .foregroundColor: step.failed ? NSColor.systemRed : NSColor.tertiaryLabelColor,
+                .font: small, .foregroundColor: step.failed ? Theme.NS.danger : Theme.NS.textTertiary,
             ]))
         }
         out.append(NSAttributedString(string: "\n", attributes: [.font: small]))
@@ -136,8 +180,8 @@ enum MessageText {
     private static func detailAttributes(for step: Transcript.Step) -> [NSAttributedString.Key: Any] {
         [
             .font: detailMono,
-            .foregroundColor: NSColor.labelColor,
-            .backgroundColor: NSColor.quaternaryLabelColor,
+            .foregroundColor: Theme.NS.textPrimary,
+            .backgroundColor: Theme.NS.surfaceTint,
             .paragraphStyle: hanging,
         ]
     }
@@ -175,9 +219,12 @@ enum MessageText {
                 fenced.append(row)
                 out.append(NSAttributedString(string: row + end, attributes: [
                     .font: mono,
-                    .foregroundColor: NSColor.labelColor,
-                    .backgroundColor: NSColor.quaternaryLabelColor,
+                    .foregroundColor: Theme.NS.textPrimary,
+                    .backgroundColor: Theme.NS.surfaceTint,
                 ]))
+            } else if row.trimmingCharacters(in: .whitespaces).isEmpty {
+                // A blank line between paragraphs is a short gap, as the Windows prose margins are.
+                out.append(NSAttributedString(string: end, attributes: [.font: gap]))
             } else {
                 out.append(prose(row))
                 out.append(NSAttributedString(string: end, attributes: [.font: body]))
@@ -190,7 +237,7 @@ enum MessageText {
     private static func previewLink(_ code: String, end: String) -> NSAttributedString {
         let out = NSMutableAttributedString(string: "\u{25B6} " + String(localized: "Preview"), attributes: [
             .font: small,
-            .foregroundColor: NSColor.linkColor,
+            .foregroundColor: Theme.NS.accent(\.ink),
             .link: HTMLPreview(code),
         ])
         out.append(NSAttributedString(string: end, attributes: [.font: body]))
@@ -249,12 +296,12 @@ enum MessageText {
             let level = match.range(at: 1).length
             let size: CGFloat = level == 1 ? 20 : level == 2 ? 17 : 15
             return styled((row as NSString).substring(with: match.range(at: 2)),
-                          font: NSFont.boldSystemFont(ofSize: size))
+                          font: NSFont.ui(size, .semibold))
         }
         if let match = quote?.firstMatch(in: row, range: whole) {
             let text = NSMutableAttributedString(attributedString:
                 styled("\u{258E} " + (row as NSString).substring(with: match.range(at: 1)), font: body))
-            text.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor,
+            text.addAttribute(.foregroundColor, value: Theme.NS.textSecondary,
                               range: NSRange(location: 0, length: text.length))
             return text
         }
@@ -274,7 +321,7 @@ enum MessageText {
     private static func styled(_ row: String, font: NSFont) -> NSAttributedString {
         let out = NSMutableAttributedString(string: row, attributes: [
             .font: font,
-            .foregroundColor: NSColor.labelColor,
+            .foregroundColor: Theme.NS.textPrimary,
         ])
         guard let inline else { return out }
         let range = NSRange(location: 0, length: (row as NSString).length)
@@ -286,7 +333,11 @@ enum MessageText {
             let slanted = match.range(at: 5)
             if label.location != NSNotFound {
                 let text = (row as NSString).substring(with: label)
-                var attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.linkColor]
+                var attributes: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: Theme.NS.accent(\.ink),
+                    .underlineStyle: NSUnderlineStyle.single.rawValue,
+                ]
                 if let url = URL(string: (row as NSString).substring(with: match.range(at: 4))) {
                     attributes[.link] = url
                 }
@@ -296,20 +347,20 @@ enum MessageText {
                     string: (row as NSString).substring(with: code),
                     attributes: [
                         .font: mono,
-                        .foregroundColor: NSColor.labelColor,
-                        .backgroundColor: NSColor.quaternaryLabelColor,
+                        .foregroundColor: Theme.NS.textPrimary,
+                        .backgroundColor: Theme.NS.surfaceTint,
                     ]
                 ))
             } else if slanted.location != NSNotFound {
                 let face = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
                 out.replaceCharacters(in: match.range, with: NSAttributedString(
                     string: (row as NSString).substring(with: slanted),
-                    attributes: [.font: face, .foregroundColor: NSColor.labelColor]
+                    attributes: [.font: face, .foregroundColor: Theme.NS.textPrimary]
                 ))
             } else if strong.location != NSNotFound {
                 out.replaceCharacters(in: match.range, with: NSAttributedString(
                     string: (row as NSString).substring(with: strong),
-                    attributes: [.font: bold, .foregroundColor: NSColor.labelColor]
+                    attributes: [.font: bold, .foregroundColor: Theme.NS.textPrimary]
                 ))
             }
         }

@@ -32,6 +32,8 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 
 - Swift files and `.xcstrings` use CRLF in the working copy. Edit `Localizable.xcstrings` as text, since a JSON re-dump rewrites the whole file.
 - After a Swift change, watch the "Build and test" macOS job, which is the only compile check.
+- The macOS look follows the Windows tokens in `macos/Draggy/Theme/Theme.swift`. `Icons.xcassets` and `Glyph.generated.swift` come from
+  `python3 macos/scripts/build-icons.py`; rerun it after changing `win/src/ui/icons/glyphs.generated.ts`.
 - Commits carry a subject only. A PR carries a title and a description of two sentences at most, written with the `/humanizer` skill, as Issues and pull requests in AGENTS.md says. Neither carries attribution. Squash merge with `gh pr merge N --squash --subject "<title> (#N)" --body ""`.
 
 ## Compact instructions

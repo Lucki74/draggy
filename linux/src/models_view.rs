@@ -521,7 +521,7 @@ fn library_row(ui: &Rc<Ui>, model: &LibraryModelRecord) -> gtk::Widget {
     let get = button("Download", "suggested-action");
     get.connect_clicked({
         let ui = ui.clone();
-        let reference = model.name.clone();
+        let reference = model.reference.clone();
         move |_| download(&ui, &reference)
     });
     row.add_suffix(&get);

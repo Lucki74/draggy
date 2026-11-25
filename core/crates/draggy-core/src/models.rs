@@ -10,7 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use draggy_models::download::{
     DownloadError, DownloadRequest, Downloader, Phase, Progress, ReqwestClient, SystemEnv,
 };
-use draggy_models::huggingface::HuggingFace;
+use draggy_models::huggingface::{HuggingFace, LibraryModel};
 use draggy_models::mlx_files::list_mlx_models;
 use draggy_models::mmproj::Projectors;
 use draggy_models::model_storage::{CapabilityCache, delete_gguf_model, list_gguf_models};
@@ -20,12 +20,25 @@ use crate::error::CoreError;
 /// A model the hub offers.
 #[derive(uniffi::Record, Debug, Clone, PartialEq, Eq)]
 pub struct LibraryModelRecord {
-    /// The reference to download, such as `qwen3:8b`.
+    /// The name to show, such as `qwen3`.
     pub name: String,
+    /// What to download with a size tag after a colon: the hub repository, or a curated model's name.
+    pub reference: String,
     pub description: String,
     pub capabilities: Vec<String>,
     /// The sizes offered, as the hub words them.
     pub sizes: Vec<String>,
+}
+
+/// A hub result as the shells see it. A hub model downloads by its repository, as Windows does.
+fn record_of(model: LibraryModel) -> LibraryModelRecord {
+    LibraryModelRecord {
+        reference: model.repo.clone().unwrap_or_else(|| model.name.clone()),
+        name: model.name,
+        description: model.description,
+        capabilities: model.capabilities,
+        sizes: model.sizes,
+    }
 }
 
 /// A model file on disk.
@@ -116,12 +129,7 @@ impl ModelLibrary {
             .search(&query, now_ms())
             .await
             .into_iter()
-            .map(|model| LibraryModelRecord {
-                name: model.name,
-                description: model.description,
-                capabilities: model.capabilities,
-                sizes: model.sizes,
-            })
+            .map(record_of)
             .collect()
     }
 
@@ -219,5 +227,38 @@ impl ModelLibrary {
     pub fn delete(&self, filename: String) -> Result<bool, CoreError> {
         delete_gguf_model(&self.models_dir, &filename)
             .map_err(|error| model_error(error.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn model(name: &str, repo: Option<&str>) -> LibraryModel {
+        LibraryModel {
+            name: name.to_owned(),
+            repo: repo.map(str::to_owned),
+            description: String::new(),
+            capabilities: Vec::new(),
+            sizes: vec!["Q4_K_M".to_owned()],
+        }
+    }
+
+    #[test]
+    fn a_hub_result_downloads_by_its_repository() {
+        let record = record_of(model(
+            "Huihui-Qwen3.8-27B-abliterated",
+            Some("huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF"),
+        ));
+        assert_eq!(record.name, "Huihui-Qwen3.8-27B-abliterated");
+        assert_eq!(
+            record.reference,
+            "huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF"
+        );
+    }
+
+    #[test]
+    fn a_curated_model_downloads_by_its_name() {
+        assert_eq!(record_of(model("qwen3", None)).reference, "qwen3");
     }
 }

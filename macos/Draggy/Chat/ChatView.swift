@@ -1,31 +1,29 @@
 import AppKit
 import DraggyCore
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct ChatView: View {
     @Bindable var model: AppModel
-    @State private var isPickingFile = false
 
     var body: some View {
         VStack(spacing: 0) {
             if let update = model.updates.available, !model.updates.isDismissed {
                 updateBanner(update)
             }
-            TranscriptView(lines: model.transcript.lines)
+            TranscriptView(lines: model.transcript.lines, textSize: model.appearance.textSize)
             TaskChip(model: model)
             if let message = model.errorMessage {
                 Text(message)
-                    .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
+                    .font(.ui(13))
+                    .foregroundStyle(Theme.danger)
+                    .frame(maxWidth: 720, alignment: .leading)
+                    .padding(.horizontal, 20)
                     .padding(.top, 8)
+                    .frame(maxWidth: .infinity)
             }
-            if !model.plan.isEmpty {
-                PlanStrip(steps: model.plan) { model.clearPlan() }
-            }
-            composer
+            ComposerView(model: model)
         }
+        .background(Theme.surfaceBase)
         .sheet(isPresented: $model.isShowingTasks) { TasksSheet(model: model) }
         .task { await pollTasks() }
     }
@@ -53,85 +51,8 @@ struct ChatView: View {
             Spacer()
             Button("Dismiss") { model.updates.isDismissed = true }
         }
+        .font(.ui(13))
         .padding(8)
-        .background(.quaternary)
+        .background(Theme.surfaceRaised)
     }
-
-    private var composer: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if !model.pendingImages.isEmpty || !model.pendingVideos.isEmpty { imageChips }
-            composerRow
-        }
-        .padding()
-        .fileImporter(isPresented: $isPickingFile, allowedContentTypes: Self.attachmentTypes) { result in
-            if case let .success(url) = result { Task { await model.attach(url) } }
-        }
-    }
-
-    private var imageChips: some View {
-        HStack {
-            ForEach(Array(model.pendingImages.enumerated()), id: \.offset) { index, image in
-                HStack(spacing: 4) {
-                    Image(systemName: "photo")
-                    Text(image.name).lineLimit(1)
-                    Button { model.removeImage(at: index) } label: { Image(systemName: "xmark.circle.fill") }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Remove picture")
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(.quaternary, in: Capsule())
-            }
-            ForEach(Array(model.pendingVideos.enumerated()), id: \.offset) { index, video in
-                HStack(spacing: 4) {
-                    Image(systemName: "film")
-                    Text(video.name).lineLimit(1)
-                    Button { model.removeVideo(at: index) } label: { Image(systemName: "xmark.circle.fill") }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Remove video")
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(.quaternary, in: Capsule())
-            }
-        }
-    }
-
-    private var composerRow: some View {
-        HStack(alignment: .bottom) {
-            Button { isPickingFile = true } label: { Image(systemName: "paperclip") }
-                .help("Add the text of a Word, PowerPoint, Excel or PDF file")
-                .accessibilityLabel("Attach a file")
-                .accessibilityHint("Add the text of a Word, PowerPoint, Excel or PDF file")
-                .disabled(model.isRunning)
-            Button { model.toggleTalk() } label: {
-                Image(systemName: model.isTalking ? "mic.fill" : "mic")
-            }
-            .help("Talk")
-            .accessibilityLabel("Talk")
-            .disabled(model.isRunning && !model.isTalking)
-            if model.isTalking {
-                Text(model.talkPhase.label).font(.caption).foregroundStyle(.secondary)
-            }
-            Toggle(isOn: $model.speakReplies) { Image(systemName: "speaker.wave.2") }
-                .toggleStyle(.button)
-                .help("Read replies aloud")
-                .accessibilityLabel("Read replies aloud")
-            TextField("Message", text: $model.draft, axis: .vertical)
-                .lineLimit(1...6)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit { Task { await model.send() } }
-            if model.isRunning {
-                Button("Stop") { model.stop() }
-            } else {
-                Button("Send") { Task { await model.send() } }
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .disabled(model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
-    }
-
-    private static let attachmentTypes: [UTType] = (["docx", "pptx", "xlsx", "pdf", "png", "jpg", "jpeg", "gif", "webp"]
-        + AppModel.videoTypes)
-        .compactMap { UTType(filenameExtension: $0) }
 }

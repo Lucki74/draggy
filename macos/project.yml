@@ -24,6 +24,8 @@ targets:
       - path: Draggy
       - path: ../shared/icons/icon.icns
         buildPhase: resources
+      - path: ../core/crates/providers/src/bundled_catalog.json
+        buildPhase: resources
     dependencies:
       - package: DraggyCore
     info:
