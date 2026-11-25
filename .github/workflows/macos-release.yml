@@ -23,7 +23,8 @@ concurrency:
 
 jobs:
   prepare:
-    if: github.ref == 'refs/heads/main'
+    # TODO: re-enable macOS: drop the false guard
+    if: false && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
