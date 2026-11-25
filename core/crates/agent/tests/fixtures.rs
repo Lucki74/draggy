@@ -313,7 +313,7 @@ fn level_list(value: &Value) -> Option<Vec<Effort>> {
         .map(|items| items.iter().map(level_of).collect())
 }
 
-/// `videoHandle.json`: the line a turn carries for a video, against `win/src/tools/video.ts`.
+/// `videoHandle.json`: the line a turn carries for a video, against `app/src/tools/video.ts`.
 fn video_handle(input: &Value) -> Value {
     let vision = input["vision"].as_bool().unwrap_or_default();
     match op(input) {
@@ -346,7 +346,7 @@ fn video_handle(input: &Value) -> Value {
     }
 }
 
-/// `imageReference.json`: the picture index and the default strength, against `win/src/images/imageTracker.ts`.
+/// `imageReference.json`: the picture index and the default strength, against `app/src/images/imageTracker.ts`.
 fn image_reference(input: &Value) -> Value {
     match op(input) {
         "index" => {
@@ -379,7 +379,7 @@ fn image_reference(input: &Value) -> Value {
     }
 }
 
-/// `effort.json`: the rules that set the level a turn runs at, against `win/src/ai/effort.ts`.
+/// `effort.json`: the rules that set the level a turn runs at, against `app/src/ai/effort.ts`.
 fn effort_rules(input: &Value) -> Value {
     match op(input) {
         "effective" => {

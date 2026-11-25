@@ -1,4 +1,4 @@
-//! The one line a turn carries for an attached video, ported from `win/src/tools/video.ts`.
+//! The one line a turn carries for an attached video, ported from `app/src/tools/video.ts`.
 //! `shared/fixtures/agent/videoHandle.json` pins both.
 
 use serde::Deserialize;

@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     defaults:
       run:
-        working-directory: win
+        working-directory: app
     strategy:
       fail-fast: false
       matrix:
@@ -36,24 +36,24 @@ jobs:
       # The release workflow builds on the same Node version.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: win/.nvmrc
+          node-version-file: app/.nvmrc
           cache: npm
-          cache-dependency-path: win/package-lock.json
+          cache-dependency-path: app/package-lock.json
 
       - name: Install Rust with rustfmt and clippy
         run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: win/src-tauri
+          workspaces: app/src-tauri
 
       - run: npm ci
 
       - name: Test and build the sandbox launcher
-        working-directory: win/sandbox
+        working-directory: app/sandbox
         run: cargo test -q && cargo build --release
 
-      # vendor/ is git-ignored, so the pinned node.exe sidecar is fetched and checked against win/scripts/node-pin.json.
+      # vendor/ is git-ignored, so the pinned node.exe sidecar is fetched and checked against app/scripts/node-pin.json.
       - name: Fetch the pinned node.exe sidecar
         shell: pwsh
         run: |
@@ -92,13 +92,13 @@ jobs:
       - run: npm run build
 
       - name: Rust format
-        working-directory: win/src-tauri
+        working-directory: app/src-tauri
         run: cargo fmt --check
 
       - name: Rust clippy
-        working-directory: win/src-tauri
+        working-directory: app/src-tauri
         run: cargo clippy --all-targets -- -D warnings
 
       - name: Rust tests
-        working-directory: win/src-tauri
+        working-directory: app/src-tauri
         run: cargo test -q

@@ -1,4 +1,4 @@
-// Downloads the embeddable Python the chat workspace runs scripts with, into win/vendor/python.
+// Downloads the embeddable Python the chat workspace runs scripts with, into app/vendor/python.
 // Plain standard library, about 10 MB. Run by hand or before the Tauri build.
 const crypto = require("crypto");
 const fs = require("fs");

@@ -1,6 +1,6 @@
 {
   "area": "agent",
-  "description": "The effort levels and the rules that set the level a turn runs at (win/src/ai/effort.ts, core/crates/agent/src/effort.rs).",
+  "description": "The effort levels and the rules that set the level a turn runs at (app/src/ai/effort.ts, core/crates/agent/src/effort.rs).",
   "cases": [
     {
       "name": "code keeps the level asked for",

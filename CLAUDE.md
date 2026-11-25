@@ -4,7 +4,7 @@ Read [AGENTS.md](AGENTS.md) first. It holds the commands, the invariants the tes
 
 ## Repository layout
 
-Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift) is not built while macOS is paused; macOS CI runs only by hand. New macOS work goes into `win/`, which also builds on a Mac (see "macOS, for development" in AGENTS.md). `core/` and `linux/` are Rust: run `cargo test -p <crate> -q` from `core/` or `linux/` (cargo is at `~/.cargo/bin`). Shared fixtures in `shared/fixtures/` must pass in vitest and cargo. See AGENTS.md for the table.
+The Tauri app for Windows and macOS lives in `app/`, so run every `npm` command there. `legacy-macos/` (Swift) is not built while macOS is paused; macOS CI runs only by hand. New macOS work goes into `app/`, which also builds on a Mac (see "macOS, for development" in AGENTS.md). `core/` and `linux/` are Rust: run `cargo test -p <crate> -q` from `core/` or `linux/` (cargo is at `~/.cargo/bin`). Shared fixtures in `shared/fixtures/` must pass in vitest and cargo. See AGENTS.md for the table.
 
 ## Development and test workflow
 
@@ -14,7 +14,7 @@ Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift)
 - During iteration run one file: `npx vitest run src/__tests__/<file>.test.ts` or `-t "test name"`. Vitest takes `--reporter=dot` for short output, not `-q`.
 - The development server is `npm run tauri:dev` on port 5173. Kill a stale Vite process if the port is taken.
 - On Windows without Developer Mode, tests that create symlinks fail with EPERM. Treat them as environmental, not as regressions.
-- An untracked `win/chat` file may be lying around; leave it out of commits.
+- An untracked `app/chat` file may be lying around; leave it out of commits.
 
 ## Screenshots
 

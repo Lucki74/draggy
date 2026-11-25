@@ -30,10 +30,10 @@ jobs:
       - run: brew install xcodegen
 
       # Builds the core, generates the Swift bindings and packs the XCFramework.
-      - run: macos/scripts/build-core.sh
+      - run: legacy-macos/scripts/build-core.sh
 
       - run: xcodegen generate
-        working-directory: macos
+        working-directory: legacy-macos
 
       - run: >
           xcodebuild test
@@ -41,4 +41,4 @@ jobs:
           -scheme Draggy
           -destination "platform=macOS,arch=arm64"
           CODE_SIGNING_ALLOWED=NO
-        working-directory: macos
+        working-directory: legacy-macos

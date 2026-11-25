@@ -83,7 +83,7 @@ If Draggy is useful to you, starring the repo helps other people find it.
 On Windows:
 
 ```bash
-cd win
+cd app
 npm install
 npm run tauri:dev
 ```

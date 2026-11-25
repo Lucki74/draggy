@@ -1,4 +1,4 @@
-//! Runs a command through the Windows sandbox launcher (win/sandbox): an AppContainer that sees one project
+//! Runs a command through the Windows sandbox launcher (app/sandbox): an AppContainer that sees one project
 //! folder. The launcher fails closed, and so does this.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};

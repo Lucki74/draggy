@@ -1,4 +1,4 @@
-//! Twin of `win/src/stats/baseModel.ts`: turns a local model into the OpenRouter id it is built on, so a local turn is
+//! Twin of `app/src/stats/baseModel.ts`: turns a local model into the OpenRouter id it is built on, so a local turn is
 //! priced by what its own model costs. Both are held to `shared/fixtures/base-model/cases.json`.
 
 use draggy_providers::types::TokenUsage;

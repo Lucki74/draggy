@@ -1,6 +1,6 @@
 {
   "area": "sandbox",
-  "description": "Golden policy for one SandboxSpec: the bubblewrap argument list (Linux) and the sandbox-exec Seatbelt profile (macOS) that core/crates/tools/src/sandbox.rs and macos/Draggy/Services/SandboxPolicy.swift must both generate, line for line.",
+  "description": "Golden policy for one SandboxSpec: the bubblewrap argument list (Linux) and the sandbox-exec Seatbelt profile (macOS) that core/crates/tools/src/sandbox.rs and legacy-macos/Draggy/Services/SandboxPolicy.swift must both generate, line for line.",
   "cases": [
     {
       "name": "project and scratch writable, toolchain read-only, network off",
