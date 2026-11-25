@@ -1,3 +1,4 @@
+import DraggyCore
 import XCTest
 @testable import Draggy
 
@@ -102,5 +103,14 @@ final class SetupTests: XCTestCase {
 
     func testTextSizesMatchTheWindowsSetting() {
         XCTAssertEqual(TextSize.allCases.map(\.points), [13, 15, 18])
+    }
+
+    func testMLXBuildsAreLabelledInsteadOfOfferedAsDownloads() {
+        let mlx = LibraryModelRecord(name: "Qwen3.8-27B-GSQ-RCO-MLX", reference: "uqer1244/Qwen3.8-27B-GSQ-RCO-MLX",
+                                     description: "", capabilities: [], sizes: ["Q8_0"])
+        let gguf = LibraryModelRecord(name: "Qwen3.8-27B", reference: "unsloth/Qwen3.8-27B-GGUF",
+                                      description: "", capabilities: [], sizes: ["Q8_0"])
+        XCTAssertTrue(ModelSearchView.isMLX(mlx))
+        XCTAssertFalse(ModelSearchView.isMLX(gguf))
     }
 }

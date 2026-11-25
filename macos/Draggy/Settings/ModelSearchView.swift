@@ -86,6 +86,14 @@ struct ModelSearchView: View {
                             .foregroundStyle(Theme.textPrimary)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                        if Self.isMLX(result) {
+                            Text(verbatim: "MLX")
+                                .font(.ui(11, .medium))
+                                .foregroundStyle(Theme.warn)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 1)
+                                .background(Theme.surfaceRaised, in: Capsule())
+                        }
                         ForEach(Self.order(Set(result.capabilities)).prefix(4), id: \.self) { capability in
                             Text(Self.title(capability))
                                 .font(.ui(11, .medium))
@@ -109,7 +117,15 @@ struct ModelSearchView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            if open {
+            if open && Self.isMLX(result) {
+                // Hugging Face files MLX builds under GGUF too; the engine here loads GGUF only.
+                Text("This is an MLX model. Draggy downloads GGUF models, so pick a GGUF build of it instead.")
+                    .font(.ui(12))
+                    .foregroundStyle(Theme.textSecondary)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.surfaceTint, in: RoundedRectangle(cornerRadius: Theme.Radius.xs))
+            } else if open {
                 VStack(spacing: 4) {
                     ForEach(result.sizes, id: \.self) { tag in
                         variant(result.reference + ":" + tag)
@@ -144,6 +160,11 @@ struct ModelSearchView: View {
         .padding(.horizontal, 10)
         .frame(height: 32)
         .background(Theme.surfaceTint, in: RoundedRectangle(cornerRadius: Theme.Radius.xs))
+    }
+
+    /// An MLX build, by the name its uploader gave it. The core refuses its download with the same reason.
+    static func isMLX(_ result: LibraryModelRecord) -> Bool {
+        (result.reference + " " + result.name).range(of: "mlx", options: .caseInsensitive) != nil
     }
 
     /// The capabilities Windows names, most useful first. Tags it has no name for, such as completion, stay hidden.

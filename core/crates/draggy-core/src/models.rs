@@ -30,6 +30,13 @@ pub struct LibraryModelRecord {
     pub sizes: Vec<String>,
 }
 
+/// Why an MLX repository cannot be downloaded: the engine here loads GGUF files only.
+fn mlx_refusal(repo: &str) -> String {
+    format!(
+        "{repo} is an MLX model. Draggy downloads GGUF models, so pick a GGUF build of it instead."
+    )
+}
+
 /// A hub result as the shells see it. A hub model downloads by its repository, as Windows does.
 fn record_of(model: LibraryModel) -> LibraryModelRecord {
     LibraryModelRecord {
@@ -140,13 +147,16 @@ impl ModelLibrary {
         reference: String,
         observer: Arc<dyn DownloadObserver>,
     ) -> Result<String, CoreError> {
-        let plan = self
-            .hub
-            .resolve_download(&reference, false)
-            .await
-            .ok_or_else(|| {
-                model_error(format!("No downloadable model was found for {reference}."))
-            })?;
+        let Some(plan) = self.hub.resolve_download(&reference, false).await else {
+            // An MLX repository shows up in a GGUF search but has no GGUF file; say so rather than "not found".
+            let repo = reference.split(':').next().unwrap_or_default();
+            if repo.contains('/') && self.hub.is_mlx_repo(repo).await {
+                return Err(model_error(mlx_refusal(repo)));
+            }
+            return Err(model_error(format!(
+                "No downloadable model was found for {reference}."
+            )));
+        };
         let mut files = vec![(plan.url.clone(), plan.filename.clone(), plan.size)];
         for part in plan.parts.iter().flatten() {
             files.push((part.url.clone(), part.filename.clone(), part.size));
@@ -255,6 +265,13 @@ mod tests {
             record.reference,
             "huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF"
         );
+    }
+
+    #[test]
+    fn an_mlx_repository_is_named_in_the_refusal() {
+        let message = mlx_refusal("uqer1244/Qwen3.8-27B-GSQ-RCO-MLX");
+        assert!(message.starts_with("uqer1244/Qwen3.8-27B-GSQ-RCO-MLX is an MLX model"));
+        assert!(message.contains("GGUF"));
     }
 
     #[test]

@@ -8487,6 +8487,29 @@
           }
         }
       }
+    },
+    "This is an MLX model. Draggy downloads GGUF models, so pick a GGUF build of it instead.": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C’est un modèle MLX. Draggy télécharge les modèles GGUF : choisissez-en plutôt une version GGUF."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este es un modelo MLX. Draggy descarga modelos GGUF, así que elige una versión GGUF."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Это модель MLX. Draggy скачивает модели GGUF, поэтому выберите её версию в GGUF."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
