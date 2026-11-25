@@ -1,0 +1,742 @@
+/* pages.css: download, 404, error pages and the privacy policy. Colors, type and buttons come from site.css. */
+
+/* Head: the logo, one line and a way home. The 404 and the error pages share it. */
+.page-head {
+  padding-block: var(--section) 48px;
+  text-align: center;
+}
+
+.page-head .wrap {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+
+.page-head .lede {
+  max-width: 640px;
+}
+
+.page-logo {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 8px;
+}
+
+.page-head .btn {
+  margin-top: 16px;
+}
+
+/* The main download buttons take the app's accent, as the home page's primary button does. Their text is --accent-ink, 5.4:1
+   on the accent in both themes, and the hover darkens the fill and keeps that contrast. */
+.dl > .btn {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.dl > .btn:hover {
+  opacity: 1;
+  filter: brightness(0.92);
+}
+
+/* Prose: the error pages and the privacy policy. */
+.wiki-solo {
+  padding-top: var(--section);
+}
+
+.wiki-body {
+  max-width: 760px;
+  margin-inline: 0;
+  padding-bottom: var(--section);
+}
+
+.wiki-body > h1 {
+  margin-bottom: 16px;
+}
+
+.wiki-body h2 {
+  margin-top: 56px;
+  margin-bottom: 16px;
+}
+
+.wiki-body p {
+  margin-top: 16px;
+}
+
+.wiki-body ul {
+  margin-top: 16px;
+  padding-left: 20px;
+}
+
+.wiki-body li + li {
+  margin-top: 8px;
+}
+
+.wiki-body .wiki-table {
+  margin-top: 24px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.wiki-body .wiki-table table {
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.wiki-body th,
+.wiki-body td {
+  padding-right: 16px;
+}
+
+.wiki-body code {
+  overflow-wrap: anywhere;
+}
+
+/* The error index: one line per error. */
+.wiki-body.error-index h2 {
+  margin-top: 48px;
+  font-size: 20px;
+  line-height: 28px;
+}
+
+.wiki-body .error-list {
+  margin-top: 8px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.wiki-body .error-list li {
+  margin-top: 0;
+  padding: 14px 0;
+}
+
+.wiki-body .error-list a {
+  font-weight: 500;
+}
+
+.wiki-body .error-list span {
+  display: block;
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--muted);
+}
+
+.dl-cards {
+  display: grid;
+  gap: 16px;
+  margin-top: 40px;
+}
+
+@media (min-width: 900px) {
+  .dl-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.dl {
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: 16px;
+  padding: 24px;
+  background: var(--surface);
+  border-radius: 20px;
+}
+
+.dl h2 {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.dl-specs {
+  padding-bottom: 0;
+}
+
+.dl-more {
+  padding-top: 48px;
+}
+
+.dl-note {
+  max-width: 640px;
+  margin-top: 32px;
+  padding-top: 24px;
+}
+
+/* Steps: plain rows spaced apart, opened with a plus sign. */
+.steps {
+}
+
+.step {
+  padding-block: 20px;
+}
+
+.step > h3,
+.step summary h3 {
+  font-size: 20px;
+  line-height: 28px;
+}
+
+.step summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.step summary::-webkit-details-marker {
+  display: none;
+}
+
+.step summary::after {
+  content: "+";
+  font-size: 20px;
+  line-height: 28px;
+  color: var(--muted);
+}
+
+.step[open] summary::after {
+  content: "\2212";
+}
+
+.step > p {
+  margin-top: 12px;
+  max-width: 640px;
+}
+
+.step code {
+  overflow-wrap: anywhere;
+}
+
+/* Less air between the download sections: they sit closer at every width. */
+.dl-page .section {
+  padding-block: 72px;
+}
+
+/* Commands: monospace blocks that wrap on a phone instead of scrolling sideways. The copy button sits
+   in the top corner, so the text keeps clear of it. */
+.dl-page pre {
+  max-width: 640px;
+  margin-top: 12px;
+  padding-right: 56px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dl-all {
+  margin-top: 24px;
+}
+
+/* The only link on its line: as tall as the line, so the whole line is the target (WCAG 2.5.8). */
+.dl-all a {
+  display: inline-block;
+}
+
+/* A link alone in a table cell is a target by itself, so it gets the full 24px height (WCAG 2.5.8). */
+.wiki-table td a:only-child {
+  display: inline-block;
+  min-height: 24px;
+  line-height: 24px;
+  /* Without nowrap, a narrow column breaks inside words and squeezes to one character wide at 320px. The table scrolls in its box instead. */
+  white-space: nowrap;
+}
+
+/* Download: one card per system, the requirements and install steps for each, then the changelog. */
+.dl-hero {
+  padding: 72px 0 48px;
+}
+
+.dl-hero-main {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+}
+
+.dl-hero-main h1 {
+  font-size: clamp(36px, 6vw, 56px);
+  line-height: 1.05;
+}
+
+.dl-hero .btn-lg {
+  min-height: 56px;
+  padding-inline: 32px;
+  font-size: 17px;
+}
+
+/* Pricing: big type on the page, no cards. The price is the page's first sentence. */
+.page-pricing {
+  padding-block: 56px var(--section);
+}
+
+.pricing-hero {
+  padding-bottom: calc(var(--section) / 2);
+}
+
+.pricing-hero-header {
+  max-width: 900px;
+  margin-bottom: 56px;
+}
+
+.pricing-hero-header h1 {
+  font-size: clamp(44px, 6vw, 88px);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  margin-bottom: 24px;
+}
+
+.pricing-hero-header .lede {
+  max-width: 640px;
+  font-size: clamp(18px, 1.6vw, 22px);
+  line-height: 1.5;
+}
+
+.pricing-main-card {
+  max-width: 900px;
+  display: grid;
+  gap: 32px;
+}
+
+.pricing-card-header {
+  display: grid;
+  gap: 8px;
+}
+
+.pricing-badge {
+  display: inline-block;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--accent-text);
+  margin-bottom: 8px;
+}
+
+.pricing-card-title-group h2 {
+  font-size: clamp(32px, 4.4vw, 56px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.pricing-price-box {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.pricing-price {
+  font-size: clamp(64px, 11vw, 160px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--accent-text);
+}
+
+.pricing-price-sub {
+  font-size: 20px;
+  line-height: 28px;
+  color: var(--muted);
+}
+
+.pricing-feature-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 16px;
+}
+
+.pricing-feature-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: clamp(18px, 1.8vw, 22px);
+  line-height: 1.45;
+}
+
+.pricing-feature-list .icon-check {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-top: 0.2em;
+  color: var(--accent-text);
+}
+
+.pricing-cta-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.pricing-section {
+  padding-block: calc(var(--section) / 2);
+}
+
+.pricing-section h2 {
+  max-width: 860px;
+  font-size: clamp(32px, 4.4vw, 56px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin-bottom: 40px;
+}
+
+.pricing-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px 56px;
+  max-width: 1000px;
+}
+
+@media (max-width: 680px) {
+  .pricing-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
+
+.pricing-info-card h3 {
+  font-size: clamp(24px, 2.4vw, 32px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+.pricing-info-card p {
+  font-size: 19px;
+  line-height: 30px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.pricing-support-card {
+  max-width: 1000px;
+  display: grid;
+  gap: 32px;
+}
+
+.pricing-support-content h2 {
+  max-width: 860px;
+  font-size: clamp(32px, 4.4vw, 56px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin: 0 0 24px;
+}
+
+.pricing-support-content p {
+  max-width: 680px;
+  font-size: 19px;
+  line-height: 30px;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+.pricing-support-content .pricing-support-goal {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* The visitor's own system gets the accent frame. Mobile and unknown systems get none. */
+html[data-os="windows"] #windows,
+html[data-os="macos"] #macos,
+html[data-os="linux"] #linux {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.dl .btn-lg {
+  width: 100%;
+  justify-content: center;
+}
+
+.dl-links {
+  margin-top: 24px;
+}
+
+.dl-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}
+
+/* Requirements: Minimum beside Recommended, one system at a time with script and all three stacked without. */
+.spec-tabs {
+  display: none;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.spec-tab {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.spec-tab[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+html[data-os="windows"] .spec-tabs,
+html[data-os="macos"] .spec-tabs,
+html[data-os="linux"] .spec-tabs {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+html[data-os="windows"] .spec:not([data-spec-os="windows"]),
+html[data-os="macos"] .spec:not([data-spec-os="macos"]),
+html[data-os="linux"] .spec:not([data-spec-os="linux"]) {
+  display: none;
+}
+
+.spec + .spec {
+  margin-top: 64px;
+}
+
+/* With the tabs showing, the system's own name is the tab, so the heading steps aside for a screen reader only. */
+html[data-os="windows"] .spec > h3,
+html[data-os="macos"] .spec > h3,
+html[data-os="linux"] .spec > h3 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.spec > h3 {
+  margin-bottom: 16px;
+}
+
+.spec-table {
+  width: 100%;
+  max-width: 960px;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+  font-size: 15px;
+  line-height: 22px;
+  text-align: left;
+}
+
+.spec-table th,
+.spec-table td {
+  padding: 14px 20px;
+  vertical-align: top;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.spec-table thead th {
+  padding-block: 4px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.spec-table tbody th {
+  width: 18%;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface);
+  border-radius: 14px 0 0 14px;
+}
+
+.spec-table tbody td {
+  background: var(--surface);
+}
+
+.spec-table tbody td:last-child {
+  border-radius: 0 14px 14px 0;
+}
+
+@media (max-width: 720px) {
+  .spec-table,
+  .spec-table tbody {
+    display: block;
+  }
+
+  .spec-table thead {
+    display: none;
+  }
+
+  .spec-table tr {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 14px 20px;
+    background: var(--surface);
+    border-radius: 14px;
+  }
+
+  .spec-table th,
+  .spec-table td,
+  .spec-table tbody th {
+    width: auto;
+    padding: 0;
+    background: none;
+    border-radius: 0;
+  }
+
+  .spec-table td[data-label]::before {
+    content: attr(data-label) ": ";
+    font-weight: 500;
+    color: var(--muted);
+  }
+}
+
+.spec h4 {
+  margin-top: 40px;
+  font-size: 20px;
+  line-height: 28px;
+}
+
+.spec-steps {
+  display: grid;
+  gap: 16px;
+  max-width: 720px;
+  margin: 16px 0 0;
+  padding-left: 24px;
+}
+
+.spec-steps p {
+  max-width: none;
+}
+
+/* Changelog: one block per build, newest first. */
+.dl-log {
+  display: grid;
+  gap: 48px;
+  max-width: 760px;
+}
+
+.dl-log-entry h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.dl-log-entry h3 a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}
+
+.dl-log-entry h4 {
+  margin-top: 24px;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--muted);
+}
+
+.dl-log-entry ul {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+/* 404: a big number that glitches and is scanned by a line, in a loop. Static with reduced motion. */
+.page-404 .code-404 {
+  font-size: 240px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.glitch {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  padding-inline: 0.04em;
+  animation: glitch-jolt 3s steps(1, end) infinite;
+}
+
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0 0 0 0.04em;
+  opacity: 0.9;
+}
+
+.glitch::before {
+  color: var(--accent);
+  animation: glitch-top 3s steps(1, end) infinite;
+}
+
+.glitch::after {
+  color: var(--accent-2);
+  animation: glitch-bottom 3s steps(1, end) infinite;
+}
+
+.page-404 .code-404 {
+  position: relative;
+  overflow: hidden;
+}
+
+.page-404 .code-404::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 4px;
+  background: var(--accent);
+  opacity: 0.7;
+  animation: scan 2.4s linear infinite;
+}
+
+@keyframes scan {
+  from { transform: translateY(-10px); }
+  to { transform: translateY(1.1em); }
+}
+
+@keyframes glitch-jolt {
+  0%, 62%, 100% { transform: none; }
+  64% { transform: translateX(-0.03em) skewX(-6deg); }
+  68% { transform: translateX(0.04em) skewX(5deg); }
+  72% { transform: none; }
+  90% { transform: translateX(0.02em); }
+  92% { transform: none; }
+}
+
+@keyframes glitch-top {
+  0%, 60%, 100% { clip-path: inset(0 0 100% 0); transform: none; }
+  62% { clip-path: inset(10% 0 60% 0); transform: translateX(-0.06em); }
+  66% { clip-path: inset(45% 0 30% 0); transform: translateX(0.07em); }
+  70% { clip-path: inset(70% 0 5% 0); transform: translateX(-0.04em); }
+  74% { clip-path: inset(0 0 100% 0); }
+  88% { clip-path: inset(30% 0 50% 0); transform: translateX(0.05em); }
+  91% { clip-path: inset(0 0 100% 0); }
+}
+
+@keyframes glitch-bottom {
+  0%, 61%, 100% { clip-path: inset(0 0 100% 0); transform: none; }
+  63% { clip-path: inset(55% 0 20% 0); transform: translateX(0.06em); }
+  67% { clip-path: inset(15% 0 65% 0); transform: translateX(-0.07em); }
+  71% { clip-path: inset(80% 0 0 0); transform: translateX(0.04em); }
+  75% { clip-path: inset(0 0 100% 0); }
+  89% { clip-path: inset(60% 0 15% 0); transform: translateX(-0.05em); }
+  92% { clip-path: inset(0 0 100% 0); }
+}
+
+@media (max-width: 640px) {
+  .page-404 .code-404 { font-size: 128px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glitch,
+  .glitch::before,
+  .glitch::after { animation: none; }
+  .glitch::before,
+  .glitch::after { display: none; }
+  .page-404 .code-404::after { display: none; }
+}

@@ -37,7 +37,7 @@ Tests run without a GPU and without a Tauri window, so keep new logic away from 
 
 ## Website and docs
 
-The website and the docs live in their own repos: [Lucki74/draggy-website](https://github.com/Lucki74/draggy-website) for draggy.org and [Lucki74/draggy-docs](https://github.com/Lucki74/draggy-docs) for docs.draggy.org. Changes to those pages go there.
+The website and the docs live in this repo: [websites/www](websites/www) for draggy.org and [websites/docs](websites/docs) for docs.draggy.org. Each has its own README and AGENTS.md.
 
 ## Architecture and boundaries
 

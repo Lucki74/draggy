@@ -185,9 +185,9 @@ Releases are cut from the Release workflow (`release.yml`, run by hand on `main`
 
 ## Documentation and website
 
-The public website lives in `../draggy-website` (Lucki74/draggy-website) and the documentation in `../draggy-docs` (Lucki74/draggy-docs), both public repositories. Draggy interfaces use Phosphor icons (`@phosphor-icons/core`), while the website maintains its own icon builds.
+The public website lives in `websites/www` and the documentation in `websites/docs`, each with its own AGENTS.md. Vercel builds each one from its folder. Draggy interfaces use Phosphor icons (`@phosphor-icons/core`), while the website maintains its own icon builds.
 
-Documentation screenshots come from `npm run shots` (the docs screenshots) and `npm run clips` (the website clips). They start a dev build of the app with WebView2 remote debugging on 127.0.0.1, attach through `scripts/tauri-app.cjs` and run on a throwaway data folder. Screenshots go to `../draggy-docs/assets/img` and clips to `../draggy-website/assets/clips`.
+Documentation screenshots come from `npm run shots` (the docs screenshots) and `npm run clips` (the website clips). They start a dev build of the app with WebView2 remote debugging on 127.0.0.1, attach through `scripts/tauri-app.cjs` and run on a throwaway data folder. Screenshots go to `websites/docs/assets/img` and clips to `websites/www/assets/clips` (Git LFS).
 
 - Set `TEMP` and `TMP` to a neutral folder such as `C:\demo` first, so settings screenshots do not show your user name.
 - Look at every generation-dependent shot before publishing it.

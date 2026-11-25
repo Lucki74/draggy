@@ -1,0 +1,38 @@
+{
+  "app-mode-chat": {
+    "width": 1600,
+    "height": 1000
+  },
+  "app-settings-general": {
+    "width": 1600,
+    "height": 1000
+  },
+  "app-settings-downloads": {
+    "width": 1600,
+    "height": 1000
+  },
+  "app-settings-code": {
+    "width": 1600,
+    "height": 1000
+  },
+  "app-project": {
+    "width": 1600,
+    "height": 1000
+  },
+  "app-browser": {
+    "width": 1600,
+    "height": 1000
+  },
+  "app-talk": {
+    "width": 1600,
+    "height": 1000
+  },
+  "app-skill-request": {
+    "width": 1600,
+    "height": 1000
+  },
+  "app-permission-modes": {
+    "width": 1600,
+    "height": 1000
+  }
+}

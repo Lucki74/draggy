@@ -1,0 +1,93 @@
+{
+  "tabs": [
+    {
+      "key": "start",
+      "groups": [
+        {
+          "key": "start",
+          "slugs": [
+            "quickstart",
+            "installation",
+            "first-chat",
+            "models"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "guides",
+      "groups": [
+        {
+          "key": "use",
+          "slugs": [
+            "chat-and-code",
+            "image-generation",
+            "voice",
+            "projects",
+            "plans",
+            "browser"
+          ]
+        },
+        {
+          "key": "control",
+          "slugs": [
+            "permissions",
+            "tools",
+            "extensions"
+          ]
+        },
+        {
+          "key": "providers",
+          "slugs": [
+            "providers",
+            "local-engines"
+          ]
+        },
+        {
+          "key": "customize",
+          "slugs": [
+            "appearance",
+            "settings"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "reference",
+      "groups": [
+        {
+          "key": "reference",
+          "slugs": [
+            "commands",
+            "shortcuts",
+            "glossary",
+            "development",
+            "changelog"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "help",
+      "groups": [
+        {
+          "key": "help",
+          "slugs": [
+            "troubleshooting",
+            "faq",
+            "security",
+            "privacy"
+          ]
+        }
+      ]
+    }
+  ],
+  "home": [
+    "quickstart",
+    "installation",
+    "models",
+    "troubleshooting",
+    "commands",
+    "privacy"
+  ]
+}

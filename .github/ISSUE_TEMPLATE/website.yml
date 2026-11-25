@@ -1,0 +1,42 @@
+name: Website
+description: Something on draggy.org is wrong, missing or out of date.
+labels: ["content"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Where is it?
+      description: A link to the page, or the file under `websites/www/tools/`.
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is wrong with it?
+      options:
+        - Wrong or out of date
+        - Typo or translation
+        - Broken link, image or clip
+        - Layout or accessibility
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options:
+        - English
+        - French
+        - Spanish
+        - Russian
+        - All of them
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What it says now and what it should say. Mention the app version if it matters.
+    validations:
+      required: true

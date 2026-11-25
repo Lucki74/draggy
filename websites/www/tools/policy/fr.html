@@ -1,0 +1,70 @@
+<h2>En bref</h2>
+
+<p>Draggy n'envoie aucune télémétrie et ne demande aucun compte. Vos discussions et vos réglages restent sur votre ordinateur. Certaines données en sortent tout de même : un fournisseur cloud que vous ajoutez reçoit vos conversations, les recherches web envoient leurs requêtes à un moteur de recherche, et quelques requêtes partent par défaut, comme la vérification des mises à jour et les listes du bloqueur de publicités. Les sections ci-dessous les détaillent une à une. Les conversations ne vont jamais sur ce site.</p>
+
+<h2>L'application : ce qui reste sur votre ordinateur</h2>
+
+<p>Les discussions, les réglages, l'index des documents, les statistiques et les identifiants des extensions sont stockés dans le dossier de données de Draggy, sur votre propre disque. Les clés d'API et les identifiants des extensions sont chiffrés par le trousseau de votre système d'exploitation. La connexion ChatGPT est un fichier de ce même dossier. Claude décide lui-même comment sa connexion est stockée. Le modèle qui vous répond est un processus de votre ordinateur, joint par <code>127.0.0.1</code>.</p>
+
+<div class="wiki-table"><table>
+  <thead>
+    <tr><th>Système</th><th>Dossier</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Windows</td><td><code>%APPDATA%\Draggy</code></td></tr>
+    <tr><td>macOS</td><td><code>~/Library/Application Support/Draggy</code></td></tr>
+    <tr><td>Linux</td><td><code>~/.config/draggy</code> (paramètres) et <code>~/.local/share/draggy</code> (modèles et discussions)</td></tr>
+  </tbody>
+</table></div>
+
+<p>Supprimez ce dossier pour effacer tout ce que Draggy conserve, y compris les fichiers de connexion. Sous Windows, Claude Code garde aussi un dossier de travail dans <code>%ProgramData%\Draggy</code>. Désinstaller l'application ne le supprime pas : une réinstallation retrouve donc vos discussions.</p>
+
+<h2>L'application : ce qui passe par le réseau</h2>
+
+<p>Certaines de ces requêtes partent quand vous demandez quelque chose, comme un téléchargement ou une recherche. D'autres partent d'elles-mêmes, comme la vérification des mises à jour et les listes du bloqueur de publicités. Chaque service ci-dessous voit votre adresse IP et ce que la requête contient, et la traite selon sa propre politique.</p>
+
+<div class="wiki-table"><table>
+  <thead>
+    <tr><th>Quoi</th><th>Où</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Téléchargement de modèles</td><td>Hugging Face (huggingface.co)</td></tr>
+    <tr><td>Vérification de la connexion</td><td>Hugging Face, une requête au démarrage et à la première configuration, tant qu'aucun modèle n'est installé</td></tr>
+    <tr><td>Recherches web</td><td>Le moteur que vous choisissez. En mode Automatique, Draggy les essaie l'un après l'autre, dont DuckDuckGo, Startpage et Brave Search. Si vous en configurez un, votre propre adresse SearXNG ou une clé d'API Brave Search</td></tr>
+    <tr><td>Pages lues ou ouvertes</td><td>Le site concerné</td></tr>
+    <tr><td>Icônes des résultats</td><td>Le site de chaque résultat, pas un service d'icônes</td></tr>
+    <tr><td>Téléchargement du moteur</td><td>GitHub (versions de llama.cpp), à la première configuration. Revérifié tous les 3 jours</td></tr>
+    <tr><td>Moteur et modèles d'image</td><td>GitHub (stable-diffusion.cpp) et Hugging Face, seulement à votre demande</td></tr>
+    <tr><td>Moteur Colibri</td><td>GitHub et python.org, seulement à votre demande</td></tr>
+    <tr><td>Recherche d'extensions</td><td>Le registre MCP (registry.modelcontextprotocol.io), quand vous cherchez des extensions</td></tr>
+    <tr><td>Prix et taux de change</td><td>GitHub (liste de prix LiteLLM), OpenRouter et Frankfurter. Activé par défaut, environ toutes les 6 heures. Peut être désactivé dans les Paramètres</td></tr>
+    <tr><td>Vérification des mises à jour</td><td>Les versions sur GitHub. Activée par défaut. Les vérifications et téléchargements se font au lancement puis toutes les six heures. Il n'y a pas d'interrupteur pour les désactiver</td></tr>
+    <tr><td>Listes du bloqueur de publicités</td><td>GitHub (les listes de ghostery et AdGuard), easylist-downloads.adblockplus.org et small.oisd.nl. Téléchargées une fois après la configuration, puis conservées sur votre ordinateur</td></tr>
+    <tr><td>Modèles vocaux</td><td>Hugging Face, au premier usage seulement</td></tr>
+    <tr><td>Voix cloud, si vous la choisissez</td><td>OpenAI ou Google Gemini reçoit le texte de la réponse, une fois que vous avez accepté pour ce fournisseur. Votre voix n'est pas envoyée</td></tr>
+    <tr><td>Extensions activées</td><td>npm, puis le service concerné</td></tr>
+    <tr><td>Un fournisseur cloud que vous ajoutez</td><td>Ce fournisseur reçoit vos conversations, ainsi que les fichiers et images que lit son modèle</td></tr>
+    <tr><td>Connexion ChatGPT</td><td>OpenAI, via Codex, téléchargé une fois depuis GitHub</td></tr>
+    <tr><td>Connexion Claude</td><td>Anthropic, via Claude Code, téléchargé une fois depuis downloads.claude.ai. Claude Code fait aussi une requête de démarrage vers l'API d'Anthropic</td></tr>
+    <tr><td>Liste des fournisseurs</td><td>draggy.org, une liste signée de fournisseurs. Seulement une fois un fournisseur cloud activé, et au plus une fois par jour</td></tr>
+  </tbody>
+</table></div>
+
+
+<p>Pour limiter les requêtes au minimum, réglez la recherche web sur Désactivé, laissez les extensions éteintes, n'ajoutez aucun fournisseur cloud et désactivez le bloqueur de publicités dans le volet du navigateur. Draggy effectue tout de même une vérification de connexion au démarrage tant qu'aucun modèle n'est installé. Les téléchargements de modèles et les modèles vocaux utilisés pour la première fois ont aussi besoin du réseau.</p>
+
+<h2>Ce site</h2>
+
+<p>draggy.org est un site statique hébergé chez Vercel. Il ne charge rien depuis d'autres serveurs. Comme tout hébergeur, Vercel reçoit votre adresse IP et l'adresse de la page demandée, et peut conserver des journaux de serveur standard.</p>
+
+<p>Le site compte les visites avec Vercel Web Analytics, servi depuis draggy.org même. Vercel Web Analytics n'utilise pas de cookies. Il reconnaît une visite grâce à une empreinte de la requête, que Vercel supprime au bout de 24 heures. Il enregistre la page, la page d'où vous venez, votre position approximative, ainsi que votre navigateur, votre système et le type de votre appareil.</p>
+
+<p>Le site enregistre une seule chose dans votre navigateur, et seulement lorsque vous utilisez la commande qui la crée. Votre langue est gardée dans un cookie nommé <code>draggy-lang</code>. Il n'est créé que lorsque vous choisissez une langue dans le menu, et il dure un an. Les couleurs suivent le réglage clair ou sombre de votre système, et rien n'est enregistré pour cela.</p>
+
+<p>Si vous arrivez sans avoir choisi de langue, le site prend la première langue demandée par votre navigateur et qu'il propose. Sinon, il prend le pays d'où vient votre requête, que Vercel déduit de votre adresse IP à ce moment-là. Le site ne conserve pas ce pays.</p>
+
+<p>Les liens de téléchargement mènent aux versions publiées sur GitHub, un service de GitHub soumis à la politique de GitHub.</p>
+
+<h2>Questions et modifications</h2>
+
+<p>Ouvrez un ticket sur <a href="https://github.com/Lucki74/draggy/issues">github.com/Lucki74/draggy</a>. Quand cette politique change, la date en haut change avec elle.</p>

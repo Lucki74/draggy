@@ -1,0 +1,50 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "cleanUrls": false,
+  "trailingSlash": false,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'sha256-lRD+dgLomksbK30EVbCzw9GbMTTgpy/2Yofwajq+fFU=';style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
+      ]
+    }
+  ],
+  "redirects": [
+    { "source": "/en", "destination": "/", "permanent": true },
+    { "source": "/en/", "destination": "/", "permanent": true },
+    { "source": "/en/index.html", "destination": "/", "permanent": true },
+    { "source": "/en/download.html", "destination": "/download", "permanent": true },
+    { "source": "/en/:path*", "destination": "/:path*", "permanent": true },
+    { "source": "/download.html", "destination": "/download", "permanent": true },
+    { "source": "/:lang(fr|es|ru)/download.html", "destination": "/:lang/download", "permanent": true },
+    { "source": "/:lang(de|it|pt|nl|zh|ja|ko|ar)", "destination": "/", "permanent": true },
+    { "source": "/:lang(de|it|pt|nl|zh|ja|ko|ar)/:path*", "destination": "/:path*", "permanent": true },
+    { "source": "/models", "destination": "/", "permanent": true },
+    { "source": "/models/", "destination": "/", "permanent": true },
+    { "source": "/:lang(fr|es|ru)/models", "destination": "/:lang", "permanent": true },
+    { "source": "/:lang(fr|es|ru)/models/", "destination": "/:lang", "permanent": true },
+    { "source": "/index.html", "destination": "/", "permanent": true },
+    { "source": "/:path+/index.html", "destination": "/:path+", "permanent": true },
+    { "source": "/wiki/models/:table(winlinux-table|macos-table)/:rest*", "destination": "https://docs.draggy.org/models", "permanent": true },
+    { "source": "/:lang(fr|es|ru)/wiki/models/:table(winlinux-table|macos-table)/:rest*", "destination": "https://docs.draggy.org/:lang/models", "permanent": true },
+    { "source": "/wiki", "destination": "https://docs.draggy.org", "permanent": true },
+    { "source": "/:lang(fr|es|ru)/wiki", "destination": "https://docs.draggy.org/:lang", "permanent": true },
+    { "source": "/wiki/:slug*", "destination": "https://docs.draggy.org/:slug*", "permanent": true },
+    { "source": "/:lang(fr|es|ru)/wiki/:slug*", "destination": "https://docs.draggy.org/:lang/:slug*", "permanent": true },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.draggy.org" }],
+      "destination": "https://draggy.org/:path*",
+      "permanent": true
+    }
+  ]
+}

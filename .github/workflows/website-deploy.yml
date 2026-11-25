@@ -1,0 +1,25 @@
+name: Website deploy
+
+# The draggy.org build reads the latest release and star count from GitHub, so a redeploy is all
+# it takes to refresh them: after each app release, and once a week for the star count.
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers] no checkout, no permissions, only calls the hook
+    workflows: [Release]
+    types: [completed]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  redeploy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the Vercel deploy hook
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_WWW }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "VERCEL_DEPLOY_HOOK_WWW is not set"; exit 1; fi
+          curl -fsS -X POST "$HOOK"

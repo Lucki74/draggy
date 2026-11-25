@@ -8,3 +8,5 @@
 *.onnx binary
 *.db binary
 *.ttf binary
+websites/www/assets/clips/*.mp4 filter=lfs diff=lfs merge=lfs -text
+websites/www/assets/clips/*.webm filter=lfs diff=lfs merge=lfs -text
