@@ -31,9 +31,9 @@ if [ "${TAURI_ENV_DEBUG:-}" != "true" ]; then
   echo "No pinned ffmpeg for macOS yet; only a debug build (TAURI_ENV_DEBUG=true) may stage an unpinned one" >&2
   exit 1
 fi
-from="vendor/ffmpeg"
 for tool in ffmpeg ffprobe; do
   src="$here/../vendor/ffmpeg/$tool"
+  from="vendor/ffmpeg"
   if [ ! -f "$src" ]; then
     src="$(command -v "$tool" || true)"
     from="PATH"
@@ -44,5 +44,5 @@ for tool in ffmpeg ffprobe; do
   fi
   cp -f "$src" "$dir/$tool-$triple"
   chmod u+w "$dir/$tool-$triple"
+  echo "staged unpinned $tool from $from for a debug build"
 done
-echo "staged unpinned ffmpeg and ffprobe from $from for a debug build"

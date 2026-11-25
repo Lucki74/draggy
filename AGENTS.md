@@ -70,7 +70,7 @@ Tauri merges `src-tauri/tauri.macos.conf.json` over `tauri.conf.json` on macOS. 
 
 Without `APPDATA` the data folder is `~/Library/Application Support/Draggy`, the folder the Swift app uses. Set `APPDATA` to keep a dev run away from it; the data then goes to `$APPDATA/Draggy`. `APPDATA` does not move the webview's storage: WKWebView keeps it in `~/Library/WebKit/<bundle id>`, or `~/Library/WebKit/draggy-win` under `tauri dev`. The bundle id is `com.draggy.app`, the same as the Swift app's, so do not open a built `.app` on a Mac that has the Swift app's data.
 
-Not working on macOS yet: saving keys (there is no keystore, so search keys last for one run and key-based providers stay off), PDF export, update checks, the browser pane, the agent sandbox, elevation, the terminal shell list, memory and GPU detection, and the window buttons (Segoe glyphs show as boxes). The splash waits about 14 seconds before the main window shows. `npm run tauri:build` still calls the PowerShell staging and the Windows release config.
+Not working on macOS yet: saving keys (there is no keystore, so search keys last for one run and key-based providers stay off), PDF export, update checks, stdio MCP servers and the JavaScript code runner (the shell still looks for `node.exe`, so the staged `node` is not used yet), the browser pane, the agent sandbox, elevation, the terminal shell list, memory and GPU detection, and the window buttons (Segoe glyphs show as boxes). The splash waits about 14 seconds before the main window shows. `npm run tauri:build` still calls the PowerShell staging and the Windows release config.
 
 ## Two kinds of tests
 
