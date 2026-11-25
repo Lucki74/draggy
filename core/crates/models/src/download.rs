@@ -126,7 +126,7 @@ impl Env for SystemEnv {
     #[cfg(unix)]
     fn free_bytes(&self, dir: &Path) -> Option<u64> {
         let stats = nix::sys::statvfs::statvfs(dir).ok()?;
-        // Blocks are counted in fragments; macOS reports a block size 256 times larger.
+        // Blocks are counted in fragments; on macOS the block size is the larger I/O size.
         Some(widen(stats.blocks_available())?.saturating_mul(widen(stats.fragment_size())?))
     }
 
@@ -1045,7 +1045,7 @@ fn partial_to_continue(temp: &Path, now: u64) -> io::Result<u64> {
 mod tests {
     use super::*;
 
-    /// macOS reports a 1 MiB block size beside 4 KiB blocks, which inflated the figure 256 times.
+    /// On APFS the block size is 1 MiB beside 4 KiB fragments, which inflated the figure 256 times.
     #[cfg(unix)]
     #[test]
     fn free_space_fits_inside_the_volume() {
