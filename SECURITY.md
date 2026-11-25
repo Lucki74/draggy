@@ -8,7 +8,7 @@ What's left still matters though. Draggy reads web pages, opens files you give i
 
 ## Which versions get fixes
 
-The latest build. Packaged builds update themselves on Windows, macOS and Linux, so a fix ships as a new build, not as a backport.
+The latest build. Packaged builds update themselves on Windows and Linux, so a fix ships as a new build, not as a backport.
 
 ## Reporting something
 
@@ -41,7 +41,7 @@ Anything that turns content Draggy reads (a web page, a document, an extension's
 
 I'd rather say these out loud than hide them.
 
-Builds aren't code signed. The Windows updater checks each update against a minisign key whose private half only lives in this repo's secrets. On macOS and Linux, the checksums in `SHA256SUMS.txt` come from the same release as the package, so they catch corruption but not tampering. There, write access to the releases is the trust boundary.
+Builds aren't code signed. The Windows updater checks each update against a minisign key whose private half only lives in this repo's secrets. On Linux, the checksums in `SHA256SUMS.txt` come from the same release as the package, so they catch corruption but not tampering. There, write access to the releases is the trust boundary.
 
 colibri is pinned to one release (`RELEASE` in `core/crates/engine/src/colibri_runtime.rs`), and each archive is checked against the `SHA256SUMS.txt` published next to it. That proves the download is intact, not that the upstream release is trustworthy. The Python runtime is pinned by hash on Windows and Linux.
 

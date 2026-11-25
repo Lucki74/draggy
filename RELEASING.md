@@ -1,6 +1,6 @@
 # Releasing Draggy
 
-Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds the Windows installer with Tauri, the macOS app and the Linux packages natively, then publishes a release with the packages, the `latest.yml` files and `SHA256SUMS.txt`, which the app reads or checks against.
+Draggy updates itself from GitHub Releases. A build is one run of the Release workflow: it builds the Windows installer with Tauri and the Linux packages natively, then publishes a release with the packages, the `latest.yml` files and `SHA256SUMS.txt`, which the app reads or checks against.
 
 ## Cutting a build
 
@@ -9,7 +9,7 @@ builds the app as version `3.0.N`. The release is named `build-N`, the tag is `b
 shows it as "build N". Version `3.0.0` in `package.json` is the development build and is never
 released.
 
-1. Check that `main` is green on all three systems.
+1. Check that `main` is green on Windows and Linux.
 2. Write the notes (see below).
 3. From the Actions tab, run Release on `main` with the notes, or from a terminal:
 
@@ -18,8 +18,9 @@ gh workflow run release.yml --ref main -f notes="$(cat notes.md)"
 ```
 
 The workflow only runs from `main` and only by hand. The Windows job runs `npm run check` before it
-builds, and the macOS and Linux jobs run the Rust tests for their system. The publish job waits for
-all three, so a failure on any system means nothing is published.
+builds, and the Linux job runs the Rust tests. The publish job waits for both, so a failure on either
+system means nothing is published. The macOS job is switched off (`if: false`) while macOS builds are
+paused; search the workflows for `TODO: re-enable macOS` to turn it back on.
 
 The release is created as a draft, the files are uploaded, and only then is it published and marked
 Latest. A failed upload therefore never leaves a half-empty release that installed apps would pick up.
@@ -41,7 +42,7 @@ it to `RELEASE-NOTES-BUILD-<n>.md` once the build number is known, and keep only
 gh workflow run release.yml --ref main -f dry_run=true -f notes="dry run"
 ```
 
-A dry run builds all three systems, skips the publish job, and keeps the installers as workflow artifacts. It creates no
+A dry run builds both systems, skips the publish job, and keeps the installers as workflow artifacts. It creates no
 tag and no release, so it does not use up a build number.
 
 ## The Windows build
@@ -65,7 +66,7 @@ The Tauri updater verifies each update against a minisign public key. The releas
 
 The public key is `plugins.updater.pubkey` in `win/src-tauri/tauri.conf.json`. The private key and its password exist only in the repository secrets. A new key pair breaks updates for every install that has the old public key, so rotate it only after a compromise, and ship the new public key in a build signed with the old key first.
 
-The Windows signature is the trust boundary for the Tauri feed. The macOS and Linux checksums come from the same release as the packages, so whoever can write to a release can still ship code to those platforms. That is why the workflow holds the only token that publishes, and why `SECURITY.md` says so.
+The Windows signature is the trust boundary for the Tauri feed. The Linux checksums come from the same release as the packages, so whoever can write to a release can still ship code to those platforms. That is why the workflow holds the only token that publishes, and why `SECURITY.md` says so.
 
 ## Where the Windows updates go
 
