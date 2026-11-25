@@ -1,0 +1,79 @@
+{
+  "version": "3.0.15",
+  "build": 15,
+  "tag": "b-15",
+  "date": "2026-11-21",
+  "stars": 8,
+  "assets": {
+    "windows-exe": {
+      "name": "draggy_setup.exe",
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-15/draggy_setup.exe",
+      "size": 189557310,
+      "sha512": "917b8ffeadd242202cba99fb71a4c67c476b9d651e752061a6ae299eb8de16b83ea457cdd6445ec9e26475f8c9ff96d41ce9a9dbead8968a5ca3285cf4747096"
+    },
+    "macos-zip": {
+      "name": "Draggy-3.0.15-macos-arm64.zip",
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-15/Draggy-3.0.15-macos-arm64.zip",
+      "size": 17488050
+    },
+    "linux-deb": {
+      "name": "draggy_3.0.15-1_amd64.deb",
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-15/draggy_3.0.15-1_amd64.deb",
+      "size": 7794868
+    },
+    "linux-rpm": {
+      "name": "draggy-3.0.15-1.x86_64.rpm",
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-15/draggy-3.0.15-1.x86_64.rpm",
+      "size": 9294186
+    }
+  },
+  "recent": [
+    {
+      "tag": "b-15",
+      "build": 15,
+      "version": "3.0.15",
+      "date": "2026-11-21",
+      "html_url": "https://github.com/Lucki74/draggy/releases/tag/b-15",
+      "notes": {
+        "updates": [],
+        "fixes": [
+          "AI could not read videos because of \"Disabled tools\" but now can."
+        ]
+      }
+    },
+    {
+      "tag": "b-14",
+      "build": 14,
+      "version": "3.0.14",
+      "date": "2026-11-21",
+      "html_url": "https://github.com/Lucki74/draggy/releases/tag/b-14",
+      "notes": {
+        "updates": [
+          "You can now attach videos to a chat",
+          "The local API now supports all major ai coding harnesses such as codex, claude code and cline as well as openwebui and uses their format of tools & messages."
+        ],
+        "fixes": [
+          "Replies in chats signed in with an account are no longer empty",
+          "Tool calls and follow-up messages in ChatGPT chats now work",
+          "Browser tool calls are now shown as completed instead of failed all the time"
+        ]
+      }
+    },
+    {
+      "tag": "b-13",
+      "build": 13,
+      "version": "3.0.13",
+      "date": "2026-11-17",
+      "html_url": "https://github.com/Lucki74/draggy/releases/tag/b-13",
+      "notes": {
+        "updates": [
+          "Draggy opens with a small startup window that checks for an update, and auto-installs it."
+        ],
+        "fixes": [
+          "Every skill in the built-in library is installed, where only one of them used to land",
+          "Long messages in Cyrillic, Chinese and other non-Latin scripts are no longer treated as binary data"
+        ]
+      }
+    }
+  ]
+}

@@ -6,9 +6,3 @@ contact_links:
   - name: Documentation
     url: https://docs.draggy.org
     about: Guides, troubleshooting and the FAQ.
-  - name: A problem with the website
-    url: https://github.com/Lucki74/draggy-website/issues/new/choose
-    about: Wrong or outdated content on draggy.org goes to the website repo.
-  - name: A problem with the documentation
-    url: https://github.com/Lucki74/draggy-docs/issues/new/choose
-    about: Mistakes in docs.draggy.org go to the docs repo.

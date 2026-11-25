@@ -1,0 +1,28 @@
+name: IndexNow
+
+# Vercel reports each deploy back to GitHub; ping once draggy.org production is live.
+# With two Vercel projects on this repo the environment reads "Production – <project>", so skip the docs one.
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      startsWith(github.event.deployment.environment, 'Production') &&
+      !contains(github.event.deployment.environment, 'docs')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: websites/www
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: node tools/indexnow.mjs

@@ -94,7 +94,7 @@ colibri is pinned too. `core/crates/engine/src/colibri_runtime.rs` holds the rel
 
 ## Website updates
 
-The site at draggy.org lives in its own repository (`../draggy-website`) and the documentation at docs.draggy.org in another (`../draggy-docs`). Both describe the released app, so update them on release day, not before.
+The site at draggy.org lives in `websites/www` and the documentation at docs.draggy.org in `websites/docs`. A finished Release run redeploys draggy.org so it shows the new build. Both describe the released app, so update them on release day, not before.
 
 Before running the workflow, make sure:
 - the documentation and site pages reflect what changed, in English, French, Spanish, and Russian;

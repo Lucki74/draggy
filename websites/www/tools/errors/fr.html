@@ -1,0 +1,720 @@
+<!--# image-not-supported | Ce modèle ne peut pas lire les images | Pourquoi une image jointe est refusée, et comment obtenir un modèle qui sait la lire. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Un modèle ne peut regarder une image que s'il a un second fichier à côté de lui,
+  appelé projecteur d'image. Draggy télécharge ce fichier avec le modèle quand le
+  dépôt en propose un, et démarre le modèle avec. Quand le moteur n'arrive pas à
+  charger le projecteur, Draggy démarre le modèle sans lui pour que la discussion
+  par texte continue de fonctionner. Le modèle ne peut alors plus recevoir d'images,
+  et en envoyer une est refusé avec ce message.
+</p>
+
+<h2>Pourquoi le projecteur peut ne pas se charger</h2>
+
+<p>
+  Le moteur comprend un ensemble fixe de types de projecteurs. Un projecteur d'un
+  type qu'il ne connaît pas est refusé. Quelques modèles en fournissent un que seule
+  une version modifiée de llama.cpp sait lire, et l'indiquent sur leur propre page.
+  Draggy utilise la version standard de llama.cpp : ces modèles servent donc pour le
+  texte, mais pas pour les images.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Renvoyez le message sans l'image. Le modèle fonctionne toujours pour le texte.</li>
+  <li>Choisissez un autre modèle de vision dans la liste de <code>Paramètres → Modèles</code>.</li>
+  <li>
+    Redémarrer Draggy, ou télécharger à nouveau le modèle, lui fait réessayer le
+    projecteur. C'est utile après une mise à jour de Draggy.
+  </li>
+</ul>
+
+<!--# context-too-long | La conversation est trop longue pour le modèle | Le message ne tient plus dans la fenêtre de contexte du modèle, et comment lui faire de la place. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Chaque modèle a une fenêtre de contexte : la quantité de texte qu'il peut garder
+  en tête à la fois. Vos messages, ses réponses, les résultats des outils et les
+  fichiers joints comptent tous. Cette requête est plus grande que la fenêtre avec
+  laquelle le moteur a été démarré, il l'a donc refusée.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Commencez une nouvelle discussion. L'ancienne reste dans votre historique.</li>
+  <li>
+    Baissez la limite de compactage dans <code>Paramètres → Modèles</code>
+    pour que Draggy résume plus tôt les anciens messages.
+  </li>
+  <li>
+    Augmentez la <strong>Fenêtre de contexte</strong> au même endroit. Une fenêtre plus
+    grande demande plus de mémoire : un modèle qui tenait à l'aise peut cesser de tenir.
+    Voyez alors <a href="{{error:out-of-memory}}">pas assez de mémoire</a>.
+  </li>
+  <li>Joignez moins de choses à la fois. Un long fichier ou un gros collage peut à lui seul remplir une petite fenêtre.</li>
+</ul>
+
+<!--# tool-call-unreadable | Le moteur n'a pas pu lire un appel d'outil | Un appel d'outil de la conversation est mal formé, et comment passer outre. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Un modèle utilise un outil en écrivant un appel structuré : le nom de l'outil et
+  ses arguments. Le moteur vérifie chaque appel de la conversation avant de répondre,
+  et quand l'un d'eux est mal formé, par exemple sans type ou avec des arguments
+  illisibles, il refuse toute la requête plutôt que de deviner.
+</p>
+
+<p>
+  L'appel fautif peut être celui que le modèle vient d'écrire, ou un appel déjà
+  présent dans l'historique de la discussion : renvoyer le message échoue alors de
+  la même façon.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Renvoyez le message. Un faux pas isolé ne se répète généralement pas.</li>
+  <li>Commencez une nouvelle discussion si l'erreur persiste. Cela retire l'appel mal formé de l'historique.</li>
+  <li>
+    Prenez un modèle plus grand, ou désactivez quelques outils. En dessous d'environ
+    4 milliards de paramètres, l'appel d'outils est peu fiable et empire à mesure
+    que des outils sont activés.
+  </li>
+</ul>
+
+<!--# model-still-loading | Le modèle est encore en cours de chargement | Le moteur lit le modèle en mémoire et ne peut pas encore répondre. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Un modèle doit être lu depuis le disque jusqu'en mémoire avant de pouvoir répondre,
+  et un gros modèle prend du temps. Tant que ce n'est pas fini, le moteur répond
+  qu'il charge. Rien n'est cassé.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Patientez un instant, puis renvoyez le message.</li>
+  <li>
+    Si cela ne se termine jamais, voyez
+    <a href="{{error:load-timeout}}">le modèle a mis trop de temps à charger</a>.
+  </li>
+</ul>
+
+<!--# out-of-memory | Pas assez de mémoire pour faire tourner le modèle | Le modèle et son contexte ne tiennent pas dans la mémoire disponible, et comment les y faire tenir. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Un modèle a besoin de place pour ses poids et pour le contexte qu'il traite, dans
+  la mémoire de votre carte graphique ou, sans elle, dans la mémoire du système. Le
+  moteur en a demandé plus qu'il n'y en avait de libre, et on le lui a refusé.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>
+    Choisissez un modèle plus petit, ou une quantification plus légère du même. Les
+    tableaux du <a href="{{docs:models}}">documentation</a> montrent ce qui tient sur quel matériel.
+  </li>
+  <li>Réduisez la <strong>Fenêtre de contexte</strong> dans <code>Paramètres → Modèles</code>.</li>
+  <li>
+    Fermez les programmes qui utilisent la carte graphique, comme les jeux, les
+    logiciels de montage vidéo et les autres outils d'IA, puis réessayez.
+  </li>
+</ul>
+
+<!--# unsupported-architecture | Le moteur ne prend pas encore ce modèle en charge | Le modèle appartient à une famille que cette version du moteur ne sait pas exécuter. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Chaque modèle appartient à une famille, son architecture, et le moteur doit savoir
+  comment exécuter cette famille. Un modèle sorti après la version du moteur
+  qu'utilise Draggy peut être d'un genre que le moteur n'a jamais vu, et il refuse
+  de le charger.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>
+    Mettez Draggy à jour. Le moteur est une version de llama.cpp, et la prise en
+    charge d'une nouvelle famille arrive dans les versions plus récentes.
+  </li>
+  <li>Choisissez un modèle d'une famille que le moteur exécute déjà, comme ceux des tableaux de modèles de la documentation.</li>
+</ul>
+
+<!--# damaged-model-file | Le fichier du modèle est endommagé ou incomplet | Le fichier ne peut pas être lu comme un modèle, souvent parce qu'un téléchargement a été interrompu. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Le moteur lit un fichier de modèle depuis son premier octet, et il a trouvé
+  quelque chose qui n'est pas un modèle valide, ou un fichier qui s'arrête trop tôt.
+  Le plus souvent, un téléchargement a été interrompu, le disque s'est rempli, ou le
+  fichier n'est pas du tout un modèle <code>.gguf</code>.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Supprimez le modèle dans <code>Paramètres → Modèles</code>, puis téléchargez-le à nouveau.</li>
+  <li>Vérifiez que le disque a la place nécessaire. Le téléchargement demande la taille complète du modèle.</li>
+  <li>Pour le moteur llama, seuls les fichiers <code>.gguf</code> fonctionnent. Les autres formats doivent d'abord être convertis.</li>
+</ul>
+
+<!--# missing-model-file | Un fichier dont le modèle a besoin n'a pas pu être ouvert | Une partie du modèle manque dans le dossier des modèles. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Le modèle, ou un fichier dont il dépend, n'est pas là où Draggy l'attend. Il a pu
+  être déplacé ou supprimé à la main, ou retiré par un outil de nettoyage ou un
+  antivirus.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>
+    Supprimez le modèle dans <code>Paramètres → Modèles</code> et téléchargez-le à
+    nouveau, pour que chaque fichier nécessaire soit remis en place.
+  </li>
+  <li>Ne sortez pas de fichiers du dossier des modèles. Draggy les retrouve par leur nom et leur emplacement.</li>
+</ul>
+
+<!--# model-parts-missing | Une partie d'un modèle fractionné est manquante | Un modèle stocké en plusieurs fichiers a besoin de chacun d'eux. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Les très gros modèles sont stockés en plusieurs fichiers, nommés par exemple
+  <code>model-00001-of-00004.gguf</code>. Le moteur ouvre lui-même les autres parties
+  et ne peut pas démarrer si l'une manque dans le dossier. Draggy les vérifie avant
+  de démarrer, et c'est ce qu'il a trouvé manquant.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>
+    Supprimez le modèle dans <code>Paramètres → Modèles</code> et téléchargez-le à
+    nouveau pour obtenir toutes les parties. Un téléchargement inachevé laisse les
+    dernières parties absentes.
+  </li>
+  <li>Si vous avez copié les fichiers à la main, copiez toutes les parties, pas seulement la première.</li>
+</ul>
+
+<!--# port-in-use | Un autre programme utilise le port du moteur | Le moteur écoute sur un port local que quelque chose d'autre occupe. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Draggy parle à son moteur sur le port <code>11435</code> de votre propre ordinateur.
+  Un autre programme occupe ce port, le moteur ne peut donc pas démarrer. C'est
+  souvent une seconde copie de Draggy, ou un moteur resté actif après un plantage.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Fermez toute autre copie de Draggy, quittez Draggy complètement, puis rouvrez-le.</li>
+  <li>
+    Sous Windows, <code>netstat -ano | findstr :11435</code> indique quel processus
+    occupe le port. Sous macOS et Linux, <code>lsof -i :11435</code> le fait.
+  </li>
+  <li>Redémarrer l'ordinateur élimine tout ce qui serait resté actif.</li>
+</ul>
+
+<!--# engine-unreachable | Draggy n'a pas pu joindre son moteur de modèles | Le moteur s'est arrêté ou a été bloqué avant de pouvoir répondre. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Draggy a démarré le moteur, puis n'a pas pu s'y connecter. Le moteur s'est arrêté,
+  le plus souvent parce qu'il a manqué de mémoire en cours de route, ou parce que
+  quelque chose sur l'ordinateur a bloqué la connexion. Cette connexion ne quitte
+  jamais votre machine.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Renvoyez le message. Draggy redémarre le moteur pour vous.</li>
+  <li>
+    Si cela se répète, le modèle est probablement trop gros pour la mémoire dont vous
+    disposez. Voyez <a href="{{error:out-of-memory}}">pas assez de mémoire</a>.
+  </li>
+  <li>
+    Vérifiez qu'un pare-feu ou un antivirus ne bloque pas les connexions entre Draggy
+    et <code>127.0.0.1</code>.
+  </li>
+</ul>
+
+<!--# engine-would-not-start | Le moteur de modèles n'a pas pu être démarré | Draggy n'a pas pu lancer le moteur et n'a donné aucune autre raison. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Draggy utilise un petit programme, le moteur, pour exécuter les modèles. Son
+  lancement a échoué sans dire pourquoi. La cause habituelle est que le programme
+  est absent, ou qu'il a été mis en quarantaine ou bloqué par un logiciel de sécurité.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Redémarrez Draggy et réessayez.</li>
+  <li>Cherchez <code>llama-server</code> dans la quarantaine de votre logiciel de sécurité, et autorisez-le.</li>
+  <li>Réinstallez Draggy si le moteur a disparu. Vos discussions et vos modèles sont conservés.</li>
+</ul>
+
+<!--# load-timeout | Le modèle a mis trop de temps à charger | Le moteur n'est pas devenu prêt dans le délai que Draggy accorde. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Draggy attend que le moteur finisse de charger un modèle, plus longtemps pour un
+  fichier plus gros : entre 30 secondes et 3 minutes. Si le modèle n'est pas prêt
+  à ce moment-là, Draggy abandonne plutôt que de vous laisser attendre.
+</p>
+
+<p>
+  La cause habituelle est un modèle proche de la taille de votre mémoire, ou plus
+  grand, si bien que l'ordinateur passe son temps à échanger au lieu de charger.
+  Un disque lent, ou un antivirus qui analyse un fichier tout juste téléchargé,
+  produit le même effet.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Réessayez. Le second chargement est souvent bien plus rapide, car le fichier est désormais en cache.</li>
+  <li>Choisissez un modèle plus petit, ou fermez d'abord les autres programmes gourmands.</li>
+  <li>
+    Si cela arrive avec tous les modèles, voyez
+    <a href="{{error:out-of-memory}}">pas assez de mémoire</a>.
+  </li>
+</ul>
+
+<!--# engine-stopped-loading | Le moteur s'est arrêté pendant le chargement du modèle | Le moteur a quitté pendant le chargement, et les mots après le code de sortie disent pourquoi. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Le moteur a démarré, puis s'est arrêté avant la fin du chargement du modèle. Le
+  message se termine par le code de sortie et les dernières paroles du moteur, et
+  c'est cette partie qui dit ce qui s'est passé.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>
+    Si les mots parlent de mémoire, voyez
+    <a href="{{error:out-of-memory}}">pas assez de mémoire</a>.
+  </li>
+  <li>
+    S'ils parlent d'une architecture inconnue, voyez
+    <a href="{{error:unsupported-architecture}}">le moteur ne prend pas encore ce modèle en charge</a>.
+  </li>
+  <li>
+    S'ils parlent du fichier, voyez
+    <a href="{{error:damaged-model-file}}">le fichier du modèle est endommagé</a>.
+  </li>
+  <li>Sinon, envoyez-nous ces mots avec votre journal ; la dernière section ci-dessous explique comment.</li>
+</ul>
+
+<!--# another-model-started | Un autre modèle a été démarré en premier | Choisir un second modèle pendant le chargement du premier a abandonné le premier. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Draggy exécute un seul modèle à la fois. Si vous en choisissez un autre, ou envoyez
+  un message avec un autre modèle sélectionné, pendant que le premier charge encore,
+  le premier chargement est abandonné pour laisser le moteur à la requête la plus
+  récente. Ce message concerne le chargement abandonné.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Rien n'est cassé. Attendez que le dernier modèle choisi ait fini de charger.</li>
+  <li>Renvoyez le message quand c'est fait.</li>
+</ul>
+
+<!--# unknown-engine-error | Le moteur a signalé un problème que Draggy ne reconnaît pas | Le moteur a dit quelque chose que Draggy ne sait pas encore expliquer. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Le moteur a signalé un problème pour lequel Draggy n'a pas encore d'explication en
+  mots simples. Le message reprend les propres mots du moteur après <em>a signalé un
+  problème</em>, pour que rien ne vous soit caché.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Renvoyez le message, et commencez une nouvelle discussion si cela se répète.</li>
+  <li>Essayez un autre modèle. Si le problème suit un modèle en particulier, c'est ce modèle.</li>
+  <li>
+    Cherchez les mots du moteur, et signalez-les-nous ci-dessous. Chacun dont nous
+    entendons parler peut être expliqué ici.
+  </li>
+</ul>
+
+<!--# provider-unreachable | Le fournisseur est injoignable | Pourquoi Draggy n'a reçu aucune réponse d'un fournisseur cloud ou d'un serveur local, et quoi vérifier. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  Draggy a envoyé le message au fournisseur et n'a rien reçu en retour : pas de
+  connexion, un nom introuvable, ou un serveur qui n'écoutait pas. Pour un
+  fournisseur cloud, c'est le plus souvent le réseau. Pour un serveur local comme
+  Ollama ou LM Studio, c'est le plus souvent le serveur qui n'est pas lancé.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Vérifiez que cet ordinateur est en ligne, puis renvoyez le message.</li>
+  <li>Pour un serveur local, lancez-le, puis appuyez sur <strong>Rechercher</strong> dans <code>Paramètres → Fournisseurs</code>.</li>
+  <li>Pour un serveur personnalisé, vérifiez son <strong>Adresse</strong> sous <strong>Avancé</strong> dans la ligne du fournisseur.</li>
+  <li>Un VPN, un proxy ou un pare-feu peut bloquer un fournisseur et pas les autres. Essayez sans.</li>
+</ul>
+
+<!--# provider-invalid-key | Le fournisseur n'a pas accepté la clé d'API | Pourquoi un fournisseur refuse la clé envoyée par Draggy, et comment en mettre une qui marche. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  Le fournisseur a répondu, mais a refusé la clé. Elle a pu être mal copiée,
+  révoquée, ou créée pour un autre fournisseur ou un autre projet chez le même.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Créez une nouvelle clé sur le site du fournisseur et copiez-la en entier.</li>
+  <li>Dans <code>Paramètres → Fournisseurs</code>, ouvrez le fournisseur, collez la nouvelle clé dans <strong>Clé d'API</strong>, puis appuyez sur <strong>Tester</strong>.</li>
+  <li>Si le test affiche des modèles, la clé marche. Renvoyez le message.</li>
+</ul>
+
+<!--# provider-no-credit | Le compte du fournisseur n'a plus de crédit | Pourquoi un fournisseur cesse de répondre quand le compte n'a plus de crédit ni de quota, et que faire. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  La clé est valide, mais le compte derrière n'a plus de crédit, plus de quota, ou
+  pas de moyen de paiement. Les clés d'API sont facturées par le fournisseur à
+  l'usage, à part de tout abonnement chez lui.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Ouvrez la page de facturation sur le site du fournisseur et ajoutez du crédit ou un moyen de paiement.</li>
+  <li>Si vous payez ChatGPT ou Claude, connectez-vous avec cette offre plutôt qu'avec une clé, dans <code>Paramètres → Fournisseurs</code>.</li>
+  <li>Ou choisissez un modèle sur cet ordinateur dans le menu des modèles. Il ne coûte rien.</li>
+</ul>
+
+<!--# provider-rate-limited | Le fournisseur limite les requêtes | Pourquoi un fournisseur demande à Draggy de ralentir, et combien de temps attendre. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  Le fournisseur plafonne le nombre de requêtes ou la quantité de texte qu'un compte
+  peut envoyer par minute. Draggy a déjà attendu et réessayé. Le plafond était
+  toujours atteint, alors il s'est arrêté au lieu d'insister.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Attendez une minute, puis renvoyez le message.</li>
+  <li>Une longue tâche dans Code envoie beaucoup de requêtes. Un palier supérieur sur le site du fournisseur relève le plafond.</li>
+  <li>Ou passez pour l'instant à un autre fournisseur ou à un modèle sur cet ordinateur.</li>
+</ul>
+
+<!--# provider-model-not-found | Le fournisseur ne propose pas ce modèle | Pourquoi un fournisseur ne reconnaît plus un modèle, et comment en choisir un autre. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  Le fournisseur n'a pas reconnu le nom du modèle. Les fournisseurs retirent et
+  renomment leurs modèles, et certains ne sont ouverts qu'à certains comptes.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Choisissez un autre modèle dans le menu des modèles.</li>
+  <li>Dans <code>Paramètres → Fournisseurs</code>, ouvrez le fournisseur et appuyez sur <strong>Tester</strong> pour récupérer sa liste actuelle.</li>
+  <li>Décochez-y le modèle pour qu'il n'apparaisse plus dans les menus.</li>
+</ul>
+
+<!--# provider-context-too-long | La conversation est trop longue pour ce modèle | Pourquoi un fournisseur refuse une conversation au-delà de la limite du modèle, et comment continuer. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  Chaque modèle lit une quantité fixe de texte à la fois. La conversation, avec ses
+  fichiers et les résultats des outils, a dépassé ce que ce modèle accepte.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Commencez une nouvelle discussion. Un court résumé de la précédente suffit souvent pour continuer.</li>
+  <li>Joignez seulement les fichiers dont parle la question.</li>
+  <li>Ou choisissez un modèle avec un contexte plus grand dans le menu des modèles.</li>
+</ul>
+
+<!--# provider-refused | Le fournisseur a refusé la requête | Pourquoi un fournisseur refuse de répondre, et ce qui change la réponse. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  Les contrôles de sécurité du fournisseur ont arrêté la requête. Chaque fournisseur
+  fixe ses propres règles, parfois plus strictes que le modèle seul. Draggy ne
+  filtre rien ici.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Reformulez la demande, ou précisez à quoi elle sert.</li>
+  <li>Essayez un autre fournisseur, ou un modèle sur cet ordinateur.</li>
+</ul>
+
+<!--# provider-region-unavailable | Le fournisseur n'est pas disponible dans votre région | Pourquoi un fournisseur refuse de servir certains pays, et ce qui reste utilisable. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  Le fournisseur ne sert pas le pays ou la région d'où semble venir votre
+  connexion. C'est sa décision, et Draggy n'a aucun moyen de la contourner.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Utilisez un autre fournisseur qui sert votre région.</li>
+  <li>Ou utilisez un modèle sur cet ordinateur. Il n'a besoin d'aucun fournisseur.</li>
+</ul>
+
+<!--# provider-unknown-error | Le fournisseur a signalé un problème | Que faire quand un fournisseur échoue d'une façon que Draggy ne reconnaît pas. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  Le fournisseur a renvoyé une erreur pour laquelle Draggy n'a pas d'article. Le
+  message montre ses propres mots après son nom, et ils disent souvent ce qui ne
+  va pas.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Lisez les mots du fournisseur dans le message, et renvoyez le message.</li>
+  <li>Consultez la page d'état du fournisseur. Une panne de son côté se règle d'elle-même.</li>
+  <li>Si cela continue, ouvrez un ticket sur GitHub avec ces mots, sans votre clé.</li>
+</ul>
+
+<!--# account-signed-out | Le compte est déconnecté | Pourquoi une connexion ChatGPT ou Claude cesse de marcher, et comment se reconnecter. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  Draggy passe par l'outil de chaque entreprise pour les offres ChatGPT et Claude, connecté avec votre compte. Cette connexion a pris fin : elle a expiré, a
+  été révoquée depuis la page de sécurité du compte, ou le mot de passe a changé.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Dans <code>Paramètres → Fournisseurs</code>, sous Comptes, reconnectez-vous.</li>
+  <li>Le navigateur ouvre la page de connexion de l'entreprise. Draggy n'a pas de champ de mot de passe pour ces comptes.</li>
+</ul>
+
+<!--# account-limit-reached | Le quota de l'offre est épuisé pour l'instant | Pourquoi une offre ChatGPT ou Claude cesse de répondre un moment, et quand elle revient. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  Une offre donne droit à un quota par période, fixé par l'entreprise. Il est
+  épuisé. Quand l'entreprise indique l'heure de remise à zéro, le message la donne.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Attendez la remise à zéro, puis renvoyez le message.</li>
+  <li>Pour ChatGPT, la ligne dans <code>Paramètres → Fournisseurs</code> montre la part utilisée de chaque période.</li>
+  <li>En attendant, choisissez un autre modèle dans le menu : un autre fournisseur, ou un modèle sur cet ordinateur.</li>
+</ul>
+
+<!--# account-runtime-unavailable | L'outil du compte n'a pas pu démarrer | Pourquoi l'outil qui donne accès à une offre ChatGPT ou Claude n'a pas démarré, et comment le relancer. -->
+<h2>Ce que cela veut dire</h2>
+
+<p>
+  Chaque offre passe par l'outil de l'entreprise : Codex pour ChatGPT et Claude Code
+  pour Claude. Draggy le télécharge une fois, à la
+  première connexion. Cette fois, l'outil manquait, le téléchargement a échoué, ou
+  il s'est arrêté plusieurs fois de suite.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Vérifiez que cet ordinateur est en ligne, attendez un instant, puis renvoyez le message.</li>
+  <li>Déconnectez-vous puis reconnectez-vous dans <code>Paramètres → Fournisseurs</code>. La connexion récupère l'outil s'il manque.</li>
+  <li>Un logiciel de sécurité peut bloquer un programme tout juste téléchargé. Autorisez-le, puis réessayez.</li>
+</ul>
+
+<!--# colibri-out-of-memory | Pas assez de mémoire pour le moteur colibri | Le modèle demande plus de mémoire que l'ordinateur n'en a de libre, et comment en libérer. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  colibri est le moteur de Draggy pour les grands modèles Mixture-of-Experts qui ne
+  tiennent pas en mémoire. Il lit des parties du modèle depuis votre disque, ce qui le
+  rend lent. Cet ordinateur n'a pas assez de mémoire libre pour le modèle choisi, le
+  moteur a donc refusé de le charger.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Fermez les autres programmes, surtout ceux qui utilisent beaucoup de mémoire, puis réessayez.</li>
+  <li>Réduisez la <strong>Fenêtre de contexte</strong> dans <code>Paramètres → Modèles</code>.</li>
+  <li>
+    Choisissez un modèle plus petit. Les tableaux du <a href="{{docs:models}}">documentation</a>
+    montrent ce qui tient sur quel matériel.
+  </li>
+</ul>
+
+<!--# colibri-disk-read | colibri n'a pas pu lire le modèle sur le disque | Le moteur n'a pas pu lire les fichiers du modèle sur le disque, et quoi vérifier. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  colibri est le moteur de Draggy pour les grands modèles Mixture-of-Experts. Il lit des
+  parties du modèle depuis le disque qui contient le dossier des modèles, pendant son
+  fonctionnement. La lecture a échoué en cours de route, le moteur n'a donc pas pu charger
+  le modèle. Le disque est peut-être débranché ou peu fiable, ou un autre programme
+  retient le fichier.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Vérifiez que le disque qui contient le dossier des modèles est connecté, puis réessayez.</li>
+  <li>Fermez les programmes qui pourraient analyser ou verrouiller le fichier du modèle, puis réessayez.</li>
+  <li>
+    Si cela échoue encore, supprimez le modèle dans <code>Paramètres → Modèles</code>
+    et téléchargez-le à nouveau.
+  </li>
+</ul>
+
+<!--# colibri-model-format | Les fichiers du modèle ne sont pas dans un format que colibri lit | Les fichiers du modèle choisi ne correspondent pas à un format que colibri sait charger, et comment obtenir une copie qui fonctionne. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  colibri est le moteur de Draggy pour les grands modèles Mixture-of-Experts, et il lit un
+  seul format de modèle précis. Les fichiers du modèle choisi sont endommagés,
+  incomplets, ou dans un autre format, le moteur n'a donc pas pu les ouvrir comme un
+  modèle.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Supprimez le modèle dans <code>Paramètres → Modèles</code>, puis téléchargez-le à nouveau.</li>
+  <li>Vérifiez que le téléchargement est allé jusqu'au bout. Un téléchargement interrompu peut laisser des fichiers qui ne s'ouvrent pas.</li>
+  <li>Si vous avez copié les fichiers à la main, remplacez-les par un téléchargement neuf.</li>
+</ul>
+
+<!--# colibri-unsupported-model | Cette version de colibri ne peut pas exécuter le modèle | Le modèle choisi demande une version de colibri plus récente ou différente de celle installée. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  colibri est le moteur de Draggy pour les grands modèles Mixture-of-Experts. Chaque
+  version ne peut exécuter que certains modèles. Le modèle que vous avez choisi demande
+  une version plus récente ou différente de celle qui est installée, le moteur a donc
+  refusé de le charger.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Choisissez un autre modèle dans <code>Paramètres → Modèles</code>.</li>
+</ul>
+
+<!--# colibri-blocked-by-windows | Windows a bloqué le moteur colibri | Les réglages de sécurité de Windows ont empêché le moteur de démarrer, et comment l'autoriser. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  colibri est le moteur de Draggy pour les grands modèles Mixture-of-Experts. Windows a
+  refusé de le démarrer. Le contrôle intelligent des applications est peut-être activé :
+  il bloque les programmes qu'il ne reconnaît pas. Draggy ne modifie pas ce réglage, le
+  moteur reste donc bloqué tant que Windows ne l'autorise pas.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Ouvrez Sécurité Windows et cherchez un élément bloqué qui mentionne colibri. Autorisez-le s'il y est.</li>
+  <li>
+    Le contrôle intelligent des applications est un réglage de Windows. Vérifiez-le
+    dans Sécurité Windows si vous voulez changer sa façon de traiter les nouveaux
+    programmes.
+  </li>
+  <li>Redémarrez Draggy et réessayez.</li>
+</ul>
+
+<!--# image-out-of-memory | Pas assez de mémoire pour le modèle d'image | Le modèle d'image demande plus de mémoire que l'ordinateur n'en a de libre, et comment la libérer. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Un modèle d'image a besoin de sa propre mémoire pour dessiner. Le modèle de discussion,
+  ou d'autres programmes, peuvent en occuper la plus grande partie. Draggy vérifie ce qu'il
+  faut avant de charger le modèle d'image, et s'arrête s'il n'y a pas assez de mémoire libre.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Déchargez le modèle de discussion, ou fermez les programmes qui utilisent la carte graphique, puis réessayez.</li>
+  <li>Choisissez un modèle d'image plus petit.</li>
+  <li>Redémarrez l'ordinateur pour libérer la mémoire utilisée par les programmes précédents.</li>
+</ul>
+
+<!--# image-engine-would-not-start | Le moteur d'image n'a pas démarré | Draggy n'a pas pu lancer le moteur d'image, ou celui-ci s'est arrêté pendant le chargement ou le dessin. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Le moteur d'image est un programme distinct du moteur de discussion. Draggy n'a pas pu le
+  lancer, ou il s'est arrêté pendant le chargement ou le dessin. Quand la cause est connue,
+  le message la précise.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Réessayez. Redémarrez Draggy si l'échec se répète.</li>
+  <li>Si le message nomme une bibliothèque manquante, réinstallez le moteur d'image dans <code>Paramètres → Modèles</code>.</li>
+  <li>Vérifiez qu'un logiciel de sécurité n'a pas mis le moteur en quarantaine. Autorisez-le, puis réessayez.</li>
+</ul>
+
+<!--# image-engine-unsupported-cpu | Ce processeur ne peut pas exécuter le moteur d'image | Le processeur n'a pas une instruction dont le moteur d'image a besoin, il ne peut donc pas fonctionner ici. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Le moteur d'image utilise une instruction que ce processeur ne possède pas. Il ne peut pas
+  fonctionner sur cet ordinateur, quels que soient les réglages.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>La génération d'images demande un ordinateur avec un processeur plus récent.</li>
+  <li>La discussion par texte n'est pas touchée, car le moteur d'image est séparé du moteur de discussion.</li>
+</ul>
+
+<!--# image-model-damaged | Le modèle d'image ne correspond pas à sa somme de contrôle | Le modèle d'image téléchargé n'a pas passé la vérification de sa somme de contrôle, Draggy l'a donc supprimé. -->
+<h2>Ce que cela signifie</h2>
+
+<p>
+  Draggy vérifie chaque modèle d'image téléchargé avec une somme de contrôle. Celui-ci ne
+  correspond pas : le fichier est incomplet ou a été modifié, et Draggy l'a supprimé.
+</p>
+
+<h2>Que faire</h2>
+
+<ul class="ticks">
+  <li>Téléchargez à nouveau le modèle d'image dans <code>Paramètres → Modèles</code>.</li>
+  <li>Vérifiez qu'il reste de la place sur le disque. Un disque plein peut interrompre un téléchargement.</li>
+  <li>Si l'échec se répète, réessayez plus tard avec une connexion stable.</li>
+</ul>

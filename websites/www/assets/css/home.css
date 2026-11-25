@@ -1,0 +1,509 @@
+/* home.css: the home page only. Tokens, buttons, app frames and the clip player live in site.css. */
+
+/*
+ * The space between two sections: 120 to 180px on a desktop, 72px on a phone. Each section takes half of it above
+ * and below, so the gap between two sections is the whole of it.
+ */
+:root {
+  --home-gap: clamp(120px, 12vw, 180px);
+}
+
+/* Display type is the home page's own. The wiki and the download page keep the shared scale in site.css. */
+.home h1 {
+  max-width: 18ch;
+  font-size: clamp(34px, 4.6vw, 64px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.home h2 {
+  max-width: 20ch;
+  font-size: clamp(28px, 3.4vw, 46px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+/* Hero: text on the left, the dragon on the right, then the app. */
+.hero {
+  padding-block: 56px 0;
+}
+
+.hero-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 64px);
+  padding-bottom: clamp(32px, 5vw, 72px);
+}
+
+.hero-copy {
+  display: grid;
+  justify-items: start;
+  gap: 28px;
+}
+
+.hero-sub {
+  max-width: 48ch;
+
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.hero .file-meta {
+  display: none;
+}
+
+.hero-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+}
+
+.hero .btn .icon {
+  display: none;
+}
+
+.hero-link {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.hero-link a,
+.who p > a,
+.closer p > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  color: var(--accent-text);
+}
+
+.hero-art svg {
+  width: 100%;
+  height: auto;
+  max-height: 460px;
+  animation: dfloat 7s ease-in-out infinite;
+}
+
+.hero-art .eye {
+  animation: blink 6s infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes dfloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes blink {
+  0%, 94%, 100% { transform: scaleY(1); }
+  97% { transform: scaleY(0.1); }
+}
+
+/* The headline arrives a word at a time, once script has split it. Nothing hides without script. */
+[data-words][data-revealed] .w {
+  display: inline-block;
+  animation: word 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 70ms);
+}
+
+@keyframes word {
+  from { transform: translateY(0.5em); }
+  to { transform: none; }
+}
+
+.closer p {
+  margin-inline: auto;
+}
+
+/* Download: the button for the visitor's system, and its line. */
+.download-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Logos: a quiet row of marks. Script shuffles them and starts the loop; the edges fade out by mask, the one gradient allowed. */
+.logos {
+  padding-block: calc(var(--home-gap) / 3);
+}
+
+.marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.marquee-track {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 24px clamp(56px, 8vw, 144px);
+  padding-inline: var(--gutter);
+}
+
+.marquee-track > span {
+  display: inline-grid;
+  place-items: center;
+  height: clamp(34px, 4vw, 52px);
+  color: var(--ink);
+}
+
+.marquee-track svg {
+  width: auto;
+  height: 100%;
+  aspect-ratio: 1;
+  max-width: none;
+}
+
+.marquee-track[data-running] {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  width: max-content;
+  padding-inline: 0;
+  gap: clamp(56px, 8vw, 144px);
+  padding-right: clamp(56px, 8vw, 144px);
+  animation: drift 60s linear infinite;
+}
+
+.marquee-track[data-running] > span {
+  flex: none;
+}
+
+@keyframes drift {
+  to { transform: translateX(-50%); }
+}
+
+/* The stage: three sentences pinned while the page scrolls past. Plain lines until script marks it live. */
+.stage {
+  padding-block: calc(var(--home-gap) / 2);
+}
+
+.stage-line {
+  max-width: 14ch;
+  margin: 0 auto 0.4em;
+  font-size: clamp(40px, 7.2vw, 112px);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.stage-line:last-child {
+  margin-bottom: 0;
+}
+
+.stage[data-live] {
+  height: 300vh;
+  padding-block: 0;
+}
+
+.stage[data-live] .stage-sticky {
+  position: sticky;
+  top: 57px;
+  display: grid;
+  align-items: center;
+  height: calc(100vh - 57px);
+  height: calc(100svh - 57px);
+}
+
+.stage[data-live] .stage-line {
+  max-width: 14ch;
+  margin: 0 auto;
+  grid-area: 1 / 1;
+  color: var(--muted);
+  transform: translateY(40px) scale(0.96);
+  transform-origin: center;
+  visibility: hidden;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), color 0.4s ease;
+}
+
+.stage[data-live] .stage-line[data-on] {
+  color: var(--ink);
+  transform: none;
+  visibility: visible;
+}
+
+.stage[data-live] .stage-sticky .wrap {
+  display: grid;
+}
+
+/* Features: one tile of tabs, then the clip of the chosen one. */
+.features {
+  padding-block: clamp(48px, 7vw, 96px);
+}
+
+.features h2 {
+  margin-bottom: 40px;
+}
+
+.feature {
+  display: grid;
+  gap: 16px;
+}
+
+.feature + .feature {
+  margin-top: 64px;
+}
+
+.features[data-tabs] .feature + .feature {
+  margin-top: 0;
+}
+
+.features[data-tabs] .feature[hidden] {
+  display: none;
+}
+
+/* With tabs, the tab already names the feature, so the heading is for screen readers only. */
+.features[data-tabs] .feature-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.feature-tabs {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 24px;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.feature-tabs .ind {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-radius: 7px;
+  background: var(--accent);
+  transition: transform 0.55s cubic-bezier(0.34, 1.45, 0.5, 1), width 0.55s cubic-bezier(0.34, 1.45, 0.5, 1), height 0.3s ease;
+}
+
+.feature-tabs:not(.ready) [role="tab"],
+.feature-tabs:not(.ready) .ind {
+  transition: none;
+}
+
+.feature-tabs [role="tab"] {
+  position: relative;
+  z-index: 1;
+  padding: 11px 20px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--muted);
+  font: 600 16px/1.3 var(--font-sans);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color 0.35s ease;
+}
+
+.feature-tabs [role="tab"]:hover {
+  color: var(--ink);
+}
+
+.feature-tabs [role="tab"][aria-selected="true"] {
+  color: var(--accent-ink);
+}
+
+.feature-tabs [role="tab"].settled {
+  background: var(--accent);
+}
+
+/* With tabs, the clip is the whole panel: the line and the link under the title stay for script-less visitors. */
+.features[data-tabs] .feature > p,
+.features[data-tabs] .feature > a {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feature-tabs .ind {
+    transition: none;
+  }
+}
+
+.feature-title {
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.feature p {
+  font-size: 20px;
+  line-height: 30px;
+  color: var(--muted);
+}
+
+.feature a {
+  justify-self: start;
+  font-weight: 500;
+  color: var(--accent-text);
+}
+
+/* The clip takes the full width of the page's wrap, and its frame keeps the 1280 by 800 shape whatever the width. */
+.feature .clip {
+  margin-top: 8px;
+}
+
+.faq .wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+  gap: clamp(24px, 4vw, 64px);
+  align-items: start;
+}
+
+.faq-list {
+  max-width: none;
+}
+
+@media (max-width: 800px) {
+  .faq .wrap {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 960px) {
+  .hero-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-art {
+    order: -1;
+    max-width: 260px;
+  }
+}
+
+@media (max-width: 720px) {
+  .hero {
+    padding-block: 24px 0;
+  }
+
+  .hero-copy .hero-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .hero-copy .download-action,
+  .hero-copy .download-row,
+  .hero-copy .os-btn-group {
+    align-items: stretch;
+  }
+
+  .hero-copy .hero-buttons .btn {
+    justify-content: center;
+  }
+
+  .feature p {
+    font-size: 18px;
+    line-height: 28px;
+  }
+
+  .stage-line {
+    max-width: none;
+  }
+
+  :root {
+    --home-gap: 72px;
+  }
+}
+
+/* Reduced motion: the dragon stills, the loop becomes a wrapped row, the sentences are plain lines. */
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track[data-running] {
+    flex-wrap: wrap;
+    justify-content: center;
+    width: auto;
+    padding-inline: var(--gutter);
+    animation: none;
+  }
+
+  .marquee-track > [aria-hidden="true"] {
+    display: none;
+  }
+}
+
+/* One sentence, big, with an icon after each part of it. */
+.statement {
+  padding-block: clamp(56px, 8vw, 120px);
+}
+
+.statement-text {
+  max-width: 26ch;
+  font-size: clamp(26px, 3.6vw, 50px);
+  line-height: 1.15;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+}
+
+.statement-text .icon {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 0.95em;
+  height: 0.95em;
+  padding: 0.18em;
+  margin-inline: 0.06em;
+  vertical-align: -0.14em;
+  border-radius: 0.24em;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+
+/* Local providers: type only, a small brand mark after each name. */
+.local {
+  padding-block: clamp(56px, 8vw, 120px);
+}
+
+.local h2 {
+  max-width: 18ch;
+  margin-bottom: 20px;
+  text-wrap: balance;
+}
+
+.local-text {
+  max-width: 34ch;
+  color: var(--muted);
+  font-size: clamp(22px, 2.6vw, 36px);
+  line-height: 1.3;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+.local-name {
+  white-space: nowrap;
+}
+
+.local-mark {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  vertical-align: -0.12em;
+  color: var(--ink);
+}
+
+.local-link {
+  display: inline-block;
+  margin-top: 24px;
+  color: var(--accent-text);
+  font-weight: 600;
+}

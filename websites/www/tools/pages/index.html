@@ -1,0 +1,164 @@
+    <main class="home">
+      <span hidden data-clip-close data-close="{{t:clip.close}}"></span>
+
+      <!-- Hero: the dragon, a headline that arrives word by word, what Draggy is, two buttons, then the app. -->
+      <section class="section hero">
+        <div class="wrap hero-inner">
+          <div class="hero-copy">
+            <h1 data-words>{{t:hero.heading}}</h1>
+
+            <div class="hero-buttons">
+              {{include:download}}
+              <p class="hero-link"><a href="#features">{{t:home.see}}</a></p>
+            </div>
+          </div>
+
+          <div class="hero-art" aria-hidden="true">
+            {{include:dragon}}
+          </div>
+        </div>
+
+      </section>
+
+      <!-- The providers and engines it connects to, drifting past. Script shuffles them and runs the loop; without it they wrap in a row. -->
+      <section class="logos" aria-label="{{t:home.logosLabel}}">
+        <div class="marquee">
+          <div class="marquee-track" data-marquee>
+            {{include:logos}}
+          </div>
+        </div>
+      </section>
+
+      <!-- One sentence of what Draggy does, an icon after each part. -->
+      <section class="statement">
+        <div class="wrap">
+          <p class="statement-text">{{t:home.st1}} <svg class="icon" aria-hidden="true"><use href="#i-chat-circle" /></svg>{{t:home.sep}} {{t:home.st2}} <svg class="icon" aria-hidden="true"><use href="#i-globe-simple" /></svg>{{t:home.sep}} {{t:home.st3}} <svg class="icon" aria-hidden="true"><use href="#i-image" /></svg>{{t:home.sep}} {{t:home.st4}} <svg class="icon" aria-hidden="true"><use href="#i-code" /></svg> {{t:home.st5}} <svg class="icon" aria-hidden="true"><use href="#i-microphone" /></svg></p>
+        </div>
+      </section>
+
+      <!-- Three sentences that hold the screen while the page scrolls. Without script, or under reduced motion, they are plain lines. -->
+      <section class="stage" data-stage>
+        <div class="stage-sticky">
+          <div class="wrap">
+            <p class="stage-line">{{t:home.s1}}</p>
+            <p class="stage-line">{{t:home.s2}}</p>
+            <p class="stage-line">{{t:home.s3}}</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features: one title, one line, one link and one clip each. Script turns them into tabs, one shown at a time. -->
+      <section class="features" id="features">
+        <div class="wrap">
+          <h2>{{t:home.work}}</h2>
+
+          <div class="feature" id="feature-research">
+            <h3 class="feature-title">{{t:home.f1Title}}</h3>
+            <p>{{t:home.f1Text}}</p>
+            <a href="{{docs:chat-and-code}}">{{t:home.f1Link}}</a>
+            {{clip:research|clip.research.alt|clip.research.caption}}
+          </div>
+
+          <div class="feature" id="feature-code">
+            <h3 class="feature-title">{{t:home.f2Title}}</h3>
+            <p>{{t:home.f2Text}}</p>
+            <a href="{{docs:projects}}">{{t:home.f2Link}}</a>
+            {{clip:code|clip.code.alt|clip.code.caption}}
+          </div>
+
+          <div class="feature" id="feature-attach">
+            <h3 class="feature-title">{{t:home.f7Title}}</h3>
+            <p>{{t:home.f7Text}}</p>
+            <a href="{{docs:chat-and-code}}">{{t:home.f7Link}}</a>
+            {{clip:attach|clip.attach.alt|clip.attach.caption}}
+          </div>
+
+          <div class="feature" id="feature-image">
+            <h3 class="feature-title">{{t:home.f6Title}}</h3>
+            <p>{{t:home.f6Text}}</p>
+            <a href="{{docs:image-generation}}">{{t:home.f6Link}}</a>
+            {{clip:image|clip.image.alt|clip.image.caption}}
+          </div>
+
+          <div class="feature" id="feature-approval">
+            <h3 class="feature-title">{{t:home.f3Title}}</h3>
+            <p>{{t:home.f3Text}}</p>
+            <a href="{{docs:permissions}}">{{t:home.f3Link}}</a>
+            {{clip:approval|clip.approval.alt|clip.approval.caption}}
+          </div>
+
+          <div class="feature" id="feature-voice">
+            <h3 class="feature-title">{{t:home.f4Title}}</h3>
+            <p>{{t:home.f4Text}}</p>
+            <a href="{{docs:voice}}">{{t:home.f4Link}}</a>
+            {{clip:voice|clip.voice.alt|clip.voice.caption}}
+          </div>
+
+          <div class="feature" id="feature-mcp">
+            <h3 class="feature-title">{{t:home.f8Title}}</h3>
+            <p>{{t:home.f8Text}}</p>
+            <a href="{{docs:extensions}}">{{t:home.f8Link}}</a>
+            {{clip:mcp|clip.mcp.alt|clip.mcp.caption}}
+          </div>
+
+          <div class="feature" id="feature-skills">
+            <h3 class="feature-title">{{t:home.f9Title}}</h3>
+            <p>{{t:home.f9Text}}</p>
+            <a href="{{docs:extensions}}">{{t:home.f9Link}}</a>
+            {{clip:skills|clip.skills.alt|clip.skills.caption}}
+          </div>
+
+          <div class="feature" id="feature-browser">
+            <h3 class="feature-title">{{t:home.f5Title}}</h3>
+            <p>{{t:home.f5Text}}</p>
+            <a href="{{docs:browser}}">{{t:home.f5Link}}</a>
+            {{clip:browser|clip.browser.alt|clip.browser.caption}}
+          </div>
+
+          <div class="feature" id="feature-cloud">
+            <h3 class="feature-title">{{t:home.f10Title}}</h3>
+            <p>{{t:home.f10Text}}</p>
+            <a href="{{docs:providers}}">{{t:home.f10Link}}</a>
+            {{clip:cloud|clip.cloud.alt|clip.cloud.caption}}
+          </div>
+        </div>
+      </section>
+
+      <!-- Local providers: text only, a small brand mark after each name. -->
+      <section class="local">
+        <div class="wrap">
+          <h2>{{t:home.localTitle}}</h2>
+          <p class="local-text">{{t:home.localLead}} <span class="local-name">Ollama <span role="img" aria-label="Ollama"><svg class="local-mark" aria-hidden="true" focusable="false" fill="currentColor" fill-rule="evenodd" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M7.905 1.09c.216.085.411.225.588.41.295.306.544.744.734 1.263.191.522.315 1.1.362 1.68a5.054 5.054 0 012.049-.636l.051-.004c.87-.07 1.73.087 2.48.474.101.053.2.11.297.17.05-.569.172-1.134.36-1.644.19-.52.439-.957.733-1.264a1.67 1.67 0 01.589-.41c.257-.1.53-.118.796-.042.401.114.745.368 1.016.737.248.337.434.769.561 1.287.23.934.27 2.163.115 3.645l.053.04.026.019c.757.576 1.284 1.397 1.563 2.35.435 1.487.216 3.155-.534 4.088l-.018.021.002.003c.417.762.67 1.567.724 2.4l.002.03c.064 1.065-.2 2.137-.814 3.19l-.007.01.01.024c.472 1.157.62 2.322.438 3.486l-.006.039a.651.651 0 01-.747.536.648.648 0 01-.54-.742c.167-1.033.01-2.069-.48-3.123a.643.643 0 01.04-.617l.004-.006c.604-.924.854-1.83.8-2.72-.046-.779-.325-1.544-.8-2.273a.644.644 0 01.18-.886l.009-.006c.243-.159.467-.565.58-1.12a4.229 4.229 0 00-.095-1.974c-.205-.7-.58-1.284-1.105-1.683-.595-.454-1.383-.673-2.38-.61a.653.653 0 01-.632-.371c-.314-.665-.772-1.141-1.343-1.436a3.288 3.288 0 00-1.772-.332c-1.245.099-2.343.801-2.67 1.686a.652.652 0 01-.61.425c-1.067.002-1.893.252-2.497.703-.522.39-.878.935-1.066 1.588a4.07 4.07 0 00-.068 1.886c.112.558.331 1.02.582 1.269l.008.007c.212.207.257.53.109.785-.36.622-.629 1.549-.673 2.44-.05 1.018.186 1.902.719 2.536l.016.019a.643.643 0 01.095.69c-.576 1.236-.753 2.252-.562 3.052a.652.652 0 01-1.269.298c-.243-1.018-.078-2.184.473-3.498l.014-.035-.008-.012a4.339 4.339 0 01-.598-1.309l-.005-.019a5.764 5.764 0 01-.177-1.785c.044-.91.278-1.842.622-2.59l.012-.026-.002-.002c-.293-.418-.51-.953-.63-1.545l-.005-.024a5.352 5.352 0 01.093-2.49c.262-.915.777-1.701 1.536-2.269.06-.045.123-.09.186-.132-.159-1.493-.119-2.73.112-3.67.127-.518.314-.95.562-1.287.27-.368.614-.622 1.015-.737.266-.076.54-.059.797.042zm4.116 9.09c.936 0 1.8.313 2.446.855.63.527 1.005 1.235 1.005 1.94 0 .888-.406 1.58-1.133 2.022-.62.375-1.451.557-2.403.557-1.009 0-1.871-.259-2.493-.734-.617-.47-.963-1.13-.963-1.845 0-.707.398-1.417 1.056-1.946.668-.537 1.55-.849 2.485-.849zm0 .896a3.07 3.07 0 00-1.916.65c-.461.37-.722.835-.722 1.25 0 .428.21.829.61 1.134.455.347 1.124.548 1.943.548.799 0 1.473-.147 1.932-.426.463-.28.7-.686.7-1.257 0-.423-.246-.89-.683-1.256-.484-.405-1.14-.643-1.864-.643zm.662 1.21l.004.004c.12.151.095.37-.056.49l-.292.23v.446a.375.375 0 01-.376.373.375.375 0 01-.376-.373v-.46l-.271-.218a.347.347 0 01-.052-.49.353.353 0 01.494-.051l.215.172.22-.174a.353.353 0 01.49.051zm-5.04-1.919c.478 0 .867.39.867.871a.87.87 0 01-.868.871.87.87 0 01-.867-.87.87.87 0 01.867-.872zm8.706 0c.48 0 .868.39.868.871a.87.87 0 01-.868.871.87.87 0 01-.867-.87.87.87 0 01.867-.872zM7.44 2.3l-.003.002a.659.659 0 00-.285.238l-.005.006c-.138.189-.258.467-.348.832-.17.692-.216 1.631-.124 2.782.43-.128.899-.208 1.404-.237l.01-.001.019-.034c.046-.082.095-.161.148-.239.123-.771.022-1.692-.253-2.444-.134-.364-.297-.65-.453-.813a.628.628 0 00-.107-.09L7.44 2.3zm9.174.04l-.002.001a.628.628 0 00-.107.09c-.156.163-.32.45-.453.814-.29.794-.387 1.776-.23 2.572l.058.097.008.014h.03a5.184 5.184 0 011.466.212c.086-1.124.038-2.043-.128-2.722-.09-.365-.21-.643-.349-.832l-.004-.006a.659.659 0 00-.285-.239h-.004z"></path></svg></span></span> {{t:home.localOr}} <span class="local-name">LM Studio <span role="img" aria-label="LM Studio"><svg class="local-mark" aria-hidden="true" focusable="false" fill="currentColor" fill-rule="evenodd" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2.84 2a1.273 1.273 0 100 2.547h14.107a1.273 1.273 0 100-2.547H2.84zM7.935 5.33a1.273 1.273 0 000 2.548H22.04a1.274 1.274 0 000-2.547H7.935zM3.624 9.935c0-.704.57-1.274 1.274-1.274h14.106a1.274 1.274 0 010 2.547H4.898c-.703 0-1.274-.57-1.274-1.273zM1.273 12.188a1.273 1.273 0 100 2.547H15.38a1.274 1.274 0 000-2.547H1.273zM3.624 16.792c0-.704.57-1.274 1.274-1.274h14.106a1.273 1.273 0 110 2.547H4.898c-.703 0-1.274-.57-1.274-1.273zM13.029 18.849a1.273 1.273 0 100 2.547h9.698a1.273 1.273 0 100-2.547h-9.698z" fill-opacity=".3"></path><path d="M2.84 2a1.273 1.273 0 100 2.547h10.287a1.274 1.274 0 000-2.547H2.84zM7.935 5.33a1.273 1.273 0 000 2.548H18.22a1.274 1.274 0 000-2.547H7.935zM3.624 9.935c0-.704.57-1.274 1.274-1.274h10.286a1.273 1.273 0 010 2.547H4.898c-.703 0-1.274-.57-1.274-1.273zM1.273 12.188a1.273 1.273 0 100 2.547H11.56a1.274 1.274 0 000-2.547H1.273zM3.624 16.792c0-.704.57-1.274 1.274-1.274h10.286a1.273 1.273 0 110 2.547H4.898c-.703 0-1.274-.57-1.274-1.273zM13.029 18.849a1.273 1.273 0 100 2.547h5.78a1.273 1.273 0 100-2.547h-5.78z"></path></svg></span></span></p>
+          <a class="local-link" href="{{docs:providers}}">{{t:home.localLink}}</a>
+        </div>
+      </section>
+
+      <!-- Questions -->
+      <section class="faq">
+        <div class="wrap">
+          <h2>{{t:faq.heading}}</h2>
+          <div class="faq-list">
+            <details>
+              <summary>{{t:faq.q1}}</summary>
+              <p>{{t:faq.a1}}</p>
+            </details>
+            <details>
+              <summary>{{t:faq.q3}}</summary>
+              <p>{{t:faq.a3}}</p>
+            </details>
+            <details>
+              <summary>{{t:faq.q11}}</summary>
+              <p>{{t:faq.a11}}</p>
+            </details>
+            <details>
+              <summary>{{t:faq.q8}}</summary>
+              <p>{{t:faq.a8}}</p>
+            </details>
+            <details>
+              <summary>{{t:faq.q10}}</summary>
+              <p>{{t:faq.a10}}</p>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
