@@ -3,8 +3,12 @@ import SwiftUI
 public struct TerminalPane: View {
     @State private var sessions: [ShellSession] = []
     @State private var selectedId: UUID?
+    /// Where new shells start: the open project, or the home folder.
+    private let workingDirectory: String
 
-    public init() {}
+    public init(workingDirectory: String = FileManager.default.homeDirectoryForCurrentUser.path) {
+        self.workingDirectory = workingDirectory
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -12,7 +16,7 @@ public struct TerminalPane: View {
                 sessions: $sessions,
                 selectedId: $selectedId,
                 onNewSession: {
-                    let newSession = ShellSession()
+                    let newSession = ShellSession(workingDirectory: workingDirectory)
                     sessions.append(newSession)
                     selectedId = newSession.id
                 },
@@ -36,7 +40,7 @@ public struct TerminalPane: View {
                     Text("No terminal sessions open")
                         .foregroundStyle(.secondary)
                     Button("Open Terminal") {
-                        let session = ShellSession()
+                        let session = ShellSession(workingDirectory: workingDirectory)
                         sessions.append(session)
                         selectedId = session.id
                     }
@@ -48,7 +52,7 @@ public struct TerminalPane: View {
         }
         .onAppear {
             if sessions.isEmpty {
-                let session = ShellSession()
+                let session = ShellSession(workingDirectory: workingDirectory)
                 sessions.append(session)
                 selectedId = session.id
             }

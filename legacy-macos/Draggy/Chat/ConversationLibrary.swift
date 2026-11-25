@@ -24,6 +24,9 @@ struct ConversationLibrary: Sendable {
         ConversationStore(url: folder.appendingPathComponent("\(id.uuidString).json"))
     }
 
+    /// Names, pins and projects, kept beside the conversations they describe.
+    var index: SessionIndex { SessionIndex(url: folder.appendingPathComponent("index.json")) }
+
     func load(_ id: UUID) -> [SavedMessage] { store(id).load() }
 
     func save(_ messages: [SavedMessage], as id: UUID) { store(id).save(messages) }

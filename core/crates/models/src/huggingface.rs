@@ -1420,6 +1420,22 @@ impl<C: HttpClient> HuggingFace<C> {
         None
     }
 
+    /// True when `repo` holds an MLX model, safetensors beside a config, so it has no GGUF file to download.
+    pub async fn is_mlx_repo(&self, repo: &str) -> bool {
+        // The cached listing keeps GGUF files only, so the whole tree is read here.
+        let url = format!("{MODELS_API}/{repo}/tree/main?recursive=true");
+        if !self.allowed(&url) {
+            return false;
+        }
+        match self.walk_tree(&url).await {
+            Ok(Some(tree)) => {
+                let files: Vec<RepoFile> = tree.iter().map(repo_file_of).collect();
+                crate::mlx_files::select_mlx_files(&files).is_some()
+            }
+            _ => false,
+        }
+    }
+
     /// Resolves `name:tag` into the files to fetch. With `include_draft`, a curated model's draft joins the parts.
     pub async fn resolve_download(&self, reference: &str, include_draft: bool) -> Option<Download> {
         let mut pieces = reference.split(':');

@@ -22,6 +22,9 @@ Copyright 2020 JetBrains s.r.o.
 Phosphor icons in src/ui/icons come from @phosphor-icons/core (MIT).
 Copyright (c) 2023 Phosphor Icons.
 Their licenses are listed in src/ui/fonts/LICENSE and src/ui/icons/LICENSE.
+The macOS app bundles the same two fonts (licenses in
+legacy-macos/Draggy/Resources/Fonts/Fonts-LICENSE.txt) and draws the same Phosphor
+icons from legacy-macos/Draggy/Resources/Icons.xcassets.
 
 Full license texts for every dependency the app ships are in
 THIRD-PARTY-LICENSES-main.txt (main process) and

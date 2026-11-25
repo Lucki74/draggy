@@ -52,15 +52,16 @@ final class MessageTextTests: XCTestCase {
             steps: [Transcript.Step(kind: "read", label: "read a.txt", isDone: true)],
             stepsOpen: true
         )
-        XCTAssertEqual(MessageText.attributed(line).string, "\u{25BE} Worked · 1 step\n\u{2022} read a.txt\ndone")
+        // The summary ends on the caret image, which a string shows as the attachment character.
+        XCTAssertEqual(MessageText.attributed(line).string, "Worked · 1 step  \u{FFFC}\n\u{2022} read a.txt\ndone")
     }
 
     func testToolDetailFollowsItsLabelInMonospace() {
         let step = Transcript.Step(kind: "bash", label: "bash ls", isDone: true, detail: "a.txt")
         let line = Transcript.Line(id: UUID(), role: .assistant, text: "done", steps: [step], stepsOpen: true)
         let text = MessageText.attributed(line)
-        XCTAssertEqual(text.string, "\u{25BE} Worked · 1 step\n\u{2022} bash ls\na.txt\ndone")
-        let font = text.attribute(.font, at: 28, effectiveRange: nil) as? NSFont
+        XCTAssertEqual(text.string, "Worked · 1 step  \u{FFFC}\n\u{2022} bash ls\na.txt\ndone")
+        let font = text.attribute(.font, at: 29, effectiveRange: nil) as? NSFont
         XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.monoSpace) ?? false)
     }
 
@@ -77,7 +78,7 @@ final class MessageTextTests: XCTestCase {
         let font = text.attribute(.font, at: 7, effectiveRange: nil) as? NSFont
         XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.monoSpace) ?? false)
         let color = text.attribute(.foregroundColor, at: 18, effectiveRange: nil) as? NSColor
-        XCTAssertEqual(color, .systemRed)
+        XCTAssertEqual(color, Theme.NS.danger)
     }
 
     func testItalicsAndQuotesAreDrawn() {

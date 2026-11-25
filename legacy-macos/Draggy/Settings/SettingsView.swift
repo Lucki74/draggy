@@ -103,6 +103,14 @@ struct SettingsView: View {
             Section("Voice") {
                 CloudTTSView()
             }
+
+            Section("Run setup again") {
+                LabeledContent {
+                    Button("Start setup") { model.setup.restart() }
+                } label: {
+                    Text("Go through the first-run setup again.")
+                }
+            }
         }
         .padding()
         .frame(width: 480)
