@@ -32,8 +32,6 @@ Comprobación de tipos, lint y las pruebas (`tsc -b`, `eslint .`, `vitest run`).
 | --- | --- |
 | `core/` | Espacio de trabajo Rust compartido: motor, proveedores, herramientas, documentos, MCP y almacenamiento |
 | `app/` | La aplicación Draggy para Windows, macOS y Linux: `src-tauri/` para el shell en Rust y `src/` para la interfaz en React |
-| `legacy-macos/` | Retirado. La aplicación macOS en Swift, que ya no se distribuye |
-| `linux/` | Retirado. La aplicación Linux en GTK 4 y libadwaita, que ya no se distribuye |
 | `shared/` | Datos de precios, fixtures e iconos |
 
 ## Las dos fronteras

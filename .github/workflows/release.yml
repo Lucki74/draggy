@@ -1,8 +1,8 @@
 name: Release
 
-# Run from the Actions tab on main. Builds Windows and Linux as 3.0.N, where N is one more than
+# Run from the Actions tab on main. Builds Windows as 3.0.N, where N is one more than
 # the highest b-N tag, then publishes a release named build-N with the installers and the
-# latest*.yml files the in-app updater reads. The Linux .deb and .rpm ride along in the same release.
+# latest*.yml files the in-app updater reads.
 # macOS builds are paused (TODO: re-enable macOS).
 on:
   workflow_dispatch:
@@ -232,57 +232,10 @@ jobs:
           path: app/dist-tauri/*.zip
           if-no-files-found: error
 
-  linux:
-    needs: prepare
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: linux
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev blueprint-compiler xvfb
-
-      - run: rustup toolchain install stable --profile minimal
-
-      - name: Test
-        run: xvfb-run -a cargo test --locked -q
-
-      # The crate version is 0.1.0 in the repository. Cargo.lock follows it, so the packaging below runs without --locked.
-      - name: Set the version
-        env:
-          N: ${{ needs.prepare.outputs.n }}
-        run: sed -i '0,/^version = ".*"/s//version = "3.0.'"$N"'"/' Cargo.toml
-
-      - run: cargo install cargo-deb --locked --version 3.6.0
-
-      - run: cargo install cargo-generate-rpm --locked --version 0.20.0
-
-      - run: cargo deb
-
-      - run: cargo build --release
-
-      - run: cargo generate-rpm
-
-      - name: Collect the packages
-        run: |
-          mkdir -p ../out
-          cp target/debian/*.deb target/generate-rpm/*.rpm ../out/
-
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: dist-linux
-          path: out/*
-          if-no-files-found: error
-
   # Drafting first and publishing last means a failed upload never leaves a half-empty Latest
   # release that installed apps would pick up.
   publish:
-    needs: [prepare, windows, linux]
+    needs: [prepare, windows]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     permissions:

@@ -47,15 +47,7 @@ core/target
 # SQLite sidecar files the storage fixtures leave behind when a test opens a database
 shared/fixtures/**/*.db-shm
 shared/fixtures/**/*.db-wal
-linux/target/
 
-# macOS app build output and generated files
-legacy-macos/Draggy.xcodeproj/
-legacy-macos/build/
-legacy-macos/Draggy/Resources/Info.plist
-legacy-macos/Packages/DraggyCore/DraggyCoreFFI.xcframework/
-legacy-macos/Packages/DraggyCore/Sources/DraggyCore/draggy_core.swift
-legacy-macos/Packages/DraggyCore/.build/
 vendor/
 
 # Websites

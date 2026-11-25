@@ -4,7 +4,7 @@ Read [AGENTS.md](AGENTS.md) first. It holds the commands, the invariants the tes
 
 ## Repository layout
 
-The Tauri app for Windows, macOS and Linux lives in `app/`, so run every `npm` command there. It is the only app that ships. `legacy-macos/` (Swift) and `linux/` (GTK) are retired and no longer ship, and all new work goes into `app/` (see "macOS" and "Linux" in AGENTS.md). `core/` and `linux/` are Rust: run `cargo test -p <crate> -q` from `core/` or `linux/` (cargo is at `~/.cargo/bin`). Shared fixtures in `shared/fixtures/` must pass in vitest and cargo. See AGENTS.md for the table.
+The Tauri app for Windows, macOS and Linux lives in `app/`, so run every `npm` command there. It is the only app that ships. `core/` is Rust: run `cargo test -p <crate> -q` from `core/` (cargo is at `~/.cargo/bin`). Shared fixtures in `shared/fixtures/` must pass in vitest and cargo. See AGENTS.md for the table.
 
 ## Development and test workflow
 
@@ -28,12 +28,8 @@ The Tauri app for Windows, macOS and Linux lives in `app/`, so run every `npm` c
 - A new English translation key needs the French, Spanish and Russian entries, and a key nothing uses fails the translations test.
 - Icon names must exist in `src/ui/icons/glyphs.generated.ts`.
 
-## macOS and Rust work
+## Commits and pull requests
 
-- Swift files and `.xcstrings` use CRLF in the working copy. Edit `Localizable.xcstrings` as text, since a JSON re-dump rewrites the whole file.
-- After a Swift change, watch the "Build and test" macOS job, which is the only compile check.
-- The macOS look follows the Windows tokens in `legacy-macos/Draggy/Theme/Theme.swift`. `Icons.xcassets` and `Glyph.generated.swift` come from
-  `python3 legacy-macos/scripts/build-icons.py`; rerun it after changing `app/src/ui/icons/glyphs.generated.ts`.
 - Commits carry a subject only. A PR carries a title and a description of two sentences at most, written with the `/humanizer` skill, as Issues and pull requests in AGENTS.md says. Neither carries attribution. Squash merge with `gh pr merge N --squash --subject "<title> (#N)" --body ""`.
 
 ## Compact instructions
