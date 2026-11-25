@@ -1044,6 +1044,20 @@ fn partial_to_continue(temp: &Path, now: u64) -> io::Result<u64> {
 mod tests {
     use super::*;
 
+    /// macOS reports a 1 MiB block size beside 4 KiB blocks, which inflated the figure 256 times.
+    #[cfg(unix)]
+    #[test]
+    fn free_space_fits_inside_the_volume() {
+        let dir = std::env::temp_dir();
+        let stats = nix::sys::statvfs::statvfs(&dir).expect("statvfs");
+        let blocks = widen(stats.blocks()).expect("blocks");
+        let total = blocks.saturating_mul(widen(stats.fragment_size()).expect("fragment size"));
+
+        let free = SystemEnv.free_bytes(&dir).expect("free bytes");
+
+        assert!(free <= total, "{free} bytes free on a {total} byte volume");
+    }
+
     #[test]
     fn a_name_without_the_suffix_gets_it() {
         assert_eq!(safe_gguf_name("model", false), "model.gguf");
