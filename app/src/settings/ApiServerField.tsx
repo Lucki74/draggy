@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import { StatusDot } from "../ui/StatusDot";
 import ApiLog from "./ApiLog";
-import { Block, Group, Row, Toggle } from "./Controls";
+import { Block, Group, Row, Select, Toggle } from "./Controls";
 import type { ApiSampling, ApiServerConfig, ApiServerStatus } from "../types";
 import { copyText } from "../utils";
 import { swallowed } from "../logger";
@@ -370,30 +370,26 @@ export default function ApiServerField({ t, models = [] }: ApiServerFieldProps) 
 
       <Group title={t("apiSectionAnswering")}>
         <Row label={t("apiServerMode")}>
-          <select
-            aria-label={t("apiServerMode")}
+          <Select
+            label={t("apiServerMode")}
             value={status.mode}
-            onChange={(event) => configure({ mode: event.target.value === "model" ? "model" : "agent" })}
-            className={INPUT}
-          >
-            <option value="agent">{t("apiServerModeAgent")}</option>
-            <option value="model">{t("apiServerModeModel")}</option>
-          </select>
+            onChange={(mode) => configure({ mode: mode === "model" ? "model" : "agent" })}
+            options={[
+              { id: "agent", label: t("apiServerModeAgent") },
+              { id: "model", label: t("apiServerModeModel") },
+            ]}
+          />
         </Row>
         <Row label={t("apiDefaultModel")}>
-          <select
-            aria-label={t("apiDefaultModel")}
+          <Select
+            label={t("apiDefaultModel")}
             value={settings.defaultModel}
-            onChange={(event) => configure({ defaultModel: event.target.value })}
-            className={`${INPUT} w-full sm:w-64`}
-          >
-            <option value="">{t("apiModelInUse")}</option>
-            {models_.map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
-          </select>
+            onChange={(defaultModel) => configure({ defaultModel })}
+            options={[
+              { id: "", label: t("apiModelInUse") },
+              ...models_.map((model) => ({ id: model, label: model })),
+            ]}
+          />
         </Row>
         <Row label={t("apiListCloud")}>
           <Toggle
@@ -503,18 +499,22 @@ export default function ApiServerField({ t, models = [] }: ApiServerFieldProps) 
             onChange={(logRequests) => configure({ logRequests })}
           />
         </Row>
-        <Row label={t("apiLogSize")}>
-          <NumberInput
-            label={t("apiLogSize")}
-            value={settings.logSize}
-            min={10}
-            max={500}
-            onCommit={(value) => value !== null && configure({ logSize: value })}
-          />
-        </Row>
-        <Block>
-          <ApiLog t={t} baseUrl={status.baseUrl} enabled={settings.logRequests} />
-        </Block>
+        {settings.logRequests && (
+          <>
+            <Row label={t("apiLogSize")}>
+              <NumberInput
+                label={t("apiLogSize")}
+                value={settings.logSize}
+                min={10}
+                max={500}
+                onCommit={(value) => value !== null && configure({ logSize: value })}
+              />
+            </Row>
+            <Block>
+              <ApiLog t={t} baseUrl={status.baseUrl} enabled />
+            </Block>
+          </>
+        )}
       </Group>
     </div>
   );
