@@ -160,15 +160,16 @@ describe("the local API setting", () => {
     current = ON;
     await show();
 
-    const choice = screen.getByLabelText(t("apiServerMode")) as HTMLSelectElement;
-    expect(choice.value).toBe("agent");
+    const choice = screen.getByRole("button", { name: t("apiServerMode") });
+    expect(choice.textContent).toContain(t("apiServerModeAgent"));
 
+    fireEvent.click(choice);
     await act(async () => {
-      fireEvent.change(choice, { target: { value: "model" } });
+      fireEvent.click(screen.getByRole("option", { name: t("apiServerModeModel") }));
     });
 
     expect(configure).toHaveBeenCalledWith({ mode: "model" });
-    expect((screen.getByLabelText(t("apiServerMode")) as HTMLSelectElement).value).toBe("model");
+    expect(screen.getByRole("button", { name: t("apiServerMode") }).textContent).toContain(t("apiServerModeModel"));
   });
 
   it("saves a server number on Enter and clamps it", async () => {
@@ -265,16 +266,17 @@ describe("the local API setting", () => {
   it("saves the log switch and size", async () => {
     current = ON;
     await show();
-    await act(async () => {
-      fireEvent.click(screen.getByLabelText(t("apiLogEnable")));
-    });
-    expect(configure).toHaveBeenCalledWith({ logRequests: false });
     const size = screen.getByLabelText(t("apiLogSize"));
     await act(async () => {
       fireEvent.change(size, { target: { value: "100" } });
       fireEvent.blur(size);
     });
     expect(configure).toHaveBeenCalledWith({ logSize: 100 });
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText(t("apiLogEnable")));
+    });
+    expect(configure).toHaveBeenCalledWith({ logRequests: false });
+    expect(screen.queryByLabelText(t("apiLogSize"))).toBeNull();
   });
 
   it("clears a sampling default when emptied", async () => {
