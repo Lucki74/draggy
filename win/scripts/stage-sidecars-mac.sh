@@ -43,5 +43,6 @@ for tool in ffmpeg ffprobe; do
     exit 1
   fi
   cp -f "$src" "$dir/$tool-$triple"
+  chmod u+w "$dir/$tool-$triple"
 done
 echo "staged unpinned ffmpeg and ffprobe from $from for a debug build"
