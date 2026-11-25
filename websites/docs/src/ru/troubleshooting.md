@@ -42,4 +42,4 @@ section: fix
 
 ## Всё ещё не работает {#still-stuck}
 
-`Settings → Diagnostics → Open log folder` открывает журналы. **`app.log`** содержит события, в которых запросы и секреты сокращены. Для отчёта об ошибке используйте `Settings → Diagnostics → Export diagnostics`: он также заменяет вашу домашнюю папку и имя пользователя. Затем [создайте issue](https://github.com/Lucki74/draggy/issues) и приложите текст увиденного сообщения.
+`Settings → Diagnostics → Open log folder` открывает журналы. **`app.log`** содержит события, в которых запросы и секреты сокращены. Для отчёта об ошибке используйте `Settings → Diagnostics → Export diagnostics`: он также заменяет вашу домашнюю папку и имя пользователя. Затем [создайте issue](https://github.com/Lucki74/draggy/issues/new?template=bug_report.yml) и приложите текст увиденного сообщения.

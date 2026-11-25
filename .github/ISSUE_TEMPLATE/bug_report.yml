@@ -48,8 +48,11 @@ body:
       label: Platform
       options:
         - Windows
-        - macOS
-        - Linux
+        - macOS on Apple silicon
+        - macOS on Intel
+        - Linux (.deb)
+        - Linux (.rpm)
+        - Linux (AppImage)
     validations:
       required: true
 

@@ -42,4 +42,4 @@ Updates only run in an installed build. Builds run from source do not update.
 
 ## Still stuck
 
-`Settings → Diagnostics → Open log folder` opens the logs. **`app.log`** holds events, with prompts and secrets reduced. For a bug report, use `Settings → Diagnostics → Export diagnostics`, which also replaces your home folder and user name. Then [open an issue](https://github.com/Lucki74/draggy/issues) with the message you saw.
+`Settings → Diagnostics → Open log folder` opens the logs. **`app.log`** holds events, with prompts and secrets reduced. For a bug report, use `Settings → Diagnostics → Export diagnostics`, which also replaces your home folder and user name. Then [open an issue](https://github.com/Lucki74/draggy/issues/new?template=bug_report.yml) with the message you saw.

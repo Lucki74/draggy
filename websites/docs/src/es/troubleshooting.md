@@ -42,4 +42,4 @@ Las actualizaciones solo funcionan en una versión instalada. Las compilaciones 
 
 ## Sigue sin funcionar
 
-`Ajustes → Diagnóstico → Abrir carpeta de registros` abre los registros. **`app.log`** contiene eventos, con los mensajes y los secretos reducidos. Para un informe de error, usa `Ajustes → Diagnóstico → Exportar diagnóstico`, que además reemplaza tu carpeta personal y tu nombre de usuario. Después, [abre una incidencia](https://github.com/Lucki74/draggy/issues) con el mensaje que viste.
+`Ajustes → Diagnóstico → Abrir carpeta de registros` abre los registros. **`app.log`** contiene eventos, con los mensajes y los secretos reducidos. Para un informe de error, usa `Ajustes → Diagnóstico → Exportar diagnóstico`, que además reemplaza tu carpeta personal y tu nombre de usuario. Después, [abre una incidencia](https://github.com/Lucki74/draggy/issues/new?template=bug_report.yml) con el mensaje que viste.
