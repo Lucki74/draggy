@@ -147,7 +147,6 @@ export default function ChatScreen({
     return () => observer.disconnect();
   }, []);
 
-  const compactToolbar = toolbarWidth < 640;
   const tightToolbar = toolbarWidth < 420;
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -250,7 +249,6 @@ export default function ChatScreen({
       contextView={session.contextView}
       compacting={session.compacting}
       acceptAttribute={session.acceptAttribute}
-      compactToolbar={compactToolbar}
       tightToolbar={tightToolbar}
       speechSupported={session.speechSupported}
       t={t}

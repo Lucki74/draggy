@@ -14,12 +14,6 @@ describe("the narrow composer", () => {
     const permission = screen.getByText("Accepter les modifications");
     expect(permission.closest(".sr-only")).toBeNull();
     expect(screen.getByText("Moyen").closest(".sr-only")).toBeNull();
-    expect(permission.closest("form")?.querySelector(".flex-wrap .basis-full")).toBeTruthy();
-  });
-
-  it("keeps one line when there is room", () => {
-    render(<ComposerPreview />);
-
-    expect(screen.getByText("Accept edits").closest("form")?.querySelector(".basis-full")).toBeNull();
+    expect(permission.closest("form")?.querySelector(".flex-wrap > .ms-auto")).toBeTruthy();
   });
 });
