@@ -4,7 +4,7 @@ Read [AGENTS.md](AGENTS.md) first. It holds the commands, the invariants the tes
 
 ## Repository layout
 
-Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift) is not built while macOS is paused; macOS CI runs only by hand. `core/` and `linux/` are Rust: run `cargo test -p <crate> -q` from `core/` or `linux/` (cargo is at `~/.cargo/bin`). Shared fixtures in `shared/fixtures/` must pass in vitest and cargo. See AGENTS.md for the table.
+Windows code lives in `win/`, so run every `npm` command there. `macos/` (Swift) is not built while macOS is paused; macOS CI runs only by hand. New macOS work goes into `win/`, which also builds on a Mac (see "macOS, for development" in AGENTS.md). `core/` and `linux/` are Rust: run `cargo test -p <crate> -q` from `core/` or `linux/` (cargo is at `~/.cargo/bin`). Shared fixtures in `shared/fixtures/` must pass in vitest and cargo. See AGENTS.md for the table.
 
 ## Development and test workflow
 
