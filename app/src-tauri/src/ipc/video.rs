@@ -171,9 +171,11 @@ fn ffmpeg_paths() -> Result<FfmpegPaths, MediaError> {
     }
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let staged = |tool: &str| {
-        manifest
-            .join("binaries")
-            .join(format!("{tool}-x86_64-pc-windows-msvc.exe"))
+        manifest.join("binaries").join(format!(
+            "{tool}-{}{}",
+            crate::mcp::SIDECAR_TRIPLE,
+            std::env::consts::EXE_SUFFIX
+        ))
     };
     let (ffmpeg, ffprobe) = (staged("ffmpeg"), staged("ffprobe"));
     if ffmpeg.is_file() && ffprobe.is_file() {

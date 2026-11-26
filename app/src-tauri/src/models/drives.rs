@@ -62,7 +62,18 @@ pub fn drives() -> Vec<Drive> {
     found
 }
 
+/// The home folder's volume, so models land under `~/Draggy/models`.
 #[cfg(not(windows))]
 pub fn drives() -> Vec<Drive> {
-    Vec::new()
+    let Some(home) = std::env::var_os("HOME").map(PathBuf::from) else {
+        return Vec::new();
+    };
+    let Some(space) = crate::engines::sysinfo::volume_space(&home.to_string_lossy()) else {
+        return Vec::new();
+    };
+    vec![Drive {
+        volume: home,
+        free_bytes: space.free_bytes,
+        removable: false,
+    }]
 }

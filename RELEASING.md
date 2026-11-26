@@ -23,7 +23,7 @@ three, so a failure on any system means nothing is published.
 
 The release is created as a draft, the files are uploaded, and only then is it published and marked
 Latest. A failed upload therefore never leaves a half-empty release that installed apps would pick up.
-Older Linux installs (the Electron and GTK builds) read `latest-linux.yml` from the newest `b-N` release and fail without it, so the publish job keeps writing that file and points it at the Tauri packages. `SHA256SUMS.txt` lists every file in the release.
+The publish job checks that every installer and feed is there before it creates the release. `SHA256SUMS.txt` lists every file in the release.
 
 ### Notes
 
@@ -57,11 +57,15 @@ Build inputs are the Rust crate in `src-tauri/`, the React app in `src/`, and th
 
 ## The macOS build
 
-The macOS job runs on `macos-latest` in `app/`. It fetches the pinned `node` from `scripts/node-pin-macos.json`, stages the sidecars with `scripts/stage-sidecars-mac.sh`, and runs `npx tauri build --target universal-apple-darwin`, so one app runs on Intel and Apple silicon. The app is signed ad hoc (`codesign --sign -`) and not notarized, which is why the first open needs the Gatekeeper step. The download is `Draggy-3.0.N-macos-universal.zip`; the updater gets the `.app.tar.gz` and its `.sig`.
+The macOS job runs on `macos-15` in `app/`. `scripts/fetch-sidecars-unix.sh mac` fetches `node`, `ffmpeg` and `ffprobe` for both Intel and Apple silicon and checks them against `scripts/node-pin-macos.json` and `scripts/ffmpeg-pin-macos.json`. The job then runs `npx tauri build --target universal-apple-darwin` with `tauri.release.conf.json` and `tauri.release.unix.conf.json` (the second drops the Windows-only resources). `scripts/stage-sidecars-mac.sh` joins each sidecar into one universal binary with `lipo`, so one app runs on both kinds of Mac. The app needs macOS 14 or newer.
+
+The app is signed ad hoc (`codesign --force --deep --sign -`) and not notarized, which is why the first open needs the Gatekeeper step. Signing changes the bundle, so the job packs the signed app again as `.app.tar.gz` and signs that with `tauri signer sign`. The download is `Draggy-3.0.N-macos-universal.zip`; the updater gets the `.app.tar.gz` and its `.sig`.
 
 ## The Linux build
 
-The Linux job runs on `ubuntu-24.04` in `app/`. It fetches the pinned `node` from `scripts/node-pin-linux.json`, stages the sidecars with `scripts/stage-sidecars-linux.sh`, and builds the `.deb`, `.rpm` and AppImage, each with a `.sig` for the updater.
+The Linux job runs on `ubuntu-24.04` in `app/`. `scripts/fetch-sidecars-unix.sh linux` fetches `node`, `ffmpeg` and `ffprobe` and checks them against `scripts/node-pin-linux.json` and `scripts/ffmpeg-pin-linux.json`. `scripts/stage-sidecars-linux.sh` stages them, and `npx tauri build` with the same two release configs builds the `.deb`, `.rpm` and AppImage, each with a `.sig` for the updater. The job renames them to `draggy_3.0.N_amd64.deb`, `draggy-3.0.N-1.x86_64.rpm` and `draggy_3.0.N_amd64.AppImage`, the names draggy.org looks for.
+
+The ffmpeg builds for macOS and Linux come from ffmpeg.martin-riedl.de, pinned to a versioned URL and the SHA-256 of each archive. Its Intel macOS builds stop in January 2027, so a later ffmpeg bump on Intel needs another source.
 
 ## Signing the updater
 
@@ -84,9 +88,9 @@ Every `b-N` release carries the Tauri feed for each system next to the installer
 | `latest-macos.json` | `tauri.macos.conf.json` |
 | `latest-linux.json` | `tauri.linux.conf.json` |
 
-The macOS feed lists the universal `.app.tar.gz` for both architectures. The Linux feed lists the AppImage, `.deb` and `.rpm`.
+The macOS feed lists the universal `.app.tar.gz` under `darwin-x86_64` and `darwin-aarch64`. The Linux feed lists the AppImage under `linux-x86_64` and `linux-x86_64-appimage`, and the packages under `linux-x86_64-deb` and `linux-x86_64-rpm`, the keys `tauri-plugin-updater` 2.14 looks up for each installer type.
 
-Two bridge files also go into the `b-N` release, for installs that predate Tauri: `latest.yml` for the Windows Electron build and `latest-linux.yml` for the Electron and GTK Linux builds. Both point at the Tauri installers, so those installs update into the Tauri app.
+Installs that predate Tauri read other files. Electron builds use electron-updater, which reads `latest.yml` on Windows and `latest-linux.yml` on Linux from the Latest release and checks the SHA-512 and size listed there. The Windows job writes `latest.yml` for `draggy_setup.exe`; the site also reads its `version:` line. The Linux job writes `latest-linux.yml` fresh for the AppImage, `.deb` and `.rpm`, and electron-updater picks the file that matches how it was installed. GTK Linux builds read no feed: they list the `b-N` releases through the GitHub API, take the first `.deb` or `.rpm`, and check it against `SHA256SUMS.txt`.
 
 ## Tags are permanent
 

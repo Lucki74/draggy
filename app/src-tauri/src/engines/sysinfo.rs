@@ -7,8 +7,10 @@ use draggy_engine::command::{ProcessRunner, run_text};
 use draggy_engine::hardware_probe::{Memory, Space};
 use regex::Regex;
 
+#[cfg(windows)]
 const DISPLAY_CLASS: &str =
     "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}";
+#[cfg(windows)]
 const CPU_KEY: &str = "HKLM\\HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0";
 
 static SOFTWARE_RENDERER: LazyLock<Option<Regex>> = LazyLock::new(|| {
@@ -62,6 +64,15 @@ pub fn reg_exe() -> PathBuf {
 }
 
 /// The processor's marketing name, as `os.cpus()[0].model` reads it.
+#[cfg(not(windows))]
+pub async fn cpu_model() -> String {
+    unix::cpu_model()
+        .await
+        .unwrap_or_else(|| "Unknown CPU".to_owned())
+}
+
+/// The processor's marketing name, as `os.cpus()[0].model` reads it.
+#[cfg(windows)]
 pub async fn cpu_model() -> String {
     let reg = reg_exe().to_string_lossy().into_owned();
     let out = run_text(
@@ -96,16 +107,23 @@ pub async fn gpu_name() -> Option<String> {
     {
         return Some(tidy_name(name));
     }
-    let reg = reg_exe().to_string_lossy().into_owned();
-    let out = run_text(
-        &runner,
-        &reg,
-        &["query", DISPLAY_CLASS, "/s", "/v", "DriverDesc"],
-        8000,
-    )
-    .await
-    .unwrap_or_default();
-    pick_gpu_name(&reg_string_values(&out, "DriverDesc"))
+    #[cfg(not(windows))]
+    {
+        unix::gpu_name().await
+    }
+    #[cfg(windows)]
+    {
+        let reg = reg_exe().to_string_lossy().into_owned();
+        let out = run_text(
+            &runner,
+            &reg,
+            &["query", DISPLAY_CLASS, "/s", "/v", "DriverDesc"],
+            8000,
+        )
+        .await
+        .unwrap_or_default();
+        pick_gpu_name(&reg_string_values(&out, "DriverDesc"))
+    }
 }
 
 pub fn logical_cpus() -> usize {
@@ -134,10 +152,10 @@ pub fn memory() -> Memory {
 
 #[cfg(not(windows))]
 pub fn memory() -> Memory {
-    Memory {
+    unix::memory().unwrap_or(Memory {
         total_bytes: 0,
         free_bytes: 0,
-    }
+    })
 }
 
 #[cfg(windows)]
@@ -158,8 +176,197 @@ pub fn volume_space(root: &str) -> Option<Space> {
 }
 
 #[cfg(not(windows))]
-pub fn volume_space(_root: &str) -> Option<Space> {
-    None
+pub fn volume_space(root: &str) -> Option<Space> {
+    unix::volume_space(root)
+}
+
+/// macOS and Linux readers. The parsers build everywhere so their tests run on every runner.
+#[cfg_attr(windows, allow(dead_code))]
+mod unix {
+    use super::{Memory, ProcessRunner, Space, pick_gpu_name, run_text, tidy_name};
+
+    fn command_text(program: &str, args: &[&str]) -> Option<String> {
+        let out = std::process::Command::new(program)
+            .args(args)
+            .output()
+            .ok()?;
+        out.status
+            .success()
+            .then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+    }
+
+    /// A `/proc/meminfo` field in bytes, e.g. `MemTotal:  16314172 kB`.
+    pub fn meminfo_bytes(text: &str, field: &str) -> Option<u64> {
+        text.lines().find_map(|line| {
+            let rest = line.strip_prefix(field)?.strip_prefix(':')?;
+            let kib: u64 = rest.split_whitespace().next()?.parse().ok()?;
+            Some(kib * 1024)
+        })
+    }
+
+    /// Free plus inactive and speculative pages from `vm_stat`, which macOS can hand out at once.
+    pub fn vm_stat_free_bytes(text: &str) -> Option<u64> {
+        let page: u64 = text
+            .lines()
+            .next()?
+            .split("page size of ")
+            .nth(1)?
+            .split_whitespace()
+            .next()?
+            .parse()
+            .ok()?;
+        let pages = |name: &str| -> u64 {
+            text.lines()
+                .find_map(|line| line.strip_prefix(name))
+                .and_then(|rest| rest.trim().trim_end_matches('.').parse().ok())
+                .unwrap_or(0)
+        };
+        Some((pages("Pages free:") + pages("Pages inactive:") + pages("Pages speculative:")) * page)
+    }
+
+    /// Size and free bytes from the data line of `df -Pk`.
+    pub fn df_space(text: &str) -> Option<Space> {
+        let line = text.lines().nth(1)?;
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        let size: u64 = fields.get(1)?.parse().ok()?;
+        let free: u64 = fields.get(3)?.parse().ok()?;
+        Some(Space {
+            size_bytes: size * 1024,
+            free_bytes: free * 1024,
+        })
+    }
+
+    /// The `model name` line of `/proc/cpuinfo`.
+    pub fn cpuinfo_model(text: &str) -> Option<String> {
+        text.lines()
+            .filter_map(|line| line.split_once(':'))
+            .find(|(key, _)| key.trim() == "model name")
+            .map(|(_, value)| tidy_name(value.trim()))
+            .filter(|name| !name.is_empty())
+    }
+
+    /// Display adapters from `lspci`, e.g. `01:00.0 VGA compatible controller: NVIDIA Corporation AD104`.
+    pub fn lspci_gpus(text: &str) -> Vec<String> {
+        text.lines()
+            .filter(|line| {
+                [
+                    "VGA compatible controller",
+                    "3D controller",
+                    "Display controller",
+                ]
+                .iter()
+                .any(|kind| line.contains(kind))
+            })
+            .filter_map(|line| line.splitn(3, ':').nth(2))
+            .map(|name| name.trim().to_owned())
+            .filter(|name| !name.is_empty())
+            .collect()
+    }
+
+    pub fn memory() -> Option<Memory> {
+        if cfg!(target_os = "macos") {
+            let total = command_text("/usr/sbin/sysctl", &["-n", "hw.memsize"])?
+                .trim()
+                .parse()
+                .ok()?;
+            let free = command_text("/usr/bin/vm_stat", &[])
+                .as_deref()
+                .and_then(vm_stat_free_bytes)
+                .unwrap_or(0);
+            Some(Memory {
+                total_bytes: total,
+                free_bytes: free,
+            })
+        } else {
+            let text = std::fs::read_to_string("/proc/meminfo").ok()?;
+            Some(Memory {
+                total_bytes: meminfo_bytes(&text, "MemTotal")?,
+                free_bytes: meminfo_bytes(&text, "MemAvailable")
+                    .or_else(|| meminfo_bytes(&text, "MemFree"))
+                    .unwrap_or(0),
+            })
+        }
+    }
+
+    pub fn volume_space(root: &str) -> Option<Space> {
+        df_space(&command_text("df", &["-Pk", root])?)
+    }
+
+    pub async fn cpu_model() -> Option<String> {
+        if cfg!(target_os = "macos") {
+            run_text(
+                &ProcessRunner,
+                "/usr/sbin/sysctl",
+                &["-n", "machdep.cpu.brand_string"],
+                5000,
+            )
+            .await
+            .map(|name| tidy_name(name.trim()))
+            .filter(|name| !name.is_empty())
+        } else {
+            cpuinfo_model(&std::fs::read_to_string("/proc/cpuinfo").ok()?)
+        }
+    }
+
+    /// Apple silicon shares the chip with the GPU, so the chip name stands for it. Intel Macs and
+    /// Linux boxes without lspci report no name.
+    pub async fn gpu_name() -> Option<String> {
+        if cfg!(target_os = "macos") {
+            if !cfg!(target_arch = "aarch64") {
+                return None;
+            }
+            let chip = cpu_model().await.unwrap_or_else(|| "Apple".to_owned());
+            Some(format!("{chip} GPU"))
+        } else {
+            let out = run_text(&ProcessRunner, "lspci", &[], 4000).await?;
+            pick_gpu_name(&lspci_gpus(&out))
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn meminfo_reads_kib_as_bytes() {
+            let text =
+                "MemTotal:       16314172 kB\nMemFree:  100 kB\nMemAvailable:    8000000 kB\n";
+            assert_eq!(meminfo_bytes(text, "MemTotal"), Some(16_314_172 * 1024));
+            assert_eq!(meminfo_bytes(text, "MemAvailable"), Some(8_000_000 * 1024));
+            assert_eq!(meminfo_bytes(text, "Mem"), None);
+        }
+
+        #[test]
+        fn vm_stat_adds_the_reusable_pages() {
+            let text = "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:      10.\nPages active:    99.\nPages inactive:  5.\nPages speculative: 1.\n";
+            assert_eq!(vm_stat_free_bytes(text), Some(16 * 16384));
+        }
+
+        #[test]
+        fn df_reads_size_and_available() {
+            let text = "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/disk3s1 994662584 500 400000000 50% /\n";
+            let space = df_space(text).unwrap();
+            assert_eq!(space.size_bytes, 994_662_584 * 1024);
+            assert_eq!(space.free_bytes, 400_000_000 * 1024);
+        }
+
+        #[test]
+        fn cpuinfo_and_lspci_names() {
+            let cpu = "processor\t: 0\nmodel name\t: AMD Ryzen 7 7840U w/ Radeon(TM)  780M\n";
+            assert_eq!(
+                cpuinfo_model(cpu).as_deref(),
+                Some("AMD Ryzen 7 7840U w/ Radeon 780M")
+            );
+            let pci = "00:02.0 VGA compatible controller: Intel Corporation UHD Graphics 620\n00:1f.3 Audio device: Intel\n01:00.0 3D controller: NVIDIA Corporation GA107M\n";
+            assert_eq!(
+                lspci_gpus(pci),
+                vec![
+                    "Intel Corporation UHD Graphics 620",
+                    "NVIDIA Corporation GA107M"
+                ]
+            );
+        }
+    }
 }
 
 #[cfg(test)]

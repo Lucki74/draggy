@@ -2,5 +2,10 @@
   "version": "v26.12.1",
   "archive": "node-v26.12.1-darwin-arm64.tar.gz",
   "archiveSha256": "1901d539912c02afa10d1cc126943a8855a7eedebe830119463470db5e6c59e8",
-  "sha256": "06eb3f5762c2b6890e99d03f931bf01d9b20fd341dec1a8c1ef5c1809e66102b"
+  "sha256": "06eb3f5762c2b6890e99d03f931bf01d9b20fd341dec1a8c1ef5c1809e66102b",
+  "x64": {
+    "archive": "node-v26.12.1-darwin-x64.tar.gz",
+    "archiveSha256": "b85c2ea4420ad0bc4abf2dc6cf1f55130ed681f1cabf60cf3f526e4c9e2712ff",
+    "sha256": "4a1cb2b18065f49938d650eceedf4557a4b5561ab941ab66cb4ab3f4b38c8232"
+  }
 }

@@ -1,5 +1,5 @@
 //! The `run-code` channel: runs a short Python or JavaScript program in a scratch folder and returns what it
-//! printed. Port of runner.cjs `runCode`. Python comes from PATH; JavaScript runs on the node.exe sidecar.
+//! printed. Port of runner.cjs `runCode`. Python comes from PATH; JavaScript runs on the node sidecar.
 
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
@@ -99,7 +99,7 @@ fn minimal_env(workdir: &Path) -> Vec<(OsString, OsString)> {
     ]
 }
 
-/// The node.exe sidecar, which runs JavaScript programs and stdio servers.
+/// The node sidecar, which runs JavaScript programs and stdio servers.
 fn node_program() -> String {
     crate::mcp::node_path().to_string_lossy().into_owned()
 }
