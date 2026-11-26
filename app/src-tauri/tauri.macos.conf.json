@@ -18,7 +18,7 @@
     "resources": {
       "../sandbox/target/release/draggy-sandbox.exe": null,
       "binaries/node-res/node": "node/node",
-      "binaries/npm/": "node/npm/"
+      "binaries/npm/": "npm/"
     },
     "macOS": {
       "minimumSystemVersion": "14.0"

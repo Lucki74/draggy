@@ -14,7 +14,7 @@
     ],
     "resources": {
       "../sandbox/target/release/draggy-sandbox.exe": null,
-      "binaries/npm/": "node/npm/"
+      "binaries/npm/": "npm/"
     },
     "windows": null
   },
