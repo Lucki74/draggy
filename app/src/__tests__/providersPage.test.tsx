@@ -96,13 +96,30 @@ describe("the Providers page", () => {
     expect(document.body.innerHTML).not.toContain("sk-secret");
   });
 
-  it("pins a model by ticking it", async () => {
+  it("pins a model with its switch, and unpins it again", async () => {
     const api = stubMain({ instances: [instance("openai", { hasKey: true, keyHint: "1234", enabled: true })] });
     page();
     await expand("openai");
-    const box = (await screen.findByText("m-2")).closest("label")!.querySelector("input")!;
-    fireEvent.click(box);
+    const model = await screen.findByRole("switch", { name: "m-2" });
+    expect(model.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(model);
     await waitFor(() => expect(api.update).toHaveBeenCalledWith("openai", { pinnedModels: ["m-2"] }));
+    await waitFor(() => expect(screen.getByRole("switch", { name: "m-2" }).getAttribute("aria-checked")).toBe("true"));
+    expect(api.update).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByText("m-2"));
+    await waitFor(() => expect(api.update).toHaveBeenLastCalledWith("openai", { pinnedModels: [] }));
+    expect(api.update).toHaveBeenCalledTimes(2);
+  });
+
+  it("names a local server's cloud model switch with its Cloud badge", async () => {
+    const api = stubMain({ instances: [instance("ollama", { kind: "local", needsKey: false, enabled: true })] });
+    api.models.mockResolvedValueOnce({
+      success: true,
+      models: [{ id: "big:cloud", ref: "@ollama/big:cloud", capabilities: ["completion"], cloud: true, pinned: false, override: null }],
+    });
+    page();
+    await expand("ollama");
+    expect(await screen.findByRole("switch", { name: `big:cloud ${en("cloudModelBadge")}` })).toBeTruthy();
   });
 
   it("shows the address of a provider that only providers.json knows, and adds it only once confirmed", async () => {
