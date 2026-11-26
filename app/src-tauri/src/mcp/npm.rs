@@ -26,12 +26,19 @@ pub fn resolve_npm(node: &Path, path_var: &OsStr, exe_dir: Option<&Path>) -> Opt
             dirs.push(dir);
         }
     }
+    // Windows keeps npm beside npx; a Unix install keeps it in ../lib/node_modules next to the bin folder.
+    let cli = |dir: &Path| {
+        dir.join("node_modules")
+            .join("npm")
+            .join("bin")
+            .join("npm-cli.js")
+    };
     dirs.iter()
-        .map(|dir| {
-            dir.join("node_modules")
-                .join("npm")
-                .join("bin")
-                .join("npm-cli.js")
+        .flat_map(|dir| {
+            let unix = (!cfg!(windows))
+                .then(|| dir.parent().map(|parent| cli(&parent.join("lib"))))
+                .flatten();
+            std::iter::once(cli(dir)).chain(unix)
         })
         .find(|cli| cli.is_file())
         .map(|cli| NpmProgram {

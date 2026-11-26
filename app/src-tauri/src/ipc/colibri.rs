@@ -24,6 +24,9 @@ pub fn register_all(registry: &mut Registry) {
 
 /// Installs the colibri engine and the Python it needs. Safe to call when it is already there.
 pub async fn install_engine(app: &AppHandle) -> Value {
+    if !cfg!(windows) {
+        return json!({ "success": false, "error": "The colibri engine is only available on Windows for now." });
+    }
     let state = app.state::<AppState>();
     let engines = state.engines.clone();
     let user_data = engines.user_data.clone();

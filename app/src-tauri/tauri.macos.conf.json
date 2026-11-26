@@ -14,11 +14,16 @@
     "resources": {
       "../sandbox/target/release/draggy-sandbox.exe": null
     },
+    "macOS": {
+      "minimumSystemVersion": "14.0"
+    },
     "windows": null
   },
   "plugins": {
     "updater": {
-      "endpoints": []
+      "endpoints": [
+        "https://github.com/Lucki74/draggy/releases/latest/download/latest-macos.json"
+      ]
     }
   }
 }

@@ -123,7 +123,6 @@ fn start_with(app: &AppHandle, first_delay: Duration) {
         });
         return;
     }
-    // TODO(release): plugins.updater.pubkey in tauri.conf.json is a placeholder; set the minisign public key.
     if app.updater().is_err() {
         warn(app, "updater plugin unavailable", None);
         set(app, |s| {

@@ -1,10 +1,10 @@
-//! Which shells a terminal can open and how each one starts. Git for Windows supplies bash and sh; the WSL bash
-//! in System32 is refused because it cannot see the project folder.
+//! Which shells a terminal can open and how each one starts. On Windows, Git for Windows supplies bash and sh and
+//! the WSL bash in System32 is refused because it cannot see the project folder. On macOS and Linux they come from PATH.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-pub const SHELL_IDS: [&str; 5] = ["pwsh", "powershell", "cmd", "bash", "sh"];
+pub const SHELL_IDS: [&str; 6] = ["pwsh", "powershell", "cmd", "bash", "sh", "zsh"];
 const GIT_FOLDERS: [&str; 2] = ["cmd", "bin"];
 
 /// Where programs are looked up: PATH, PATHEXT and the standard Git for Windows roots.
@@ -29,7 +29,8 @@ impl Env {
         .collect();
         Self {
             path: var("PATH").or_else(|| var("Path")).unwrap_or_default(),
-            pathext: var("PATHEXT").unwrap_or_else(|| ".EXE;.CMD;.BAT".to_string()),
+            pathext: var("PATHEXT")
+                .unwrap_or_else(|| if cfg!(windows) { ".EXE;.CMD;.BAT" } else { "" }.to_string()),
             git_roots,
         }
     }
@@ -41,9 +42,11 @@ fn path_dirs(path: &str) -> Vec<PathBuf> {
         .collect()
 }
 
-/// An executable on PATH. The extensions come from PATHEXT unless the name already has one.
+/// An executable on PATH. The extensions come from PATHEXT unless the name already has one; an empty PATHEXT
+/// (macOS and Linux) looks for the bare name.
 pub fn find_on_path(env: &Env, name: &str) -> Option<PathBuf> {
-    let extensions: Vec<String> = if Path::new(name).extension().is_some() {
+    let extensions: Vec<String> = if Path::new(name).extension().is_some() || env.pathext.is_empty()
+    {
         vec![String::new()]
     } else {
         env.pathext
@@ -117,12 +120,21 @@ pub fn find_posix_shell(env: &Env, name: &str) -> Option<PathBuf> {
 pub fn find(env: &Env, name: &str) -> Option<PathBuf> {
     match name {
         "bash" | "sh" => find_posix_shell(env, name),
+        "cmd" if !cfg!(windows) => None,
         _ => find_on_path(env, name),
     }
 }
 
-/// The shells a terminal can open: PowerShell (pwsh when installed), cmd, then the Git shells.
+/// The shells a terminal can open. Windows: PowerShell (pwsh when installed), cmd, then the Git shells.
+/// macOS and Linux: zsh, bash and sh when installed, then pwsh.
 pub fn available(env: &Env) -> Vec<String> {
+    if !cfg!(windows) {
+        return ["zsh", "bash", "sh", "pwsh"]
+            .into_iter()
+            .filter(|name| find(env, name).is_some())
+            .map(str::to_string)
+            .collect();
+    }
     let powershell = if find(env, "pwsh").is_some() {
         "pwsh"
     } else {
@@ -141,6 +153,7 @@ pub fn available(env: &Env) -> Vec<String> {
 pub fn interactive_args(shell: &str) -> Vec<String> {
     match shell {
         "bash" => vec!["--login".into(), "-i".into()],
+        "zsh" => vec!["-l".into(), "-i".into()],
         "sh" => vec!["-i".into()],
         "pwsh" | "powershell" => vec!["-NoLogo".into()],
         _ => Vec::new(),
@@ -177,16 +190,26 @@ pub fn invocation(
         let preferred = default_shell.filter(|name| SHELL_IDS.contains(name));
         let has_bash = find(env, "bash").is_some();
         match preferred {
-            Some(name) if name == "cmd" || find(env, name).is_some() => shell = name,
+            Some(name) if (name == "cmd" && cfg!(windows)) || find(env, name).is_some() => {
+                shell = name
+            }
             _ => {
                 if let Some(name) = preferred {
-                    let fallback = if has_bash { "bash" } else { "PowerShell" };
+                    let fallback = if has_bash {
+                        "bash"
+                    } else if cfg!(windows) {
+                        "PowerShell"
+                    } else {
+                        "sh"
+                    };
                     notice = Some(format!(
                         "{name} is not installed, so commands run in {fallback} instead. Change the default shell in Settings."
                     ));
                 }
                 shell = if has_bash {
                     "bash"
+                } else if !cfg!(windows) {
+                    "sh"
                 } else if find(env, "pwsh").is_some() {
                     "pwsh"
                 } else {
@@ -196,7 +219,12 @@ pub fn invocation(
         }
     }
     // Git's ls, grep and the rest are on PATH too and fail the same way, so the model is steered to cmd's own commands.
-    if sandboxed && shell != "cmd" && !sandbox_shells.iter().any(|name| name == shell) {
+    // Only Windows has the sandbox launcher; elsewhere sandbox::wrap refuses the command whatever the shell.
+    if cfg!(windows)
+        && sandboxed
+        && shell != "cmd"
+        && !sandbox_shells.iter().any(|name| name == shell)
+    {
         let posix = if shell == "bash" || shell == "sh" {
             " Git's Unix tools such as ls and grep do not start there either, so use cmd commands such as dir and findstr."
         } else {
@@ -234,6 +262,7 @@ pub fn invocation(
                 ..base
             }
         }
+        "cmd" if !cfg!(windows) => return Err("cmd is only available on Windows.".into()),
         // cmd writes in the OEM code page, which reads as mangled UTF-8, so the console switches to UTF-8 first.
         "cmd" => Invocation {
             file: comspec(),
@@ -247,10 +276,10 @@ pub fn invocation(
             ..base
         },
         _ => {
-            let mut args: Vec<String> = if shell == "bash" {
-                vec!["--noprofile".into(), "--norc".into()]
-            } else {
-                Vec::new()
+            let mut args: Vec<String> = match shell {
+                "bash" => vec!["--noprofile".into(), "--norc".into()],
+                "zsh" => vec!["-f".into()],
+                _ => Vec::new(),
             };
             args.extend(["-c".to_string(), command.to_string()]);
             Invocation {
@@ -356,6 +385,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
     fn the_default_setting_wins_then_bash_with_a_notice_when_it_is_missing() {
         let dir = tempfile::tempdir().expect("tempdir");
         let env = env_with(&[], vec![fake_git(dir.path())]);
@@ -378,6 +408,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
     fn cmd_gets_the_command_verbatim_and_the_sandbox_forces_it() {
         let env = env_with(&[], vec![]);
         let cmd = invocation(&env, "dir /b", Some("cmd"), None, false, &[]).expect("cmd");
@@ -443,6 +474,36 @@ mod tests {
             Some("0")
         );
         assert_eq!(env.get("TERM").map(String::as_str), Some("xterm-256color"));
+    }
+
+    #[test]
+    fn an_empty_pathext_finds_the_bare_name() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("zsh"), b"").expect("zsh");
+        let env = Env {
+            pathext: String::new(),
+            ..env_with(&[dir.path().to_path_buf()], vec![])
+        };
+        assert_eq!(find_on_path(&env, "zsh"), Some(dir.path().join("zsh")));
+        let run = invocation(&env, "ls", Some("zsh"), None, false, &[]).expect("zsh");
+        assert_eq!(run.args, vec!["-f", "-c", "ls"]);
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn unix_lists_only_installed_shells_and_has_no_cmd() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        for name in ["zsh", "bash"] {
+            std::fs::write(dir.path().join(name), b"").expect(name);
+        }
+        let env = Env {
+            pathext: String::new(),
+            ..env_with(&[dir.path().to_path_buf()], vec![])
+        };
+        assert_eq!(available(&env), vec!["zsh", "bash"]);
+        let picked = invocation(&env, "ls", None, None, true, &[]).expect("bash");
+        assert_eq!(picked.shell, "bash");
+        assert!(invocation(&env, "dir", Some("cmd"), None, false, &[]).is_err());
     }
 
     #[test]

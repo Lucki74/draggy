@@ -6,6 +6,7 @@
   "bundle": {
     "targets": [
       "deb",
+      "rpm",
       "appimage"
     ],
     "icon": [
@@ -18,7 +19,9 @@
   },
   "plugins": {
     "updater": {
-      "endpoints": []
+      "endpoints": [
+        "https://github.com/Lucki74/draggy/releases/latest/download/latest-linux.json"
+      ]
     }
   }
 }
