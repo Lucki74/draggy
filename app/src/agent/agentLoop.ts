@@ -310,7 +310,7 @@ export interface AgentRequest {
   correlationId?: string;
   /** How much this turn may do on its own, and what the user has already allowed. Left out, the
    * turn runs unguarded, which is what a plain chat with no folder of its own has always done. */
-  permission?: { mode: PermissionMode; grants?: Grant[] };
+  permission?: { mode: PermissionMode; grants?: Grant[]; rules?: import("../types").PermissionRule[] };
   /** What the model counted for this very prompt, measured just before, and the wire it was for.
    * The context meter starts from it instead of an estimate. */
   contextBase?: { tokens: number; chars: number } | null;
@@ -920,6 +920,7 @@ async function runTurn(
   let lastSeenPlan: PlanItem[] | null = null;
 
   let grants: Grant[] = [...(request.permission?.grants ?? [])];
+  const rules = request.permission?.rules ?? [];
 
   /** For the statistics page: which tools this turn reached for, and how often. */
   const toolCalls: Record<string, number> = {};
@@ -947,7 +948,7 @@ async function runTurn(
     const verdict =
       typing && isHarmlessInput(args)
         ? ({ decision: "allow", reason: "An answer to a prompt." } as const)
-        : decide({ mode, tool: name, annotations, target, grants, shell });
+        : decide({ mode, tool: name, annotations, target, grants, rules, shell });
     logRendererEvent("agent.permissions", "DEBUG", "verdict", { tool: name, mode, decision: verdict.decision }, correlationId);
     const kind = annotations.executes ? ("command" as const) : undefined;
     // What "always" would remember, shown on the card so the user knows before choosing.

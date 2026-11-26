@@ -1190,6 +1190,18 @@ export type WorkspaceOverrides = Partial<
   >
 >;
 
+/** What a permission rule names: the start of a command, a file or folder, a tool by name, or a website. */
+export type PermissionRuleKind = "command" | "path" | "tool" | "site";
+
+/** A rule the user wrote in settings. Allow skips the question, deny refuses without one. With no
+ * workspace it holds for every project. */
+export interface PermissionRule {
+  effect: "allow" | "deny";
+  kind: PermissionRuleKind;
+  value: string;
+  workspaceId?: string;
+}
+
 /** A tool call the user has already agreed to, kept with its workspace. */
 export interface WorkspaceGrant {
   tool: string;
@@ -1458,6 +1470,8 @@ export interface AppSettings {
   codeWebMode: "on" | "off";
   /** What a new project starts at. */
   codePermissionMode: PermissionMode;
+  /** Allow and deny rules from the Permissions page. */
+  permissionRules: PermissionRule[];
   libraryEnabled: boolean;
   embedModel: string;
   showMetrics: boolean;

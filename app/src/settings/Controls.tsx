@@ -171,12 +171,15 @@ export function Select({
   onChange,
   label,
   placeholder = "–",
+  className = "w-full sm:w-64",
 }: {
   value: string;
   options: SelectOption[];
   onChange: (value: string) => void;
   label: string;
   placeholder?: string;
+  /** The width; settings rows keep the default. */
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -189,7 +192,7 @@ export function Select({
   const selected = listed.find((option) => option.id === value);
 
   return (
-    <div className="relative w-full sm:w-64" ref={boxRef}>
+    <div className={`relative ${className}`} ref={boxRef}>
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}

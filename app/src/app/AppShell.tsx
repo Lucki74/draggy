@@ -33,6 +33,7 @@ import { syncMcpTools } from "../tools/mcp";
 import type { McpServerState } from "../tools/mcp";
 import { useSessions } from "./useSessions";
 import { useAgentRuns } from "./useAgentRuns";
+import { rulesFor } from "../agent/permissionRules";
 import { useUpdateDialog } from "./useUpdateDialog";
 import { ACTIVE_WORKSPACE_KEY, useWorkspaces } from "./useWorkspaces";
 import { useShellLayout } from "./useShellLayout";
@@ -364,7 +365,7 @@ export default function AppShell({
     settings: effectiveSettings,
     environment,
     workspaceId: active.id,
-    permission: { mode: active.permissionMode, grants: active.grants },
+    permission: { mode: active.permissionMode, grants: active.grants, rules: rulesFor(settings.permissionRules, active) },
     onGrant: workspaces.addGrant,
     onFinished: (chatId) => {
       if (chatId === watchingRef.current) return;

@@ -54,6 +54,7 @@ export const defaultSettings: AppSettings = {
   codeDefaultEffort: EFFORT_DEFAULT,
   codeWebMode: "on",
   codePermissionMode: "acceptEdits",
+  permissionRules: [],
   libraryEnabled: true,
   embedModel: "",
   showMetrics: false,
@@ -124,6 +125,10 @@ export function loadSettings(): AppSettings {
       parsed[key] = "on";
       migrated = true;
     }
+  }
+  if ("permissionRules" in parsed && !Array.isArray(parsed.permissionRules)) {
+    parsed.permissionRules = [];
+    migrated = true;
   }
   if (parsed.language && !VALID_LANGUAGES.has(parsed.language)) {
     parsed.language = "en";
