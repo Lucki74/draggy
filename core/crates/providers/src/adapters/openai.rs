@@ -378,6 +378,9 @@ pub fn parse_models(json: &Value) -> Vec<ListedModel> {
                 model.get("context_window"),
                 model.get("max_context_length"),
                 model.pointer("/top_provider/context_length"),
+                // llama.cpp's server and vLLM name the window their own way.
+                model.pointer("/meta/n_ctx"),
+                model.get("max_model_len"),
             ]
             .into_iter()
             .flatten()
