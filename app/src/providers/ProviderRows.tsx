@@ -546,38 +546,45 @@ function ModelList({
           />
         </label>
       )}
-      <ul className="flex flex-col max-h-72 overflow-y-auto">
-        {shown.map((model) => (
-          <li key={model.id} className="flex flex-wrap items-center gap-2 py-1.5">
-            <label className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer">
-              <Toggle checked={model.pinned} onChange={(on) => pin(model.id, on)} label={model.id} />
-              <span className="text-sm font-medium truncate" dir="ltr">
-                {model.id}
-              </span>
-              {instance.kind === "local" && model.cloud && <Badge title={t("cloudModelHint")}>{t("cloudModelBadge")}</Badge>}
-            </label>
-            <div className="flex items-center gap-1">
-              {CAPABILITIES.map(({ flag, label }) => {
-                const on = model.capabilities.includes(flag);
-                return (
-                  <button
-                    key={flag}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => override(model, flag)}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-medium border transition-colors ${
-                      on
-                        ? "bg-action-bg text-action-fg border-transparent"
-                        : "text-text-secondary border-rule-strong hover:text-text-primary"
-                    }`}
-                  >
-                    {t(label)}
-                  </button>
-                );
-              })}
-            </div>
-          </li>
-        ))}
+      <ul className="-mx-1 flex flex-col max-h-72 overflow-y-auto px-1">
+        {shown.map((model) => {
+          const cloud = instance.kind === "local" && model.cloud;
+          return (
+            <li key={model.id} className="flex flex-wrap items-center gap-2 py-1.5">
+              <label className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer">
+                <Toggle
+                  checked={model.pinned}
+                  onChange={(on) => pin(model.id, on)}
+                  label={cloud ? `${model.id} ${t("cloudModelBadge")}` : model.id}
+                />
+                <span className="text-sm font-medium truncate" dir="ltr">
+                  {model.id}
+                </span>
+                {cloud && <Badge title={t("cloudModelHint")}>{t("cloudModelBadge")}</Badge>}
+              </label>
+              <div className="flex items-center gap-1">
+                {CAPABILITIES.map(({ flag, label }) => {
+                  const on = model.capabilities.includes(flag);
+                  return (
+                    <button
+                      key={flag}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => override(model, flag)}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-medium border transition-colors ${
+                        on
+                          ? "bg-action-bg text-action-fg border-transparent"
+                          : "text-text-secondary border-rule-strong hover:text-text-primary"
+                      }`}
+                    >
+                      {t(label)}
+                    </button>
+                  );
+                })}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
