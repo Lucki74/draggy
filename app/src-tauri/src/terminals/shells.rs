@@ -13,6 +13,8 @@ pub struct Env {
     pub path: String,
     pub pathext: String,
     pub git_roots: Vec<PathBuf>,
+    /// The user's login shell from `$SHELL`, which macOS and Linux terminals open by default.
+    pub login_shell: Option<String>,
 }
 
 impl Env {
@@ -32,8 +34,19 @@ impl Env {
             pathext: var("PATHEXT")
                 .unwrap_or_else(|| if cfg!(windows) { ".EXE;.CMD;.BAT" } else { "" }.to_string()),
             git_roots,
+            login_shell: if cfg!(windows) {
+                None
+            } else {
+                var("SHELL").and_then(|shell| login_shell_id(&shell))
+            },
         }
     }
+}
+
+/// The shell id for a `$SHELL` path such as `/bin/zsh`, when it is one Draggy knows.
+fn login_shell_id(path: &str) -> Option<String> {
+    let name = path.rsplit('/').next()?;
+    SHELL_IDS.contains(&name).then(|| name.to_owned())
 }
 
 fn path_dirs(path: &str) -> Vec<PathBuf> {
@@ -187,7 +200,14 @@ pub fn invocation(
         .unwrap_or("default");
     let mut notice = None;
     if shell == "default" {
-        let preferred = default_shell.filter(|name| SHELL_IDS.contains(name));
+        // With no default set, the login shell comes first, as a terminal app opens it.
+        let preferred = default_shell
+            .filter(|name| SHELL_IDS.contains(name))
+            .or_else(|| {
+                env.login_shell
+                    .as_deref()
+                    .filter(|name| find(env, name).is_some())
+            });
         let has_bash = find(env, "bash").is_some();
         match preferred {
             Some(name) if (name == "cmd" && cfg!(windows)) || find(env, name).is_some() => {
@@ -341,6 +361,7 @@ mod tests {
             path: joined,
             pathext: ".EXE;.CMD".into(),
             git_roots,
+            login_shell: None,
         }
     }
 

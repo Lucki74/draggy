@@ -5,7 +5,7 @@ import { versionLabel } from "../app/buildLabel";
 import ExtensionsPanel from "../extensions/ExtensionsPanel";
 import { languages } from "../translations";
 import { researchDepthOptions, researchKeepOptions, searchProviderOptions } from "./pages";
-import type { AppSettings, Language, SearchProvider, StorageStats } from "../types";
+import type { AppSettings, Language, SearchProvider, StorageStats, UpdaterState } from "../types";
 import { swallowed } from "../logger";
 
 type Translate = (key: string) => string;
@@ -21,13 +21,32 @@ interface SettingsProps {
 export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
   const [confirmSetup, setConfirmSetup] = useState(false);
   const [info, setInfo] = useState<{ version: string; packaged: boolean } | null>(null);
+  const [shells, setShells] = useState<string[]>([]);
+  const [update, setUpdate] = useState<UpdaterState | null>(null);
+  const [asked, setAsked] = useState(false);
 
   useEffect(() => {
     window.draggy
       ?.appInfo()
       .then((result) => setInfo({ version: result.version, packaged: result.packaged }))
       .catch(swallowed("settings", "the main process already logged this call"));
+    window.draggy?.shell
+      ?.list()
+      .then((result) => setShells(result?.shells ?? []))
+      .catch(swallowed("settings", "the main process already logged this call"));
+    const updater = window.draggy?.updater;
+    if (!updater) return;
+    updater.state().then(setUpdate).catch(swallowed("settings", "the main process already logged this call"));
+    return updater.onState(setUpdate);
   }, []);
+
+  const checkUpdates = () => {
+    setAsked(true);
+    window.draggy?.updater
+      ?.check()
+      .then(setUpdate)
+      .catch(swallowed("settings", "the main process already logged this call"));
+  };
 
   return (
     <Page title={t("settingsGeneral")}>
@@ -87,7 +106,30 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
             )}
           </p>
         </Row>
+        {update && (
+          <Row label={t("checkUpdates")} description={asked ? updateLine(update, t) : undefined}>
+            <Button onClick={checkUpdates} disabled={!updateCheckable(update)}>
+              {t("checkUpdatesButton")}
+            </Button>
+          </Row>
+        )}
       </Group>
+
+      {shells.length > 0 && (
+        <Group>
+          <Row label={t("defaultShell")} description={t("defaultShellHint")}>
+            <Select
+              label={t("defaultShell")}
+              value={settings.defaultShell ?? ""}
+              options={[
+                { id: "", label: t("shellAutomatic") },
+                ...shells.map((id) => ({ id, label: shellLabel(id) })),
+              ]}
+              onChange={(defaultShell) => onUpdate({ defaultShell })}
+            />
+          </Row>
+        </Group>
+      )}
 
       <Group>
         <Row label={t("onbRunAgain")} description={t("onbRunAgainHint")}>
@@ -111,6 +153,39 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
       )}
     </Page>
   );
+}
+
+/** Whether the Settings button may start a check: not while one runs or an update is on its way in. */
+function updateCheckable(state: UpdaterState): boolean {
+  return !["disabled", "checking", "downloading", "ready", "installing"].includes(state.status);
+}
+
+/** What the last check on request found. */
+function updateLine(state: UpdaterState, t: Translate): string | undefined {
+  switch (state.status) {
+    case "checking":
+      return t("updateChecking");
+    case "current":
+      return t("updateCurrent");
+    case "available":
+    case "downloading":
+    case "ready":
+      return t("updateAvailableVersion").replace("{version}", state.version ?? "");
+    case "error":
+      return t("updateCheckFailed");
+    case "disabled":
+      return t("updatesDisabled");
+    default:
+      return undefined;
+  }
+}
+
+/** A shell's name as a terminal tab shows it. */
+function shellLabel(id: string): string {
+  if (id === "pwsh") return "PowerShell 7";
+  if (id === "powershell") return "Windows PowerShell";
+  if (id === "cmd") return "CMD";
+  return id[0].toUpperCase() + id.slice(1);
 }
 
 export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
