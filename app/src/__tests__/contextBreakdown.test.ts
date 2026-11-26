@@ -147,7 +147,7 @@ describe("the window as the user sees it", () => {
 
 describe("where the conversation gets folded", () => {
   it("is a share of how far the window can grow when left to Draggy", () => {
-    expect(compactThreshold(128_000, null)).toEqual({ tokens: 76_800, source: "auto" });
+    expect(compactThreshold(128_000, null)).toEqual({ tokens: 89_600, source: "auto" });
   });
 
   it("is the user's limit when they set one", () => {
@@ -156,9 +156,9 @@ describe("where the conversation gets folded", () => {
 
   it("is capped for a paid provider, whose every token sent is billed, unless the user set a limit", () => {
     expect(compactThreshold(400_000, null, true)).toEqual({ tokens: PAID_COMPACT_CAP, source: "paid" });
-    expect(compactThreshold(32_000, null, true)).toEqual({ tokens: 19_200, source: "auto" });
+    expect(compactThreshold(32_000, null, true)).toEqual({ tokens: 22_400, source: "auto" });
     expect(compactThreshold(400_000, 200_000, true)).toEqual({ tokens: 200_000, source: "limit" });
-    expect(compactThreshold(400_000, null)).toEqual({ tokens: 240_000, source: "auto" });
+    expect(compactThreshold(400_000, null)).toEqual({ tokens: 280_000, source: "auto" });
   });
 
   it("caps a limit that would leave no room for the reply", () => {
@@ -187,7 +187,7 @@ describe("where the conversation gets folded", () => {
       limitTokens: null,
     });
 
-    expect(view.compactAtTokens).toBe(121_800);
+    expect(view.compactAtTokens).toBe(142_100);
   });
 });
 

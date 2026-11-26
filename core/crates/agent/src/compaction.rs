@@ -11,7 +11,7 @@ use crate::task_manager::{Attachment, Message};
 pub const CHARS_PER_TOKEN: i64 = 4;
 
 /// How full the window may get before folding.
-pub const COMPACT_AT: f64 = 0.6;
+pub const COMPACT_AT: f64 = 0.7;
 
 /// Messages kept verbatim at the end, about three turns.
 pub const KEEP_RECENT_MESSAGES: usize = 6;

@@ -13,7 +13,7 @@ export const CHARS_PER_TOKEN = 4;
 
 /** How full the window may get before folding. Higher and the reply stops fitting; lower and the
  * folds cost more than they save. */
-export const COMPACT_AT = 0.6;
+export const COMPACT_AT = 0.7;
 
 /** Messages kept verbatim at the end, about three turns. Recency is what "it" and "the second one"
  * refer to, and a summary is the wrong shape for that. */

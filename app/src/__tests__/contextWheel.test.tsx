@@ -164,7 +164,7 @@ describe("the breakdown", () => {
     render(<ContextWheel view={view()} t={t} />);
     open();
 
-    expect(screen.getByText("Compacts automatically at 122k tokens")).toBeTruthy();
+    expect(screen.getByText("Compacts automatically at 142k tokens")).toBeTruthy();
   });
 
   it("says so when the point is the user's own limit", () => {
@@ -245,7 +245,7 @@ describe("the breakdown", () => {
     render(<ContextWheel view={localView} t={t} />);
     open();
 
-    expect(screen.getByText(/78\.6k/)).toBeTruthy();
+    expect(screen.getByText(/91\.8k/)).toBeTruthy();
   });
 });
 

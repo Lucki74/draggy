@@ -32,7 +32,7 @@ La quantité de texte, comptée en jetons, qu'un modèle peut contenir à la foi
 
 ### Compactage {#compaction}
 
-Replier la partie ancienne d'une longue conversation dans un résumé, pour que la conversation puisse continuer. Cela se produit à la limite de compactage : 60 % de la fenêtre de contexte par défaut, et au plus 64 000 jetons pour les modèles cloud payants, sauf si vous définissez une limite. Voir [Chat et Code](doc:chat-and-code#long-conversations).
+Replier la partie ancienne d'une longue conversation dans un résumé, pour que la conversation puisse continuer. Cela se produit à la limite de compactage : 70 % de la fenêtre de contexte par défaut, et au plus 64 000 jetons pour les modèles cloud payants, sauf si vous définissez une limite. Voir [Chat et Code](doc:chat-and-code#long-conversations).
 
 ### Serveur MCP {#mcp-server}
 
