@@ -22,7 +22,7 @@ interface AgentRunsInput {
   settings: AppSettings;
   environment: ToolEnvironment;
   workspaceId: string;
-  permission: { mode: PermissionMode; grants: Grant[] };
+  permission: { mode: PermissionMode; grants: Grant[]; rules?: import("../types").PermissionRule[] };
   /** Keeps a permission for the workspace, past the task that asked for it. */
   onGrant: (grant: Grant) => void;
   /** A turn that finished on its own, so the window can say so. */
