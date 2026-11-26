@@ -1,12 +1,13 @@
-//! Writes a PDF from Markdown or HTML. WebView2 lays the document out and prints it in a hidden window
-//! with no capabilities and scripts switched off. The Markdown converter is a line walk.
-// Off Windows only the tests reach the printing code.
+//! Writes a PDF from Markdown or HTML. The webview lays the document out in a hidden window with no
+//! capabilities and scripts switched off: WebView2 prints it, WKWebView captures it. The Markdown
+//! converter is a line walk.
+// Off Windows only the tests reach the CDP printing code.
 #![cfg_attr(not(windows), allow(dead_code))]
 
 use std::fs;
 use std::path::Path;
 use std::sync::LazyLock;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
@@ -15,7 +16,7 @@ use base64::engine::general_purpose::STANDARD;
 use regex::{Captures, Regex};
 use serde_json::{Value, json};
 use tauri::AppHandle;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 use tauri::{Manager, Url, WebviewUrl, WebviewWindowBuilder};
 
 use crate::browser::cdp::Cdp;
@@ -31,7 +32,7 @@ const PAPER_HEIGHT: f64 = 11.69;
 
 const FOOTER_TEMPLATE: &str = r##"<div style="width:100%; font-family:sans-serif; font-size:8px; color:#888; text-align:center; margin:0 12mm;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>"##;
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 static WINDOWS: AtomicU64 = AtomicU64::new(0);
 
 const PRINT_STYLES: &str = r##"
@@ -450,7 +451,7 @@ pub async fn write_pdf(app: &AppHandle, path: &Path, content: &str) -> Result<()
 }
 
 /// Prints `html` in a hidden window. The window is destroyed whether or not printing works.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 async fn print_in_window(app: &AppHandle, html: &str) -> Result<Vec<u8>, String> {
     let label = format!("pdf-writer-{}", WINDOWS.fetch_add(1, Ordering::Relaxed));
     let blank = Url::parse("about:blank").map_err(|error| error.to_string())?;
@@ -463,17 +464,100 @@ async fn print_in_window(app: &AppHandle, html: &str) -> Result<Vec<u8>, String>
         .map_err(|error| error.to_string())?;
 
     let printed = match app.get_webview(&label) {
+        #[cfg(windows)]
         Some(webview) => print(&WebView2Cdp::new(webview), html).await,
+        #[cfg(target_os = "macos")]
+        Some(webview) => webkit::print(&webview, html).await,
         None => Err("the print window is not available".to_owned()),
     };
     let _ = window.destroy();
     printed
 }
 
-/// Printing goes through WebView2's DevTools Protocol, which WKWebView does not have.
-#[cfg(not(windows))]
+/// WebKitGTK has no PDF capture the app can reach yet.
+#[cfg(not(any(windows, target_os = "macos")))]
 async fn print_in_window(_app: &AppHandle, _html: &str) -> Result<Vec<u8>, String> {
-    Err("Exporting a PDF is not available on macOS yet.".to_owned())
+    Err("Exporting a PDF is not available on Linux yet.".to_owned())
+}
+
+/// WKWebView has no DevTools Protocol, so the page is loaded and captured through WebKit itself.
+#[cfg(target_os = "macos")]
+mod webkit {
+    use std::cell::Cell;
+    use std::time::{Duration, Instant};
+
+    use block2::RcBlock;
+    use objc2_foundation::{NSData, NSError, NSString};
+    use objc2_web_kit::WKWebView;
+    use tauri::Webview;
+    use tokio::sync::oneshot;
+
+    use super::PRINT_TIMEOUT;
+
+    const LAYOUT: &str = "The document took too long to lay out.";
+    const PRINTING: &str = "The document took too long to print.";
+
+    /// Runs `job` on the main thread against the window's WKWebView and waits for its answer.
+    async fn on_view<T: Send + 'static>(
+        webview: &Webview,
+        job: impl FnOnce(&WKWebView) -> T + Send + 'static,
+    ) -> Result<T, String> {
+        let (tx, rx) = oneshot::channel();
+        webview
+            .with_webview(move |platform| {
+                // SAFETY: on macOS the platform webview is a live WKWebView, used on the main thread.
+                let view = unsafe { &*(platform.inner() as *const WKWebView) };
+                let _ = tx.send(job(view));
+            })
+            .map_err(|error| error.to_string())?;
+        rx.await.map_err(|_| "the print window closed".to_owned())
+    }
+
+    pub async fn print(webview: &Webview, html: &str) -> Result<Vec<u8>, String> {
+        let html = html.to_owned();
+        on_view(webview, move |view| {
+            // SAFETY: plain WebKit calls with owned arguments.
+            unsafe { view.loadHTMLString_baseURL(&NSString::from_str(&html), None) };
+        })
+        .await?;
+
+        let deadline = Instant::now() + PRINT_TIMEOUT;
+        loop {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            // SAFETY: a read-only property.
+            if !on_view(webview, |view| unsafe { view.isLoading() }).await? {
+                break;
+            }
+            if Instant::now() > deadline {
+                return Err(LAYOUT.to_owned());
+            }
+        }
+
+        let (tx, rx) = oneshot::channel::<Result<Vec<u8>, String>>();
+        on_view(webview, move |view| {
+            let tx = Cell::new(Some(tx));
+            let done = RcBlock::new(move |data: *mut NSData, error: *mut NSError| {
+                let Some(tx) = tx.take() else { return };
+                // SAFETY: WebKit hands over either valid data or a valid error.
+                let result = match unsafe { data.as_ref() } {
+                    Some(data) => Ok(data.to_vec()),
+                    None => Err(unsafe { error.as_ref() }
+                        .map(|error| error.localizedDescription().to_string())
+                        .unwrap_or_else(|| "WebKit made no PDF.".to_owned())),
+                };
+                let _ = tx.send(result);
+            });
+            // SAFETY: no configuration captures the whole page; WebKit keeps the block until it runs.
+            unsafe { view.createPDFWithConfiguration_completionHandler(None, &done) };
+        })
+        .await?;
+
+        match tokio::time::timeout(PRINT_TIMEOUT, rx).await {
+            Ok(Ok(result)) => result,
+            Ok(Err(_)) => Err("the print window closed".to_owned()),
+            Err(_) => Err(PRINTING.to_owned()),
+        }
+    }
 }
 
 /// Sends one command, failing with `message` if the page does not answer in time.

@@ -1,6 +1,7 @@
-//! Provider keys and other secrets at rest on Windows.
-//! Reads and writes Electron's `secrets.bin` in the same `v10` AES-GCM layout and key location, so an
-//! Electron rollback still reads what this wrote.
+//! Provider keys and other secrets at rest.
+//! Reads and writes Electron's `secrets.bin` in the same `v10` AES-GCM layout. On Windows the key sits in
+//! `Local State` under DPAPI, so an Electron rollback still reads what this wrote. On macOS and Linux it
+//! comes from `secrets.key` and the machine id (see `key_file`), with no system keystore needed.
 
 #[cfg(windows)]
 mod dpapi;
@@ -47,15 +48,34 @@ impl Keystore {
         Ok(Self { store })
     }
 
-    /// No keystore off Windows yet, so callers fall back to keeping keys for this run only.
+    /// Opens the store in `user_data` under the key from `secrets.key` and this machine's id.
     #[cfg(not(windows))]
     pub fn open(
-        _user_data: &Path,
-        _register: impl Fn(&str) + Send + Sync + 'static,
+        user_data: &Path,
+        register: impl Fn(&str) + Send + Sync + 'static,
     ) -> Result<Self, KeystoreError> {
-        Err(KeystoreError(
-            "Saving keys is not available on macOS yet".to_owned(),
-        ))
+        let key = crate::key_file::load_or_create(user_data).map_err(KeystoreError)?;
+        Ok(Self::with_key(user_data, key, register))
+    }
+
+    /// Opens the store under the `secrets.key` key for the machine named `machine`.
+    #[cfg_attr(not(test), allow(dead_code))]
+    fn open_keyed(
+        user_data: &Path,
+        machine: &str,
+        register: impl Fn(&str) + Send + Sync + 'static,
+    ) -> Result<Self, KeystoreError> {
+        let key = crate::key_file::load_or_create_for(user_data, machine).map_err(KeystoreError)?;
+        Ok(Self::with_key(user_data, key, register))
+    }
+
+    fn with_key(
+        user_data: &Path,
+        key: zeroize::Zeroizing<[u8; 32]>,
+        register: impl Fn(&str) + Send + Sync + 'static,
+    ) -> Self {
+        let store = SecretStore::new(user_data, WindowsVault::new(key)).with_registrar(register);
+        Self { store }
     }
 
     pub fn available(&self) -> bool {
@@ -266,19 +286,34 @@ mod tests {
     }
 }
 
-#[cfg(all(test, not(windows)))]
-mod tests {
+#[cfg(test)]
+mod file_key_tests {
     use super::*;
 
     #[test]
-    fn refuses_to_open_and_writes_nothing() {
+    fn keeps_keys_across_a_restart_without_a_system_keystore() {
         let dir = tempfile::tempdir().expect("tempdir");
+        {
+            let mut store = Keystore::open_keyed(dir.path(), "mac-1", |_: &str| {}).expect("open");
+            store.set("openai", "apiKey", "sk-test-value").expect("set");
+        }
+        let mut store = Keystore::open_keyed(dir.path(), "mac-1", |_: &str| {}).expect("reopen");
+        assert_eq!(
+            store.get("openai", "apiKey").as_deref(),
+            Some("sk-test-value")
+        );
+        let raw = std::fs::read(dir.path().join("secrets.bin")).expect("file");
+        assert!(!String::from_utf8_lossy(&raw).contains("sk-test-value"));
+    }
 
-        let error = Keystore::open(dir.path(), |_: &str| {})
-            .err()
-            .expect("no keystore off Windows");
-
-        assert!(error.to_string().contains("not available on macOS"));
-        assert_eq!(std::fs::read_dir(dir.path()).expect("dir").count(), 0);
+    #[test]
+    fn another_machine_cannot_read_the_keys() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        {
+            let mut store = Keystore::open_keyed(dir.path(), "mac-1", |_: &str| {}).expect("open");
+            store.set("openai", "apiKey", "sk-test-value").expect("set");
+        }
+        let mut store = Keystore::open_keyed(dir.path(), "mac-2", |_: &str| {}).expect("reopen");
+        assert_eq!(store.get("openai", "apiKey"), None);
     }
 }

@@ -1,4 +1,5 @@
-//! Finds the npm that installs MCP servers: beside the app, then in each PATH folder that holds npx.
+//! Finds the npm that installs MCP servers: the copy bundled with node, beside the app, then in each PATH
+//! folder that holds npx.
 //! The npm script runs under the node program, so no shell shim is ever started.
 
 use std::ffi::OsStr;
@@ -9,7 +10,19 @@ use draggy_mcp::provision::NpmProgram;
 const NPX_NAMES: [&str; 3] = ["npx.cmd", "npx.exe", "npx"];
 
 /// The npm CLI script for the first candidate folder that has one, run by `node`. None when npm is missing.
-pub fn resolve_npm(node: &Path, path_var: &OsStr, exe_dir: Option<&Path>) -> Option<NpmProgram> {
+pub fn resolve_npm(
+    node: &Path,
+    bundled: Option<&Path>,
+    path_var: &OsStr,
+    exe_dir: Option<&Path>,
+) -> Option<NpmProgram> {
+    let program = |cli: &Path| NpmProgram {
+        file: node.to_string_lossy().into_owned(),
+        prefix_args: vec![cli.to_string_lossy().into_owned()],
+    };
+    if let Some(cli) = bundled.filter(|cli| cli.is_file()) {
+        return Some(program(cli));
+    }
     let mut dirs: Vec<PathBuf> = exe_dir.map(Path::to_path_buf).into_iter().collect();
     for dir in std::env::split_paths(path_var) {
         if dir.as_os_str().is_empty() {
@@ -41,10 +54,16 @@ pub fn resolve_npm(node: &Path, path_var: &OsStr, exe_dir: Option<&Path>) -> Opt
             std::iter::once(cli(dir)).chain(unix)
         })
         .find(|cli| cli.is_file())
-        .map(|cli| NpmProgram {
-            file: node.to_string_lossy().into_owned(),
-            prefix_args: vec![cli.to_string_lossy().into_owned()],
-        })
+        .map(|cli| program(&cli))
+}
+
+/// Where the release bundles npm: `node/npm` in the app's resources (stage-sidecars-mac.sh and -linux.sh).
+pub fn bundled_cli(resource_dir: &Path) -> PathBuf {
+    resource_dir
+        .join("node")
+        .join("npm")
+        .join("bin")
+        .join("npm-cli.js")
 }
 
 #[cfg(test)]
@@ -64,6 +83,18 @@ mod tests {
     }
 
     #[test]
+    fn the_bundled_npm_comes_first() {
+        let resources = scratch("resources");
+        let cli = bundled_cli(&resources);
+        std::fs::create_dir_all(cli.parent().expect("bin")).expect("dirs");
+        std::fs::write(&cli, "").expect("cli");
+        let found = resolve_npm(Path::new("node"), Some(&cli), OsStr::new(""), None).expect("npm");
+        assert_eq!(found.prefix_args, vec![cli.to_string_lossy().into_owned()]);
+        let gone = resources.join("nothing.js");
+        assert!(resolve_npm(Path::new("node"), Some(&gone), OsStr::new(""), None).is_none());
+    }
+
+    #[test]
     fn npm_beside_the_app_wins_over_path() {
         let app = scratch("app");
         let node_root = scratch("node");
@@ -71,7 +102,7 @@ mod tests {
         npm_in(&node_root);
         std::fs::write(node_root.join(NPX_NAMES[2]), "").expect("npx");
         let path = std::env::join_paths([node_root.clone()]).expect("path");
-        let found = resolve_npm(Path::new("node.exe"), &path, Some(&app)).expect("npm");
+        let found = resolve_npm(Path::new("node.exe"), None, &path, Some(&app)).expect("npm");
         assert_eq!(found.file, "node.exe");
         assert!(found.prefix_args[0].starts_with(&*app.to_string_lossy()));
     }
@@ -84,7 +115,7 @@ mod tests {
         std::fs::write(node_root.join(NPX_NAMES[2]), "").expect("npx");
         npm_in(&bare);
         let path = std::env::join_paths([bare.clone(), node_root.clone()]).expect("path");
-        let found = resolve_npm(Path::new("node.exe"), &path, None).expect("npm");
+        let found = resolve_npm(Path::new("node.exe"), None, &path, None).expect("npm");
         assert!(found.prefix_args[0].starts_with(&*node_root.to_string_lossy()));
     }
 
@@ -93,6 +124,6 @@ mod tests {
         let bare = scratch("none");
         npm_in(&bare);
         let path = std::env::join_paths([bare.clone()]).expect("path");
-        assert!(resolve_npm(Path::new("node.exe"), &path, None).is_none());
+        assert!(resolve_npm(Path::new("node.exe"), None, &path, None).is_none());
     }
 }

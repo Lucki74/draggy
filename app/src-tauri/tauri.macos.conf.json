@@ -11,8 +11,14 @@
       "icons/icon.png",
       "icons/icon.icns"
     ],
+    "externalBin": [
+      "binaries/ffmpeg",
+      "binaries/ffprobe"
+    ],
     "resources": {
-      "../sandbox/target/release/draggy-sandbox.exe": null
+      "../sandbox/target/release/draggy-sandbox.exe": null,
+      "binaries/node-res/node": "node/node",
+      "binaries/npm/": "node/npm/"
     },
     "macOS": {
       "minimumSystemVersion": "14.0"

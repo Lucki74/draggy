@@ -9,7 +9,7 @@ const REFRESH_MS = 30_000;
 const SETTLE_MS = 400;
 
 /** Git status kept current: on open, on any file change in the workspace, on window focus (a
- * terminal commit), and every half minute otherwise. */
+ * terminal commit), and every half minute otherwise, inside a repository. */
 export function useGitStatus(workspaceId: string, root: string | null): GitStatus | null {
   const [state, setState] = useState<{ key: string; status: GitStatus } | null>(null);
   const key = `${workspaceId}:${root ?? ""}`;
@@ -20,12 +20,21 @@ export function useGitStatus(workspaceId: string, root: string | null): GitStatu
 
     let current = true;
     let pending: ReturnType<typeof setTimeout> | undefined;
+    let interval: ReturnType<typeof setInterval> | undefined;
 
     const refresh = () => {
       api
         .status(workspaceId)
         .then((status) => {
-          if (current) setState({ key, status });
+          if (!current) return;
+          setState({ key, status });
+          // Outside a repository the timer only asks again for the same no; a file change or focus still checks.
+          if (!status.isRepo) {
+            clearInterval(interval);
+            interval = undefined;
+          } else if (interval === undefined) {
+            interval = setInterval(refresh, REFRESH_MS);
+          }
         })
         .catch(swallowed("project", "the main process already logged this call"));
     };
@@ -42,7 +51,7 @@ export function useGitStatus(workspaceId: string, root: string | null): GitStatu
     });
 
     window.addEventListener("focus", soon);
-    const interval = setInterval(refresh, REFRESH_MS);
+    interval = setInterval(refresh, REFRESH_MS);
 
     return () => {
       current = false;

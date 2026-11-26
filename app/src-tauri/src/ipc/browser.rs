@@ -360,6 +360,19 @@ fn create_tab(app: &AppHandle, panes: &Panes) -> Result<Webview, String> {
             tauri::async_runtime::spawn(async move { open_link(&app, url).await });
             NewWindowResponse::Deny
         });
+    // With no CDP events to watch, the bar follows the page through its load events.
+    #[cfg(not(windows))]
+    let builder = {
+        let watcher = app.clone();
+        builder.on_page_load(move |webview, payload| {
+            let loading = matches!(payload.event(), tauri::webview::PageLoadEvent::Started);
+            emit_bar_state(
+                &watcher,
+                &webview,
+                bar_state(payload.url().as_str(), loading, None),
+            );
+        })
+    };
     let webview = window
         .add_child(
             builder,
@@ -604,9 +617,14 @@ async fn load(webview: &Webview, url: &Url) -> Value {
     pages::navigate(&cdp, url.as_str(), NAVIGATE_PACE).await
 }
 
+/// WKWebView and WebKitGTK have no CDP, so the pane loads the address directly and the page-load
+/// handler set in `create_tab` reports back to the bar.
 #[cfg(not(windows))]
-async fn load(_webview: &Webview, _url: &Url) -> Value {
-    pages::failure("pane_unavailable", None)
+async fn load(webview: &Webview, url: &Url) -> Value {
+    match webview.navigate(url.clone()) {
+        Ok(()) => json!({ "ok": true, "title": "", "url": url.as_str() }),
+        Err(error) => pages::failure("navigation_failed", Some(&error.to_string())),
+    }
 }
 
 #[cfg(windows)]
@@ -615,8 +633,28 @@ async fn step(webview: &Webview, action: &str) -> Value {
 }
 
 #[cfg(not(windows))]
-async fn step(_webview: &Webview, _action: &str) -> Value {
-    pages::failure("pane_unavailable", None)
+async fn step(webview: &Webview, action: &str) -> Value {
+    let Some(script) = history_script(action) else {
+        return pages::failure(
+            "invalid_input",
+            Some("The history action is back, forward or reload."),
+        );
+    };
+    match webview.eval(script) {
+        Ok(()) => json!({ "ok": true }),
+        Err(error) => pages::failure("navigation_failed", Some(&error.to_string())),
+    }
+}
+
+/// The page script for a history step where there is no CDP to ask.
+#[cfg(any(not(windows), test))]
+fn history_script(action: &str) -> Option<&'static str> {
+    match action {
+        "back" => Some("history.back()"),
+        "forward" => Some("history.forward()"),
+        "reload" => Some("location.reload()"),
+        _ => None,
+    }
 }
 
 #[cfg(windows)]
@@ -1864,6 +1902,10 @@ async fn broadcast_bar_state(app: &AppHandle) {
 /// Pushes one page's state to the bar that belongs to it: the main window's bar, or a popout's.
 async fn broadcast_state(app: &AppHandle, webview: &Webview) {
     let Some(cdp) = cdp_of(webview) else {
+        // No CDP: the address the pane is on, and the page-load handler fills in the rest.
+        if let Ok(url) = webview.url() {
+            emit_bar_state(app, webview, bar_state(url.as_str(), false, None));
+        }
         return;
     };
     let script = "({ url: location.href, title: document.title || '', loading: document.readyState !== 'complete' })";
@@ -1885,6 +1927,7 @@ async fn emit_load_state(
     error: Option<&str>,
 ) {
     let Some(cdp) = cdp_of(webview) else {
+        emit_bar_state(app, webview, bar_state(url, loading, error));
         return;
     };
     let state = json!({
@@ -1897,6 +1940,19 @@ async fn emit_load_state(
         "adblock": crate::browser::adblock::enabled(),
     });
     emit_bar_state(app, webview, state);
+}
+
+/// The bar's state where no CDP can say more. Back and forward stay on, as the page's history is unknown.
+fn bar_state(url: &str, loading: bool, error: Option<&str>) -> Value {
+    json!({
+        "url": url,
+        "title": "",
+        "loading": loading,
+        "error": error,
+        "canGoBack": true,
+        "canGoForward": true,
+        "adblock": crate::browser::adblock::enabled(),
+    })
 }
 
 fn emit_bar_state(app: &AppHandle, webview: &Webview, state: Value) {
@@ -2105,6 +2161,13 @@ mod tests {
         assert!(answer_consent(&panes, "consent-1", "bogus"));
         assert_eq!(rx.try_recv().ok().as_deref(), Some(DENY));
         assert!(!answer_consent(&panes, "consent-1", "always"));
+    }
+
+    #[test]
+    fn history_steps_map_to_page_scripts() {
+        assert_eq!(history_script("back"), Some("history.back()"));
+        assert_eq!(history_script("reload"), Some("location.reload()"));
+        assert_eq!(history_script("sideways"), None);
     }
 
     #[tokio::test]

@@ -1,4 +1,4 @@
-//! Updater channels: the state stream and the install trigger.
+//! Updater channels: the state stream, the check on request and the install trigger.
 //! Checks run at launch and every six hours; a download starts only when the user asks to install.
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -24,6 +24,7 @@ const INSTALL_FAILED: &str = "Update install failed.";
 
 pub fn register_all(registry: &mut Registry) {
     register!(registry, "updater:state" => state);
+    register!(registry, "updater:check" => check_now);
     register!(registry, "updater:install" => install);
 }
 
@@ -69,6 +70,28 @@ enum Plan {
 
 async fn state(_app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
     Ok(json!(snapshot()))
+}
+
+/// The Settings button's check. Leaves a download or a ready install alone, and reports a failure the
+/// background check would keep quiet.
+async fn check_now(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
+    let now = snapshot();
+    if !checkable(now.status) {
+        return Ok(json!(now));
+    }
+    check(&app).await;
+    if snapshot().status == "checking" {
+        set(&app, |s| {
+            s.status = "error";
+            s.error = Some(CHECK_FAILED.to_owned());
+        });
+    }
+    Ok(json!(snapshot()))
+}
+
+/// Whether a check on request may run from this status.
+fn checkable(status: &str) -> bool {
+    !matches!(status, "disabled" | "checking" | "downloading" | "ready")
 }
 
 async fn install(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
@@ -363,6 +386,16 @@ fn percent_of(downloaded: u64, total: Option<u64>) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_check_on_request_leaves_downloads_and_dev_builds_alone() {
+        for status in ["idle", "current", "available", "error"] {
+            assert!(checkable(status), "{status}");
+        }
+        for status in ["disabled", "checking", "downloading", "ready"] {
+            assert!(!checkable(status), "{status}");
+        }
+    }
 
     #[test]
     fn newer_compares_numbers_not_text() {

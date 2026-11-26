@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fetches the pinned node, ffmpeg and ffprobe for a macOS or Linux release build into vendor/ and checks every SHA-256.
+# Fetches the pinned node with its npm, ffmpeg and ffprobe for a macOS or Linux release build into vendor/ and checks every SHA-256.
 # Usage: fetch-sidecars-unix.sh mac|linux
 # mac writes Apple silicon copies as vendor/node/node and vendor/ffmpeg/<tool>, Intel copies with a -x64 suffix.
 set -euo pipefail
@@ -38,6 +38,12 @@ for arch in $arches; do
   cp "$work/${archive%.tar.*}/bin/node" "$vendor/node/node$suffix"
   check "$vendor/node/node$suffix" "$(field "$node_pin" "${key}sha256")"
   echo "fetched node $version ($arch)"
+  # npm is plain JavaScript, so one copy serves every architecture.
+  if [ ! -f "$vendor/node/npm/bin/npm-cli.js" ]; then
+    rm -rf "$vendor/node/npm"
+    cp -R "$work/${archive%.tar.*}/lib/node_modules/npm" "$vendor/node/npm"
+    echo "fetched npm from node $version"
+  fi
 
   for tool in ffmpeg ffprobe; do
     zip="$work/$tool-$arch.zip"

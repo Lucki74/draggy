@@ -90,6 +90,7 @@ export function installFakeDraggyApi(): FakeApi {
     },
     updater: {
       state: async () => fake.updaterState,
+      check: async () => fake.updaterState,
       install: fake.install,
       onState: updater.subscribe,
     },

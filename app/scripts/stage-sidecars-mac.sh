@@ -68,3 +68,25 @@ if [ "$triple" = universal-apple-darwin ]; then
   done
   echo "staged universal sidecars"
 fi
+
+# node goes in Contents/Resources: a program in Contents/MacOS counts as the app and gets its own Dock icon.
+case "$triple" in
+  universal-apple-darwin) built="$dir/node-universal-apple-darwin" ;;
+  *) built="$dir/node-$arches-apple-darwin" ;;
+esac
+mkdir -p "$dir/node-res"
+cp -f "$built" "$dir/node-res/node"
+
+# npm ships with node, so MCP servers install without a system npm. fetch-sidecars-unix.sh unpacks it into vendor/node/npm.
+rm -rf "$dir/npm"
+if [ -f "$vendor/node/npm/bin/npm-cli.js" ]; then
+  cp -R "$vendor/node/npm" "$dir/npm"
+  echo "staged npm"
+elif [ "${TAURI_ENV_DEBUG:-}" = "true" ]; then
+  # The bundle needs the folder; a debug build finds npm on PATH instead.
+  mkdir -p "$dir/npm" && : > "$dir/npm/missing"
+  echo "npm missing from vendor/node/npm; a debug build uses the one on PATH"
+else
+  echo "npm missing at $vendor/node/npm; run scripts/fetch-sidecars-unix.sh" >&2
+  exit 1
+fi
