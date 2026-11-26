@@ -18,7 +18,7 @@ use draggy_mcp::reqwest_net::ReqwestHttp;
 use draggy_mcp::server::{CallOptions, CallOutcome, ServerState, Servers};
 use draggy_mcp::signin::{self, Browser, SignInRequest};
 use serde_json::{Map, Value, json};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::ipc::web::keys::with_store;
@@ -35,13 +35,24 @@ pub const SIDECAR_TRIPLE: &str = if cfg!(windows) {
 };
 
 /// The sidecar that runs stdio servers and the JavaScript runner. Tauri places `externalBin` beside the exe
-/// (`Contents/MacOS` on macOS). Debug builds fall back to the staged copy under `src-tauri/binaries`.
+/// on Windows and Linux. macOS keeps it in `Contents/Resources/node`, since a program in `Contents/MacOS`
+/// gets a Dock icon of its own. Debug builds fall back to the staged copy under `src-tauri/binaries`.
 pub fn node_path() -> PathBuf {
     let name = format!("node{}", std::env::consts::EXE_SUFFIX);
-    let bundled = std::env::current_exe()
+    let exe_dir = std::env::current_exe()
         .ok()
-        .and_then(|exe| exe.parent().map(|dir| dir.join(&name)));
-    if let Some(path) = bundled.filter(|path| path.is_file()) {
+        .and_then(|exe| exe.parent().map(Path::to_path_buf));
+    let bundled = exe_dir.into_iter().flat_map(|dir| {
+        let resources = dir
+            .parent()
+            .map(|contents| contents.join("Resources").join("node").join(&name));
+        cfg!(target_os = "macos")
+            .then_some(resources)
+            .flatten()
+            .into_iter()
+            .chain(std::iter::once(dir.join(&name)))
+    });
+    if let Some(path) = bundled.into_iter().find(|path| path.is_file()) {
         return path;
     }
     if cfg!(debug_assertions) {
@@ -93,6 +104,11 @@ impl Host {
                 Some(user_data.join("mcp-servers")),
                 npm::resolve_npm(
                     &node_path(),
+                    app.path()
+                        .resource_dir()
+                        .ok()
+                        .map(|dir| npm::bundled_cli(&dir))
+                        .as_deref(),
                     &std::env::var_os("PATH").unwrap_or_default(),
                     std::env::current_exe()
                         .ok()
