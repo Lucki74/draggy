@@ -78,10 +78,26 @@ fn machine_id() -> Result<String, String> {
         .ok_or_else(|| "this Mac reports no hardware UUID".to_owned())
 }
 
-#[cfg(not(target_os = "macos"))]
+/// The id systemd or D-Bus writes once per install.
+#[cfg(target_os = "linux")]
+fn machine_id() -> Result<String, String> {
+    ["/etc/machine-id", "/var/lib/dbus/machine-id"]
+        .iter()
+        .find_map(|path| linux_machine_id(&std::fs::read_to_string(path).ok()?))
+        .ok_or_else(|| "this system has no machine id".to_owned())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 #[cfg_attr(windows, allow(dead_code))]
 fn machine_id() -> Result<String, String> {
     Err("Saving keys is not available on this system yet".to_owned())
+}
+
+/// A machine-id file's value: 32 hex digits on one line.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn linux_machine_id(text: &str) -> Option<String> {
+    let id = text.trim();
+    (id.len() == 32 && id.chars().all(|c| c.is_ascii_hexdigit())).then(|| id.to_ascii_lowercase())
 }
 
 /// The value of `"IOPlatformUUID" = "..."` in ioreg's output.
@@ -139,6 +155,16 @@ mod tests {
         fs::write(dir.path().join(FILE), b"short").expect("write");
         assert!(read_or_create_secret(dir.path()).is_err());
         assert_eq!(fs::read(dir.path().join(FILE)).expect("read"), b"short");
+    }
+
+    #[test]
+    fn reads_the_linux_machine_id() {
+        assert_eq!(
+            linux_machine_id("4C4C4544004A3910804CB4C04F394E32\n").as_deref(),
+            Some("4c4c4544004a3910804cb4c04f394e32")
+        );
+        assert_eq!(linux_machine_id(""), None);
+        assert_eq!(linux_machine_id("uninitialized\n"), None);
     }
 
     #[test]
