@@ -435,7 +435,7 @@ test("download links match the release version and formatted sizes", () => {
   const html = read(join(out, "download", "index.html"));
   for (const [key, asset] of Object.entries(release.assets)) {
     assert.ok(html.includes(asset.url), `download page missing link for ${key}`);
-    if (key === "linux-rpm") continue; // the Linux card shows the size of the .deb only
+    if (key === "linux-rpm" || key === "linux-appimage") continue; // the Linux card shows the size of the .deb only
     const size = `${Math.round(asset.size / (1024 * 1024))} MB`;
     assert.ok(html.includes(size), `download page missing formatted size ${size}`);
   }

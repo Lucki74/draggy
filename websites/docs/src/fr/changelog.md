@@ -6,6 +6,54 @@ section: reference
 
 Chaque build de Draggy est une release sur GitHub, avec ses notes et ses installateurs : [versions de Draggy](https://github.com/Lucki74/draggy/releases).
 
+## Build 17
+
+- Draggy tourne sur la même app Tauri sous Windows, macOS et Linux.
+- macOS revient avec une seule app universelle pour les Mac Apple silicon et Intel sous macOS 14 ou plus récent. Elle est signée ad hoc : la première fois, faites un clic droit et choisissez **Ouvrir**.
+- Linux reçoit une AppImage à côté des paquets .deb et .rpm.
+- Chaque système se met à jour depuis son propre flux signé. Sous Windows, la build 16 ne peut pas se mettre à jour seule : installez la build 17 à la main une fois.
+- Les outils vidéo sous macOS et Linux utilisent un ffmpeg intégré.
+- Les modèles d'un fournisseur ajouté ont un interrupteur et sont activés par défaut.
+- La fenêtre de contexte est lue depuis les listes de modèles de llama.cpp et vLLM.
+
+### Corrections
+
+- L'ajout d'un fournisseur Personnalisé (compatible OpenAI) fonctionne à nouveau.
+- L'espace disque libre est juste sous macOS.
+- Le chat reste visible quand le panneau latéral est élargi.
+- Les recherches web ne reviennent plus vides quand un moteur affiche une vérification anti-robot.
+
+## Build 16
+
+- Les builds macOS étaient en pause ; cette build est sortie pour Windows et Linux.
+- Les erreurs de téléchargement disent quoi faire en cas de disque plein, de dossier non accessible en écriture, de somme de contrôle invalide ou d'adresse bloquée.
+- Les compétences activées au-delà de la 40e restent utilisables.
+
+### Corrections
+
+- Les téléchargements de modèles sous Windows n'échouent plus avec « URL refused by outbound security policy ».
+- Fermer Draggy ou un plantage ne laisse plus tourner llama-server ni de processus shell.
+- Les outils MCP qui se disent seulement en lecture demandent avant de s'exécuter, et les récupérations web s'arrêtent à 16 Mio.
+- Quand plusieurs fichiers changent à la fois, tous sont pris en compte, et les canevas ouverts restent à jour.
+- Entrée avec un éditeur de méthode de saisie, Échap dans les menus et le renommage, et Réessayer sur l'écran de plantage fonctionnent à nouveau.
+
+## Build 15
+
+### Corrections
+
+- L'IA peut de nouveau lire les vidéos jointes.
+
+## Build 14
+
+- On peut joindre des vidéos à un chat.
+- L'API locale parle les formats d'outils et de messages de Codex, Claude Code, Cline et Open WebUI.
+
+### Corrections
+
+- Les réponses dans les chats connectés avec un compte ne sont plus vides.
+- Les appels d'outils et les messages de suivi dans les chats ChatGPT fonctionnent.
+- Les appels de l'outil navigateur s'affichent comme terminés au lieu d'échoués.
+
 ## Build 13
 
 - Draggy démarre dans une petite fenêtre qui cherche une mise à jour, la télécharge et redémarre sur la nouvelle version. **Démarrer sans mettre à jour** la saute.

@@ -867,6 +867,7 @@ const INSTALL = {
   linux: [
     { text: "install.linux.deb", cmd: "sudo apt install ./{{r:linux-deb.name}}" },
     { text: "install.linux.rpm", cmd: "sudo dnf install ./{{r:linux-rpm.name}}" },
+    { text: "install.linux.appimage", cmd: "chmod +x {{r:linux-appimage.name}} && ./{{r:linux-appimage.name}}" },
     { text: "download.step3Text" },
   ],
 };
