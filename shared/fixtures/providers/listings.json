@@ -100,6 +100,81 @@
       ]
     },
     {
+      "name": "OpenAI: a llama.cpp server's window, from meta.n_ctx",
+      "input": {
+        "op": "parse_models",
+        "protocol": "openai",
+        "json": {
+          "data": [
+            {
+              "id": "qwen",
+              "meta": {
+                "n_ctx": 262144
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "qwen",
+          "contextLength": 262144,
+          "supported": null,
+          "inputModalities": null
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: a vLLM server's window, from max_model_len",
+      "input": {
+        "op": "parse_models",
+        "protocol": "openai",
+        "json": {
+          "data": [
+            {
+              "id": "qwen",
+              "max_model_len": 131072
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "qwen",
+          "contextLength": 131072,
+          "supported": null,
+          "inputModalities": null
+        }
+      ]
+    },
+    {
+      "name": "OpenAI: context_length still wins over a server's own window fields",
+      "input": {
+        "op": "parse_models",
+        "protocol": "openai",
+        "json": {
+          "data": [
+            {
+              "id": "qwen",
+              "context_length": 32768,
+              "meta": {
+                "n_ctx": 262144
+              },
+              "max_model_len": 131072
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "id": "qwen",
+          "contextLength": 32768,
+          "supported": null,
+          "inputModalities": null
+        }
+      ]
+    },
+    {
       "name": "Ollama: the cloud models are marked",
       "input": {
         "op": "parse_models",
