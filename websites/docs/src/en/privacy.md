@@ -37,7 +37,7 @@ The table lists the requests Draggy makes. Ad-block lists stay on until you swit
 | macOS | `~/Library/Application Support/Draggy` |
 | Linux | `$XDG_DATA_HOME/Draggy`, or `~/.local/share/Draggy` when that is not set |
 
-Inside: `draggy.db` for conversations and settings, `library.db` for the document index, `secrets.bin` for provider keys and extension credentials encrypted by your OS keystore, the sign-in folders for ChatGPT and Claude, and folders for created files, chat folders (`chats`, on Windows), code runs, speech models and installed servers.
+Inside: `draggy.db` for conversations and settings, `library.db` for the document index, `secrets.bin` for encrypted provider keys and extension credentials (on macOS and Linux with the key in `secrets.key`), the sign-in folders for ChatGPT and Claude, and folders for created files, chat folders (`chats`, on Windows), code runs, speech models and installed servers.
 
 Data from Electron-era builds moves into this folder on first launch, including the older `localai` folder. Copy the folder to back it up or move machines, with Draggy closed. Delete it to reset. Credentials in `secrets.bin` are tied to this machine and this user, so type those in again elsewhere.
 

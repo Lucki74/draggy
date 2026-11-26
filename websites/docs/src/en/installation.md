@@ -32,6 +32,6 @@ When you send your first message, Draggy loads the model into memory. On later l
 
 ## Updates
 
-Windows, macOS and Linux all use the Tauri updater with a signed update feed. Draggy checks at launch and every six hours after that. An update found at launch installs in the small startup window, and Draggy restarts into the new version. **Start without updating** opens Draggy right away instead. If the check gets no answer within a few seconds, Draggy starts anyway. An update found later downloads in the background, and an **Update ready** notice offers **Install now** or **Maybe later**. Install now installs it quietly and restarts Draggy. There is no Updates setting. Builds run from source do not update.
+Windows, macOS and Linux all use the Tauri updater with a signed update feed. Draggy checks at launch and every six hours after that. An update found at launch installs in the small startup window, and Draggy restarts into the new version. **Start without updating** opens Draggy right away instead. If the check gets no answer within a few seconds, Draggy starts anyway. An update found later downloads in the background, and an **Update ready** notice offers **Install now** or **Maybe later**. Install now installs it quietly and restarts Draggy. **Check for updates** in Settings, General looks for one right away. Builds run from source do not update.
 
 To remove Draggy, see [Uninstalling](doc:privacy#uninstalling) on the privacy page.

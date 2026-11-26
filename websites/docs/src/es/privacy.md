@@ -37,7 +37,7 @@ La tabla enumera las solicitudes de Draggy. Los listados del bloqueador de anunc
 | macOS | `~/Library/Application Support/Draggy` |
 | Linux | `$XDG_DATA_HOME/Draggy`, o `~/.local/share/Draggy` si esa variable no está definida |
 
-Dentro: `draggy.db` para conversaciones y ajustes, `library.db` para el índice de documentos, `secrets.bin` para las claves de proveedores y las credenciales de extensiones cifradas con el llavero de tu sistema, las carpetas de inicio de sesión de ChatGPT y Claude, y carpetas para los archivos creados, las carpetas de chat (`chats`, en Windows), las ejecuciones de código, los modelos de voz y los servidores instalados.
+Dentro: `draggy.db` para conversaciones y ajustes, `library.db` para el índice de documentos, `secrets.bin` para las claves de proveedores y las credenciales de extensiones cifradas (en macOS y Linux con la clave de `secrets.key`), las carpetas de inicio de sesión de ChatGPT y Claude, y carpetas para los archivos creados, las carpetas de chat (`chats`, en Windows), las ejecuciones de código, los modelos de voz y los servidores instalados.
 
 Los datos de las compilaciones de la era de Electron se trasladan a esta carpeta en el primer inicio, incluida la carpeta antigua `localai`. Copia la carpeta para hacer una copia de seguridad o cambiar de equipo, con Draggy cerrado. Bórrala para empezar de cero. Las credenciales de `secrets.bin` están ligadas a este equipo y a este usuario, así que vuelve a introducirlas en otro sitio.
 

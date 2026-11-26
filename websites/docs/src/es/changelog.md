@@ -6,6 +6,19 @@ section: reference
 
 Cada compilación de Draggy es una release en GitHub, con sus notas e instaladores: [versiones de Draggy](https://github.com/Lucki74/draggy/releases).
 
+## Compilación 18
+
+- Las claves de API se guardan en cualquier Mac y sistema Linux. Las cifra un archivo de clave ligado al equipo, sin llavero del sistema.
+- En macOS la ventana usa los botones del sistema, cerrarla deja Draggy en el Dock y los servidores MCP ya no añaden un segundo icono al Dock.
+- Los chats se exportan en PDF, y la exportación a PDF funciona en macOS.
+- Los ajustes tienen **Buscar actualizaciones** y un **Shell predeterminado** para los terminales nuevos, que si no abren tu shell de inicio de sesión.
+- Los servidores MCP se instalan con el npm que trae Draggy.
+
+### Correcciones
+
+- La barra de direcciones y los botones atrás y adelante del navegador funcionan en macOS y Linux.
+- Las carpetas que no son repositorios Git ya no llenan el registro de errores de Git.
+
 ## Compilación 17
 
 - Draggy funciona con la misma app Tauri en Windows, macOS y Linux.

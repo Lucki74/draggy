@@ -6,6 +6,19 @@ section: reference
 
 Every build of Draggy is a release on GitHub, with its notes and installers: [Draggy releases](https://github.com/Lucki74/draggy/releases).
 
+## Build 18
+
+- API keys save on every Mac and Linux system. A key file tied to the machine encrypts them, so no system keychain is needed.
+- On macOS the window uses the system traffic lights, closing it keeps Draggy in the Dock, and MCP servers no longer add a second Dock icon.
+- Chats export as PDF, and PDF export works on macOS.
+- Settings has **Check for updates** and a **Default shell** for new terminals, which otherwise open your login shell.
+- MCP servers install with the npm that ships with Draggy.
+
+### Fixes
+
+- The browser pane's address bar and back and forward buttons work on macOS and Linux.
+- Folders that are not Git repositories no longer fill the log with Git errors.
+
 ## Build 17
 
 - Draggy runs on the same Tauri app on Windows, macOS and Linux.

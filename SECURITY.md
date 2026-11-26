@@ -29,7 +29,7 @@ Anything that turns content Draggy reads (a web page, a document, an extension's
 - The code execution tool escaping its scratch directory or its timeout, or extension credentials leaking into a log, a crash report or a window title.
 - The updater accepting a build that didn't come from this repo, or the embedded browser leaking a session between the app and a page.
 - The `draggy-ai://` model gateway answering anything other than Draggy's own window, or fetching anywhere other than a provider you added and turned on.
-- A provider's API key or the Brave Search key leaving the system keystore: reaching the renderer, a URL, a log, or a plain text file.
+- A provider's API key or the Brave Search key leaving the encrypted key store: reaching the renderer, a URL, a log, or a plain text file.
 - A provider's own hosted tools (web search, code execution) running on a request Draggy sent.
 - A cloud image or voice request (`app/src-tauri/src/images/cloud/`, `app/src-tauri/src/tts/cloud/`) going anywhere other than the provider the user picked, or its key reaching the renderer.
 - A cloud voice getting reply text without a grant for that provider.

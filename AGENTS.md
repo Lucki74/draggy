@@ -102,7 +102,7 @@ Every child process must be started through the hidden-spawn helpers in `core/cr
 
 Outbound HTTP requests on behalf of models must pass through the URL policy in `core/crates/web/src/policy.rs`. Only `http:` and `https:` schemes are permitted, and private network addresses are blocked.
 
-A cloud or hosted model request is routed through the `draggy-ai` protocol handled in `app/src-tauri/src/chat_gateway.rs`. Provider API keys stay in the OS keystore (`app/src-tauri/src/secrets.rs`) and are never returned to the renderer or written to logs. Cloud image and voice requests are the exception to the gateway: `app/src-tauri/src/images/cloud/` and `app/src-tauri/src/tts/cloud/` send them from the Rust process to the provider the user picked, with the key from the keystore, and hand the renderer only picture bytes or PCM frames.
+A cloud or hosted model request is routed through the `draggy-ai` protocol handled in `app/src-tauri/src/chat_gateway.rs`. Provider API keys stay encrypted in `secrets.bin` (`app/src-tauri/src/secrets.rs`; on macOS and Linux the key comes from `app/src-tauri/src/key_file.rs`) and are never returned to the renderer or written to logs. Cloud image and voice requests are the exception to the gateway: `app/src-tauri/src/images/cloud/` and `app/src-tauri/src/tts/cloud/` send them from the Rust process to the provider the user picked, with the key from that store, and hand the renderer only picture bytes or PCM frames.
 
 Four languages remain in parity: English (`en`), French (`fr`), Spanish (`es`), and Russian (`ru`). `src/__tests__/translations.test.ts` enforces identical key sets across all four. Do not use machine translation; each table maintains its own register.
 

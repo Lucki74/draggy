@@ -10,7 +10,7 @@ Draggy ejecuta modelos en este ordenador por sí mismo. `Ajustes → Proveedores
 
 Pulsa **Añadir proveedor** y elige uno: OpenAI, Anthropic, Google Gemini, xAI, DeepSeek, Mistral, Groq, Nebius, Novita, SambaNova, SiliconFlow, OpenRouter y otros, o Custom para cualquier servidor compatible con OpenAI. **Conseguir una clave** abre la página del proveedor para crear una. Pégala en **Clave de API** y pulsa **Probar**.
 
-La clave se cifra con el llavero de tu sistema antes de guardarse. En un sistema sin llavero, los proveedores que necesitan clave no se pueden activar.
+La clave se cifra antes de guardarse. Windows protege la clave de cifrado con tu cuenta de usuario; en macOS y Linux está en `secrets.key`, en la carpeta de datos de Draggy, y solo funciona en el mismo equipo.
 
 ## Cuentas
 
