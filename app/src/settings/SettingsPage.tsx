@@ -189,6 +189,7 @@ export default function SettingsPage(props: SettingsPageProps) {
                 manager={manager}
                 settings={settings}
                 chatModel={props.chatModel}
+                onSelectChatModel={props.onSelectChatModel}
                 onUpdate={onUpdate}
                 t={t}
               />
@@ -276,7 +277,13 @@ export default function SettingsPage(props: SettingsPageProps) {
             )}
 
             {tab === "permissions" && (
-              <PermissionsPage projects={props.projects} onRevokeGrant={props.onRevokeGrant} t={t} />
+              <PermissionsPage
+                settings={settings}
+                onUpdate={onUpdate}
+                projects={props.projects}
+                onRevokeGrant={props.onRevokeGrant}
+                t={t}
+              />
             )}
           </div>
         </main>

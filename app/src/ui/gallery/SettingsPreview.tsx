@@ -61,7 +61,7 @@ const fakeManager: ModelManager = {
   ],
   startPull: async () => true,
   cancelPull: noop,
-  remove: async () => {},
+  remove: async () => true,
   unload: async () => {},
   error: "",
   vram: 12,

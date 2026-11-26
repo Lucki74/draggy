@@ -160,6 +160,7 @@ describe("the steps on their own", () => {
     const { api } = machine({ models: ["embed.gguf", "chat.gguf"] });
     expect(await adoptInstalled(api, "gone.gguf")).toBe("chat.gguf");
     expect(await adoptInstalled(machine({ models: ["embed.gguf"] }).api, "")).toBeNull();
+    expect(await adoptInstalled(api, "embed.gguf")).toBe("chat.gguf");
   });
 
   it("downloads a chosen model and answers with its file name", async () => {

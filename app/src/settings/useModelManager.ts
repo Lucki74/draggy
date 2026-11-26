@@ -44,7 +44,8 @@ export interface ModelManager {
   /** Stops a download or takes it out of the queue, and removes what it had written. Also clears a
    * failed one from the list. */
   cancelPull: (name: string) => void;
-  remove: (name: string) => Promise<void>;
+  /** Deletes a model; false when it could not be deleted. */
+  remove: (name: string) => Promise<boolean>;
   /** Evicts a model from VRAM without deleting it. */
   unload: (name: string) => Promise<void>;
   error: string;
@@ -251,8 +252,10 @@ export function useModelManager(page?: string): ModelManager {
       try {
         await deleteModel(name);
         refresh();
+        return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
+        return false;
       }
     },
     [refresh],
