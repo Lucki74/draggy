@@ -130,6 +130,42 @@ describe("the Providers page", () => {
     expect(await screen.findByRole("switch", { name: "custom" })).toBeTruthy();
   });
 
+  it("switches an added provider on with every model it lists ticked", async () => {
+    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null })] });
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "Custom (OpenAI-compatible)" }));
+    fireEvent.change(screen.getByRole("textbox", { name: en("providerAddress") }), { target: { value: "http://192.168.64.1:1234/v1" } });
+    fireEvent.click(screen.getByRole("button", { name: en("confirm") }));
+    await waitFor(() => expect(api.update).toHaveBeenCalledWith("custom", { enabled: true, pinnedModels: ["m-1", "m-2"] }));
+    await waitFor(() => expect(screen.getByRole("switch", { name: "custom" }).getAttribute("aria-checked")).toBe("true"));
+  });
+
+  it("leaves an added provider off when it lists no models", async () => {
+    const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null })] });
+    api.models.mockImplementation(async () => ({ success: false, error: { kind: "provider-unreachable" } }) as never);
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "Custom (OpenAI-compatible)" }));
+    fireEvent.change(screen.getByRole("textbox", { name: en("providerAddress") }), { target: { value: "http://192.168.64.1:1234/v1" } });
+    fireEvent.click(screen.getByRole("button", { name: en("confirm") }));
+    await waitFor(() => expect(api.models).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(api.update).not.toHaveBeenCalled();
+    expect(screen.getByRole("switch", { name: "custom" }).getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("does not switch on a keyed provider that has no key yet, even when it lists models", async () => {
+    const api = stubMain({ catalog: [entry("openai")] });
+    api.add.mockImplementation(async () => ({ success: true, instance: instance("openai") }) as never);
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "openai" }));
+    await waitFor(() => expect(api.add).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(api.update).not.toHaveBeenCalled();
+  });
+
   it("says why an add was refused, and keeps the address to correct", async () => {
     const api = stubMain({ catalog: [entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null })] });
     api.add.mockImplementation(async () => ({ success: false, error: { kind: "provider-unknown-error", message: "That address is not a URL." } }) as never);

@@ -702,7 +702,16 @@ function Advanced({
   );
 }
 
-/** The catalog, searchable; picking one adds it switched off, to be keyed and switched on. */
+/** Only on the add: a provider that lists models straight away is switched on with every one ticked. */
+async function switchOnListed(providers: Providers, instance: ProviderInstance) {
+  if (instance.enabled || instance.pinnedModels.length > 0 || (instance.needsKey && !instance.hasKey)) return;
+  const answer = await window.draggy?.providers?.models(instance.id).catch(swallowed("providers", "the main process already logged this call", null));
+  if (answer?.success && answer.models.length > 0) {
+    await providers.update(instance.id, { enabled: true, pinnedModels: answer.models.map((model) => model.id) });
+  }
+}
+
+/** The catalog, searchable; picking one adds it, switched on when it lists models without a key. */
 export function AddProvider({
   catalog,
   providers,
@@ -766,6 +775,7 @@ export function AddProvider({
     if (added.ok && added.instance) {
       close();
       onAdded(added.instance.id);
+      void switchOnListed(providers, added.instance);
     } else {
       setRefused(true);
     }
