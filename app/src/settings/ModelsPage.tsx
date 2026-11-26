@@ -11,7 +11,7 @@ import CompactLimitField from "./CompactLimitField";
 import DownloadsMenu from "./DownloadsMenu";
 import { ImageModelRow } from "./ImageModelsSection";
 import { useImageEngine } from "../images/useImageEngine";
-import { isEmbeddingModel, isImageModel } from "../modelKinds";
+import { isEmbeddingModel, isImageModel, selectableModels } from "../modelKinds";
 import { CONTEXT_BUCKETS, displayModelName, formatContextCeiling, installedModelDisplayNames, quantizationOf, type InstalledModel } from "../llama";
 import { isActivePull, type ModelManager } from "./useModelManager";
 import type { AppSettings } from "../types";
@@ -24,6 +24,7 @@ interface ModelsPageProps {
   chatModel: string;
   onUpdate: (patch: Partial<AppSettings>) => void;
   /** Makes a model the one Chat runs. */
+  onSelectChatModel?: (name: string) => void;
   t: (key: string) => string;
 }
 
@@ -55,7 +56,7 @@ const ABILITY_LABELS: Record<string, string> = {
 
 /** What is installed, what can be downloaded, and the two models that serve everything else: the
  * one that indexes documents, and when a conversation gets folded. */
-export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }: ModelsPageProps) {
+export default function ModelsPage({ manager, settings, chatModel, onUpdate, onSelectChatModel, t }: ModelsPageProps) {
   const codeModel = settings.codeModel || chatModel;
   const displayNames = installedModelDisplayNames(manager.installed);
   const imageEngine = useImageEngine();
@@ -83,6 +84,17 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
     imageEngine.refresh();
   };
 
+  // A model in use can go too: each role it held falls back to what is left.
+  const removeModel = async (name: string) => {
+    if (!(await manager.remove(name))) return;
+    if (settings.codeModel === name) onUpdate({ codeModel: "" });
+    if (settings.embedModel === name) onUpdate({ embedModel: "" });
+    if (name === chatModel) {
+      const next = selectableModels(manager.installed).find((entry) => entry.name !== name);
+      onSelectChatModel?.(next?.name ?? "");
+    }
+  };
+
   const pull = (reference: string, image: boolean) =>
     void manager.startPull(reference, { image }).then((installed) => installed && image && imageEngine.refresh());
 
@@ -99,7 +111,6 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
           <Row label={t("noModelsFound")} />
         ) : (
           manager.installed.map((entry) => {
-            const locked = entry.name === chatModel || entry.name === codeModel;
             const usedBy = [
               entry.name === chatModel ? t("usedForChat") : null,
               entry.name === codeModel ? t("usedForCode") : null,
@@ -115,10 +126,9 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, t }
                 entry={entry}
                 displayName={displayNames.get(entry.name) || displayModelName(entry.name)}
                 usedBy={usedBy}
-                locked={locked}
                 loaded={loaded}
                 onUnload={() => manager.unload(entry.name)}
-                onRemove={() => void manager.remove(entry.name)}
+                onRemove={() => void removeModel(entry.name)}
                 t={t}
               />
             );
@@ -236,7 +246,6 @@ function InstalledRow({
   entry,
   displayName,
   usedBy,
-  locked,
   loaded,
   onUnload,
   onRemove,
@@ -246,7 +255,6 @@ function InstalledRow({
   displayName?: string;
   usedBy: string[];
   /** Chat or Code runs it, so it cannot be removed. */
-  locked: boolean;
   loaded: boolean;
   onUnload: () => Promise<void>;
   onRemove: () => void;
@@ -307,9 +315,8 @@ function InstalledRow({
         <button
           type="button"
           onClick={() => setConfirmingRemove(true)}
-          disabled={locked}
           aria-label={`${t("remove")} ${name}`}
-          title={locked ? t("inUse") : t("remove")}
+          title={t("remove")}
           className="rounded-sm p-2 text-text-tertiary outline-none transition-colors hover:bg-surface-raised hover:text-danger focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary"
         >
           <Icon name="trash" size={16} />

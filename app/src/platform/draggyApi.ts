@@ -306,6 +306,7 @@ export function createDraggyApi(ipc: IpcLike): NonNullable<Window["draggy"]> {
 
     updater: {
       state: () => ipc.invoke("updater:state"),
+      check: () => ipc.invoke("updater:check"),
       install: () => ipc.invoke("updater:install"),
       onState: (callback) => subscribe("updater-state", callback),
     },

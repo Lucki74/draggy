@@ -42,8 +42,6 @@ const TEMPLATE_ROUTE: &str = "/apply-template";
 const TEMPLATE_URL: &str = "draggy-ai://apply-template";
 const MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
 const QUEUE: usize = 32;
-// The main window is served from the asset scheme, so its origin is tauri.localhost, not draggy.localhost.
-const RENDERER_ORIGIN: &str = "http://tauri.localhost";
 const DEV_ORIGIN: &str = "http://127.0.0.1:5173";
 const DEFAULT_ENGINE_PORT: u16 = 11435;
 const DRAGGY_AI_SOURCES: [&str; 2] = ["draggy-ai:", "http://draggy-ai.localhost"];
@@ -344,7 +342,7 @@ pub fn production_serve(app: AppHandle) -> Serve {
             crate::ipc::providers::active_catalog(),
         );
         let allowed = |origin: &str| {
-            origin == RENDERER_ORIGIN || (cfg!(debug_assertions) && origin == DEV_ORIGIN)
+            origin == crate::PAGE_ORIGIN || (cfg!(debug_assertions) && origin == DEV_ORIGIN)
         };
         let clock = || {
             SystemTime::now()

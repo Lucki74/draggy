@@ -162,6 +162,7 @@ jobs:
           mkdir -p vendor/node vendor/ffmpeg
           tar -xf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
           cp "$RUNNER_TEMP/${archive%.tar.*}/bin/node" vendor/node/node
+          cp -R "$RUNNER_TEMP/${archive%.tar.*}/lib/node_modules/npm" vendor/node/npm
           touch vendor/ffmpeg/ffmpeg vendor/ffmpeg/ffprobe
           TAURI_ENV_DEBUG=true bash "$STAGE"
 

@@ -888,6 +888,7 @@ export default function AppShell({
   // Each shell is a dock tab. A Run button in a code block also lands here, with a command for a prompt.
   const { openShell } = useShellTabs({
     workspaceId: active.id,
+    defaultShell: settings.defaultShell || undefined,
     layout: currentDockLayout,
     onLayoutChange: updateDockLayout,
     onMessage: setViewToast,
@@ -1357,7 +1358,7 @@ export default function AppShell({
             const session = store.sessions.find((s) => s.id === id);
             if (!session) return;
             const now = new Date();
-            const content = format === "html" ? chatToHtml(session, { now }) : chatToMarkdown(session, { now });
+            const content = format === "md" ? chatToMarkdown(session, { now }) : chatToHtml(session, { now });
             window.draggy
               ?.exportChat({ defaultName: transcriptFilename(session, format, now), content, ext: format })
               ?.catch((error: unknown) => logSwallow("chat", error, "the export was not saved"));

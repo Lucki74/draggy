@@ -606,6 +606,23 @@ fn find_chat_template<S: ByteSource>(source: &mut S) -> Result<Option<String>, G
     Ok(None)
 }
 
+/// Encoder architectures that only turn text into vectors. They have no chat template and cannot answer.
+const EMBEDDING_ARCHITECTURES: [&str; 8] = [
+    "bert",
+    "nomic-bert",
+    "nomic-bert-moe",
+    "jina-bert-v2",
+    "jina-bert-v3",
+    "modern-bert",
+    "neo-bert",
+    "t5encoder",
+];
+
+/// Whether a GGUF of this architecture is an embedding model rather than one that chats.
+pub fn is_embedding_architecture(architecture: &str) -> bool {
+    EMBEDDING_ARCHITECTURES.contains(&architecture)
+}
+
 /// Tools and thinking from the chat template. An unreadable template gets the benefit of the doubt: tools, no thinking.
 /// A template that opens a thinking block, or switches one on, marks a model that can think.
 pub fn capabilities_from_template(template: Option<&str>) -> Vec<&'static str> {
@@ -786,6 +803,13 @@ mod tests {
     fn a_header_without_base_model_has_none() {
         let file = header(&[], 0);
         assert!(parse_header(&file).expect("header").base_models.is_empty());
+    }
+
+    #[test]
+    fn encoder_architectures_are_embedding_models() {
+        assert!(is_embedding_architecture("nomic-bert"));
+        assert!(is_embedding_architecture("bert"));
+        assert!(!is_embedding_architecture("qwen3"));
     }
 
     #[test]

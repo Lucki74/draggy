@@ -1475,6 +1475,8 @@ export interface AppSettings {
   libraryEnabled: boolean;
   embedModel: string;
   showMetrics: boolean;
+  /** The shell a new terminal opens. Empty leaves it to the login shell. */
+  defaultShell?: string;
   /** Set once the user has flipped the speed line themselves. Until then it stays off, whatever an
    * older version saved. */
   metricsChosen?: boolean;
@@ -2055,6 +2057,7 @@ declare global {
 
       updater: {
         state: () => Promise<UpdaterState>;
+        check: () => Promise<UpdaterState>;
         install: () => Promise<UpdaterState>;
         onState: (callback: (state: UpdaterState) => void) => Unsubscribe;
       };
@@ -2228,7 +2231,7 @@ declare global {
       exportChat: (request: {
         defaultName: string;
         content: string;
-        ext: "md" | "html";
+        ext: "md" | "html" | "pdf";
       }) => Promise<{ saved: boolean; file?: string; bytes?: number }>;
       logEntry: (entry: LogEntry) => void;
       logBatch: (entries: LogEntry[]) => void;

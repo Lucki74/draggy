@@ -9,6 +9,7 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
+use super::pdf_writer;
 use super::storage::blocking;
 use super::{IpcError, Registry};
 use crate::AppState;
@@ -65,10 +66,10 @@ async fn read_document(_app: AppHandle, args: Vec<Value>) -> Result<Value, IpcEr
 
 async fn export_chat(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let request = args.into_iter().next().unwrap_or(Value::Null);
-    let ext = if request.get("ext").and_then(Value::as_str) == Some("html") {
-        "html"
-    } else {
-        "md"
+    let ext = match request.get("ext").and_then(Value::as_str) {
+        Some("html") => "html",
+        Some("pdf") => "pdf",
+        _ => "md",
     };
     let content = request
         .get("content")
@@ -98,11 +99,14 @@ async fn export_chat(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
 
     let suggested = default_file.clone();
     let (tx, rx) = tokio::sync::oneshot::channel();
-    let mut dialog = app
-        .dialog()
-        .file()
-        .set_file_name(&suggested)
-        .add_filter(if ext == "html" { "HTML" } else { "Markdown" }, &[ext]);
+    let mut dialog = app.dialog().file().set_file_name(&suggested).add_filter(
+        match ext {
+            "html" => "HTML",
+            "pdf" => "PDF",
+            _ => "Markdown",
+        },
+        &[ext],
+    );
     if let Ok(documents) = app.path().document_dir() {
         dialog = dialog.set_directory(documents);
     }
@@ -119,10 +123,17 @@ async fn export_chat(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
 
     let target = with_extension(picked, ext);
     let bytes = content.len();
-    let write_target = target.clone();
-    blocking(move || std::fs::write(&write_target, content))
-        .await?
-        .map_err(|error| IpcError::Failed(error.to_string()))?;
+    if ext == "pdf" {
+        // The PDF is laid out from the HTML transcript.
+        pdf_writer::write_pdf(&app, &target, &content)
+            .await
+            .map_err(IpcError::Failed)?;
+    } else {
+        let write_target = target.clone();
+        blocking(move || std::fs::write(&write_target, content))
+            .await?
+            .map_err(|error| IpcError::Failed(error.to_string()))?;
+    }
     let file = target.to_string_lossy().into_owned();
     if let Some(state) = app.try_state::<AppState>() {
         state.diag.info(

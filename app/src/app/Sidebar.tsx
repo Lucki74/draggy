@@ -13,6 +13,9 @@ import type { AppMode } from "./modes";
 import type { ChatSession, Workspace } from "../types";
 import type { SettingsTab } from "../settings/pages";
 
+// WebKitGTK cannot print a PDF yet, so the Linux build leaves the item out.
+const PDF_EXPORT = typeof navigator === "undefined" || !/X11/.test(navigator.userAgent);
+
 export interface SidebarProps {
   mode: AppMode;
   codeHome: boolean;
@@ -29,7 +32,7 @@ export interface SidebarProps {
   onDeleteChat: (e: React.MouseEvent, id: string) => void;
   onRenameChat?: (id: string, newTitle: string) => void;
   onPinChat?: (id: string) => void;
-  onExportChat?: (id: string, format: "md" | "html") => void;
+  onExportChat?: (id: string, format: "md" | "html" | "pdf") => void;
   onViewTalk?: () => void;
   onOpenSettings: (tab: SettingsTab) => void;
   onSelectWorkspace: (id: string) => void;
@@ -290,6 +293,16 @@ export function Sidebar({
               icon: <Icon name="download-simple" size={16} />,
               onSelect: () => onExportChat(session.id, "html"),
             },
+            ...(PDF_EXPORT
+              ? [
+                  {
+                    id: "export-pdf",
+                    label: t("exportPdf"),
+                    icon: <Icon name="download-simple" size={16} />,
+                    onSelect: () => onExportChat(session.id, "pdf"),
+                  },
+                ]
+              : []),
           ]
         : []),
       { type: "separator", id: "sep-group" } as MenuEntry,
