@@ -16,7 +16,7 @@ function managerPulling(pull: PullState | null): ModelManager {
     pulls: pull ? [pull] : [],
     startPull: vi.fn(async () => true),
     cancelPull: vi.fn(),
-    remove: vi.fn(async () => undefined),
+    remove: vi.fn(async () => true),
     unload: vi.fn(async () => undefined),
     error: "",
     vram: 0,
