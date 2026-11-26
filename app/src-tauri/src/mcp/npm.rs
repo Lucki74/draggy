@@ -57,13 +57,10 @@ pub fn resolve_npm(
         .map(|cli| program(&cli))
 }
 
-/// Where the release bundles npm: `node/npm` in the app's resources (stage-sidecars-mac.sh and -linux.sh).
+/// Where the release bundles npm: `npm` in the app's resources (stage-sidecars-mac.sh and -linux.sh).
+/// Not under `node/`, because on Linux the node sidecar is a file of that name.
 pub fn bundled_cli(resource_dir: &Path) -> PathBuf {
-    resource_dir
-        .join("node")
-        .join("npm")
-        .join("bin")
-        .join("npm-cli.js")
+    resource_dir.join("npm").join("bin").join("npm-cli.js")
 }
 
 #[cfg(test)]

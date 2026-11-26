@@ -13,7 +13,8 @@
       "icons/icon.png"
     ],
     "resources": {
-      "../sandbox/target/release/draggy-sandbox.exe": null
+      "../sandbox/target/release/draggy-sandbox.exe": null,
+      "binaries/npm/": "npm/"
     },
     "windows": null
   },
