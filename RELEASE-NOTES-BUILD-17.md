@@ -6,6 +6,8 @@
 * Every platform now updates itself from its own signed feed. Windows users on build 16 need to install build 17 by hand once; later builds arrive on their own.
 * Video tools on macOS and Linux use a bundled ffmpeg, so you no longer need to install one.
 * API server settings are easier to read and set up.
+* Models from an added provider now have an on/off switch and start switched on.
+* Draggy reads the context window from llama.cpp and vLLM model lists.
 
 **Fixes**
 

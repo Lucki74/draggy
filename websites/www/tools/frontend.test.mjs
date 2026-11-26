@@ -297,7 +297,7 @@ test("the strings block carries exactly the strings site.js reads", () => {
   }
 });
 
-test("the home page offers the Windows build while macOS and Linux are coming back soon", () => {
+test("the home page hero offers the Windows build to Windows visitors", () => {
   const page = built("index.html");
   if (!existsSync(page)) throw new Error(`${page} is missing: run npm run build first`);
   const html = readFileSync(page, "utf8");

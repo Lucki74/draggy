@@ -347,6 +347,7 @@
   "install.macos.1": "Unzip the download and move Draggy to your Applications folder.",
   "install.linux.deb": "On Debian or Ubuntu, install the .deb from the folder you downloaded it to:",
   "install.linux.rpm": "On Fedora, install the .rpm instead:",
+  "install.linux.appimage": "Or make the AppImage executable and run it:",
   "table.scroll": "Table, scrolls sideways",
   "accessibility.lede": "This website aims to meet WCAG 2.2 level AA.",
   "accessibility.report": "If you find it hard to navigate, <a href=\"https://github.com/Lucki74/draggy/issues/new?template=website.yml\">report it on GitHub</a>.",

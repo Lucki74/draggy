@@ -6,6 +6,54 @@ section: reference
 
 Every build of Draggy is a release on GitHub, with its notes and installers: [Draggy releases](https://github.com/Lucki74/draggy/releases).
 
+## Build 17
+
+- Draggy runs on the same Tauri app on Windows, macOS and Linux.
+- macOS is back as one universal app for Apple silicon and Intel Macs on macOS 14 or newer. It is signed ad hoc, so right click it and pick **Open** the first time.
+- Linux gets an AppImage next to the .deb and .rpm packages.
+- Every system updates itself from its own signed feed. On Windows, build 16 can't update by itself: install build 17 by hand once.
+- Video tools on macOS and Linux use a bundled ffmpeg.
+- Models from an added provider have an on/off switch and start switched on.
+- The context window is read from llama.cpp and vLLM model lists.
+
+### Fixes
+
+- Adding a Custom (OpenAI-compatible) provider works again.
+- Free disk space is right on macOS.
+- Chat stays visible when the side pane is dragged wide.
+- Web searches no longer come back empty when a search engine shows a bot check.
+
+## Build 16
+
+- macOS builds were paused; this build shipped for Windows and Linux.
+- Download errors say what to do about a full disk, a folder you can't write to, a bad checksum or a blocked address.
+- Skills switched on past the 40th can still be used.
+
+### Fixes
+
+- Model downloads on Windows no longer fail with "URL refused by outbound security policy".
+- Closing or crashing Draggy no longer leaves llama-server or shell processes running.
+- MCP tools that only claim to be read-only ask before they run, and web fetches stop at 16 MiB.
+- When several files change at once, every one is picked up, so open canvases no longer go stale.
+- Enter with an input method editor, Escape in menus and rename, and retry on the crash screen work again.
+
+## Build 15
+
+### Fixes
+
+- The AI can read attached videos again.
+
+## Build 14
+
+- Videos can be attached to a chat.
+- The local API speaks the tool and message formats of Codex, Claude Code, Cline and Open WebUI.
+
+### Fixes
+
+- Replies in chats signed in with an account are no longer empty.
+- Tool calls and follow-up messages in ChatGPT chats work.
+- Browser tool calls show as completed instead of failed.
+
 ## Build 13
 
 - Draggy starts in a small window that checks for an update, downloads it and restarts into the new version. **Start without updating** skips it.

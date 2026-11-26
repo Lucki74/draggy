@@ -6,6 +6,54 @@ section: reference
 
 Cada compilación de Draggy es una release en GitHub, con sus notas e instaladores: [versiones de Draggy](https://github.com/Lucki74/draggy/releases).
 
+## Compilación 17
+
+- Draggy funciona con la misma app Tauri en Windows, macOS y Linux.
+- macOS vuelve como una sola app universal para Mac con Apple silicon e Intel con macOS 14 o posterior. Está firmada ad hoc, así que la primera vez haz clic derecho y elige **Abrir**.
+- Linux recibe una AppImage junto a los paquetes .deb y .rpm.
+- Cada sistema se actualiza desde su propio canal firmado. En Windows, la compilación 16 no puede actualizarse sola: instala la compilación 17 a mano una vez.
+- Las herramientas de vídeo en macOS y Linux usan un ffmpeg incluido.
+- Los modelos de un proveedor añadido tienen un interruptor y empiezan activados.
+- La ventana de contexto se lee de las listas de modelos de llama.cpp y vLLM.
+
+### Correcciones
+
+- Añadir un proveedor Personalizado (compatible con OpenAI) vuelve a funcionar.
+- El espacio libre en disco es correcto en macOS.
+- El chat sigue visible cuando se ensancha el panel lateral.
+- Las búsquedas web ya no vuelven vacías cuando un buscador muestra una comprobación antibots.
+
+## Compilación 16
+
+- Las compilaciones de macOS estaban en pausa; esta salió para Windows y Linux.
+- Los errores de descarga dicen qué hacer ante un disco lleno, una carpeta sin permiso de escritura, una suma de verificación incorrecta o una dirección bloqueada.
+- Las habilidades activadas más allá de la 40 siguen pudiendo usarse.
+
+### Correcciones
+
+- Las descargas de modelos en Windows ya no fallan con "URL refused by outbound security policy".
+- Cerrar Draggy o un cierre inesperado ya no deja llama-server ni procesos de shell en marcha.
+- Las herramientas MCP que solo dicen ser de lectura preguntan antes de ejecutarse, y las descargas web se detienen en 16 MiB.
+- Cuando cambian varios archivos a la vez, se detectan todos, y los lienzos abiertos ya no se quedan desactualizados.
+- Intro con un editor de métodos de entrada, Esc en menús y al renombrar, y Reintentar en la pantalla de error vuelven a funcionar.
+
+## Compilación 15
+
+### Correcciones
+
+- La IA vuelve a poder leer los vídeos adjuntos.
+
+## Compilación 14
+
+- Se pueden adjuntar vídeos a un chat.
+- La API local habla los formatos de herramientas y mensajes de Codex, Claude Code, Cline y Open WebUI.
+
+### Correcciones
+
+- Las respuestas en chats con sesión iniciada en una cuenta ya no salen vacías.
+- Las llamadas a herramientas y los mensajes de seguimiento en chats de ChatGPT funcionan.
+- Las llamadas a la herramienta de navegador aparecen como completadas en lugar de fallidas.
+
 ## Build 13
 
 - Draggy arranca en una pequeña ventana que busca una actualización, la descarga y se reinicia con la nueva versión. **Iniciar sin actualizar** la omite.
