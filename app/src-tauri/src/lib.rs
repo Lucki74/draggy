@@ -237,7 +237,34 @@ fn startup_failed(message: &str) -> ! {
     std::process::exit(1);
 }
 
+/// Apps opened from Finder or a desktop launcher get a bare PATH without Homebrew or ~/.local/bin,
+/// so commands, MCP servers and git would not be found. The login shell's PATH replaces it.
+#[cfg(unix)]
+fn adopt_login_path() {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_owned());
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let out = std::process::Command::new(shell)
+            .args(["-l", "-c", "printf %s \"$PATH\""])
+            .stdin(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .output();
+        let _ = tx.send(out);
+    });
+    if let Ok(Ok(out)) = rx.recv_timeout(std::time::Duration::from_secs(3))
+        && out.status.success()
+    {
+        let path = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+        if !path.is_empty() {
+            // SAFETY: runs first in run(), before any other thread reads the environment.
+            unsafe { std::env::set_var("PATH", path) };
+        }
+    }
+}
+
 pub fn run() {
+    #[cfg(unix)]
+    adopt_login_path();
     // The port must be known before the window, so the CSP can name the gateway's origin.
     child_job::install();
     let mut context = tauri::generate_context!();

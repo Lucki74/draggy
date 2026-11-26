@@ -25,7 +25,7 @@ const runCommand: ToolSpec = {
     shell: {
       type: "string",
       description:
-        'Optional. One of "pwsh", "powershell", "cmd", "bash" or "sh". Leave it out to use this computer\'s default shell.',
+        'Optional. One of "pwsh", "powershell", "cmd", "bash", "sh" or "zsh". Leave it out to use this computer\'s default shell.',
     },
     timeout_seconds: {
       type: "integer",

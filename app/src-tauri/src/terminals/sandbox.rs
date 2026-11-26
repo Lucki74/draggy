@@ -20,7 +20,11 @@ const LAUNCHER: &str = "draggy-sandbox.exe";
 const SCOPE: &str = "proc.sandbox";
 // Without these, Node cannot resolve a script path when the drive root is not stat-able.
 const NODE_FLAGS: &str = "--preserve-symlinks --preserve-symlinks-main";
-const UNAVAILABLE: &str = "The sandbox is not available, so the command was not run.";
+const UNAVAILABLE: &str = if cfg!(windows) {
+    "The sandbox is not available, so the command was not run."
+} else {
+    "This system has no sandbox yet, so the command was not run. Ask with request_outside_sandbox to run it with the user's approval."
+};
 const SECRET_FOLDERS: [&str; 5] = [".ssh", ".aws", ".gnupg", ".azure", ".config"];
 /// Printed by the shell check; a shell that starts and runs a command prints it back.
 pub const SHELL_MARK: &str = "dg-shell-ok";

@@ -546,43 +546,45 @@ function ModelList({
           />
         </label>
       )}
-      <ul className="flex flex-col max-h-72 overflow-y-auto">
-        {shown.map((model) => (
-          <li key={model.id} className="flex flex-wrap items-center gap-2 py-1.5">
-            <label className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={model.pinned}
-                onChange={(event) => pin(model.id, event.target.checked)}
-                className="accent-[var(--text-primary)]"
-              />
-              <span className="text-sm font-medium truncate" dir="ltr">
-                {model.id}
-              </span>
-              {instance.kind === "local" && model.cloud && <Badge title={t("cloudModelHint")}>{t("cloudModelBadge")}</Badge>}
-            </label>
-            <div className="flex items-center gap-1">
-              {CAPABILITIES.map(({ flag, label }) => {
-                const on = model.capabilities.includes(flag);
-                return (
-                  <button
-                    key={flag}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => override(model, flag)}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-medium border transition-colors ${
-                      on
-                        ? "bg-action-bg text-action-fg border-transparent"
-                        : "text-text-secondary border-rule-strong hover:text-text-primary"
-                    }`}
-                  >
-                    {t(label)}
-                  </button>
-                );
-              })}
-            </div>
-          </li>
-        ))}
+      <ul className="-mx-1 flex flex-col max-h-72 overflow-y-auto px-1">
+        {shown.map((model) => {
+          const cloud = instance.kind === "local" && model.cloud;
+          return (
+            <li key={model.id} className="flex flex-wrap items-center gap-2 py-1.5">
+              <label className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer">
+                <Toggle
+                  checked={model.pinned}
+                  onChange={(on) => pin(model.id, on)}
+                  label={cloud ? `${model.id} ${t("cloudModelBadge")}` : model.id}
+                />
+                <span className="text-sm font-medium truncate" dir="ltr">
+                  {model.id}
+                </span>
+                {cloud && <Badge title={t("cloudModelHint")}>{t("cloudModelBadge")}</Badge>}
+              </label>
+              <div className="flex items-center gap-1">
+                {CAPABILITIES.map(({ flag, label }) => {
+                  const on = model.capabilities.includes(flag);
+                  return (
+                    <button
+                      key={flag}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => override(model, flag)}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-medium border transition-colors ${
+                        on
+                          ? "bg-action-bg text-action-fg border-transparent"
+                          : "text-text-secondary border-rule-strong hover:text-text-primary"
+                      }`}
+                    >
+                      {t(label)}
+                    </button>
+                  );
+                })}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -702,7 +704,24 @@ function Advanced({
   );
 }
 
-/** The catalog, searchable; picking one adds it switched off, to be keyed and switched on. */
+const untouched = (instance: ProviderInstance | undefined, added: ProviderInstance) =>
+  instance !== undefined && !instance.enabled && instance.pinnedModels.length === 0 && instance.baseUrl === added.baseUrl;
+
+/** After an add, a provider with no key to wait for is switched on with the chat models it lists ticked,
+ * unless the user switched it, ticked a model or changed its address while the listing was on its way. */
+async function switchOnListed(providers: Providers, added: ProviderInstance) {
+  if (!untouched(added, added) || (added.needsKey && !added.hasKey)) return;
+  const main = window.draggy?.providers;
+  const answer = await main?.models(added.id).catch(swallowed("providers", "the main process already logged this call", null));
+  const chat = answer?.success ? answer.models.filter((model) => !model.noise).map((model) => model.id) : [];
+  if (chat.length === 0) return;
+  const kept = await main?.list().catch(swallowed("providers", "the main process already logged this call", null));
+  if (untouched(kept?.find((instance) => instance.id === added.id), added)) {
+    await providers.update(added.id, { enabled: true, pinnedModels: chat });
+  }
+}
+
+/** The catalog, searchable; picking one adds it, and one that needs no key is switched on by `switchOnListed`. */
 export function AddProvider({
   catalog,
   providers,
@@ -766,6 +785,7 @@ export function AddProvider({
     if (added.ok && added.instance) {
       close();
       onAdded(added.instance.id);
+      void switchOnListed(providers, added.instance);
     } else {
       setRefused(true);
     }

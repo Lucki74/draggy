@@ -325,6 +325,14 @@ describe("the preferences step", () => {
     expect(latest.effort).toBe("high");
   });
 
+  it("says what the speed and memory switch shows", async () => {
+    freshMachine();
+    render(<Harness onFinish={() => {}} />);
+    await toPreferences();
+    fireEvent.click(screen.getByRole("button", { name: en("onbMore") }));
+    expect(screen.getByText(en("showMetricsHint"))).toBeTruthy();
+  });
+
   it("queues a ticked extra behind the model", async () => {
     const { api, order, finish } = freshMachine();
     const onFinish = vi.fn();

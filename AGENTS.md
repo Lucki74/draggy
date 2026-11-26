@@ -44,7 +44,7 @@ Runs `tauri dev`. It stages the node.exe sidecar, then starts Vite on port 5173 
 npm run tauri:build
 ```
 
-On Windows, stages the sidecar and builds the NSIS installer with `src-tauri/tauri.release.conf.json`, which turns on updater artifacts. The installer lands in `src-tauri/target/release/bundle/nsis/`. The script calls PowerShell, so on macOS and Linux build with `npx tauri build` instead (see below).
+On Windows, stages the sidecar and builds the NSIS installer with `src-tauri/tauri.release.conf.json`, which turns on updater artifacts. The installer lands in `src-tauri/target/release/bundle/nsis/`. The script calls PowerShell, so on macOS and Linux run `bash scripts/fetch-sidecars-unix.sh mac` (or `linux`) once, then `npm run tauri:build:unix`.
 
 ```bash
 npm run stage:sidecars

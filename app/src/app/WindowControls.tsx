@@ -26,6 +26,30 @@ const GLYPH = {
   close: "",
 } as const;
 
+// Segoe Fluent Icons exists only on Windows, so macOS and Linux get the same shapes as strokes.
+const SEGOE = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
+const PATHS = {
+  minimize: "M0 5h10",
+  maximize: "M0.5 0.5h9v9h-9z",
+  restore: "M2.5 2.5h7v7h-7z M2.5 2.5v-2h7v7h-2",
+  close: "M0 0l10 10M10 0l-10 10",
+} as const;
+
+function Glyph({ name }: { name: keyof typeof GLYPH }) {
+  if (SEGOE) {
+    return (
+      <span aria-hidden="true" className="font-['Segoe_Fluent_Icons','Segoe_MDL2_Assets'] text-[10px]">
+        {GLYPH[name]}
+      </span>
+    );
+  }
+  return (
+    <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
+      <path d={PATHS[name]} />
+    </svg>
+  );
+}
+
 const BUTTON =
   "inline-flex h-10 w-[46px] shrink-0 items-center justify-center text-text-primary transition-colors duration-120 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-text-primary";
 
@@ -67,9 +91,7 @@ export function WindowControls({ t }: WindowControlsProps) {
         className={`${BUTTON} hover:bg-surface-tint`}
         onClick={() => run((win) => win.minimize())}
       >
-        <span aria-hidden="true" className="font-['Segoe_Fluent_Icons','Segoe_MDL2_Assets'] text-[10px]">
-          {GLYPH.minimize}
-        </span>
+        <Glyph name="minimize" />
       </button>
       <button
         type="button"
@@ -78,9 +100,7 @@ export function WindowControls({ t }: WindowControlsProps) {
         className={`${BUTTON} hover:bg-surface-tint`}
         onClick={() => run((win) => win.toggleMaximize())}
       >
-        <span aria-hidden="true" className="font-['Segoe_Fluent_Icons','Segoe_MDL2_Assets'] text-[10px]">
-          {restore ? GLYPH.restore : GLYPH.maximize}
-        </span>
+        <Glyph name={restore ? "restore" : "maximize"} />
       </button>
       <button
         type="button"
@@ -89,9 +109,7 @@ export function WindowControls({ t }: WindowControlsProps) {
         className={`${BUTTON} hover:bg-[#c42b1c] hover:text-white`}
         onClick={() => run((win) => win.close())}
       >
-        <span aria-hidden="true" className="font-['Segoe_Fluent_Icons','Segoe_MDL2_Assets'] text-[10px]">
-          {GLYPH.close}
-        </span>
+        <Glyph name="close" />
       </button>
     </div>
   );

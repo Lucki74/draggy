@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # The Linux stage-sidecars.ps1: copies pinned node, then ffmpeg and ffprobe, into src-tauri/binaries under Tauri's target-triple names.
-# Linux has no pinned ffmpeg yet, so it is staged only when TAURI_ENV_DEBUG=true (tauri dev, tauri build --debug).
+# ffmpeg and ffprobe come from vendor/ffmpeg (scripts/fetch-sidecars-unix.sh linux checks them against ffmpeg-pin-linux.json).
+# A debug build (TAURI_ENV_DEBUG=true) may fall back to an unpinned copy on PATH.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -28,14 +29,14 @@ mkdir -p "$dir"
 cp -f "$source" "$dir/node-$triple"
 echo "staged node $version"
 
-if [ "${TAURI_ENV_DEBUG:-}" != "true" ]; then
-  echo "No pinned ffmpeg for Linux yet; only a debug build (TAURI_ENV_DEBUG=true) may stage an unpinned one" >&2
-  exit 1
-fi
 for tool in ffmpeg ffprobe; do
   src="$here/../vendor/ffmpeg/$tool"
   from="vendor/ffmpeg"
   if [ ! -f "$src" ]; then
+    if [ "${TAURI_ENV_DEBUG:-}" != "true" ]; then
+      echo "$tool missing at $src; run scripts/fetch-sidecars-unix.sh linux" >&2
+      exit 1
+    fi
     src="$(command -v "$tool" || true)"
     from="PATH"
   fi
@@ -45,5 +46,5 @@ for tool in ffmpeg ffprobe; do
   fi
   cp -f "$src" "$dir/$tool-$triple"
   chmod u+w "$dir/$tool-$triple"
-  echo "staged unpinned $tool from $from for a debug build"
+  echo "staged $tool from $from"
 done
