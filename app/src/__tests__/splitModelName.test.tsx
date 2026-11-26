@@ -18,7 +18,7 @@ afterEach(() => {
 
 describe("a split model in the installed list", () => {
   it("shows its clean name without part counter, .gguf, or quantisation but acts on the real file", () => {
-    const remove = vi.fn(async () => undefined);
+    const remove = vi.fn(async () => true);
     const manager: ModelManager = {
       installed: [{ name: SPLIT, size: 15_000_000_000, parameterSize: "48L", family: "qwen3", capabilities: ["tools"], contextLength: 131072 }],
       loaded: [],
@@ -66,7 +66,7 @@ describe("a split model in the installed list", () => {
       pulls: [],
       startPull: vi.fn(async () => true),
       cancelPull: vi.fn(),
-      remove: vi.fn(async () => undefined),
+      remove: vi.fn(async () => true),
       unload: vi.fn(async () => undefined),
       error: "",
       vram: 0,
