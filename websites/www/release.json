@@ -1,34 +1,63 @@
 {
-  "version": "3.0.16",
-  "build": 16,
-  "tag": "b-16",
-  "date": "2026-11-25",
+  "version": "3.0.17",
+  "build": 17,
+  "tag": "b-17",
+  "date": "2026-11-26",
   "stars": 8,
   "assets": {
     "windows-exe": {
       "name": "draggy_setup.exe",
-      "url": "https://github.com/Lucki74/draggy/releases/download/b-16/draggy_setup.exe",
-      "size": 189556789,
-      "sha512": "c4050287eff44a1496b4c59cdcea6d81620d0fd748dffd3b13056f71acd2131339e1c134126f88d7296f54d0dddd5508bbdd0f71eba3e8cd980b097bc3c46cb0"
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-17/draggy_setup.exe",
+      "size": 189536087,
+      "sha512": "c26d6d135e84669e218b479fc773d796d2ee6ca72574ca0588ac0b46119e480078da6fb2894ca56a12b6864b4eb9b9d6a6cb142e83b87b30dea8a1ac855010a5"
     },
     "macos-zip": {
-      "name": "Draggy-3.0.15-macos-arm64.zip",
-      "url": "https://github.com/Lucki74/draggy/releases/download/b-15/Draggy-3.0.15-macos-arm64.zip",
-      "tag": "b-15",
-      "size": 17488050
+      "name": "Draggy-3.0.17-macos-universal.zip",
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-17/Draggy-3.0.17-macos-universal.zip",
+      "size": 291494595
     },
     "linux-deb": {
-      "name": "draggy_3.0.16-1_amd64.deb",
-      "url": "https://github.com/Lucki74/draggy/releases/download/b-16/draggy_3.0.16-1_amd64.deb",
-      "size": 7650388
+      "name": "draggy_3.0.17_amd64.deb",
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-17/draggy_3.0.17_amd64.deb",
+      "size": 160642428
     },
     "linux-rpm": {
-      "name": "draggy-3.0.16-1.x86_64.rpm",
-      "url": "https://github.com/Lucki74/draggy/releases/download/b-16/draggy-3.0.16-1.x86_64.rpm",
-      "size": 9099892
+      "name": "draggy-3.0.17-1.x86_64.rpm",
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-17/draggy-3.0.17-1.x86_64.rpm",
+      "size": 160710587
+    },
+    "linux-appimage": {
+      "name": "draggy_3.0.17_amd64.AppImage",
+      "url": "https://github.com/Lucki74/draggy/releases/download/b-17/draggy_3.0.17_amd64.AppImage",
+      "size": 224610808
     }
   },
   "recent": [
+    {
+      "tag": "b-17",
+      "build": 17,
+      "version": "3.0.17",
+      "date": "2026-11-26",
+      "html_url": "https://github.com/Lucki74/draggy/releases/tag/b-17",
+      "notes": {
+        "updates": [
+          "Draggy now runs on the same Tauri app on Windows, macOS and Linux, with one look, shell and setup everywhere.",
+          "macOS is back as one universal app for Apple silicon and Intel Macs running macOS 14 or newer. It is signed ad hoc, so clear the quarantine flag or use right click, Open the first time.",
+          "Linux gets an AppImage next to the .deb and .rpm packages.",
+          "Every platform now updates itself from its own signed feed. Windows users on build 16 need to install build 17 by hand once; later builds arrive on their own.",
+          "Video tools on macOS and Linux use a bundled ffmpeg, so you no longer need to install one.",
+          "API server settings are easier to read and set up.",
+          "Models from an added provider now have an on/off switch and start switched on.",
+          "Draggy reads the context window from llama.cpp and vLLM model lists."
+        ],
+        "fixes": [
+          "Adding a Custom (OpenAI-compatible) provider works again.",
+          "Free disk space shows the right number on macOS.",
+          "Chat stays visible when you drag the side pane wide.",
+          "Web searches no longer come back empty when a search engine shows a bot check."
+        ]
+      }
+    },
     {
       "tag": "b-16",
       "build": 16,
@@ -60,24 +89,6 @@
         "updates": [],
         "fixes": [
           "AI could not read videos because of \"Disabled tools\" but now can."
-        ]
-      }
-    },
-    {
-      "tag": "b-14",
-      "build": 14,
-      "version": "3.0.14",
-      "date": "2026-11-21",
-      "html_url": "https://github.com/Lucki74/draggy/releases/tag/b-14",
-      "notes": {
-        "updates": [
-          "You can now attach videos to a chat",
-          "The local API now supports all major ai coding harnesses such as codex, claude code and cline as well as openwebui and uses their format of tools & messages."
-        ],
-        "fixes": [
-          "Replies in chats signed in with an account are no longer empty",
-          "Tool calls and follow-up messages in ChatGPT chats now work",
-          "Browser tool calls are now shown as completed instead of failed all the time"
         ]
       }
     }
