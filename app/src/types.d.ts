@@ -1323,6 +1323,8 @@ export interface ProviderModel {
   /** Whether what it reads leaves this computer. */
   cloud: boolean;
   pinned: boolean;
+  /** Left unticked when a provider is first added: not a chat model, or a dated snapshot of another listed id. */
+  noise: boolean;
   override: Partial<Record<ProviderCapability, boolean>> | null;
 }
 

@@ -106,6 +106,7 @@ export async function listAllModels(): Promise<ModelGroup[]> {
             capabilities: ["completion"],
             cloud: instance.kind !== "local",
             pinned: true,
+            noise: false,
             override: null,
           },
       );

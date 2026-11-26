@@ -704,7 +704,24 @@ function Advanced({
   );
 }
 
-/** The catalog, searchable; picking one adds it switched off, to be keyed and switched on. */
+const untouched = (instance: ProviderInstance | undefined, added: ProviderInstance) =>
+  instance !== undefined && !instance.enabled && instance.pinnedModels.length === 0 && instance.baseUrl === added.baseUrl;
+
+/** After an add, a provider with no key to wait for is switched on with the chat models it lists ticked,
+ * unless the user switched it, ticked a model or changed its address while the listing was on its way. */
+async function switchOnListed(providers: Providers, added: ProviderInstance) {
+  if (!untouched(added, added) || (added.needsKey && !added.hasKey)) return;
+  const main = window.draggy?.providers;
+  const answer = await main?.models(added.id).catch(swallowed("providers", "the main process already logged this call", null));
+  const chat = answer?.success ? answer.models.filter((model) => !model.noise).map((model) => model.id) : [];
+  if (chat.length === 0) return;
+  const kept = await main?.list().catch(swallowed("providers", "the main process already logged this call", null));
+  if (untouched(kept?.find((instance) => instance.id === added.id), added)) {
+    await providers.update(added.id, { enabled: true, pinnedModels: chat });
+  }
+}
+
+/** The catalog, searchable; picking one adds it, and one that needs no key is switched on by `switchOnListed`. */
 export function AddProvider({
   catalog,
   providers,
@@ -768,6 +785,7 @@ export function AddProvider({
     if (added.ok && added.instance) {
       close();
       onAdded(added.instance.id);
+      void switchOnListed(providers, added.instance);
     } else {
       setRefused(true);
     }
