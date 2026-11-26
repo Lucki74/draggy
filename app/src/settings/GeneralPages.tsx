@@ -70,7 +70,7 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
             onChange={(language) => onUpdate({ language: language as Language })}
           />
         </Row>
-        <Row label={t("showMetrics")}>
+        <Row label={t("showMetrics")} description={t("showMetricsHint")}>
           <Toggle
             label={t("showMetrics")}
             checked={settings.showMetrics}
