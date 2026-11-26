@@ -550,12 +550,7 @@ function ModelList({
         {shown.map((model) => (
           <li key={model.id} className="flex flex-wrap items-center gap-2 py-1.5">
             <label className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={model.pinned}
-                onChange={(event) => pin(model.id, event.target.checked)}
-                className="accent-[var(--text-primary)]"
-              />
+              <Toggle checked={model.pinned} onChange={(on) => pin(model.id, on)} label={model.id} />
               <span className="text-sm font-medium truncate" dir="ltr">
                 {model.id}
               </span>

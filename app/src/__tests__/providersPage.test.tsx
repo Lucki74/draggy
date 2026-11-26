@@ -96,13 +96,17 @@ describe("the Providers page", () => {
     expect(document.body.innerHTML).not.toContain("sk-secret");
   });
 
-  it("pins a model by ticking it", async () => {
+  it("pins a model with its switch, and unpins it again", async () => {
     const api = stubMain({ instances: [instance("openai", { hasKey: true, keyHint: "1234", enabled: true })] });
     page();
     await expand("openai");
-    const box = (await screen.findByText("m-2")).closest("label")!.querySelector("input")!;
-    fireEvent.click(box);
+    const model = await screen.findByRole("switch", { name: "m-2" });
+    expect(model.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(model);
     await waitFor(() => expect(api.update).toHaveBeenCalledWith("openai", { pinnedModels: ["m-2"] }));
+    await waitFor(() => expect(screen.getByRole("switch", { name: "m-2" }).getAttribute("aria-checked")).toBe("true"));
+    fireEvent.click(screen.getByText("m-2"));
+    await waitFor(() => expect(api.update).toHaveBeenLastCalledWith("openai", { pinnedModels: [] }));
   });
 
   it("shows the address of a provider that only providers.json knows, and adds it only once confirmed", async () => {
