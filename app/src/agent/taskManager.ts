@@ -52,7 +52,7 @@ export interface TaskHost {
   /** The workspace a conversation started now belongs to. */
   getWorkspaceId: () => string;
   /** How much a turn may do here, and what the user has already allowed. */
-  getPermission: () => { mode: PermissionMode; grants: Grant[] };
+  getPermission: () => { mode: PermissionMode; grants: Grant[]; rules?: import("../types").PermissionRule[] };
   /** A permission to keep for this workspace, beyond the task that asked. */
   onGrant: (grant: Grant) => void;
   /** A turn that ended on its own, for a conversation nobody may be watching. */

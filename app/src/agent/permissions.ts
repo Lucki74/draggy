@@ -1,4 +1,5 @@
-import type { PermissionMode } from "../types";
+import type { PermissionMode, PermissionRule } from "../types";
+import { allowedCommands, allows, denies } from "./permissionRules";
 import {
   commandCovered,
   commandGrantTargets,
@@ -60,6 +61,8 @@ export interface PermissionQuery {
   /** The path, file or address the call is about, when it has one. */
   target?: string | null;
   grants?: Grant[];
+  /** The allow and deny rules from the Permissions page that hold in this project. */
+  rules?: PermissionRule[];
   /** The shell a command runs in; a missing one reads as the strictest grammar. */
   shell?: string | null;
 }
@@ -244,10 +247,17 @@ export function decide(query: PermissionQuery): Verdict {
     annotations = {},
     target = null,
     grants = [],
+    rules = [],
     shell = null,
   } = query;
   const isReadOnly = annotations.readOnlyHint ?? annotations.readOnly;
   const isDestructive = annotations.destructiveHint ?? annotations.destructive;
+
+  // A "Never allow" rule wins over every mode and every earlier "Always".
+  const call = { tool, annotations, target, shell };
+  if (rules.some((rule) => rule.effect === "deny" && denies(rule, call))) {
+    return { decision: "deny", reason: "The user has blocked this in the Permissions settings. Do not try it another way." };
+  }
 
   // Reading is allowed everywhere, plan mode included: looking at the project
   // is exactly what plan mode is for.
@@ -263,6 +273,10 @@ export function decide(query: PermissionQuery): Verdict {
             "The server says this tool only reads, so the user confirms it first.",
         }
       : { decision: "deny", reason: PLAN_REFUSAL };
+  }
+
+  if (rules.some((rule) => rule.effect === "allow" && allows(rule, call))) {
+    return { decision: "allow", reason: "The user allows this in the Permissions settings." };
   }
 
   if (mode === "auto") {
@@ -291,7 +305,8 @@ export function decide(query: PermissionQuery): Verdict {
     }
     const allowed = grants
       .filter((grant) => grant.tool === tool && grant.target)
-      .map((grant) => commandPrefix(grant.target as string));
+      .map((grant) => commandPrefix(grant.target as string))
+      .concat(allowedCommands(rules));
 
     if (commandCovered(allowed, target, dialectFor(shell))) {
       return {
