@@ -702,16 +702,24 @@ function Advanced({
   );
 }
 
-/** Only on the add: a provider that lists models straight away is switched on with every one ticked. */
-async function switchOnListed(providers: Providers, instance: ProviderInstance) {
-  if (instance.enabled || instance.pinnedModels.length > 0 || (instance.needsKey && !instance.hasKey)) return;
-  const answer = await window.draggy?.providers?.models(instance.id).catch(swallowed("providers", "the main process already logged this call", null));
-  if (answer?.success && answer.models.length > 0) {
-    await providers.update(instance.id, { enabled: true, pinnedModels: answer.models.map((model) => model.id) });
+const untouched = (instance: ProviderInstance | undefined, added: ProviderInstance) =>
+  instance !== undefined && !instance.enabled && instance.pinnedModels.length === 0 && instance.baseUrl === added.baseUrl;
+
+/** After an add, a provider with no key to wait for is switched on with the chat models it lists ticked,
+ * unless the user switched it, ticked a model or changed its address while the listing was on its way. */
+async function switchOnListed(providers: Providers, added: ProviderInstance) {
+  if (!untouched(added, added) || (added.needsKey && !added.hasKey)) return;
+  const main = window.draggy?.providers;
+  const answer = await main?.models(added.id).catch(swallowed("providers", "the main process already logged this call", null));
+  const chat = answer?.success ? answer.models.filter((model) => !model.noise).map((model) => model.id) : [];
+  if (chat.length === 0) return;
+  const kept = await main?.list().catch(swallowed("providers", "the main process already logged this call", null));
+  if (untouched(kept?.find((instance) => instance.id === added.id), added)) {
+    await providers.update(added.id, { enabled: true, pinnedModels: chat });
   }
 }
 
-/** The catalog, searchable; picking one adds it, switched on when it lists models without a key. */
+/** The catalog, searchable; picking one adds it, and one that needs no key is switched on by `switchOnListed`. */
 export function AddProvider({
   catalog,
   providers,

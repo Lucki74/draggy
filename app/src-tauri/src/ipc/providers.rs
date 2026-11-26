@@ -650,6 +650,7 @@ mod tests {
                 capabilities: vec!["vision".to_owned()],
                 cloud: true,
                 pinned: true,
+                noise: false,
                 override_flags: None,
             }]
         });

@@ -40,6 +40,7 @@
             ],
             "cloud": true,
             "pinned": false,
+            "noise": false,
             "override": null
           },
           {
@@ -56,6 +57,7 @@
             ],
             "cloud": true,
             "pinned": true,
+            "noise": false,
             "override": null
           },
           {
@@ -69,6 +71,7 @@
             ],
             "cloud": true,
             "pinned": false,
+            "noise": true,
             "override": null
           }
         ]
@@ -120,6 +123,7 @@
             ],
             "cloud": true,
             "pinned": false,
+            "noise": false,
             "override": {
               "vision": false,
               "thinking": true
@@ -139,6 +143,7 @@
             ],
             "cloud": true,
             "pinned": true,
+            "noise": false,
             "override": null
           },
           {
@@ -152,6 +157,7 @@
             ],
             "cloud": true,
             "pinned": false,
+            "noise": true,
             "override": null
           }
         ]
@@ -253,6 +259,7 @@
             ],
             "cloud": true,
             "pinned": false,
+            "noise": false,
             "override": null
           },
           {
@@ -268,6 +275,7 @@
             ],
             "cloud": true,
             "pinned": false,
+            "noise": false,
             "override": null
           }
         ]
@@ -321,6 +329,7 @@
             ],
             "cloud": true,
             "pinned": false,
+            "noise": false,
             "override": null
           },
           {
@@ -336,6 +345,7 @@
             ],
             "cloud": false,
             "pinned": false,
+            "noise": false,
             "override": null
           }
         ]
@@ -381,6 +391,94 @@
             ],
             "cloud": false,
             "pinned": false,
+            "noise": false,
+            "override": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a custom server's listing marks what a first look leaves unticked: embeddings, image ids and dated snapshots of a listed model",
+      "input": {
+        "type": "custom",
+        "baseUrl": "http://127.0.0.1:8000/v1",
+        "routes": {
+          "http://127.0.0.1:8000/v1/models": {
+            "body": {
+              "data": [
+                {
+                  "id": "qwen3"
+                },
+                {
+                  "id": "qwen3-20250528"
+                },
+                {
+                  "id": "nomic-embed-text"
+                },
+                {
+                  "id": "flux-dev"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "listed": [
+          {
+            "id": "flux-dev",
+            "ref": "@custom/flux-dev",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "noise": true,
+            "override": null
+          },
+          {
+            "id": "nomic-embed-text",
+            "ref": "@custom/nomic-embed-text",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "noise": true,
+            "override": null
+          },
+          {
+            "id": "qwen3",
+            "ref": "@custom/qwen3",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "noise": false,
+            "override": null
+          },
+          {
+            "id": "qwen3-20250528",
+            "ref": "@custom/qwen3-20250528",
+            "name": null,
+            "contextLength": null,
+            "maxOutputTokens": null,
+            "capabilities": [
+              "completion"
+            ],
+            "cloud": true,
+            "pinned": false,
+            "noise": true,
             "override": null
           }
         ]
@@ -416,6 +514,7 @@
             ],
             "cloud": true,
             "pinned": true,
+            "noise": false,
             "override": null
           }
         ]
@@ -456,6 +555,7 @@
             ],
             "cloud": true,
             "pinned": false,
+            "noise": false,
             "override": null
           }
         ]
@@ -517,6 +617,7 @@
             ],
             "cloud": true,
             "pinned": false,
+            "noise": false,
             "override": null
           },
           {
@@ -533,6 +634,7 @@
             ],
             "cloud": true,
             "pinned": false,
+            "noise": false,
             "override": null
           },
           {
@@ -549,6 +651,7 @@
             ],
             "cloud": true,
             "pinned": false,
+            "noise": false,
             "override": null
           }
         ]
