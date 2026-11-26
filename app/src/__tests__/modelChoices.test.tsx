@@ -67,7 +67,7 @@ describe("the composer's model list", () => {
 
   it("shows a model by the name its provider gives, and the last list at once while the next is slow", async () => {
     const providers = stub([], [instance("claude", { kind: "account", pinnedModels: ["opus"] })]);
-    providers.models.mockResolvedValue({ success: true, models: [{ id: "opus", name: "Opus 5.5", ref: "@claude/opus", contextLength: 1000000, maxOutputTokens: null, capabilities: ["completion"], cloud: true, pinned: true, override: null }] });
+    providers.models.mockResolvedValue({ success: true, models: [{ id: "opus", name: "Opus 5.5", ref: "@claude/opus", contextLength: 1000000, maxOutputTokens: null, capabilities: ["completion"], cloud: true, pinned: true, noise: false, override: null }] });
     menu();
     await screen.findByText("Opus 5.5");
     cleanup();

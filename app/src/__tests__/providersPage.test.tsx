@@ -40,7 +40,7 @@ function stubMain({ instances = [] as ProviderInstance[], catalog = [entry("open
     test: vi.fn(async () => ({ success: true, count: 0 })),
     models: vi.fn(async (id: string) => ({
       success: true,
-      models: ["m-1", "m-2"].map((model) => ({ id: model, ref: `@${id}/${model}`, capabilities: ["completion"], cloud: false, pinned: find(id).pinnedModels.includes(model), override: null })),
+      models: ["m-1", "m-2"].map((model) => ({ id: model, ref: `@${id}/${model}`, capabilities: ["completion"], cloud: false, pinned: find(id).pinnedModels.includes(model), noise: false, override: null })),
     })),
   };
   (window as unknown as { draggy: unknown }).draggy = { providers: api };
@@ -113,9 +113,9 @@ describe("the Providers page", () => {
 
   it("names a local server's cloud model switch with its Cloud badge", async () => {
     const api = stubMain({ instances: [instance("ollama", { kind: "local", needsKey: false, enabled: true })] });
-    api.models.mockResolvedValueOnce({
+    api.models.mockResolvedValue({
       success: true,
-      models: [{ id: "big:cloud", ref: "@ollama/big:cloud", capabilities: ["completion"], cloud: true, pinned: false, override: null }],
+      models: [{ id: "big:cloud", ref: "@ollama/big:cloud", capabilities: ["completion"], cloud: true, noise: false, pinned: false, override: null }],
     });
     page();
     await expand("ollama");
@@ -145,6 +145,93 @@ describe("the Providers page", () => {
     fireEvent.keyDown(field, { key: "Enter" });
     await waitFor(() => expect(api.add).toHaveBeenCalledWith({ type: "custom", baseUrl: "http://192.168.64.1:1234/v1" }));
     expect(await screen.findByRole("switch", { name: "custom" })).toBeTruthy();
+  });
+
+  const customEntry = () => entry("custom", { name: "Custom (OpenAI-compatible)", needsKey: false, editableBaseUrl: true, baseUrl: null });
+  const addCustom = async () => {
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "Custom (OpenAI-compatible)" }));
+    fireEvent.change(screen.getByRole("textbox", { name: en("providerAddress") }), { target: { value: "http://127.0.0.1:1234/v1" } });
+    fireEvent.click(screen.getByRole("button", { name: en("confirm") }));
+  };
+  const listed = (ids: string[], noise: string[] = []) => ({
+    success: true,
+    models: [...ids, ...noise].map((id) => ({ id, ref: `@custom/${id}`, capabilities: ["completion"], cloud: false, pinned: false, noise: noise.includes(id), override: null })),
+  });
+  const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it("switches an added provider on with the chat models it lists ticked, and no embedding model", async () => {
+    const api = stubMain({ catalog: [customEntry()] });
+    api.models.mockResolvedValueOnce(listed(["m-1", "m-2"], ["nomic-embed-text"]) as never);
+    page();
+    await addCustom();
+    await waitFor(() => expect(api.update).toHaveBeenCalledWith("custom", { enabled: true, pinnedModels: ["m-1", "m-2"] }));
+    await waitFor(() => expect(screen.getByRole("switch", { name: "custom" }).getAttribute("aria-checked")).toBe("true"));
+    expect(api.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves an added provider off when its listing fails", async () => {
+    const api = stubMain({ catalog: [customEntry()] });
+    api.models.mockImplementation(async () => ({ success: false, error: { kind: "provider-unreachable" } }) as never);
+    page();
+    await addCustom();
+    await waitFor(() => expect(api.models).toHaveBeenCalled());
+    await settled();
+    expect(api.update).not.toHaveBeenCalled();
+    expect(screen.getByRole("switch", { name: "custom" }).getAttribute("aria-checked")).toBe("false");
+  });
+
+  it.each([
+    ["no models", listed([])],
+    ["only models that are not for chat", listed([], ["nomic-embed-text", "whisper-1"])],
+  ])("leaves an added provider off when it lists %s", async (_, answer) => {
+    const api = stubMain({ catalog: [customEntry()] });
+    api.models.mockResolvedValue(answer as never);
+    page();
+    await addCustom();
+    await waitFor(() => expect(api.models).toHaveBeenCalled());
+    await settled();
+    expect(api.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["is already on", { enabled: true }],
+    ["already has a model ticked", { pinnedModels: ["m-1"] }],
+  ])("leaves an added provider alone when it %s", async (_, over) => {
+    const api = stubMain({ catalog: [customEntry()] });
+    api.add.mockImplementation(async () => ({ success: true, instance: instance("custom", { kind: "local", needsKey: false, ...over }) }) as never);
+    page();
+    await addCustom();
+    await waitFor(() => expect(api.add).toHaveBeenCalled());
+    await settled();
+    expect(api.models).not.toHaveBeenCalled();
+    expect(api.update).not.toHaveBeenCalled();
+  });
+
+  it("keeps the switch the user flipped while the listing was on its way", async () => {
+    const api = stubMain({ catalog: [customEntry()] });
+    let answer: (value: unknown) => void = () => {};
+    api.models.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)) as never);
+    page();
+    await addCustom();
+    await waitFor(() => expect(api.models).toHaveBeenCalled());
+    fireEvent.click(await screen.findByRole("switch", { name: "custom" }));
+    await waitFor(() => expect(api.update).toHaveBeenCalledWith("custom", { enabled: true }));
+    answer(listed(["m-1", "m-2"]));
+    await settled();
+    expect(api.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not switch on a keyed provider that has no key yet, even when it lists models", async () => {
+    const api = stubMain({ catalog: [entry("openai")] });
+    api.add.mockImplementation(async () => ({ success: true, instance: instance("openai") }) as never);
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: en("addProvider") }));
+    fireEvent.click(await screen.findByRole("button", { name: "openai" }));
+    await waitFor(() => expect(api.add).toHaveBeenCalled());
+    await settled();
+    expect(api.models).not.toHaveBeenCalled();
+    expect(api.update).not.toHaveBeenCalled();
   });
 
   it("says why an add was refused, and keeps the address to correct", async () => {

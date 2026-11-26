@@ -129,7 +129,7 @@ export default function Preferences({
         </button>
         {more && (
           <Group>
-            <Row label={t("showMetrics")}>
+            <Row label={t("showMetrics")} description={t("showMetricsHint")}>
               <Toggle
                 label={t("showMetrics")}
                 checked={settings.showMetrics}

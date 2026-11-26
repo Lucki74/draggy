@@ -9,7 +9,7 @@ use tracing::{debug, info, warn};
 
 use crate::adapters::common::ListedModel;
 use crate::adapters::{anthropic, gemini, ollama, openai};
-use crate::autopin::{PinPlan, plan_pins};
+use crate::autopin::{PinPlan, is_noise, plan_pins};
 use crate::catalog::{CatalogEntry, capabilities_for};
 use crate::errors::{from_network, from_response_text};
 use crate::http::{HttpClient, HttpRequest, Method};
@@ -57,6 +57,8 @@ pub struct ModelInfo {
     pub capabilities: Vec<String>,
     pub cloud: bool,
     pub pinned: bool,
+    /// Left unticked by a first look: not a chat model, or a dated snapshot of another listed id.
+    pub noise: bool,
     #[serde(rename = "override")]
     pub override_flags: Option<ModelOverride>,
 }
@@ -210,9 +212,10 @@ impl<H: HttpClient> ModelLister<H> {
                 }
             }
         };
+        let ids: Vec<String> = listed.iter().map(|model| model.id.clone()).collect();
         let mut infos: Vec<ModelInfo> = listed
             .iter()
-            .map(|model| describe(&conn.instance, conn.entry.as_ref(), model))
+            .map(|model| describe(&conn.instance, conn.entry.as_ref(), model, &ids))
             .collect();
         // TS quirk: the reference sorts with localeCompare; comparing lowercase text differs for punctuation such as a colon.
         infos.sort_by(|a, b| {
@@ -380,7 +383,12 @@ fn listed_flags(
 }
 
 /// One model's description, from its listing, the catalog's patterns and the instance's override.
-fn describe(instance: &Instance, entry: Option<&CatalogEntry>, model: &ListedModel) -> ModelInfo {
+fn describe(
+    instance: &Instance,
+    entry: Option<&CatalogEntry>,
+    model: &ListedModel,
+    listed: &[String],
+) -> ModelInfo {
     // An account lists aliases such as `opus`; the full name it resolves to is what the patterns know.
     let pattern = capabilities_for(entry, model.resolved.as_deref().unwrap_or(&model.id));
     let mut flags: BTreeMap<&str, bool> = FLAGS
@@ -430,6 +438,7 @@ fn describe(instance: &Instance, entry: Option<&CatalogEntry>, model: &ListedMod
         // Data leaves the machine for a cloud provider, and for a local server's cloud-hosted models.
         cloud: entry.is_none_or(|entry| entry.kind != "local") || model.cloud,
         pinned: instance.pinned_models.contains(&model.id),
+        noise: is_noise(entry, &model.id, listed),
         override_flags,
     }
 }
