@@ -80,8 +80,9 @@ export async function adoptInstalled(api: BootBridge, preferred: string): Promis
     .then(() => api.gguf?.listModels())
     .catch(() => []);
   const installed = describeInstalled(listing);
-  if (preferred && installed.some((entry) => entry.name === preferred)) return preferred;
-  return selectableModels(installed)[0]?.name ?? null;
+  const chat = selectableModels(installed);
+  if (preferred && chat.some((entry) => entry.name === preferred)) return preferred;
+  return chat[0]?.name ?? null;
 }
 
 /** Free space as the splash has always read it: small numbers are gigabytes, and zero means unknown. */

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import ModelsPage from "../settings/ModelsPage";
 import type { ModelManager } from "../settings/useModelManager";
 import { defaultSettings } from "../app/settings";
@@ -16,7 +16,7 @@ const manager: ModelManager = {
   pulls: [],
   startPull: vi.fn(async () => true),
   cancelPull: vi.fn(),
-  remove: vi.fn(async () => undefined),
+  remove: vi.fn(async () => true),
   unload: vi.fn(async () => undefined),
   error: "",
   vram: 0,
@@ -134,7 +134,7 @@ describe("type labels", () => {
 
 describe("removing an installed model", () => {
   it("asks for confirmation naming the model before removing", () => {
-    const removeFn = vi.fn(async () => undefined);
+    const removeFn = vi.fn(async () => true);
     render(
       <ModelsPage
         manager={{
@@ -166,6 +166,35 @@ describe("removing an installed model", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Remove" }));
     expect(removeFn).toHaveBeenCalledWith("qwen3:8b");
+  });
+
+  it("removes the model Chat runs and moves Chat to one that is left", async () => {
+    const onSelectChatModel = vi.fn();
+    const chat = { size: 1024 ** 3, parameterSize: "8B", family: "qwen", capabilities: ["tools", "completion"] };
+    render(
+      <ModelsPage
+        manager={{
+          ...manager,
+          installed: [
+            { name: "qwen3:8b", ...chat },
+            { name: "nomic-embed", size: 1024 ** 2, parameterSize: "", family: "", capabilities: ["embedding"] },
+            { name: "llama:3b", ...chat },
+          ],
+          remove: vi.fn(async () => true),
+        }}
+        settings={defaultSettings}
+        chatModel="qwen3:8b"
+        onUpdate={vi.fn()}
+        onSelectChatModel={onSelectChatModel}
+        t={t}
+      />,
+    );
+
+    const removeBtn = screen.getByRole("button", { name: "Remove qwen3:8b" });
+    expect((removeBtn as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(removeBtn);
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(onSelectChatModel).toHaveBeenCalledWith("llama:3b"));
   });
 });
 

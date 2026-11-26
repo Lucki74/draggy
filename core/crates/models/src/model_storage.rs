@@ -10,7 +10,9 @@ use std::time::UNIX_EPOCH;
 use tracing::{debug, info, warn};
 
 use crate::draft_model::{draft_companion_name, is_companion_draft};
-use crate::gguf::{capabilities_from_template, read_chat_template, read_header};
+use crate::gguf::{
+    capabilities_from_template, is_embedding_architecture, read_chat_template, read_header,
+};
 use crate::mmproj::{Projectors, companion_name, is_companion_file};
 use crate::shards::{basename, parse_shard, shard_names};
 
@@ -53,14 +55,24 @@ fn capabilities_of(path: &Path, meta: &fs::Metadata, cache: &mut CapabilityCache
     if let Some(found) = cache.entries.get(&key) {
         return found.clone();
     }
-    let template = File::open(path)
-        .ok()
-        .and_then(|mut file| read_chat_template(&mut file).ok())
-        .flatten();
-    let capabilities: Vec<String> = capabilities_from_template(template.as_deref())
-        .into_iter()
-        .map(str::to_owned)
-        .collect();
+    let mut file = File::open(path).ok();
+    // An encoder such as nomic-bert only embeds, so it never shows up as a chat model.
+    let embedding = file
+        .as_mut()
+        .and_then(|file| read_header(file).ok())
+        .is_some_and(|header| is_embedding_architecture(&header.architecture));
+    let capabilities: Vec<String> = if embedding {
+        vec!["embedding".to_owned()]
+    } else {
+        let template = file
+            .as_mut()
+            .and_then(|file| read_chat_template(file).ok())
+            .flatten();
+        capabilities_from_template(template.as_deref())
+            .into_iter()
+            .map(str::to_owned)
+            .collect()
+    };
     cache.entries.insert(key, capabilities.clone());
     capabilities
 }
