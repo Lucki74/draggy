@@ -49,6 +49,6 @@ Le menu de session dans la barre latérale vous permet d'exporter une conversati
 
 ## Quand une conversation s'allonge {#long-conversations}
 
-Quand une réponse atteint la limite de contexte et que le modèle a de la place, Draggy agrandit automatiquement la fenêtre au palier suivant et continue de générer. À 70 % de ce que le modèle peut retenir, Draggy replie la partie ancienne de la conversation en un résumé, et la conversation continue. Pour les modèles cloud payants, ce point est plafonné à 64 000 tokens, sauf si vous fixez une limite.
+Quand une réponse atteint la limite de contexte et que le modèle a de la place, Draggy agrandit automatiquement la fenêtre au palier suivant et continue de générer. Quand il ne reste qu'un quart de ce que le modèle peut retenir, ou 50 000 jetons sur une grande fenêtre, Draggy replie la partie ancienne de la conversation en un résumé, et la conversation continue. Une fenêtre de 8k ou moins n'est jamais repliée automatiquement. Pour les modèles cloud payants, ce point est plafonné à 64 000 tokens, sauf si vous fixez une limite.
 
 `/compact` le fait maintenant. `/compact-limit 20k` déplace le seuil, et `auto` le remet.

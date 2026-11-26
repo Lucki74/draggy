@@ -11,9 +11,14 @@ import { loggedFetch, logRendererEvent } from "../logger";
 /** Roughly how many characters a token is worth, for budget arithmetic. */
 export const CHARS_PER_TOKEN = 4;
 
-/** How full the window may get before folding. Higher and the reply stops fitting; lower and the
- * folds cost more than they save. */
-export const COMPACT_AT = 0.7;
+/** Folding starts once the free space falls to this share of the window. */
+export const COMPACT_RESERVE_SHARE = 0.25;
+
+/** The free space kept never grows past this, so a huge window fills almost to the top. */
+export const COMPACT_RESERVE_MAX = 50_000;
+
+/** A window this size or smaller is never folded automatically: the notes would not leave room to talk. */
+export const NO_COMPACT_WINDOW = 8192;
 
 /** Messages kept verbatim at the end, about three turns. Recency is what "it" and "the second one"
  * refer to, and a summary is the wrong shape for that. */

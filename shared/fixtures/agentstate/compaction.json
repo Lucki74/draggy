@@ -9,7 +9,9 @@
       },
       "expected": {
         "CHARS_PER_TOKEN": 4,
-        "COMPACT_AT": 0.7,
+        "COMPACT_RESERVE_SHARE": 0.25,
+        "COMPACT_RESERVE_MAX": 50000,
+        "NO_COMPACT_WINDOW": 8192,
         "KEEP_RECENT_MESSAGES": 6,
         "MIN_FOLD_MESSAGES": 4,
         "SUMMARY_CHAR_BUDGET": 3000

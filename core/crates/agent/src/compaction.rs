@@ -10,8 +10,14 @@ use crate::task_manager::{Attachment, Message};
 /// Roughly how many characters a token is worth, for budget arithmetic.
 pub const CHARS_PER_TOKEN: i64 = 4;
 
-/// How full the window may get before folding.
-pub const COMPACT_AT: f64 = 0.7;
+/// Folding starts once the free space falls to this share of the window.
+pub const COMPACT_RESERVE_SHARE: f64 = 0.25;
+
+/// The free space kept never grows past this.
+pub const COMPACT_RESERVE_MAX: i64 = 50_000;
+
+/// A window this size or smaller is never folded automatically.
+pub const NO_COMPACT_WINDOW: i64 = 8192;
 
 /// Messages kept verbatim at the end, about three turns.
 pub const KEEP_RECENT_MESSAGES: usize = 6;

@@ -6,7 +6,9 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CHARS_PER_TOKEN,
-  COMPACT_AT,
+  COMPACT_RESERVE_MAX,
+  COMPACT_RESERVE_SHARE,
+  NO_COMPACT_WINDOW,
   KEEP_RECENT_MESSAGES,
   MIN_FOLD_MESSAGES,
   SUMMARY_CHAR_BUDGET,
@@ -180,7 +182,9 @@ function compactionCase(input: Json): unknown {
     case "constants":
       return {
         CHARS_PER_TOKEN,
-        COMPACT_AT,
+        COMPACT_RESERVE_SHARE,
+        COMPACT_RESERVE_MAX,
+        NO_COMPACT_WINDOW,
         KEEP_RECENT_MESSAGES,
         MIN_FOLD_MESSAGES,
         SUMMARY_CHAR_BUDGET,

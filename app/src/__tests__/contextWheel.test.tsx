@@ -164,7 +164,7 @@ describe("the breakdown", () => {
     render(<ContextWheel view={view()} t={t} />);
     open();
 
-    expect(screen.getByText("Compacts automatically at 142k tokens")).toBeTruthy();
+    expect(screen.getByText("Compacts automatically at 153k tokens")).toBeTruthy();
   });
 
   it("says so when the point is the user's own limit", () => {
@@ -172,6 +172,13 @@ describe("the breakdown", () => {
     open();
 
     expect(screen.getByText("Compacts at your limit of 50k tokens")).toBeTruthy();
+  });
+
+  it("names no compaction point for a window of 8k or less, which never compacts on its own", () => {
+    render(<ContextWheel view={view({ windowTokens: 8_192 })} t={t} />);
+    open();
+
+    expect(screen.getByRole("dialog").textContent).not.toMatch(/Compacts/);
   });
 
   it("says why when a paid provider's cap sets the point", () => {
@@ -245,7 +252,7 @@ describe("the breakdown", () => {
     render(<ContextWheel view={localView} t={t} />);
     open();
 
-    expect(screen.getByText(/91\.8k/)).toBeTruthy();
+    expect(screen.getByText(/98\.3k/)).toBeTruthy();
   });
 });
 

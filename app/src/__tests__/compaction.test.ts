@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  COMPACT_AT,
+  COMPACT_RESERVE_MAX,
+  COMPACT_RESERVE_SHARE,
+  NO_COMPACT_WINDOW,
   KEEP_RECENT_MESSAGES,
   MIN_FOLD_MESSAGES,
   SUMMARY_CHAR_BUDGET,
@@ -283,9 +285,10 @@ describe("the constants agree with each other", () => {
     expect(MIN_FOLD_MESSAGES).toBeLessThanOrEqual(KEEP_RECENT_MESSAGES);
   });
 
-  it("folds well before the window is full", () => {
-    expect(COMPACT_AT).toBeGreaterThan(0);
-    expect(COMPACT_AT).toBeLessThan(0.8);
+  it("leaves free space when folding, and the largest reserve fits in any window that folds", () => {
+    expect(COMPACT_RESERVE_SHARE).toBeGreaterThan(0);
+    expect(COMPACT_RESERVE_SHARE).toBeLessThan(0.5);
+    expect(COMPACT_RESERVE_MAX).toBeGreaterThan(NO_COMPACT_WINDOW);
   });
 });
 
