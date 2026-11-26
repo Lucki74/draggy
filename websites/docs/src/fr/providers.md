@@ -10,7 +10,7 @@ Draggy fait tourner des modèles sur cet ordinateur à lui seul. `Paramètres �
 
 Appuyez sur **Ajouter un fournisseur** et choisissez-en un : OpenAI, Anthropic, Google Gemini, xAI, DeepSeek, Mistral, Groq, Nebius, Novita, SambaNova, SiliconFlow, OpenRouter et d'autres, ou Custom pour tout serveur compatible OpenAI. **Obtenir une clé** ouvre la page du fournisseur où la créer. Collez-la dans **Clé d'API** et appuyez sur **Tester**.
 
-La clé est chiffrée avec le trousseau du système avant d'être enregistrée. Sur un système sans trousseau, les fournisseurs qui demandent une clé ne peuvent pas être activés.
+La clé est chiffrée avant d'être enregistrée. Windows protège la clé de chiffrement avec votre compte utilisateur ; sur macOS et Linux, elle se trouve dans `secrets.key`, dans le dossier de données de Draggy, et ne fonctionne que sur la même machine.
 
 ## Comptes
 

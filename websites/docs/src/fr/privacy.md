@@ -37,7 +37,7 @@ Le tableau liste les requêtes faites par Draggy. Le blocage des publicités res
 | macOS | `~/Library/Application Support/Draggy` |
 | Linux | `$XDG_DATA_HOME/Draggy`, ou `~/.local/share/Draggy` si cette variable n'est pas définie |
 
-Dedans : `draggy.db` pour les conversations et les paramètres, `library.db` pour l'index des documents, `secrets.bin` pour les clés des fournisseurs et les identifiants d'extensions chiffrés par le trousseau de votre système, les dossiers de connexion ChatGPT et Claude, et des dossiers pour les fichiers créés, les dossiers de chat (`chats`, sous Windows), les exécutions de code, les modèles vocaux et les serveurs installés.
+Dedans : `draggy.db` pour les conversations et les paramètres, `library.db` pour l'index des documents, `secrets.bin` pour les clés des fournisseurs et les identifiants d'extensions chiffrés (sur macOS et Linux avec la clé de `secrets.key`), les dossiers de connexion ChatGPT et Claude, et des dossiers pour les fichiers créés, les dossiers de chat (`chats`, sous Windows), les exécutions de code, les modèles vocaux et les serveurs installés.
 
 Les données des versions de l'ère Electron sont transférées dans ce dossier au premier lancement, y compris l'ancien dossier `localai`. Copiez le dossier pour sauvegarder ou changer de machine, Draggy fermé. Supprimez-le pour repartir de zéro. Les identifiants de `secrets.bin` sont liés à cette machine et à ce compte : il faudra les ressaisir ailleurs.
 

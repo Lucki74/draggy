@@ -10,7 +10,7 @@ Draggy runs models on this computer by itself. `Settings → Providers` is where
 
 Press **Add provider** and pick one: OpenAI, Anthropic, Google Gemini, xAI, DeepSeek, Mistral, Groq, Nebius, Novita, SambaNova, SiliconFlow, OpenRouter and others, or Custom for any OpenAI-compatible server. **Get a key** opens the provider's page for making one. Paste it into **API key** and press **Test**.
 
-The key is encrypted with your system's keychain before it is saved. On a system with no keychain, providers that need a key cannot be switched on.
+The key is encrypted before it is saved. Windows protects the encryption key with your user account; on macOS and Linux it lives in `secrets.key` in Draggy's data folder and only works on the same machine.
 
 ## Accounts
 

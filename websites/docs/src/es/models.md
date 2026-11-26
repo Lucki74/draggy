@@ -80,6 +80,8 @@ Un Mac con procesador Intel no es Apple silicon. Draggy dimensiona sus modelos c
 
 Un modelo cargado tiene allí un botón **Descargar**, que libera la memoria de vídeo sin borrar nada.
 
+El botón de la papelera borra un modelo, incluso uno que usa un rol. Ese rol pasa entonces a un modelo que quede.
+
 ## El modelo de voz
 
 El [modo de voz](doc:voice) usa su propio modelo, configurado en `Ajustes → Chat → [Hablar](doc:glossary#talk)`.
