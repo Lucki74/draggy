@@ -25,6 +25,7 @@ if [ "$hash" != "$expected" ]; then
   exit 1
 fi
 dir="$here/../src-tauri/binaries"
+vendor="$here/../vendor"
 mkdir -p "$dir"
 cp -f "$source" "$dir/node-$triple"
 echo "staged node $version"
@@ -48,3 +49,17 @@ for tool in ffmpeg ffprobe; do
   chmod u+w "$dir/$tool-$triple"
   echo "staged $tool from $from"
 done
+
+# npm ships with node, so MCP servers install without a system npm. fetch-sidecars-unix.sh unpacks it into vendor/node/npm.
+rm -rf "$dir/npm"
+if [ -f "$vendor/node/npm/bin/npm-cli.js" ]; then
+  cp -R "$vendor/node/npm" "$dir/npm"
+  echo "staged npm"
+elif [ "${TAURI_ENV_DEBUG:-}" = "true" ]; then
+  # The bundle needs the folder; a debug build finds npm on PATH instead.
+  mkdir -p "$dir/npm" && : > "$dir/npm/missing"
+  echo "npm missing from vendor/node/npm; a debug build uses the one on PATH"
+else
+  echo "npm missing at $vendor/node/npm; run scripts/fetch-sidecars-unix.sh" >&2
+  exit 1
+fi

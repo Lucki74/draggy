@@ -8,6 +8,7 @@ pub mod draggy_scheme;
 pub mod engines;
 pub mod images;
 pub mod ipc;
+pub mod key_file;
 pub mod legacy_local_storage;
 pub mod mcp;
 pub mod models;
@@ -160,8 +161,6 @@ pub(crate) fn build_main_window(app: &tauri::AppHandle, setup: bool) -> tauri::R
             .inner_size(1200.0, 800.0)
             .min_inner_size(min_width, min_height)
             .data_directory(profile)
-            // Undecorated: the renderer's TitleBar draws the caption buttons. Edge resize and snap stay on.
-            .decorations(false)
             .shadow(true)
             .visible(false)
             .on_navigation(move |url| {
@@ -175,6 +174,19 @@ pub(crate) fn build_main_window(app: &tauri::AppHandle, setup: bool) -> tauri::R
                 ipc::browser::open_from_main_window(&opening, url);
                 tauri::webview::NewWindowResponse::Deny
             });
+    // On Windows and Linux the window is undecorated and the renderer's TitleBar draws the caption
+    // buttons. On macOS the system's traffic lights sit over that title bar, which keeps full screen working.
+    #[cfg(target_os = "macos")]
+    {
+        window = window
+            .decorations(true)
+            .title_bar_style(tauri::TitleBarStyle::Overlay)
+            .hidden_title(true);
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        window = window.decorations(false);
+    }
     if let Some(script) = &import {
         window = window.initialization_script(script);
     }
@@ -192,6 +204,14 @@ pub fn show_setup_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     focus_main_window(app);
     Ok(())
 }
+
+/// The origin of the app's own pages. WebView2 serves the asset scheme as http://tauri.localhost and
+/// WKWebView and WebKitGTK serve it as tauri://localhost.
+pub(crate) const PAGE_ORIGIN: &str = if cfg!(windows) {
+    "http://tauri.localhost"
+} else {
+    "tauri://localhost"
+};
 
 /// The renderer's own pages: the asset host, and the dev server in debug builds.
 pub(crate) fn is_app_page(url: &tauri::Url) -> bool {
@@ -371,32 +391,55 @@ pub fn run() {
                 return;
             }
             if let WindowEvent::CloseRequested { api, .. } = event {
-                let app = window.app_handle().clone();
-                let Some(state) = app.try_state::<AppState>() else {
-                    return;
-                };
-                // Hold the close until the window has saved, or the timeout passes.
                 api.prevent_close();
-                if state.quit.begin() {
-                    let quit = Arc::clone(&state.quit);
-                    let db = Arc::clone(&state.storage);
-                    tauri::async_runtime::spawn(async move {
-                        quit.flush(&app).await;
-                        // The window's last saves have landed by now, so nothing writes after this.
-                        db.close();
-                        app.exit(0);
-                    });
+                // On macOS closing the window keeps the app running, as Mac apps do; Cmd-Q quits it.
+                if cfg!(target_os = "macos") {
+                    let _ = window.hide();
+                    return;
                 }
+                begin_quit(window.app_handle());
             }
         })
         .build(context)
         .expect("error while building Draggy")
-        .run(|app, event| {
-            // Every exit path ends here; without the marker the next launch reports a crash.
-            if let tauri::RunEvent::Exit = event {
-                shutdown(app);
+        .run(|app, event| match event {
+            // Cmd-Q and the Quit menu item: save first, then exit. A code means the app is already exiting.
+            tauri::RunEvent::ExitRequested {
+                code: None, api, ..
+            } => {
+                if app.get_webview_window("main").is_some() {
+                    api.prevent_exit();
+                    begin_quit(app);
+                }
             }
+            // A click on the Dock icon brings the hidden window back.
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } => focus_main_window(app),
+            // Every exit path ends here; without the marker the next launch reports a crash.
+            tauri::RunEvent::Exit => shutdown(app),
+            _ => {}
         });
+}
+
+/// Holds the quit until the window has saved, or the timeout passes, then exits.
+fn begin_quit(app: &tauri::AppHandle) {
+    let Some(state) = app.try_state::<AppState>() else {
+        return;
+    };
+    if state.quit.begin() {
+        let app = app.clone();
+        let quit = Arc::clone(&state.quit);
+        let db = Arc::clone(&state.storage);
+        tauri::async_runtime::spawn(async move {
+            quit.flush(&app).await;
+            // The window's last saves have landed by now, so nothing writes after this.
+            db.close();
+            app.exit(0);
+        });
+    }
 }
 
 /// Stops every child and port and writes the clean-exit marker. Runs on exit, and before the updater
@@ -432,6 +475,8 @@ mod tests {
         let setup =
             tauri::Url::parse("http://tauri.localhost/index.html?onboarding=true").expect("url");
         assert!(is_app_page(&setup));
+        let webkit = tauri::Url::parse("tauri://localhost/index.html").expect("url");
+        assert!(is_app_page(&webkit));
         let other =
             tauri::Url::parse("https://example.com/index.html?onboarding=true").expect("url");
         assert!(!is_app_page(&other));

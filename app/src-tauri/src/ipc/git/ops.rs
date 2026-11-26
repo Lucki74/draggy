@@ -72,7 +72,8 @@ impl<R: GitRunner> Git<R> {
         self.spawn_logged(diag, root, argv).await
     }
 
-    /// Runs one process and writes the `proc.spawn` diagnostic lines. A clean run is DEBUG, since git is polled.
+    /// Runs one process and writes the `proc.spawn` diagnostic lines. A clean run is DEBUG, since git is polled,
+    /// and so is a failed `rev-parse`: it is how a folder outside a repository is told apart.
     async fn spawn_logged(&self, diag: &Diagnostics, root: &Path, argv: Vec<String>) -> GitRun {
         let cwd = root.display().to_string();
         diag.debug(
@@ -83,7 +84,7 @@ impl<R: GitRunner> Git<R> {
         let started = Instant::now();
         let run = self.runner.run(&argv, root).await;
         let data = json!({ "bin": "git", "code": run.code, "durMs": started.elapsed().as_millis() as u64 });
-        if run.code == 0 {
+        if run.code == 0 || argv.iter().any(|arg| arg == "rev-parse") {
             diag.debug("proc.spawn", "git exited", Some(data));
         } else {
             diag.warn("proc.spawn", "git exited", Some(data));

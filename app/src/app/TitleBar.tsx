@@ -4,6 +4,7 @@ import { Icon } from "../ui/icons/Icon";
 import { Menu, type MenuEntry } from "../ui/Menu";
 import { Kbd } from "../ui/Kbd";
 import { WindowControls } from "./WindowControls";
+import { TITLE_BAR_END, TITLE_BAR_START } from "./windowChrome";
 
 export type { TranscriptView as TranscriptViewMode } from "../chat/transcriptView";
 import type { TranscriptView as TranscriptViewMode } from "../chat/transcriptView";
@@ -84,7 +85,7 @@ export function TitleBar({
   return (
     <header
       data-tauri-drag-region
-      className={`drag-region relative h-10 w-full flex-shrink-0 flex items-center justify-between border-b border-rule bg-surface-canvas text-text-primary select-none ps-3 pe-[140px] ${className}`}
+      className={`drag-region relative h-10 w-full flex-shrink-0 flex items-center justify-between border-b border-rule bg-surface-canvas text-text-primary select-none ${TITLE_BAR_START} ${TITLE_BAR_END} ${className}`}
     >
       {/* Left side: dragon mark, sidebar toggle and breadcrumbs */}
       <div data-tauri-drag-region className="flex items-center min-w-0 gap-2">
@@ -167,7 +168,7 @@ export function TitleBar({
         )}
       </div>
 
-      {/* Caption buttons sit in the 140px reserved at the right end */}
+      {/* Caption buttons sit in the 140px reserved at the right end, except on macOS */}
       <div className="absolute inset-y-0 end-0 flex">
         <WindowControls t={t} />
       </div>

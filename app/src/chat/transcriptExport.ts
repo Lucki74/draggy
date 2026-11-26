@@ -10,7 +10,7 @@ export interface TranscriptOptions {
   now?: Date;
 }
 
-export type ExportFormat = "md" | "html";
+export type ExportFormat = "md" | "html" | "pdf";
 
 type Field = [string, string];
 
