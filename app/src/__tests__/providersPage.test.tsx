@@ -113,7 +113,7 @@ describe("the Providers page", () => {
 
   it("names a local server's cloud model switch with its Cloud badge", async () => {
     const api = stubMain({ instances: [instance("ollama", { kind: "local", needsKey: false, enabled: true })] });
-    api.models.mockResolvedValueOnce({
+    api.models.mockResolvedValue({
       success: true,
       models: [{ id: "big:cloud", ref: "@ollama/big:cloud", capabilities: ["completion"], cloud: true, pinned: false, override: null }],
     });
