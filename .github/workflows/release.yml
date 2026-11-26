@@ -139,6 +139,8 @@ jobs:
           $installer = Join-Path $out 'draggy_setup.exe'
           Copy-Item -LiteralPath $setup.FullName -Destination $installer
           Copy-Item -LiteralPath $sigPath -Destination "$installer.sig"
+          node scripts/verify-update-sig.mjs $installer
+          if ($LASTEXITCODE -ne 0) { throw 'The setup signature does not match plugins.updater.pubkey' }
           ./scripts/bridge-latest-yml.ps1 -Setup $installer -Version $version -Out (Join-Path $out 'latest.yml')
           $feed = [ordered]@{
             version   = $version
@@ -229,6 +231,7 @@ jobs:
           ditto -c -k --keepParent "$app" "dist-tauri/Draggy-$version-macos-universal.zip"
           tar -czf "dist-tauri/Draggy-$version-macos-universal.app.tar.gz" -C "$bundle" Draggy.app
           npx tauri signer sign "dist-tauri/Draggy-$version-macos-universal.app.tar.gz"
+          node scripts/verify-update-sig.mjs "dist-tauri/Draggy-$version-macos-universal.app.tar.gz"
           base="https://github.com/$REPO/releases/download/b-$N"
           tarball="dist-tauri/Draggy-$version-macos-universal.app.tar.gz"
           node scripts/release-feeds.mjs tauri dist-tauri/latest-macos.json "$version" "$base" \
@@ -318,6 +321,7 @@ jobs:
           take deb "*_${version}_amd64.deb" "draggy_${version}_amd64.deb"
           take rpm "*-${version}-1.x86_64.rpm" "draggy-${version}-1.x86_64.rpm"
           take appimage "*_${version}_amd64.AppImage" "draggy_${version}_amd64.AppImage"
+          node scripts/verify-update-sig.mjs "dist-tauri/draggy_${version}_amd64.AppImage"             "dist-tauri/draggy_${version}_amd64.deb" "dist-tauri/draggy-${version}-1.x86_64.rpm"
           base="https://github.com/$REPO/releases/download/b-$N"
           node scripts/release-feeds.mjs tauri dist-tauri/latest-linux.json "$version" "$base" \
             "linux-x86_64=dist-tauri/draggy_${version}_amd64.AppImage" \

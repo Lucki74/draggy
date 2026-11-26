@@ -74,7 +74,7 @@ The Tauri updater verifies each update against a minisign public key. The releas
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
-The public key is `plugins.updater.pubkey` in `app/src-tauri/tauri.conf.json`. The private key and its password exist only in the repository secrets. A new key pair breaks updates for every install that has the old public key, so rotate it only after a compromise, and ship the new public key in a build signed with the old key first.
+The public key is `plugins.updater.pubkey` in `app/src-tauri/tauri.conf.json`. The private key and its password exist only in the repository secrets. Each build job runs `scripts/verify-update-sig.mjs` on its signed files, so a secret that does not match the public key fails the run before anything is published. A new key pair breaks updates for every install that has the old public key, so rotate it only after a compromise, and ship the new public key in a build signed with the old key first.
 
 The signature is the trust boundary for the Tauri feeds: an update that does not match the public key is refused on every system. Older Electron and GTK installs still check only the SHA-256 in the release, so whoever can write to a release can ship code to them. That is why the workflow holds the only token that publishes, and why `SECURITY.md` says so.
 
