@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getCurrentWindow, type Window } from "@tauri-apps/api/window";
 import { useTranslator } from "../i18n";
 import { logSwallow, swallowed } from "../logger";
+import { NATIVE_CONTROLS } from "./windowChrome";
 
 /** The current window, or null outside Tauri (tests, plain browser preview). */
 function currentWindow(): Window | null {
@@ -28,6 +29,7 @@ const GLYPH = {
 
 // Segoe Fluent Icons exists only on Windows, so macOS and Linux get the same shapes as strokes.
 const SEGOE = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
+
 const PATHS = {
   minimize: "M0 5h10",
   maximize: "M0.5 0.5h9v9h-9z",
@@ -82,6 +84,7 @@ export function WindowControls({ t }: WindowControlsProps) {
   }, []);
 
   const restore = maximized;
+  if (NATIVE_CONTROLS) return null;
   return (
     <div className="flex h-full items-stretch">
       <button
@@ -120,7 +123,7 @@ export function WindowBar({ t }: WindowControlsProps) {
   return (
     <div
       data-tauri-drag-region
-      className="flex h-10 w-full shrink-0 items-stretch justify-end border-b border-rule bg-surface-canvas"
+      className={`flex h-10 w-full shrink-0 items-stretch border-b border-rule bg-surface-canvas ${NATIVE_CONTROLS ? "justify-start" : "justify-end"}`}
     >
       <WindowControls t={t} />
     </div>
