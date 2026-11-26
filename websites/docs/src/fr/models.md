@@ -80,6 +80,8 @@ Un Mac à processeur Intel n'est pas un Mac Apple silicon. Draggy dimensionne se
 
 Un modèle chargé y gagne un bouton **Décharger**, qui libère la mémoire vidéo sans rien supprimer.
 
+Le bouton corbeille supprime un modèle, même celui qu'un rôle utilise. Ce rôle se rabat alors sur un modèle restant.
+
 ## Le modèle vocal
 
 Le [mode vocal](doc:voice) utilise son propre modèle, réglé dans `Paramètres → Chat → [Parler](doc:glossary#talk)`.

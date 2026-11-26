@@ -45,3 +45,5 @@ In any mode, plan mode included: reading and listing files, searching them, git 
 | Don't | Refused. The model carries on without it. |
 
 `Settings → Code → Projects` lists everything you have allowed, each with **Remove**.
+
+`Settings → Code → Permissions` holds rules that apply in every mode. Pick **Always allow** or **Never allow**, a kind (command, path, tool or website), the rule itself and where it holds: all projects or one. A Never allow rule wins over every mode and every Always allow, so a blocked command stays blocked even in auto.

@@ -13,6 +13,8 @@ Cada compilación de Draggy es una release en GitHub, con sus notas e instalador
 - Los chats se exportan en PDF, y la exportación a PDF funciona en macOS.
 - Los ajustes tienen **Buscar actualizaciones** y un **Shell predeterminado** para los terminales nuevos, que si no abren tu shell de inicio de sesión.
 - Los servidores MCP se instalan con el npm que trae Draggy.
+- `Ajustes → Code → Permisos` tiene reglas **Permitir siempre** y **No permitir nunca** para un comando, una ruta, una herramienta o un sitio web, en todos los proyectos o en uno solo. Una regla No permitir nunca vale en todos los modos, auto incluido.
+- Cualquier modelo se puede borrar desde `Ajustes → Modelos`, incluso el que está en uso. Cada rol pasa a un modelo que quede, y los modelos de embedding ya no aparecen como modelos de chat.
 
 ### Correcciones
 

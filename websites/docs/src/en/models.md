@@ -80,6 +80,8 @@ A Mac with an Intel processor is not Apple silicon. Draggy sizes its models with
 
 A loaded model gets an **Unload** button there, which frees the video memory without deleting anything.
 
+The trash button deletes a model, even one a role is using. That role then falls back to a model that is left.
+
 ## The [talk](doc:glossary#talk) model
 
 [Voice mode](doc:voice) uses its own model, set in `Settings → Chat → Talk`.

@@ -45,3 +45,5 @@ Dans tous les modes, y compris le mode plan : lire et lister des fichiers, y ch
 | Non | Refusé. Le modèle continue sans. |
 
 `Paramètres → Code → Projets` liste tout ce que vous avez autorisé, chaque entrée avec **Retirer**.
+
+`Paramètres → Code → Autorisations` contient des règles valables dans tous les modes. Choisissez **Toujours autoriser** ou **Ne jamais autoriser**, un type (commande, chemin, outil ou site web), la règle et où elle s'applique : tous les projets ou un seul. Une règle Ne jamais autoriser l'emporte sur tous les modes et sur toute règle Toujours autoriser, donc une commande bloquée le reste même en auto.

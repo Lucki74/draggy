@@ -13,6 +13,8 @@ Every build of Draggy is a release on GitHub, with its notes and installers: [Dr
 - Chats export as PDF, and PDF export works on macOS.
 - Settings has **Check for updates** and a **Default shell** for new terminals, which otherwise open your login shell.
 - MCP servers install with the npm that ships with Draggy.
+- `Settings → Code → Permissions` has **Always allow** and **Never allow** rules for a command, path, tool or website, in every project or just one. A Never allow rule holds in every mode, auto included.
+- Any model can be deleted from `Settings → Models`, even the one in use. Each role falls back to a model that is left, and embedding models no longer show up as chat models.
 
 ### Fixes
 

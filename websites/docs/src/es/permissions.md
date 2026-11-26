@@ -45,3 +45,5 @@ En cualquier modo, incluido el de planificar: leer y listar archivos, buscarlos,
 | No | Rechazado. El modelo sigue sin ello. |
 
 `Ajustes → Code → Proyectos` enumera todo lo que has permitido, cada entrada con **Eliminar**.
+
+`Ajustes → Code → Permisos` guarda reglas que valen en todos los modos. Elige **Permitir siempre** o **No permitir nunca**, un tipo (comando, ruta, herramienta o sitio web), la regla y dónde se aplica: todos los proyectos o uno. Una regla No permitir nunca gana a cualquier modo y a cualquier Permitir siempre, así que un comando bloqueado sigue bloqueado incluso en auto.
