@@ -3,6 +3,7 @@ import {
   chipClassOf,
   getRecommendedDownload,
   getRecommendedModel,
+  firstRunCapGB,
   ggufLadder,
   CPU_ONLY_DENSE_CAP_GB,
   ladderFor,
@@ -260,5 +261,20 @@ describe("recommended download for automatic setup", () => {
       expect(entry.sizeGB, entry.label).toBeGreaterThan(repos.get(repo) ?? 0);
       repos.set(repo, entry.sizeGB);
     }
+  });
+});
+
+describe("the first-run download", () => {
+  it("stays well under the RAM and near what the card holds", () => {
+    const machines: [number, number][] = [[8, 64], [12, 64], [24, 96], [24, 192], [32, 256], [0, 16], [4, 128]];
+    for (const [vram, ram] of machines) {
+      const download = getRecommendedDownload(vram, { ram });
+      expect(download.size / 1e9, `${vram} GB card, ${ram} GB RAM`).toBeLessThanOrEqual(firstRunCapGB(vram, { ram }));
+      expect(download.size / 1e9).toBeLessThanOrEqual(ram * 0.4);
+    }
+  });
+
+  it("no longer hands a 12 GB card with 64 GB of RAM a 57 GB model", () => {
+    expect(getRecommendedDownload(12, { ram: 64 }).size).toBeLessThan(25e9);
   });
 });
