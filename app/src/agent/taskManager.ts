@@ -13,6 +13,9 @@ import {
 import { keepToolResults } from "./contextFit";
 import { compactThreshold } from "./contextBreakdown";
 import { measureTurn, runAgentTurn } from "./agentLoop";
+import { createHookRunner } from "./hookRunner";
+import { sanitizeHookEntries } from "./hooks";
+import { loadProjectHooks } from "./projectHooks";
 import type { AgentHost, ContextMeasurement, OutOfContextInfo } from "./agentLoop";
 import { setLiveTurn } from "./liveTurn";
 import { describeEnded } from "../tools/tasks";
@@ -592,8 +595,39 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         signal: controller.signal,
       };
 
+      // A hook notice is a quiet line in the chat, like the background-task notes.
+      const hookNote = (content: string) => {
+        if (!live()) return;
+        host.updateSession(chatId, (s) => ({
+          ...s,
+          messages: [...s.messages, { id: generateId(), role: "user", content, notice: "hook_note" }],
+        }));
+      };
+      const workspaceId = request.workspaceId ?? "";
+      const hooks = createHookRunner({
+        entries: sanitizeHookEntries(request.settings.hooks),
+        loadProject: () =>
+          loadProjectHooks(workspaceId, request.settings.hookTrust[workspaceId]).then((project) => ({
+            entries: project.trusted ? project.entries : [],
+            untrusted: !project.trusted && project.entries.length > 0,
+          })),
+        onNotice: (notice) =>
+          hookNote(
+            notice.kind === "untrusted"
+              ? host.t("hooksUntrustedNotice")
+              : `${host.t("hookFailedNotice")} ${notice.event}: ${notice.message}`,
+          ),
+        workspaceId,
+        chatId,
+        cwd: request.environment.projectRoot ?? "",
+        permissionMode: request.permission?.mode ?? "auto",
+        signal: controller.signal,
+      });
+
       const callbacks: AgentHost = {
         t: host.t,
+        runHooks: hooks.runHooks,
+        runLifecycleHook: hooks.runLifecycleHook,
         getPlan: () => host.getSession(chatId)?.plan ?? null,
         onPlan: (items) => {
           if (live()) host.updateSession(chatId, (session) => ({ ...session, plan: items }));

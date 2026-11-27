@@ -263,6 +263,11 @@ export function createDraggyApi(ipc: IpcLike): NonNullable<Window["draggy"]> {
     chats: {
       folder: (chatId, open) => ipc.invoke("chats:folder", chatId, open === true),
     },
+    hooks: {
+      run: (workspaceId, runId, command, options) =>
+        ipc.invoke("hooks:run", workspaceId, runId, command, options),
+      cancel: (runId) => ipc.invoke("hooks:cancel", runId),
+    },
     commands: {
       run: (workspaceId, runId, command, options) =>
         ipc.invoke("commands:run", workspaceId, runId, command, options),

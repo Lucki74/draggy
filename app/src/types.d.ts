@@ -1066,7 +1066,7 @@ export interface Message {
   /** The app closed while this reply was being written. */
   interrupted?: boolean;
   /** A note the app sent for the user, such as background tasks ending: shown as a quiet line, not a bubble. */
-  notice?: "tasks_ended";
+  notice?: "tasks_ended" | "hook_note";
   /** The conversation after the newest version, kept while an older version is shown. */
   tail?: Message[];
 }
@@ -1428,6 +1428,10 @@ export interface ExchangeRates {
 }
 
 export interface AppSettings {
+  /** User hooks run for every project, in list order. */
+  hooks: import("./agent/hooks").HookEntry[];
+  /** Digest of each project hooks file the user trusted, keyed by project root. */
+  hookTrust: Record<string, string>;
   /** "system" follows the operating system, and is what a new install starts on. */
   theme: "light" | "dark" | "system";
   /** One of the seven accents in src/app/accent.ts. */
@@ -1989,6 +1993,29 @@ declare global {
         folder: (chatId: string, open?: boolean) => Promise<{ success: boolean; path?: string; error?: string }>;
       };
 
+      hooks: {
+        /** Ends a running hook by its run id. */
+        cancel: (runId: string) => Promise<{ cancelled: boolean }>;
+        /** Runs one hook command with its JSON payload on stdin. Never throws; a refusal comes back as `error`. */
+        run: (
+          workspaceId: string,
+          runId: string,
+          command: string,
+          options: {
+            chatId?: string;
+            chatFolder?: boolean;
+            payload: string;
+            timeoutMs?: number;
+            sandbox?: boolean;
+            writable?: boolean;
+            outsideSandbox?: boolean;
+            network?: boolean;
+            shell?: string;
+            defaultShell?: string;
+          },
+        ) => Promise<{ success: boolean; exitCode?: number | null; stdout?: string; stderr?: string; timedOut?: boolean; error?: string; notice?: string }>;
+      };
+
       commands: {
         /** Runs a command in the workspace's own folder. The id lets it be stopped. */
         run: (
@@ -2007,6 +2034,7 @@ declare global {
             autoDetach?: boolean;
             /** Run in the sandbox. The main process ignores this for a chat folder, which is always boxed. */
             sandbox?: boolean;
+            writable?: boolean;
             writable?: boolean;
             network?: boolean;
             outsideSandbox?: boolean;

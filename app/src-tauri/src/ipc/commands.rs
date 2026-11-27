@@ -147,23 +147,23 @@ async fn commands_cancel(_app: AppHandle, args: Vec<Value>) -> Result<Value, Ipc
     Ok(json!({ "success": commands::cancel(&text(args.first())) }))
 }
 
-fn opt_text(options: Option<&Value>, name: &str) -> Option<String> {
+pub(super) fn opt_text(options: Option<&Value>, name: &str) -> Option<String> {
     option(options, name)
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
         .map(str::to_owned)
 }
 
-fn flag(options: Option<&Value>, name: &str) -> bool {
+pub(super) fn flag(options: Option<&Value>, name: &str) -> bool {
     option(options, name).and_then(Value::as_bool) == Some(true)
 }
 
-fn resource_dir(app: &AppHandle) -> Option<PathBuf> {
+pub(super) fn resource_dir(app: &AppHandle) -> Option<PathBuf> {
     app.path().resource_dir().ok()
 }
 
 /// The chat's own folder under the app data, made on first use.
-fn chat_dir(app: &AppHandle, chat_id: &str) -> Result<PathBuf, String> {
+pub(super) fn chat_dir(app: &AppHandle, chat_id: &str) -> Result<PathBuf, String> {
     let dir = app
         .state::<AppState>()
         .storage

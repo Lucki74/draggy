@@ -66,6 +66,8 @@ export const defaultSettings: AppSettings = {
   imageModel: { source: "local", model: "" },
   imageResolution: "1024x1024",
   budgets: DEFAULT_BUDGETS,
+  hooks: [],
+  hookTrust: {},
   priceRefresh: true,
   displayCurrency: "USD",
 };
@@ -183,6 +185,15 @@ export function loadSettings(): AppSettings {
   // Local replies are priced by their own base model now, so the "compare against" choice is gone.
   if ("referenceModel" in parsed) {
     delete (parsed as { referenceModel?: unknown }).referenceModel;
+    migrated = true;
+  }
+  // Hooks are a list and a map now; a hand-edited value of another shape is dropped.
+  if ("hooks" in parsed && !Array.isArray(parsed.hooks)) {
+    delete parsed.hooks;
+    migrated = true;
+  }
+  if ("hookTrust" in parsed && (typeof parsed.hookTrust !== "object" || parsed.hookTrust === null)) {
+    delete parsed.hookTrust;
     migrated = true;
   }
   // Earlier versions saved the speed line switched on without anyone asking for it.

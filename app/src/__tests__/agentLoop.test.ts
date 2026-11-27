@@ -41,6 +41,8 @@ vi.mock("../llama", async (importOriginal) => {
 
 const SETTINGS = {
   permissionRules: [],
+  hooks: [],
+  hookTrust: {},
   researchModelStart: true,
   researchMaxDepth: "deep",
   researchKeep: "forever",
