@@ -22,6 +22,9 @@ use super::shells::{self, Env, build_env};
 use super::tasks::{Adopted, Exit, Manager as TaskManager};
 
 const MAX_COMMAND_CHARS: usize = 8_000;
+/// Git Bash reports these in MSYS form (`/usr/bin:/c/Windows/system32`, `/tmp`). Handed back to the next command as
+/// Windows values they break it: cmd no longer finds System32 and bash cannot mount /tmp.
+const MSYS_PATH_VARS: [&str; 6] = ["PATH", "HOME", "TMP", "TEMP", "TMPDIR", "LD_LIBRARY_PATH"];
 
 /// Commands in flight by run id, so the renderer can stop one and a quit can stop them all.
 static LIVE: LazyLock<Mutex<HashMap<String, Arc<Shared>>>> =
@@ -107,6 +110,31 @@ fn start_folder(root: &Path, saved: &Saved) -> PathBuf {
         .filter(|cwd| inside(root, cwd) && cwd.exists())
         .cloned()
         .unwrap_or_else(|| root.to_path_buf())
+}
+
+/// The environment a shell reported, with the variables Git Bash rewrites on Windows put back to their Windows values.
+fn native_env(
+    windows: bool,
+    shell: &str,
+    pristine: &BTreeMap<String, String>,
+    mut reported: BTreeMap<String, String>,
+) -> BTreeMap<String, String> {
+    if !windows || !matches!(shell, "bash" | "sh") {
+        return reported;
+    }
+    let rewritten = |key: &str| {
+        MSYS_PATH_VARS
+            .iter()
+            .any(|name| name.eq_ignore_ascii_case(key))
+    };
+    reported.retain(|key, _| !rewritten(key));
+    reported.extend(
+        pristine
+            .iter()
+            .filter(|(key, _)| rewritten(key))
+            .map(|(key, value)| (key.clone(), value.clone())),
+    );
+    reported
 }
 
 /// `/d/work` or `d:/work` from Git Bash is `D:\work` to everything else. Other paths are left alone.
@@ -446,7 +474,8 @@ impl Shared {
             let next = PathBuf::from(from_shell_path(&state.cwd));
             let within = inside(&self.root, &next);
             let mut env = self.saved.env.clone();
-            env.insert(self.shell.clone(), env_diff(&self.pristine, &state.env));
+            let reported = native_env(cfg!(windows), &self.shell, &self.pristine, state.env);
+            env.insert(self.shell.clone(), env_diff(&self.pristine, &reported));
             let cwd = if within && next.exists() {
                 Some(next.clone())
             } else {
@@ -619,6 +648,34 @@ fn marker_token() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn git_bash_paths_keep_their_windows_values() {
+        let pristine = BTreeMap::from([
+            ("Path".to_owned(), r"C:\Windows\system32".to_owned()),
+            ("TEMP".to_owned(), r"C:\Temp".to_owned()),
+        ]);
+        let reported = BTreeMap::from([
+            ("PATH".to_owned(), "/usr/bin:/c/Windows/system32".to_owned()),
+            ("TEMP".to_owned(), "/tmp".to_owned()),
+            ("DG_STATE".to_owned(), "carried".to_owned()),
+        ]);
+        let env = native_env(true, "bash", &pristine, reported.clone());
+        let diff = env_diff(&pristine, &env);
+        assert_eq!(
+            diff.set,
+            BTreeMap::from([("DG_STATE".to_owned(), "carried".to_owned())])
+        );
+        assert!(diff.unset.is_empty());
+        assert_eq!(
+            native_env(false, "bash", &pristine, reported.clone()),
+            reported
+        );
+        assert_eq!(
+            native_env(true, "pwsh", &pristine, reported.clone()),
+            reported
+        );
+    }
 
     #[test]
     fn shell_paths_become_windows_paths() {

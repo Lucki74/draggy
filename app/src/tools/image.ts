@@ -26,7 +26,7 @@ const generateImage: ToolSpec = {
     title: { type: "string", description: "A short name for the picture, a few words, shown on it in the chat." },
     path: {
       type: "string",
-      description: "Projects only: where to save it, relative to the project folder, ending in .png, .jpg or .webp. Defaults to assets/generated/<name>.png.",
+      description: "Where to save it, relative to the project or chat folder, ending in .png, .jpg or .webp. Defaults to assets/generated/<name>.png.",
     },
     negative_prompt: { type: "string", description: "What the picture should not contain." },
     width: { type: "integer", description: "Width in pixels, a multiple of 64. Leave out for the model's default." },
@@ -59,8 +59,10 @@ const generateImage: ToolSpec = {
   available: (environment) => Boolean(environment.imageReady),
   run: async (args, ctx) => {
     const prompt = String(args.prompt).trim();
-    const inProject = Boolean(ctx.environment?.hasFolder);
-    const workspaceId = ctx.workspaceId || "default";
+    // A chat with its own folder saves there too, beside the files its commands make, not in the app's data folder.
+    const chatFolder = !ctx.environment?.hasFolder && Boolean(ctx.environment?.chatFolder && ctx.chatId);
+    const inProject = Boolean(ctx.environment?.hasFolder) || chatFolder;
+    const workspaceId = chatFolder ? `chat:${ctx.chatId}` : ctx.workspaceId || "default";
     const target = inProject ? String(args.path || "").trim() || defaultProjectPath(prompt) : undefined;
 
     const images = ctx.images ?? [];

@@ -234,22 +234,29 @@ export function addSource(
   const existing = run.sources.find((source) => source.key === key);
   if (existing) {
     if (input.status) existing.status = input.status;
+    if (existing.status === "read" && !existing.id.startsWith("s")) existing.id = nextReadId(run);
     if (input.title && (!existing.title || existing.title === existing.url)) existing.title = input.title.trim();
     if (input.site && !existing.site) existing.site = input.site;
     if (input.published && !existing.published) existing.published = input.published;
     return existing;
   }
+  const status = input.status ?? "reading";
   const source: ResearchSource = {
-    id: `s${run.sources.length + 1}`,
+    id: status === "read" ? nextReadId(run) : `p${run.sources.length + 1}`,
     url: input.url,
     key,
     title: input.title?.trim() || input.url,
-    status: input.status ?? "reading",
+    status,
     ...(input.site ? { site: input.site } : {}),
     ...(input.published ? { published: input.published } : {}),
   };
   run.sources.push(source);
   return source;
+}
+
+/** Only a page that was read gets a citable id, so a blocked or failed read leaves no gap in s1, s2, s3. */
+function nextReadId(run: ResearchRun): string {
+  return `s${run.sources.filter((source) => source.id.startsWith("s")).length + 1}`;
 }
 
 export function findSource(run: ResearchRun, ref: string): ResearchSource | undefined {

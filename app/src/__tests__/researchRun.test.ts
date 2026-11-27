@@ -98,7 +98,16 @@ describe("notes", () => {
     expect(addNote(r, { claim: "", quote: "q", source: "s1" })).toMatch(/no claim/);
     expect(addNote(r, { claim: "c", quote: "", source: "s1" })).toMatch(/no quote/);
     expect(addNote(r, { claim: "c", quote: "q", source: "s9" })).toMatch(/not one you have read/);
-    expect(addNote(r, { claim: "c", quote: "q", source: "s1" })).toMatch(/not read successfully/);
+    expect(addNote(r, { claim: "c", quote: "q", source: "https://example.com/unread" })).toMatch(/not read successfully/);
+  });
+
+  it("numbers only the pages that were read", () => {
+    const r = run();
+    addSource(r, { url: "https://example.com/blocked" });
+    addSource(r, { url: "https://example.com/blocked", status: "failed" });
+    addSource(r, { url: "https://example.com/a" });
+    expect(addSource(r, { url: "https://example.com/a", status: "read" }).id).toBe("s1");
+    expect(addSource(r, { url: "https://example.com/b", status: "read" }).id).toBe("s2");
   });
 
   it("accepts a source by id or url and clamps the sub-question", () => {

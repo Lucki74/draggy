@@ -655,6 +655,36 @@ impl ReqwestPageSource {
     }
 }
 
+/// Wikimedia answers a browser user agent from a client that is not a browser with HTTP 429. Its policy asks for the
+/// app's own name and a contact address instead.
+const WIKIMEDIA_USER_AGENT: &str = concat!(
+    "Draggy/",
+    env!("CARGO_PKG_VERSION"),
+    " (https://github.com/Lucki74/draggy)"
+);
+const WIKIMEDIA_HOSTS: [&str; 9] = [
+    "wikipedia.org",
+    "wikimedia.org",
+    "wiktionary.org",
+    "wikibooks.org",
+    "wikiquote.org",
+    "wikisource.org",
+    "wikiversity.org",
+    "wikivoyage.org",
+    "wikidata.org",
+];
+
+fn is_wikimedia(url: &str) -> bool {
+    Url::parse(url)
+        .ok()
+        .and_then(|parsed| parsed.host_str().map(str::to_ascii_lowercase))
+        .is_some_and(|host| {
+            WIKIMEDIA_HOSTS
+                .iter()
+                .any(|site| host == *site || host.ends_with(&format!(".{site}")))
+        })
+}
+
 fn map_error(error: reqwest::Error) -> HttpError {
     if error.is_timeout() {
         HttpError::Timeout
@@ -665,13 +695,11 @@ fn map_error(error: reqwest::Error) -> HttpError {
 
 impl PageSource for ReqwestPageSource {
     async fn fetch(&self, url: &str) -> Result<Hop, HttpError> {
-        let mut response = self
-            .client
-            .get(url)
-            .header(reqwest::header::ACCEPT, ACCEPT)
-            .send()
-            .await
-            .map_err(map_error)?;
+        let mut request = self.client.get(url).header(reqwest::header::ACCEPT, ACCEPT);
+        if is_wikimedia(url) {
+            request = request.header(reqwest::header::USER_AGENT, WIKIMEDIA_USER_AGENT);
+        }
+        let mut response = request.send().await.map_err(map_error)?;
         let status = response.status();
         let header = |name| {
             response
@@ -1049,7 +1077,15 @@ pub async fn read_page<S: PageSource>(
 
 #[cfg(test)]
 mod tests {
-    use super::page_text;
+    use super::{is_wikimedia, page_text};
+
+    #[test]
+    fn wikimedia_sites_get_their_own_user_agent() {
+        assert!(is_wikimedia("https://en.wikipedia.org/wiki/Alan_Turing"));
+        assert!(is_wikimedia("https://upload.wikimedia.org/a.png"));
+        assert!(!is_wikimedia("https://notwikipedia.org/"));
+        assert!(!is_wikimedia("https://example.com/wikipedia.org"));
+    }
 
     #[test]
     fn keeps_title_and_visible_text() {

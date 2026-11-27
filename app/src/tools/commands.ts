@@ -25,7 +25,7 @@ const runCommand: ToolSpec = {
     shell: {
       type: "string",
       description:
-        'Optional. One of "pwsh", "powershell", "cmd", "bash", "sh" or "zsh". Leave it out to use this computer\'s default shell.',
+        'Optional. One of "pwsh", "powershell", "cmd", "bash", "sh" or "zsh". Leave it out to use this computer\'s default shell. On Windows, bash passes /F-style flags through as written, so write `taskkill /F`, not `taskkill //F`.',
     },
     timeout_seconds: {
       type: "integer",
