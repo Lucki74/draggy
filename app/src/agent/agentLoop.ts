@@ -195,6 +195,10 @@ const HISTORY_WORK_STEPS = new Set<string>(["command", "run_code", "create_file"
 
 /** `keepThinking` sends a reply's reasoning back with it. With reasoning dropped from history,
  * Laguna wrote none at all; kept, it wrote 400 characters. */
+/** Marks a stopped reply in history so the model treats it as abandoned, not as something to complete. */
+export const STOPPED_REPLY_NOTE =
+  "[The user stopped this reply before it finished. It is abandoned: do not complete it or bring it up unless the user asks.]";
+
 export function toWireMessage(
   message: Message,
   allowImages: boolean,
@@ -238,6 +242,11 @@ export function toWireMessage(
       content += `\n\n[Attached Binary File: ${attachment.name}]`;
     }
   }
+
+  // A reply the user stopped is finished business: without this the next answer reads it as an open request and returns to it.
+  if (message.role === "assistant" && message.stopped) content += `
+
+${STOPPED_REPLY_NOTE}`;
 
   // Tool results live only in the steps, so without this a later turn cannot see what a script printed or a search found.
   if (message.role === "assistant") {
@@ -1254,7 +1263,7 @@ async function runTurn(
     // Background tasks that ended since the model last looked are reported once, here.
     if (toolContext.chatId) {
       const ended = await window.draggy?.tasks?.takeInbox(toolContext.chatId).catch(swallowed("agent", "the report of ended tasks is retried on the next request", null));
-      if (ended?.items && ended.items.length > 0) wire.push({ role: "user", content: describeEnded(ended.items) });
+      if (ended?.items && ended.items.length > 0) wire.push({ role: "user", content: describeEnded(ended.items, host.t) });
     }
 
     // Pages already noted shrink to receipts. The run state rides on each research tool result,

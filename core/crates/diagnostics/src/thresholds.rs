@@ -2,7 +2,7 @@
 
 const DEFAULT_IPC_SLOW_MS: u64 = 2_000;
 
-const IPC_SLOW_MS: [(&str, u64); 22] = [
+const IPC_SLOW_MS: [(&str, u64); 23] = [
     ("models:download", 30_000),
     ("gguf:download", 30_000),
     ("gguf:setup-engine", 60_000),
@@ -25,6 +25,8 @@ const IPC_SLOW_MS: [(&str, u64); 22] = [
     ("get-page-content", 30_000),
     ("search-models", 15_000),
     ("check-internet", 10_000),
+    // Asks each configured provider over the network, so a slow answer is the provider's, not ours.
+    ("providers:models", 15_000),
 ];
 
 /// Object.prototype members. A lookup in the JavaScript table returns one of these for them, not a number.
@@ -63,6 +65,7 @@ mod tests {
     fn known_channels_and_the_default() {
         assert_eq!(ipc_slow_ms("models:download"), 30_000);
         assert_eq!(ipc_slow_ms("check-internet"), 10_000);
+        assert_eq!(ipc_slow_ms("providers:models"), 15_000);
         assert_eq!(ipc_slow_ms("not-a-channel"), 2_000);
     }
 
