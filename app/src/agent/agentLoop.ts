@@ -366,6 +366,8 @@ export interface AgentHost {
   /** Where a plan the model writes goes, and where the live one comes from. */
   onPlan?: (items: PlanItem[]) => void;
   getPlan?: () => PlanItem[] | null;
+  /** The budget check, asked again before each child run starts, since a child spends on the same account. */
+  checkBudget?: (model: string) => Promise<string | null>;
   /** Speed and context as the turn runs, a few times a second. */
   onLive?: (live: LiveTurn) => void;
   /** Notes the user typed while the turn ran, handed over once each before every model request. */
@@ -1003,6 +1005,10 @@ async function runTurn(
     if (lacking.length > 0) {
       return { summary: `TOOL ERROR (run_subagent): this chat has no ${lacking.join(" or ")} tools enabled right now, so the subagent was not started. Ask again without them.`, toolCount: 0, status: "failed" };
     }
+    const overBudget = host.checkBudget ? await host.checkBudget(model).catch(swallowed("agent", "an unreadable budget never blocks a child run", null)) : null;
+    if (overBudget) {
+      return { summary: `TOOL ERROR (run_subagent): ${overBudget} The subagent was not started.`, toolCount: 0, status: "failed" };
+    }
     subagentsStarted += 1;
     const childGroups = environment.allowedGroups
       ? child.groups.filter((group) => environment.allowedGroups?.includes(group))
@@ -1069,6 +1075,7 @@ async function runTurn(
         grants = addGrant(grants, grant);
         host.onGrant?.(grant);
       },
+      checkBudget: host.checkBudget,
     };
     let outcome: SubagentOutcome;
     try {
@@ -1090,8 +1097,13 @@ async function runTurn(
         childHost,
       );
       const toolCount = Object.values(result.toolCalls).reduce((sum, count) => sum + count, 0);
-      // The child's calls count in this turn's statistics too; its tokens and context are not added.
+      // The child's calls count in this turn's statistics too.
       for (const [name, count] of Object.entries(result.toolCalls)) toolCalls[name] = (toolCalls[name] ?? 0) + count;
+      // Its tokens are spent on the same account, so they count in this turn's usage and the budget.
+      if (result.metrics) {
+        const merged = mergeMetrics(metrics, result.metrics);
+        if (merged) metrics = { ...merged, promptTokens: (metrics?.promptTokens ?? 0) + result.metrics.promptTokens };
+      }
       const text = capSummary(result.textContent || result.content);
       // An empty answer means the model call failed or the child stopped before it wrote anything.
       const status = result.aborted ? "stopped" : text ? "done" : "failed";
