@@ -170,3 +170,12 @@ describe("streaming", () => {
     expect(order[0]).toBe("model:llama3.2:3b");
   });
 });
+
+describe("the budget on the local API", () => {
+  it("refuses a send the budget stops, before any model runs", async () => {
+    const run = vi.fn();
+    const checkBudget = vi.fn(async () => "Budget reached: spent.");
+    await expect(answerApiRequest(request(), { ...deps(), run, checkBudget })).rejects.toThrow("Budget reached");
+    expect(run).not.toHaveBeenCalled();
+  });
+});

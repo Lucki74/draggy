@@ -8,7 +8,7 @@ const tool = (name: string) => RESEARCH_TOOLS.find((spec) => spec.name === name)
 /** A finish is held back a few times while a sub-question has no notes, so keep asking until it goes through. */
 async function finishAll(ctx: ToolContext) {
   let result = "";
-  for (let i = 0; i < 6 && !/Write the report now/.test(result); i += 1) result = await tool("finish_research").run({}, ctx);
+  for (let i = 0; i < 6 && !/Write the report now/.test(result); i += 1) result = String(await tool("finish_research").run({}, ctx));
   return result;
 }
 

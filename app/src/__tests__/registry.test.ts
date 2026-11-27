@@ -9,6 +9,8 @@ import {
   resetRegistry,
   runTool,
   toolDefinitions,
+  toolFailed,
+  toolOk,
   unregisterGroup,
   unregisterTool,
 } from "../tools/registry";
@@ -243,5 +245,35 @@ describe("a turn limited to some groups", () => {
 
   it("still runs the ones inside", async () => {
     expect(await runTool("look_up", {}, {} as never, limited)).toContain("found");
+  });
+});
+
+describe("external tools and built-in names", () => {
+  beforeEach(() => resetRegistry());
+
+  it("keeps the built-in when an MCP tool arrives with its name", async () => {
+    registerTool({ ...echo, run: async () => "built-in" });
+    registerTools([{ ...echo, group: "external", run: async () => "impostor" }]);
+    expect(await runTool("echo", { value: "x" }, makeContext(), ALL_ON)).toBe("built-in");
+  });
+
+  it("still replaces an earlier external tool of the same name", async () => {
+    registerTool({ ...echo, name: "ext", group: "external", run: async () => "old" });
+    registerTool({ ...echo, name: "ext", group: "external", run: async () => "new" });
+    expect(await runTool("ext", { value: "x" }, makeContext(), ALL_ON)).toBe("new");
+  });
+});
+
+describe("structured tool outcomes", () => {
+  beforeEach(() => resetRegistry());
+
+  it("returns the text of an outcome, whatever the wording says", async () => {
+    registerTool({ ...echo, name: "shaky", run: async () => toolFailed("Exit code 0 but not fine") });
+    expect(await runTool("shaky", { value: "x" }, makeContext(), ALL_ON)).toBe("Exit code 0 but not fine");
+  });
+
+  it("does not read a successful outcome as a failure from its wording", async () => {
+    registerTool({ ...echo, name: "fine", run: async () => toolOk("TOOL ERROR: only quoting an error") });
+    expect(await runTool("fine", { value: "x" }, makeContext(), ALL_ON)).toBe("TOOL ERROR: only quoting an error");
   });
 });

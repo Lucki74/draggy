@@ -1,3 +1,4 @@
+import { logSwallow } from "../logger";
 import { registerTools } from "./registry";
 import type { ToolSpec } from "./registry";
 import { renderSkill, renderSkillFile } from "../skills/skills";
@@ -47,15 +48,22 @@ const useSkill: ToolSpec = {
       isComplete: false,
     });
 
-    const result = await window.draggy?.skills?.read(ctx.workspaceId || "default", id, {
-      enabledOnly: true,
-      file,
-    });
+    let thrown = "";
+    const result = await window.draggy?.skills
+      ?.read(ctx.workspaceId || "default", id, {
+        enabledOnly: true,
+        file,
+      })
+      .catch((error: unknown) => {
+        thrown = error instanceof Error ? error.message : String(error);
+        logSwallow("tools", error, "the model is told why the skill could not load");
+        return undefined;
+      });
 
     if (!result?.success || !result.skill) {
       ctx.patchStep(stepId, { isComplete: true, type: "error" });
       ctx.syncSteps();
-      return `TOOL RESULT (use_skill): ${result?.error || "Skills are not available in this build."}`;
+      return `TOOL RESULT (use_skill): ${result?.error || (thrown ? `Skills are not available: ${thrown}` : window.draggy?.skills ? "The skill could not be read." : "Skills are not available in this build: the skills bridge is missing.")}`;
     }
 
     ctx.patchStep(stepId, {

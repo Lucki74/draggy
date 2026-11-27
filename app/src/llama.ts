@@ -2,7 +2,7 @@ import type { ContextBreakdown } from "./agent/contextBreakdown";
 import { isRemote, parseRef, remoteModelInfo } from "./ai/providers";
 import { safeJsonParse } from "./utils";
 import type { PromptProfile } from "./prompts";
-import { newCorrelationId, swallowed } from "./logger";
+import { logSwallow, newCorrelationId, swallowed } from "./logger";
 import { readTokenUsage, type TokenUsage } from "./stats/tokenUsage";
 
 /** How long the GGUF engine is asked to keep a model resident. The engine itself has no such
@@ -148,7 +148,8 @@ async function fetchModelInfo(model: string): Promise<ModelInfo | null> {
       parameterCount: null,
       quantization: entry.fileType !== null && entry.fileType !== undefined ? String(entry.fileType) : null,
     };
-  } catch {
+  } catch (error) {
+    logSwallow("app", error, "describing a model failed: it shows without its details");
     return null;
   }
 }
@@ -446,7 +447,8 @@ export async function listInstalledModels(): Promise<InstalledModel[]> {
 
   try {
     return describeInstalled(await window.draggy?.gguf?.listModels());
-  } catch {
+  } catch (error) {
+    logSwallow("app", error, "listing installed models failed: the list shows empty");
     return [];
   }
 }
@@ -460,7 +462,8 @@ export async function describeLoadedModels(): Promise<LoadedModel[]> {
     const status = await window.draggy?.gguf?.status();
     if (!status?.running || !status.model) return [];
     return [{ name: servedFileName(status.model), size: 0, sizeVram: 0, gpuPercent: null }];
-  } catch {
+  } catch (error) {
+    logSwallow("app", error, "reading the running model failed: none shown");
     return [];
   }
 }
@@ -500,7 +503,8 @@ export async function isLoadedAt(
 
     // A bigger window serves a smaller request: the engine reuses it rather than reloading.
     return status.contextSize >= contextSize;
-  } catch {
+  } catch (error) {
+    logSwallow("app", error, "checking the loaded model failed: treated as unknown");
     return null;
   }
 }
@@ -514,7 +518,8 @@ export async function isExtendingContext(model: string, contextSize: number): Pr
     const target = bareModelName(model);
     const same = status.model === target || status.model === model || servedFileName(status.model) === target;
     return same && status.contextSize < contextSize;
-  } catch {
+  } catch (error) {
+    logSwallow("app", error, "checking the context size failed: no reload");
     return false;
   }
 }

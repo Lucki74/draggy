@@ -161,7 +161,7 @@ Do not search for this again. Use what you have, or read one of the URLs.`;
       ctx.pushStep({
         id: ctx.newId(),
         type: "results",
-        content: `${ctx.t("searchResultsFor")} **${query}**`,
+        content: `${ctx.t("searchResultsFor")} **${query}**${outcome.provider ? ` · ${outcome.provider}` : ""}`,
         isComplete: true,
         results,
       });
