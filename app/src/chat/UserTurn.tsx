@@ -1,8 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import { normalizeMath, sanitizeContent } from "../utils";
-import { REHYPE_PLUGINS, REMARK_PLUGINS } from "./markdown";
-import { copyAsMarkdown } from "./copyMarkdown";
+import { sanitizeContent } from "../utils";
 import { Button, Icon, IconButton, Lightbox } from "../ui";
 import { looksLikeImage } from "./attachments";
 import { VideoTurnCard } from "./VideoAttachment";
@@ -105,16 +102,13 @@ export function UserTurn({ msg, idx, text, onEditMessage, t }: UserTurnProps) {
           style={{ fontSize: "var(--chat-font-size)" }}
           dir="auto"
         >
-          <div className="markdown-body" onCopy={copyAsMarkdown}>
-            <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
-              {normalizeMath(
-                msg.content.trim()
-                  ? sanitizeContent(msg.content)
-                  : attachments.length > 0
-                    ? `[${t("attachedFiles")}]`
-                    : "",
-              )}
-            </ReactMarkdown>
+          {/* Typed text is shown as written, so markdown characters and line breaks survive. */}
+          <div className="whitespace-pre-wrap">
+            {msg.content.trim()
+              ? sanitizeContent(msg.content)
+              : attachments.length > 0
+                ? `[${t("attachedFiles")}]`
+                : ""}
           </div>
         </div>
       )}
