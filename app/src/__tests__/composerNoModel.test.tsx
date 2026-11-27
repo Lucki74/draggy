@@ -27,7 +27,7 @@ describe("the composer with no model loaded", () => {
 
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "/image a dragon" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect(onSendMessage).toHaveBeenCalledWith("Generate an image: a dragon", expect.anything());
+    expect(onSendMessage).toHaveBeenCalledWith("Generate an image: a dragon", expect.anything(), undefined);
   });
 
   it("says nothing once a model is loaded", () => {

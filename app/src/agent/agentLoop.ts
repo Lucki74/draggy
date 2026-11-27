@@ -102,6 +102,7 @@ import {
   targetFromArgs,
 } from "./permissions";
 import type { Grant } from "./permissions";
+import { narrowPermission, type AgentTurn } from "../chat/agentPolicy";
 import { dialectFor, needsHost } from "./commandRules";
 import { describeEdit, describePlan, samePlan } from "../plan/plan";
 import type { PlanItem } from "../plan/plan";
@@ -323,6 +324,8 @@ export interface AgentRequest {
   /** How much this turn may do on its own, and what the user has already allowed. Left out, the
    * turn runs unguarded, which is what a plain chat with no folder of its own has always done. */
   permission?: { mode: PermissionMode; grants?: Grant[]; rules?: import("../types").PermissionRule[] };
+  /** A file-defined agent for this turn: its tool names and a mode it can only lower. */
+  agent?: AgentTurn | null;
   /** What the model counted for this very prompt, measured just before, and the wire it was for.
    * The context meter starts from it instead of an estimate. */
   contextBase?: { tokens: number; chars: number } | null;
@@ -458,7 +461,7 @@ const ACT_ON_ANNOUNCEMENT =
 
 export type TurnInput = Pick<
   AgentRequest,
-  "model" | "settings" | "environment" | "messages" | "isContinuation" | "seed" | "compaction" | "workspaceId" | "correlationId"
+  "model" | "settings" | "environment" | "messages" | "isContinuation" | "seed" | "compaction" | "workspaceId" | "correlationId" | "agent"
 >;
 
 /** Everything a turn sends before the model says a word: the prompt, the tools, the wire. Shared
@@ -602,7 +605,10 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
   ]
     .filter(Boolean)
     .join("\n\n");
-  const definitions = toolDefinitions(environment);
+  const agentTools = request.agent?.tools;
+  const definitions = toolDefinitions(environment).filter(
+    (one) => !agentTools || agentTools.includes(one.function.name),
+  );
 
   const prefill = request.isContinuation
     ? (request.seed?.textContent ?? "")
@@ -871,7 +877,8 @@ async function runTurn(
   // One id for every pass and tool round-trip in this turn, so its log lines join back together.
   const correlationId = request.correlationId ?? newCorrelationId();
 
-  const mode: PermissionMode = request.permission?.mode ?? "auto";
+  const agentTools = request.agent?.tools;
+  const mode: PermissionMode = narrowPermission(request.permission?.mode ?? "auto", request.agent?.permissions);
   const steps: SearchStep[] = [...(request.seed?.steps ?? [])];
 
   logAgentStep(
@@ -1129,6 +1136,10 @@ async function runTurn(
     args: Record<string, unknown>,
   ): Promise<string> {
     if (signal.aborted) return CANCELLED_RESULT;
+    // An agent file may only narrow the tools; a call to one it left out is refused even if the model names it.
+    if (agentTools && !agentTools.includes(name)) {
+      return `TOOL ERROR (${name}): the agent "${request.agent?.id}" does not allow this tool.`;
+    }
     // Node runners hang in the sandbox, so they go straight to the outside request and its approval.
     if (name === "run_command" && mode !== "auto" && needsHost(String(args.command ?? ""), dialectFor(typeof args.shell === "string" ? args.shell : null))) {
       name = "request_outside_sandbox";

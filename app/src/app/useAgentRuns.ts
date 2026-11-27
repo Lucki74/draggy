@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createTaskManager } from "../agent/taskManager";
 import type { CompactOutcome, TaskHost, TaskManager } from "../agent/taskManager";
+import type { AgentTurn } from "../chat/agentPolicy";
 import type { ToolEnvironment } from "../tools/registry";
 import type { Grant } from "../agent/permissions";
 import type {
@@ -45,7 +46,7 @@ interface AgentRunsInput {
 export interface AgentRuns {
   /** Ids of the conversations with a turn in flight right now. */
   running: string[];
-  send: (chatId: string, content: string, attachments?: Attachment[]) => void;
+  send: (chatId: string, content: string, attachments?: Attachment[], typedText?: string, agent?: AgentTurn) => void;
   regenerate: (chatId: string, index?: number) => void;
   editMessage: (chatId: string, messageIndex: number, content: string) => void;
   switchVersion: (

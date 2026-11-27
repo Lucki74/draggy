@@ -58,7 +58,7 @@ export function Transcript({
   }, [chat.isGenerating, chat.messages.length, t]);
 
   const prompts = useMemo(
-    () => chat.messages.filter((msg) => msg.role === "user" && !msg.notice).map((msg) => ({ id: msg.id, text: msg.content })),
+    () => chat.messages.filter((msg) => msg.role === "user" && !msg.notice).map((msg) => ({ id: msg.id, text: msg.typedText ?? msg.content })),
     [chat.messages],
   );
   const showJumpList = prompts.length >= JUMP_LIST_MIN_PROMPTS;
