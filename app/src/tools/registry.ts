@@ -120,8 +120,17 @@ export interface ToolSpec {
   available?: (environment: ToolEnvironment) => boolean;
   /** Left out of the list a small model sees, to spare its context. It can still be called. */
   extended?: boolean;
-  run: (args: Record<string, unknown>, context: ToolContext) => Promise<string>;
+  run: (args: Record<string, unknown>, context: ToolContext) => Promise<string | ToolOutcome>;
 }
+
+/** A result that says outright whether the tool worked, so nothing has to guess from its wording. */
+export interface ToolOutcome {
+  text: string;
+  ok: boolean;
+}
+
+export const toolOk = (text: string): ToolOutcome => ({ text, ok: true });
+export const toolFailed = (text: string): ToolOutcome => ({ text, ok: false });
 
 export interface ToolDefinition {
   type: "function";
@@ -149,13 +158,22 @@ export function onRegistryChange(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+/** An external (MCP) tool never takes the name of a built-in one: the built-in keeps it. */
+function shadowsBuiltin(spec: ToolSpec): boolean {
+  const existing = registry.get(spec.name);
+  if (!existing || spec.group !== "external" || existing.group === "external") return false;
+  logRendererEvent("renderer.tools", "WARN", "external tool refused: name belongs to a built-in", { tool: spec.name });
+  return true;
+}
+
 export function registerTool(spec: ToolSpec): void {
+  if (shadowsBuiltin(spec)) return;
   registry.set(spec.name, spec);
   notify();
 }
 
 export function registerTools(specs: ToolSpec[]): void {
-  for (const spec of specs) registry.set(spec.name, spec);
+  for (const spec of specs) if (!shadowsBuiltin(spec)) registry.set(spec.name, spec);
   notify();
 }
 
@@ -299,8 +317,15 @@ export async function runTool(
   let result: string;
   let failed: boolean;
   try {
-    result = await spec.run(args, context);
-    failed = result.startsWith("TOOL ERROR") || FAILED_RESULT.test(result);
+    const output = await spec.run(args, context);
+    if (typeof output === "string") {
+      result = output;
+      // Only a tool that returns plain text is read by its wording.
+      failed = result.startsWith("TOOL ERROR") || FAILED_RESULT.test(result);
+    } else {
+      result = output.text;
+      failed = !output.ok;
+    }
   } catch (error) {
     failed = true;
     const message = error instanceof Error ? error.message : String(error);

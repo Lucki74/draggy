@@ -98,12 +98,14 @@ impl Launch {
     }
 }
 
-/// The launcher binary: packaged next to the app's resources, else the dev build.
+/// The launcher binary: packaged next to the app's resources, else (debug builds only) the dev build.
 pub fn launcher(resource_dir: Option<&Path>) -> Option<PathBuf> {
     let mut candidates = Vec::new();
     if let Some(dir) = resource_dir {
         candidates.push(dir.join("sandbox").join(LAUNCHER));
     }
+    // The source tree's build is a dev convenience: a release app must never run a binary from there.
+    #[cfg(debug_assertions)]
     candidates.push(
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")

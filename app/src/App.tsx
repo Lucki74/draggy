@@ -94,6 +94,7 @@ export default function App() {
   const [landed, setLanded] = useState<string | null>(null);
   const [landingPath, setLandingPath] = useState<"local" | "both">("local");
   const [seedPrompt, setSeedPrompt] = useState<string | undefined>();
+  const [noModelChosen, setNoModelChosen] = useState(false);
   const usable = firstDownload.model.phase === "done" && firstDownload.engine.phase === "done";
 
   // The model the app opened on has arrived: remembered, then recorded and warmed below.
@@ -128,6 +129,11 @@ export default function App() {
       if (outcome.prompt) {
         writeLocalStorage(MODE_KEY, "chat");
         setSeedPrompt(outcome.prompt);
+      }
+      if (outcome.path === "skipped" && !selectedModel) {
+        // Skip chooses nothing: the app opens with no model and the picker asks for one.
+        setNoModelChosen(true);
+        return;
       }
       if (outcome.path === "skipped" || outcome.path === "provider") {
         handleModelReady(selectedModel);
@@ -171,7 +177,7 @@ export default function App() {
     );
   }
 
-  if (!model && !openSettingsOn) {
+  if (!model && !openSettingsOn && !noModelChosen) {
     if (window.draggy) {
       return (
         <div

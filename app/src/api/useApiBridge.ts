@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { listInstalledModels, warmModel } from "../llama";
 import { answerApiRequest, pickModel } from "./answer";
+import { budgetStop } from "../stats/budgetGuard";
 import type { AppSettings } from "../types";
 import { swallowed } from "../logger";
 
@@ -44,6 +45,7 @@ export function useApiBridge(input: BridgeInput): void {
             settings,
             t,
             signal: controller.signal,
+            checkBudget: (name) => budgetStop(name, settings.budgets),
             onText: (text) => bridge.text(id, text),
             onModel: (name) => bridge.model(id, name),
           });
@@ -67,6 +69,8 @@ export function useApiBridge(input: BridgeInput): void {
           const { model, settings } = latest.current;
           const chosen = pickModel(requested, defaultModel?.trim() || model, installed);
           if (!chosen) throw new Error("No model is selected in Draggy yet.");
+          const overBudget = await budgetStop(chosen, settings.budgets);
+          if (overBudget) throw new Error(overBudget);
           await warmModel(chosen, "", 0, settings.fixedContextSize ?? null);
           bridge.prepared(id, chosen);
         } catch (error) {

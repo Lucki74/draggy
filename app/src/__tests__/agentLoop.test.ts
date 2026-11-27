@@ -3131,3 +3131,17 @@ describe("a research run when the turn does not end cleanly", () => {
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ id: "rx", status: "cancelled" }));
   });
 });
+
+describe("a stopped reply in history", () => {
+  it("is marked as abandoned so the next answer does not resume it", () => {
+    const wire = toWireMessage({ id: "a", role: "assistant", content: "Rust is a", stopped: true } as never, false);
+    expect(wire.content).toContain("Rust is a");
+    expect(wire.content).toContain("stopped this reply");
+    expect(wire.content).toContain("abandoned");
+  });
+
+  it("leaves a finished reply untouched", () => {
+    const wire = toWireMessage({ id: "a", role: "assistant", content: "Done." } as never, false);
+    expect(wire.content).toBe("Done.");
+  });
+});

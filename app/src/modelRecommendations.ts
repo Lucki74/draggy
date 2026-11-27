@@ -143,13 +143,28 @@ export interface RecommendedDownload {
   size: number;
 }
 
+/** The most a first-run download may weigh: what fits the card, or a modest slice of RAM when the card
+ * is small, and never more than 40% of the RAM. A 57 GB first download is a bad welcome on any machine. */
+export const FIRST_RUN_RAM_FRACTION = 0.4;
+export const FIRST_RUN_SLICE_GB = 20;
+
+export function firstRunCapGB(vram: number, target: RuntimeTarget = {}): number {
+  const safeVram = Number.isFinite(vram) && vram > 0 ? vram : 0;
+  const ram = target.ram && target.ram > 0 ? target.ram : 0;
+  const pool = isAppleSilicon(target) ? unifiedMemory(safeVram, target) * 0.5 : safeVram * USABLE_VRAM_FRACTION;
+  const slice = ram ? Math.min(ram * 0.25, FIRST_RUN_SLICE_GB) : 0;
+  const cap = Math.max(pool, slice);
+  return ram ? Math.min(cap, ram * FIRST_RUN_RAM_FRACTION) : cap;
+}
+
 /** The rung the machine can carry, as something the downloader understands. */
 export function getRecommendedDownload(
   vram: number,
   target: RuntimeTarget = {},
 ): RecommendedDownload {
-  const modelName = getRecommendedModel(vram, target);
-  const rung = ggufLadder.find((entry) => entry.model === modelName) ?? ggufLadder[0];
+  const cap = firstRunCapGB(vram, target);
+  const index = ggufLadder.findLastIndex((entry) => !entry.pending && entry.sizeGB <= cap && rungFits(entry, vram, target));
+  const rung = ggufLadder[index < 0 ? 0 : index];
 
   return {
     model: rung.model,

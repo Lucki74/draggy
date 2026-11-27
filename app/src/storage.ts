@@ -105,7 +105,10 @@ const sqliteBackend: StorageBackend = {
 
   async loadSessions() {
     const result = await window.draggy!.db.loadChats();
-    if (!result?.success || !result.chats) return [];
+    if (!result?.success || !result.chats) {
+      logRendererEvent("storage", "WARN", "chats not loaded", { reason: result?.error ?? "no result" });
+      return [];
+    }
     return result.chats.map(settleSession);
   },
 
@@ -127,12 +130,19 @@ const sqliteBackend: StorageBackend = {
 
   async searchSessions(query) {
     const result = await window.draggy!.db.searchChats(query);
-    return result?.success ? (result.results ?? []) : [];
+    if (!result?.success) {
+      logRendererEvent("storage", "WARN", "chat search failed", { reason: result?.error ?? "no result" });
+      return [];
+    }
+    return result.results ?? [];
   },
 
   async loadSettings() {
     const result = await window.draggy!.db.get(SETTINGS_KEY);
-    return result?.value ? safeJsonParse<Partial<AppSettings>>(result.value) : null;
+    if (!result?.value) return null;
+    const parsed = safeJsonParse<Partial<AppSettings>>(result.value);
+    if (parsed === null) logRendererEvent("storage", "WARN", "stored settings are not valid JSON", { chars: result.value.length });
+    return parsed;
   },
 
   async saveSettings(settings) {

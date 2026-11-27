@@ -146,7 +146,7 @@ ${root}
 
 File-tool paths are relative to it ("src/App.tsx" is this project's). Nothing outside the folder is reachable, and credentials such as .env files are refused even inside it.
 
-Read a file before changing it, and pass edit_file the exact lines you read, not what you remember. edit_file changes part of a file; write_file replaces all of it, for new files and deliberate rewrites. Moving and deleting ask the user first; the timeline can undo every change.
+Read a file before changing it, and pass edit_file the exact lines you read, not what you remember. edit_file changes part of a file; write_file replaces all of it, for new files and deliberate rewrites. The app asks the user to approve a move or a delete, so when they have asked for one, call the tool without asking again or saying you will not delete unless they say so; the timeline can undo every change.
 
 When done, name the files you changed instead of repeating their contents.`;
 }

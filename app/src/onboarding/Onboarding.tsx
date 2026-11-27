@@ -1,7 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import StartupScreen from "../StartupScreen";
-import { formatBytes } from "../formatBytes";
-import { ConfirmDialog } from "../settings/Controls";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/icons/Icon";
 import { useTranslator } from "../i18n";
@@ -18,7 +15,6 @@ import type { AppSettings, OnboardingPath, SystemSpecs } from "../types";
 import { useProviders } from "../providers/useProviders";
 import { canContinue, nextStep, previousStep, stepsFor, type SetupPath, type StepId } from "./flow";
 import { localeToLanguage } from "./locale";
-import { fill } from "./text";
 import type { FirstDownload } from "./useFirstDownload";
 import DownloadBar from "./DownloadBar";
 import Welcome from "./steps/Welcome";
@@ -71,7 +67,7 @@ function extraTiers(specs: SystemSpecs | null | undefined) {
 const CODES = languages.map((language) => language.code);
 
 /** The first-run setup, in the main window. Nothing downloads until the Local model step's Continue,
- * and Skip, on every screen, runs the splash's own automatic setup instead. */
+ * and Skip, on every screen, closes the setup with no model chosen. */
 export default function Onboarding({ settings, onUpdateSettings, download, onFinish }: OnboardingProps) {
   const t = useTranslator(settings.language);
   const api = window.draggy;
@@ -84,8 +80,6 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   const [online, setOnline] = useState<boolean | null>(null);
   const [choice, setChoice] = useState<ModelChoice | null>(null);
   const [providerModel, setProviderModel] = useState<string | null>(null);
-  const [confirmSkip, setConfirmSkip] = useState(false);
-  const [skipping, setSkipping] = useState(false);
   const [mode, setMode] = useState<AppMode>(() => {
     try {
       return localStorage.getItem(MODE_KEY) === "code" ? "code" : "chat";
@@ -245,18 +239,11 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
     [api, onFinish],
   );
 
-  const openSkip = useCallback(async () => {
-    // Without a known size the dialog would say "about ?", so Skip opens only once the download is sized.
-    const sized = await loadSurroundings().then(() => true, swallowed("onboarding", "the main process already logged this call", false));
-    if (sized) setConfirmSkip(true);
-  }, [loadSurroundings]);
-
-  const skip = useCallback(async () => {
-    setConfirmSkip(false);
+  // Skip chooses and downloads nothing: setup closes and the app opens with no model.
+  const skip = useCallback(() => {
     download.cancelAll();
-    await download.engineIdle();
-    setSkipping(true);
-  }, [download]);
+    void finish("skipped", "");
+  }, [download, finish]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -270,7 +257,6 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   }, [step]);
 
   const onKeyDown = (event: React.KeyboardEvent) => {
-    if (confirmSkip || skipping) return;
     const target = event.target as HTMLElement;
     if (event.key === "Enter") {
       // A radio or the page itself continues; any other control keeps its own Enter.
@@ -284,28 +270,6 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
       back();
     }
   };
-
-  if (skipping) {
-    return (
-      <div className="flex h-full w-full overflow-hidden bg-surface-canvas text-text-primary">
-        <StartupScreen
-          modelName={settings.modelName}
-          language={settings.language}
-          onReady={(model) => void finish("skipped", model)}
-        />
-      </div>
-    );
-  }
-
-  const gb = (bytes: number) => formatBytes(bytes, settings.language);
-  const skipBody = [
-    surroundings?.installed
-      ? t("onbSkipBodyInstalled")
-      : fill(t("onbSkipBody"), { size: surroundings ? gb(surroundings.plan.recommended.sizeBytes) : "?" }),
-    online === false ? t("onbSkipOffline") : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
 
   const themeLabel = { light: t("light"), dark: t("dark"), system: t("themeSystem") }[settings.theme];
   const sizeLabel = { sm: t("textSmall"), base: t("textMedium"), lg: t("textLarge") }[settings.fontSize];
@@ -435,7 +399,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
               {t("onbBack")}
             </Button>
           )}
-          <Button variant="ghost" onClick={() => void openSkip()} className="me-auto">
+          <Button variant="ghost" onClick={skip} className="me-auto">
             {t("onbSkip")}
           </Button>
           {step !== "ready" && (
@@ -446,18 +410,6 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
         </div>
         {step !== "ready" && <DownloadBar download={download} language={settings.language} t={t} />}
       </footer>
-
-      {confirmSkip && (
-        <ConfirmDialog
-          title={t("onbSkipTitle")}
-          body={skipBody}
-          confirmLabel={t("onbSkipConfirm")}
-          cancelLabel={t("cancel")}
-          tone="primary"
-          onConfirm={() => void skip()}
-          onCancel={() => setConfirmSkip(false)}
-        />
-      )}
     </div>
   );
 }

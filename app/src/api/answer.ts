@@ -27,6 +27,8 @@ export interface AnswerDependencies {
   /** Which model ended up answering. */
   onModel?: (model: string) => void;
   run?: (request: AgentRequest, host: AgentHost) => Promise<AgentResult>;
+  /** The budget guard the chat uses: the words to refuse with, or null when the send may go ahead. */
+  checkBudget?: (model: string) => Promise<string | null>;
 }
 
 /** The name `/v1/models` lists for the agent loop. */
@@ -60,6 +62,9 @@ export async function answerApiRequest(
 ): Promise<ApiCompletionResult> {
   const model = pickModel(request.model, deps.model, deps.installed);
   if (!model) throw new Error("No model is selected in Draggy yet.");
+
+  const overBudget = await deps.checkBudget?.(model);
+  if (overBudget) throw new Error(overBudget);
 
   deps.onModel?.(model);
 

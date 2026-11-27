@@ -1,4 +1,5 @@
-import { registerTools } from "./registry";
+import { registerTools, toolFailed, toolOk } from "./registry";
+import type { ToolOutcome } from "./registry";
 import { registerTaskTools } from "./tasks";
 import type { ToolSpec } from "./registry";
 import { SHELL_IDS } from "../terminal/shells";
@@ -101,7 +102,7 @@ async function runInBox(
   ctx: Parameters<ToolSpec["run"]>[1],
   outside: boolean,
   elevated = false,
-): Promise<string> {
+): Promise<string | ToolOutcome> {
   {
     const command = String(args.command).trim();
     const shell = (SHELL_IDS as readonly string[]).includes(String(args.shell)) ? String(args.shell) : undefined;
@@ -173,7 +174,7 @@ async function runInBox(
         content: `${ctx.t("commandFailed")} \`${command}\`: ${result.error}`,
       });
       ctx.syncSteps();
-      return `TOOL RESULT (run_command): Could not run the command. ${result.error}`;
+      return toolFailed(`TOOL RESULT (run_command): Could not run the command. ${result.error}`);
     }
 
     if (result.background || result.detached) {
@@ -231,7 +232,8 @@ async function runInBox(
     const shellNote = result.notice ? `
 ${result.notice}` : "";
 
-    return `TOOL RESULT (run_command): ${status}${result.truncated ? " The middle of the output was cut." : ""}${shellNote}${outsideNote}\n\n${output || "(no output)"}`;
+    const text = `TOOL RESULT (run_command): ${status}${result.truncated ? " The middle of the output was cut." : ""}${shellNote}${outsideNote}\n\n${output || "(no output)"}`;
+    return result.success && !result.timedOut ? toolOk(text) : toolFailed(text);
   }
 }
 

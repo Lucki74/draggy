@@ -123,6 +123,12 @@ fn thinking_of(req: &ChatRequest, model: &str, max_tokens: i64) -> (Map<String, 
     (fields, false)
 }
 
+/// Whether turning thinking off in the app really sends no thinking. Adaptive-only and between-tools models
+/// refuse "disabled", so "off" there asks for the least effort instead; the UI can say so.
+pub fn can_disable_thinking(model_id: &str) -> bool {
+    !matches!(thinking_style(model_id), "adaptive-only" | "between-tools")
+}
+
 /// The request for one chat turn of the given model.
 pub fn build_request(req: &ChatRequest, conn: &Connection, model_id: &str) -> HttpRequest {
     let asked = output_limit(req);
@@ -694,4 +700,16 @@ pub fn parse_models(json: &Value) -> Vec<ListedModel> {
             })
         })
         .collect()
+}
+
+#[cfg(test)]
+mod disable_tests {
+    use super::can_disable_thinking;
+
+    #[test]
+    fn adaptive_only_models_cannot_switch_thinking_off() {
+        assert!(can_disable_thinking("claude-sonnet-4-5"));
+        assert!(!can_disable_thinking("claude-sonnet-5-5"));
+        assert!(!can_disable_thinking("claude-fable-5"));
+    }
 }
