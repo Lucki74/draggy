@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import type { ChatSession } from "../types";
+import { allSteps } from "../agent/allSteps";
 import { logSwallow } from "../logger";
 
 export type GroupBy = "folder" | "date" | "status" | "custom" | "none";
@@ -120,7 +121,7 @@ interface ArrangeInput {
 }
 
 const needsApproval = (session: ChatSession) =>
-  session.messages?.some((m) => m.steps?.some((step) => step.type === "approval" && !step.isComplete));
+  session.messages?.some((m) => allSteps(m.steps).some((step) => step.type === "approval" && !step.isComplete));
 
 /** The sections the sidebar shows when sessions are not grouped by folder. Pinned ones lead, except
  * with no grouping at all. */

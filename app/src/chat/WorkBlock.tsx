@@ -21,6 +21,7 @@ import DiffBlock from "./DiffBlock";
 import { RailContext, leadingSpaces } from "./railContext";
 import { FilePreview } from "./FilePreview";
 import ImageCard from "./ImageCard";
+import SubagentCard from "./SubagentCard";
 import { VideoStepFrames } from "./VideoAttachment";
 import { loadLabel, type LoadStage } from "./loadLabel";
 import { stepTotals } from "./workSummary";
@@ -448,6 +449,10 @@ export function WorkBlock({
 
   if (step.type === "image" && step.image) {
     return <ImageCard key={step.id} step={step} t={t} />;
+  }
+
+  if (step.type === "subagent" && step.subagent) {
+    return <SubagentCard key={step.id} step={step} t={t} />;
   }
 
   if (step.type === "loading" && !step.isComplete) {

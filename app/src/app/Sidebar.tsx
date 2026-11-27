@@ -11,6 +11,7 @@ import { arrangeSessions, sortSessions, useSessionView } from "./sessionView";
 import { isDefault, workspaceLabel } from "../workspaces";
 import type { AppMode } from "./modes";
 import type { ChatSession, Workspace } from "../types";
+import { allSteps } from "../agent/allSteps";
 import type { SettingsTab } from "../settings/pages";
 
 // WebKitGTK cannot print a PDF yet, so the Linux build leaves the item out.
@@ -204,7 +205,7 @@ export function Sidebar({
   };
 
   const needsApprovalOf = (session: ChatSession) =>
-    session.messages?.some((m) => m.steps?.some((st) => st.type === "approval" && !st.isComplete));
+    session.messages?.some((m) => allSteps(m.steps).some((st) => st.type === "approval" && !st.isComplete));
 
   // Rows in the order they show, for arrow keys and the one row Tab lands on.
   const visibleIds =

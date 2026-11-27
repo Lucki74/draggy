@@ -447,6 +447,16 @@ export interface SearchStepLibraryHit {
   score: number;
 }
 
+export interface SubagentStepState {
+  task: string;
+  label: string;
+  status: "queued" | "running" | "done" | "stopped" | "failed";
+  readOnly: boolean;
+  toolCount: number;
+  steps: SearchStep[];
+  summary?: string;
+}
+
 export interface SearchStep {
   id: string;
   /** A loading step for a reload at a bigger window, which shows as one "Extending context" step. */
@@ -495,6 +505,8 @@ export interface SearchStep {
     | "extension"
     /** A picture made by the local image engine, shown as a card. */
     | "image"
+    /** A child agent run started by run_subagent, shown as a card. */
+    | "subagent"
     /** A look at an attached video: its timeline, a range of frames or one frame. Text only in history. */
     | "video"
     /** A note the user added while the turn ran, handed to the model at its next step. */
@@ -580,6 +592,8 @@ export interface SearchStep {
   videoFrames?: { hash: string; times: number[] };
   /** On an "image" step: what was asked and where the result is. Never the image's bytes. */
   image?: ImageStepInfo;
+  /** On a "subagent" step: the child run's task, status, nested steps and summary. */
+  subagent?: SubagentStepState;
 }
 
 export type ImageStatus = "loading-model" | "queued" | "generating" | "done" | "error" | "cancelled";
@@ -1458,6 +1472,12 @@ export interface AppSettings {
   researchModelStart: boolean;
   /** The deepest research the model may plan. */
   researchMaxDepth: "quick" | "standard" | "deep";
+  /** Off stops the model from starting child runs. Unset means on. */
+  subagents?: boolean;
+  /** Most child runs at once, 1 to 4. Unset means 2. Children that may edit always run alone. */
+  subagentConcurrency?: number;
+  /** Most child runs one parent turn may start, 4 to 32. Unset means 8. */
+  subagentMaxPerTurn?: number;
   /** How long finished research is kept. */
   researchKeep: "forever" | "90" | "30";
   /** The model Code runs. Empty uses the chat model. */

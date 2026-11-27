@@ -626,6 +626,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           );
         },
         onMetrics: (metrics: TurnMetrics | null) => patch({ metrics }),
+        checkBudget: host.checkBudget,
         onLive: (liveTurn) => {
           if (live()) setLiveTurn(chatId, liveTurn);
         },
