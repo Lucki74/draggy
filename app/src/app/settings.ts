@@ -117,6 +117,11 @@ export function loadSettings(): AppSettings {
     delete (parsed as { autoUpdate?: unknown }).autoUpdate;
     migrated = true;
   }
+  // Auto memory is always on now, with no setting.
+  if ("autoMemory" in parsed) {
+    delete (parsed as { autoMemory?: unknown }).autoMemory;
+    migrated = true;
+  }
   // Every build is a full release now, so there is no channel to choose.
   if ("updateChannel" in parsed) {
     delete (parsed as { updateChannel?: unknown }).updateChannel;

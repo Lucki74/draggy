@@ -268,6 +268,7 @@ export function buildSystemPrompt(
   memory?: ProjectMemory | null,
   skills: InstalledSkill[] = [],
   model?: string,
+  autoMemory?: string | null,
 ) {
   const inProject = Boolean(environment.hasFolder && environment.projectRoot);
   const parts = [
@@ -295,6 +296,7 @@ export function buildSystemPrompt(
   // After the folder it belongs to, and before anything Draggy says about how
   // to work: the project's own rules are the ones that win.
   if (memory) parts.push(renderMemory(memory));
+  if (autoMemory) parts.push(autoMemory);
 
   // Only when the tool is actually there: a build without it would be told to
   // call something that does not exist.

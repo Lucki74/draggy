@@ -34,6 +34,7 @@ import type { DraggyRef, ProviderState } from "../ai/providers";
 import type { GenerationMetrics } from "../llama";
 import { buildSystemPrompt, currentTimeNote } from "../prompts";
 import { loadProjectMemory } from "../project/load";
+import { loadAutoMemory } from "../project/autoMemory";
 import {
   describeSkills,
   loadSingleSkill,
@@ -541,6 +542,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
     environment.hasFolder && environment.projectRoot && request.workspaceId
       ? await loadProjectMemory(request.workspaceId, environment.projectRoot)
       : null;
+  const autoMemory = await loadAutoMemory(request.workspaceId, Boolean(environment.hasFolder && environment.projectRoot));
 
   // A project is Code's; everything else is Chat's, and each side has its own skills switched on.
   const skills = environment.hasSkills
@@ -590,6 +592,7 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       memory,
       skills,
       model,
+      autoMemory,
     ),
     loadedSection,
     environment.imageReady ? imageIndex(trackImages(messages)) : "",
