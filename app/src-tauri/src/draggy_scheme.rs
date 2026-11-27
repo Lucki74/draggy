@@ -465,7 +465,11 @@ async fn read_capped(body: &mut ReqwestBody, cap: usize) -> Option<Vec<u8>> {
 
 /// The origins the app's own pages load from: the packaged webview on each platform, and the dev server in debug builds.
 fn allowed_origin(origin: &str) -> bool {
-    const PACKAGED: [&str; 3] = ["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"];
+    const PACKAGED: [&str; 3] = [
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+    ];
     #[cfg(debug_assertions)]
     const DEV: [&str; 2] = ["http://127.0.0.1:5173", "http://localhost:5173"];
     #[cfg(not(debug_assertions))]
@@ -478,9 +482,14 @@ fn with_cors_origin(mut response: Response<Vec<u8>>, origin: Option<&str>) -> Re
     if let Some(origin) = origin.filter(|origin| allowed_origin(origin))
         && let Ok(value) = tauri::http::HeaderValue::from_str(origin)
     {
-        response.headers_mut().insert("Access-Control-Allow-Origin", value);
+        response
+            .headers_mut()
+            .insert("Access-Control-Allow-Origin", value);
     }
-    response.headers_mut().append(header::VARY, tauri::http::HeaderValue::from_static("Origin"));
+    response.headers_mut().append(
+        header::VARY,
+        tauri::http::HeaderValue::from_static("Origin"),
+    );
     response
 }
 
@@ -701,8 +710,14 @@ mod tests {
                 .get("Access-Control-Allow-Origin")
                 .map(|value| value.to_str().unwrap().to_owned())
         };
-        assert_eq!(granted(Some("tauri://localhost")).as_deref(), Some("tauri://localhost"));
-        assert_eq!(granted(Some("http://tauri.localhost")).as_deref(), Some("http://tauri.localhost"));
+        assert_eq!(
+            granted(Some("tauri://localhost")).as_deref(),
+            Some("tauri://localhost")
+        );
+        assert_eq!(
+            granted(Some("http://tauri.localhost")).as_deref(),
+            Some("http://tauri.localhost")
+        );
         assert_eq!(granted(Some("https://evil.example")), None);
         assert_eq!(granted(None), None);
     }
