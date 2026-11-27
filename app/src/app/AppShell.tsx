@@ -13,7 +13,19 @@ import SettingsPage from "../settings/SettingsPage";
 import type { SettingsRequest } from "../settings/SettingsPage";
 import { SETTINGS_GROUPS, type SettingsTab } from "../settings/pages";
 import { ConfirmDialog } from "../settings/Controls";
-import MemoryEditor from "../project/MemoryEditor";
+import MemoryEditor, { type MemoryTab } from "../project/MemoryEditor";
+import {
+  AUTO_MEMORY_FILE,
+  hiddenCount,
+  isFolderTrusted,
+  loadProjectNotes,
+  loadUserNotes,
+  parseEditedNotes,
+  renderNotes,
+  saveProjectNotes,
+  saveUserNotes,
+  setFolderTrusted,
+} from "../project/autoMemory";
 import { planProgress, type PlanItem } from "../plan/plan";
 import { loadProjectMemory } from "../project/load";
 import { MEMORY_NAMES } from "../project/memory";
@@ -397,59 +409,93 @@ export default function AppShell({
     [runs, store],
   );
 
-  const [memoryDraft, setMemoryDraft] = useState<{
-    workspaceId: string;
-    path: string;
-    text: string;
-  } | null>(null);
+  const [memoryDraft, setMemoryDraft] = useState<{ tabs: MemoryTab[] } | null>(null);
 
-  const openMemoryOf = useCallback(async (workspace: Workspace | undefined) => {
-    if (!workspace?.rootPath) return;
+  // The instructions file, then the two auto memory scopes. Each saves on its own.
+  const memoryTabsFor = useCallback(
+    async (workspace: Workspace, rootPath: string, drafted = "") => {
+      const existing = await loadProjectMemory(workspace.id, rootPath);
+      const path = existing?.path ?? MEMORY_NAMES[0];
+      const editHint = t("autoMemoryEditHint");
 
-    const existing = await loadProjectMemory(workspace.id, workspace.rootPath);
-    setMemoryDraft({
-      workspaceId: workspace.id,
-      path: existing?.path ?? MEMORY_NAMES[0],
-      text: existing?.text ?? "",
-    });
-  }, []);
+      const instructions: MemoryTab = {
+        id: "instructions",
+        label: t("projectMemory"),
+        path,
+        initial: existing?.text ? (drafted ? `${existing.text}\n\n${drafted}` : existing.text) : drafted,
+        onSave: async (text) => {
+          const result = await window.draggy?.files?.write(workspace.id, path, text);
+          if (result?.success) return null;
+          const message = result?.error || t("undoFailed");
+          store.setStorageWarning(message);
+          return message;
+        },
+      };
+
+      const user: MemoryTab = {
+        id: "auto-user",
+        label: t("autoMemoryTabUser"),
+        path: t("autoMemoryScopeUser"),
+        initial: renderNotes(loadUserNotes()),
+        note: [editHint, t("autoMemoryBrowserOnly")].join(" "),
+        placeholder: t("autoMemoryEmpty"),
+        onSave: async (text) => {
+          const parsed = parseEditedNotes(text);
+          if (parsed.error) return parsed.error;
+          return saveUserNotes(parsed.notes) ? null : t("memorySaveFailed");
+        },
+      };
+
+      // An untrusted folder's notes file is neither read nor written until the user trusts it here.
+      const trusted = isFolderTrusted(workspace.id);
+      const projectNotes = trusted ? await loadProjectNotes(workspace.id) : [];
+      const hidden = hiddenCount(projectNotes);
+      const overflow = hidden > 0 ? t("autoMemoryOverflow").replace("{count}", String(hidden)) : "";
+      const project: MemoryTab = {
+        id: "auto-project",
+        label: t("autoMemoryTabProject"),
+        path: AUTO_MEMORY_FILE,
+        initial: renderNotes(projectNotes),
+        note: [trusted ? editHint : t("autoMemoryTrustHint"), overflow].filter(Boolean).join(" "),
+        placeholder: t("autoMemoryEmpty"),
+        toggle: {
+          label: t("autoMemoryTrust"),
+          checked: trusted,
+          onChange: (next) => setFolderTrusted(workspace.id, next),
+        },
+        onSave: async (text) => {
+          if (!isFolderTrusted(workspace.id)) return t("autoMemoryTrustHint");
+          const parsed = parseEditedNotes(text);
+          if (parsed.error) return parsed.error;
+          return (await saveProjectNotes(workspace.id, parsed.notes)) ? null : t("memorySaveFailed");
+        },
+      };
+
+      return [instructions, user, project];
+    },
+    [store, t],
+  );
+
+  const openMemoryOf = useCallback(
+    async (workspace: Workspace | undefined) => {
+      if (!workspace?.rootPath) return;
+      setMemoryDraft({ tabs: await memoryTabsFor(workspace, workspace.rootPath) });
+    },
+    [memoryTabsFor],
+  );
 
   const openProjectMemory = useCallback(() => openMemoryOf(active), [openMemoryOf, active]);
 
   const draftProject = useCallback(async () => {
     if (!active.rootPath) return;
 
-    const existing = await loadProjectMemory(active.id, active.rootPath);
     const drafted = await draftProjectMemory(
       active.id,
       active.rootPath,
       workspaceLabel(active, t),
     );
-
-    setMemoryDraft({
-      workspaceId: active.id,
-      path: existing?.path ?? MEMORY_NAMES[0],
-      text: existing?.text ? `${existing.text}\n\n${drafted}` : drafted,
-    });
-  }, [active, t]);
-
-  const saveProjectMemory = useCallback(
-    async (text: string) => {
-      if (!memoryDraft) return false;
-
-      const result = await window.draggy?.files?.write(
-        memoryDraft.workspaceId,
-        memoryDraft.path,
-        text,
-      );
-
-      if (result?.success) return true;
-
-      store.setStorageWarning(result?.error || t("undoFailed"));
-      return false;
-    },
-    [memoryDraft, store, t],
-  );
+    setMemoryDraft({ tabs: await memoryTabsFor(active, active.rootPath, drafted) });
+  }, [active, memoryTabsFor, t]);
 
   const handleRevert = useCallback(
     async (checkpointId: number) => {
@@ -1274,10 +1320,8 @@ export default function AppShell({
 
         {memoryDraft && (
           <MemoryEditor
-            path={memoryDraft.path}
-            initial={memoryDraft.text}
+            tabs={memoryDraft.tabs}
             t={t}
-            onSave={saveProjectMemory}
             onClose={() => setMemoryDraft(null)}
           />
         )}
