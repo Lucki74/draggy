@@ -6,6 +6,9 @@ use std::path::{Path, PathBuf};
 
 const FORBIDDEN: [&str; 3] = ["std::process", "tokio::process", "Command::new"];
 
+/// The one path allowed anywhere: an exit code type starts no process.
+const ALLOWED: &str = "std::process::ExitCode";
+
 #[test]
 fn only_spawn_rs_names_the_process_apis() {
     let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
@@ -77,7 +80,23 @@ fn violations(file: &Path, relative: &Path) -> Vec<String> {
     let text = fs::read_to_string(file).unwrap_or_default();
     text.lines()
         .enumerate()
-        .filter(|(_, line)| FORBIDDEN.iter().any(|word| line.contains(word)))
+        .filter(|(_, line)| names_process_api(line))
         .map(|(index, line)| format!("  {}:{}: {}", relative.display(), index + 1, line.trim()))
         .collect()
+}
+
+/// Whether a line names a process API, once the allowed `ExitCode` path is taken out.
+fn names_process_api(line: &str) -> bool {
+    let line = line.replace(ALLOWED, "");
+    FORBIDDEN.iter().any(|word| line.contains(word))
+}
+
+#[test]
+fn exit_code_passes_and_other_process_apis_still_fail() {
+    assert!(!names_process_api("use std::process::ExitCode;"));
+    assert!(!names_process_api("fn main() -> std::process::ExitCode {"));
+    assert!(names_process_api("use std::process::Command;"));
+    assert!(names_process_api("std::process::Command::new(\"x\")"));
+    assert!(names_process_api("use std::process::{self, ExitCode};"));
+    assert!(names_process_api("std::process::exit(1)"));
 }
