@@ -36,13 +36,19 @@ enum Route {
 }
 
 /// Answers one `draggy://` request. The work runs off the webview thread: a model may be downloaded first.
-pub fn handle(app: AppHandle, uri: String, range: Option<String>, responder: UriSchemeResponder) {
+pub fn handle(
+    app: AppHandle,
+    uri: String,
+    range: Option<String>,
+    origin: Option<String>,
+    responder: UriSchemeResponder,
+) {
     tauri::async_runtime::spawn(async move {
         let response = match route(&uri) {
             Route::Video(hash) => video(&app, &hash, range.as_deref()).await,
             _ => serve(&app, &uri).await,
         };
-        responder.respond(response);
+        responder.respond(with_cors_origin(response, origin.as_deref()));
     });
 }
 
@@ -457,6 +463,27 @@ async fn read_capped(body: &mut ReqwestBody, cap: usize) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// The origins the app's own pages load from: the packaged webview on each platform, and the dev server in debug builds.
+fn allowed_origin(origin: &str) -> bool {
+    const PACKAGED: [&str; 3] = ["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"];
+    #[cfg(debug_assertions)]
+    const DEV: [&str; 2] = ["http://127.0.0.1:5173", "http://localhost:5173"];
+    #[cfg(not(debug_assertions))]
+    const DEV: [&str; 0] = [];
+    PACKAGED.contains(&origin) || DEV.contains(&origin)
+}
+
+/// Lets a cross-origin read through for the app's own origins only; any other page gets no CORS grant.
+fn with_cors_origin(mut response: Response<Vec<u8>>, origin: Option<&str>) -> Response<Vec<u8>> {
+    if let Some(origin) = origin.filter(|origin| allowed_origin(origin))
+        && let Ok(value) = tauri::http::HeaderValue::from_str(origin)
+    {
+        response.headers_mut().insert("Access-Control-Allow-Origin", value);
+    }
+    response.headers_mut().append(header::VARY, tauri::http::HeaderValue::from_static("Origin"));
+    response
+}
+
 /// A whole answer with the headers every one carries, as Electron's RESOURCE_HEADERS.
 fn respond(status: u16, content_type: &str, bytes: Vec<u8>) -> Response<Vec<u8>> {
     let builder = Response::builder()
@@ -468,7 +495,6 @@ fn respond(status: u16, content_type: &str, bytes: Vec<u8>) -> Response<Vec<u8>>
 fn with_common(builder: tauri::http::response::Builder, bytes: Vec<u8>) -> Response<Vec<u8>> {
     builder
         .header(header::CONTENT_LENGTH, bytes.len())
-        .header("Access-Control-Allow-Origin", "*")
         .header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
         .header("Access-Control-Allow-Headers", "*")
         .header("Cross-Origin-Resource-Policy", "cross-origin")
@@ -665,5 +691,19 @@ mod tests {
             byte_range(Some("bytes=0-"), big),
             Some((0, VIDEO_CHUNK - 1))
         );
+    }
+
+    #[test]
+    fn cors_is_granted_to_the_app_origins_only() {
+        let granted = |origin: Option<&str>| {
+            with_cors_origin(respond(200, "text/plain", Vec::new()), origin)
+                .headers()
+                .get("Access-Control-Allow-Origin")
+                .map(|value| value.to_str().unwrap().to_owned())
+        };
+        assert_eq!(granted(Some("tauri://localhost")).as_deref(), Some("tauri://localhost"));
+        assert_eq!(granted(Some("http://tauri.localhost")).as_deref(), Some("http://tauri.localhost"));
+        assert_eq!(granted(Some("https://evil.example")), None);
+        assert_eq!(granted(None), None);
     }
 }

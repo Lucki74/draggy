@@ -318,6 +318,11 @@ pub fn run() {
                     .get(tauri::http::header::RANGE)
                     .and_then(|value| value.to_str().ok())
                     .map(str::to_owned),
+                request
+                    .headers()
+                    .get(tauri::http::header::ORIGIN)
+                    .and_then(|value| value.to_str().ok())
+                    .map(str::to_owned),
                 responder,
             )
         })

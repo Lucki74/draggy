@@ -907,7 +907,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
     const taken = await tasks.takeInbox(chatId).catch(swallowed("tasks", "the report stays queued for the next turn", null));
     if (!taken?.items || taken.items.length === 0) return;
-    const note = describeEnded(taken.items);
+    const note = describeEnded(taken.items, host.t);
 
     // A turn began while the report was on its way: it reads the report as a note instead.
     if (runs.has(chatId) || host.oneTurnAtATime && runs.size > 0) {

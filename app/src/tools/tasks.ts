@@ -64,20 +64,37 @@ export function describeTask(task: BackgroundTask, now = Date.now()): string {
   return `${task.id}: ${task.command} (${task.shell}, ${state})`;
 }
 
-/** The note the model reads when background tasks ended while it was busy or the user was away. */
-export function describeEnded(items: TaskInboxItem[]): string {
+/** The note the model reads when background tasks ended while it was busy or the user was away.
+ * `t` is the app's translator; without one the note is in English. */
+export function describeEnded(items: TaskInboxItem[], t: (key: string) => string = (key) => EN_ENDED[key] ?? key): string {
+  const fillIn = (key: string, values: Record<string, string>) =>
+    Object.entries(values).reduce((text, [name, value]) => text.split(`{${name}}`).join(value), t(key));
   const lines = items.map((item) => {
     const state =
       item.status === "stopped"
-        ? "was stopped"
+        ? t("endedStopped")
         : item.status === "exited"
-          ? "finished with exit code 0"
-          : `failed${item.exitCode !== null ? ` with exit code ${item.exitCode}` : ""}`;
+          ? t("endedFinished")
+          : item.exitCode !== null
+            ? fillIn("endedFailedCode", { code: String(item.exitCode) })
+            : t("endedFailed");
     const tail = item.tail.trim();
-    return `Task ${item.id} (${item.command}) ${state} after ${seconds(item.durationMs)}.${tail ? `\nLast output:\n${tail}` : ""}`;
+    const head = fillIn("endedLine", { id: item.id, command: item.command, state, time: seconds(item.durationMs) });
+    return `${head}${tail ? `\n${t("endedLastOutput")}\n${tail}` : ""}`;
   });
-  return `[Background tasks ended]\n${lines.join("\n\n")}\nRead more with task_output if you need it.`;
+  return `${t("endedHeading")}\n${lines.join("\n\n")}\n${t("endedMore")}`;
 }
+
+const EN_ENDED: Record<string, string> = {
+  endedHeading: "[Background tasks ended]",
+  endedMore: "Read more with task_output if you need it.",
+  endedStopped: "was stopped",
+  endedFinished: "finished with exit code 0",
+  endedFailed: "failed",
+  endedFailedCode: "failed with exit code {code}",
+  endedLastOutput: "Last output:",
+  endedLine: "Task {id} ({command}) {state} after {time}.",
+};
 
 const missing = (tool: string, message: string) => `TOOL RESULT (${tool}): ${message}`;
 
