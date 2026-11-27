@@ -10,6 +10,7 @@ import { restoreToComposer } from "./mentions";
 import { ChatImagesContext } from "./AnswerImage";
 import { trackImages } from "../images/imageTracker";
 import type { AppSettings, ApprovalAnswer, ChatSession } from "../types";
+import { allSteps } from "../agent/allSteps";
 
 export interface TranscriptProps {
   chat: ChatSession;
@@ -182,9 +183,7 @@ export function Transcript({
   }, [chat.isGenerating]);
 
   // A tool call the turn is parked on; when it has scrolled out of view the bar brings it back.
-  const pending = chat.messages
-    .at(-1)
-    ?.steps?.find((step) => step.type === "approval" && step.approval && !step.answer)?.approval;
+  const pending = allSteps(chat.messages.at(-1)?.steps).find((step) => step.type === "approval" && step.approval && !step.answer)?.approval;
 
   const showApproval = () => {
     if (!pending) return;

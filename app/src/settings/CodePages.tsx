@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon, type IconName } from "../ui/icons/Icon";
-import { Block, Button, ConfirmDialog, Group, Page, Row, Segmented, Select } from "./Controls";
+import { Block, Button, ConfirmDialog, Group, Page, Row, Segmented, Select, Toggle } from "./Controls";
+import { subagentLimit, subagentTurnCap } from "../tools/subagent";
 import InstructionsEditor from "./InstructionsEditor";
 import PermissionChoice from "./PermissionChoice";
 import { selectableModels } from "../modelKinds";
@@ -61,6 +62,32 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
             value={settings.codeWebMode}
             options={webOptions(t)}
             onChange={(codeWebMode) => onUpdate({ codeWebMode })}
+          />
+        </Row>
+      </Group>
+
+      <Group title={t("subagentsTitle")}>
+        <Row label={t("subagentsToggle")} description={t("subagentsToggleHint")}>
+          <Toggle
+            checked={settings.subagents !== false}
+            onChange={(subagents) => onUpdate({ subagents })}
+            label={t("subagentsToggle")}
+          />
+        </Row>
+        <Row label={t("subagentConcurrency")} description={t("subagentConcurrencyHint")}>
+          <Select
+            label={t("subagentConcurrency")}
+            value={String(subagentLimit(settings.subagentConcurrency))}
+            options={["1", "2", "3", "4"].map((value) => ({ id: value, label: value }))}
+            onChange={(value) => onUpdate({ subagentConcurrency: subagentLimit(Number(value)) })}
+          />
+        </Row>
+        <Row label={t("subagentMaxPerTurn")} description={t("subagentMaxPerTurnHint")}>
+          <Select
+            label={t("subagentMaxPerTurn")}
+            value={String(subagentTurnCap(settings.subagentMaxPerTurn))}
+            options={["4", "8", "16", "32"].map((value) => ({ id: value, label: value }))}
+            onChange={(value) => onUpdate({ subagentMaxPerTurn: subagentTurnCap(Number(value)) })}
           />
         </Row>
       </Group>

@@ -33,19 +33,33 @@ export interface StorageBackend {
 const UNFINISHED_IMAGE = new Set(["loading-model", "queued", "generating"]);
 
 /** A picture whose job died with the app reads as stopped, not drawing forever with a Stop that reaches nothing. */
+/** A child counts as unfinished when it is running, queued, or still holds an open step such as a pending approval. */
+const isUnfinishedSubagent = (step: SearchStep) =>
+  step.type === "subagent" &&
+  Boolean(step.subagent) &&
+  (step.subagent?.status === "running" || step.subagent?.status === "queued" || !step.isComplete || step.subagent?.steps.some((child) => !child.isComplete));
+
+/** A child run still going at quit reads as stopped, and its own unfinished steps are closed with it. */
+function settleSubagent(step: SearchStep): SearchStep {
+  if (!step.subagent) return step;
+  const nested = step.subagent.steps.map((child) => (child.isComplete ? child : { ...child, isComplete: true }));
+  return { ...step, isComplete: true, subagent: { ...step.subagent, status: "stopped", steps: nested } };
+}
+
 function settleSteps<T extends { steps?: SearchStep[] }>(holder: T): T {
   // A call that was still being written never ran, so it is not kept.
   if (holder.steps?.some((step) => step.type === "tool_call" || step.liveArgs)) {
     holder = { ...holder, steps: holder.steps.filter((step) => step.type !== "tool_call") };
   }
-  if (!holder.steps?.some((step) => step.image && UNFINISHED_IMAGE.has(step.image.status))) return holder;
+  if (!holder.steps?.some((step) => (step.image && UNFINISHED_IMAGE.has(step.image.status)) || isUnfinishedSubagent(step))) return holder;
   return {
     ...holder,
-    steps: holder.steps.map((step) =>
-      step.image && UNFINISHED_IMAGE.has(step.image.status)
-        ? { ...step, isComplete: true, image: { ...step.image, status: "cancelled" as const, queuePosition: undefined } }
-        : step,
-    ),
+    steps: holder.steps.map((step) => {
+      if (step.image && UNFINISHED_IMAGE.has(step.image.status)) {
+        return { ...step, isComplete: true, image: { ...step.image, status: "cancelled" as const, queuePosition: undefined } };
+      }
+      return isUnfinishedSubagent(step) ? settleSubagent(step) : step;
+    }),
   };
 }
 

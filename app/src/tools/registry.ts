@@ -62,6 +62,8 @@ export interface ToolEnvironment {
   /** Only tools that change nothing. Set for a nested exploration, which reads the project on the
    * conversation's behalf and must not act on it. */
   readOnlyTools?: boolean;
+  /** 0 for a conversation turn, 1 inside a subagent, which cannot start another. */
+  subagentDepth?: number;
   /** A small model gets the short tool list: tools marked `extended` are left out. */
   compactTools?: boolean;
 }
@@ -101,6 +103,8 @@ export interface ToolContext {
   videos?: TrackedVideo[];
   /** Hands the model a base64 image with this tool's result. False when it was not sent: no vision, or the turn's image budget is spent. */
   attachImage?: (base64: string) => boolean | void;
+  /** Runs a child agent with its own context and returns its final summary. Absent where children are not allowed. */
+  spawnSubagent?: (request: SubagentRequest) => Promise<SubagentOutcome>;
   signal: AbortSignal;
   /** Scratch space shared by every tool call in one turn and thrown away after it. Tools use it to
    * notice that they are being asked the same thing twice. */
@@ -131,6 +135,21 @@ export interface ToolOutcome {
 
 export const toolOk = (text: string): ToolOutcome => ({ text, ok: true });
 export const toolFailed = (text: string): ToolOutcome => ({ text, ok: false });
+
+/** What the model asked a child run to do. */
+export interface SubagentRequest {
+  task: string;
+  label: string;
+  groups: ToolGroup[];
+  allowEdits: boolean;
+}
+
+/** What a child run hands back to the tool call that started it. */
+export interface SubagentOutcome {
+  summary: string;
+  toolCount: number;
+  status: "done" | "stopped" | "failed";
+}
 
 export interface ToolDefinition {
   type: "function";

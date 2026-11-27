@@ -82,7 +82,8 @@ import {
   toolGroup,
   withoutTools,
 } from "../tools/registry";
-import type { ToolContext, ToolDefinition, ToolEnvironment } from "../tools/registry";
+import type { SubagentOutcome, SubagentRequest, ToolContext, ToolDefinition, ToolEnvironment, ToolGroup } from "../tools/registry";
+import { capNestedSteps, capSummary, subagentSlots, subagentTurnCap } from "../tools/subagent";
 import {
   chooseChannel,
   looksLikeCall,
@@ -127,6 +128,7 @@ import type {
   Message,
   PermissionMode,
   SearchStep,
+  SubagentStepState,
   UserQuestion,
   UserReply,
 } from "../types";
@@ -385,6 +387,59 @@ export interface AgentResult {
   providerState?: ProviderState;
   /** This turn's tool output, cut to fit, for the reply to carry into later turns. */
   toolResults?: string[];
+}
+
+interface SubagentWaiter {
+  readOnly: boolean;
+  /** The limit this child was queued under, so a later setting change does not reshape its wait. */
+  limit: number;
+  start: () => void;
+}
+
+/** Child runs in order. Read-only ones overlap up to the limit; an edit child waits for the rest and runs alone. */
+const subagentWaiters: SubagentWaiter[] = [];
+let subagentRunning = 0;
+let subagentEditing = false;
+
+function pumpSubagents() {
+  while (subagentWaiters.length > 0) {
+    const next = subagentWaiters[0];
+    const blocked = subagentEditing || subagentRunning >= next.limit || (!next.readOnly && subagentRunning > 0);
+    if (blocked) return;
+    subagentWaiters.shift();
+    subagentRunning += 1;
+    if (!next.readOnly) subagentEditing = true;
+    next.start();
+  }
+}
+
+/** Resolves with a release function once a slot is free, or null when the parent is stopped first. */
+export function acquireSubagent(readOnly: boolean, limit: number, signal?: AbortSignal): Promise<(() => void) | null> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) return resolve(null);
+    const waiter: SubagentWaiter = {
+      readOnly,
+      limit,
+      start: () => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve(() => {
+          subagentRunning -= 1;
+          if (!readOnly) subagentEditing = false;
+          pumpSubagents();
+        });
+      },
+    };
+    const onAbort = () => {
+      const index = subagentWaiters.indexOf(waiter);
+      if (index === -1) return;
+      subagentWaiters.splice(index, 1);
+      resolve(null);
+      pumpSubagents();
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    subagentWaiters.push(waiter);
+    pumpSubagents();
+  });
 }
 
 const EXHAUSTED_MESSAGE =
@@ -933,6 +988,124 @@ async function runTurn(
 
   /** For the statistics page: which tools this turn reached for, and how often. */
   const toolCalls: Record<string, number> = {};
+
+  // Queue state is module-wide, so every chat shares the slots; the limit comes from this turn's settings.
+  /** Child runs started by this parent turn, checked against the per-turn cap. */
+  let subagentsStarted = 0;
+  const spawnChild = async (child: SubagentRequest): Promise<SubagentOutcome> => {
+    const turnCap = subagentTurnCap(settings.subagentMaxPerTurn);
+    if (subagentsStarted >= turnCap) {
+      return { summary: `TOOL ERROR (run_subagent): this turn already started ${turnCap} subagents, so this one was not started.`, toolCount: 0, status: "failed" };
+    }
+    // A child never gets shell or external tools the parent chat lacks right now: the request is refused.
+    const openHere = new Set(availableTools(environment).map((spec) => spec.group));
+    const lacking = child.groups.filter((group) => (group === "shell" || group === "external") && !openHere.has(group));
+    if (lacking.length > 0) {
+      return { summary: `TOOL ERROR (run_subagent): this chat has no ${lacking.join(" or ")} tools enabled right now, so the subagent was not started. Ask again without them.`, toolCount: 0, status: "failed" };
+    }
+    subagentsStarted += 1;
+    const childGroups = environment.allowedGroups
+      ? child.groups.filter((group) => environment.allowedGroups?.includes(group))
+      : child.groups;
+    if (childGroups.length === 0) {
+      return { summary: "None of the tool groups asked for are open in this turn, so the subagent did not run.", toolCount: 0, status: "failed" };
+    }
+    // The step appears at once as queued, so the user sees a waiting child and can stop it.
+    const stepId = generateId();
+    let current: SubagentStepState = {
+      task: child.task,
+      label: child.label,
+      status: "queued",
+      readOnly: !child.allowEdits,
+      toolCount: 0,
+      steps: [],
+    };
+    pushStep({ id: stepId, type: "subagent", content: child.label, subagent: current, isComplete: false });
+    const publish = (patch: Partial<SubagentStepState>) => {
+      // A summary only comes with the final update, so long outputs inside the child are cut once, when it ends.
+      current = { ...current, ...patch, ...(patch.summary === undefined ? {} : { steps: capNestedSteps(current.steps) }) };
+      patchStep(stepId, { subagent: current });
+      syncSteps();
+    };
+    const slots = subagentSlots(isRemote(model), settings.subagentConcurrency);
+    const release = await acquireSubagent(!child.allowEdits, slots, signal);
+    if (!release) {
+      const outcome: SubagentOutcome = { summary: "The subagent was stopped before it started.", toolCount: 0, status: "stopped" };
+      publish({ status: "stopped", summary: outcome.summary });
+      patchStep(stepId, { isComplete: true });
+      syncSteps();
+      return outcome;
+    }
+    publish({ status: "running" });
+    try {
+      return await runChild(child, childGroups, stepId, publish);
+    } finally {
+      release();
+    }
+  };
+
+  const runChild = async (
+    child: SubagentRequest,
+    childGroups: ToolGroup[],
+    stepId: string,
+    publish: (patch: Partial<SubagentStepState>) => void,
+  ): Promise<SubagentOutcome> => {
+    const childEnvironment: ToolEnvironment = {
+      ...environment,
+      subagentDepth: 1,
+      // Plan mode refuses edits anyway; a child asked to edit still stays read-only there.
+      readOnlyTools: child.allowEdits && mode !== "plan" ? environment.readOnlyTools : true,
+      allowedGroups: childGroups,
+    };
+    const childHost: AgentHost = {
+      t: host.t,
+      onPatch: () => undefined,
+      onSteps: (childSteps) => publish({ steps: childSteps }),
+      onOutOfContext: () => undefined,
+      requestApproval: host.requestApproval,
+      requestAnswer: host.requestAnswer,
+      // A grant the child gets is kept by the parent too, so the parent does not ask again for it.
+      onGrant: (grant) => {
+        grants = addGrant(grants, grant);
+        host.onGrant?.(grant);
+      },
+    };
+    let outcome: SubagentOutcome;
+    try {
+      const result = await runAgentTurn(
+        {
+          model,
+          settings,
+          environment: childEnvironment,
+          messages: [{ id: generateId(), role: "user", content: child.task }],
+          workspaceId: request.workspaceId,
+          chatId: request.chatId,
+          correlationId: newCorrelationId(),
+          permission: { mode, grants: [...grants], rules },
+          seed: null,
+          compaction: null,
+          contextBase: null,
+          signal,
+        },
+        childHost,
+      );
+      const toolCount = Object.values(result.toolCalls).reduce((sum, count) => sum + count, 0);
+      // The child's calls count in this turn's statistics too; its tokens and context are not added.
+      for (const [name, count] of Object.entries(result.toolCalls)) toolCalls[name] = (toolCalls[name] ?? 0) + count;
+      const text = capSummary(result.textContent || result.content);
+      // An empty answer means the model call failed or the child stopped before it wrote anything.
+      const status = result.aborted ? "stopped" : text ? "done" : "failed";
+      outcome = { summary: text || "The subagent gave no answer.", toolCount, status };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      outcome = { summary: `The subagent failed: ${message}`, toolCount: 0, status: "failed" };
+    }
+    publish({ status: outcome.status, toolCount: outcome.toolCount, summary: outcome.summary });
+    patchStep(stepId, { isComplete: true });
+    syncSteps();
+    return outcome;
+  };
+  toolContext.spawnSubagent = spawnChild;
 
   /** Every tool call goes through here. A forbidden call returns an ordinary result, because a
    * refused model carries on and a model handed an exception stops. */
