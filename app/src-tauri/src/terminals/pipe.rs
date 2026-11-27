@@ -121,7 +121,7 @@ where
                         Err(error) if error.error_len().is_some() => carry.len(),
                         Err(error) => error.valid_up_to(),
                     };
-                    let text = String::from_utf8_lossy(&carry[..complete]).into_owned();
+                    let text = decode(&carry[..complete]);
                     carry.drain(..complete);
                     if !text.is_empty() {
                         on_chunk(&text);
@@ -130,9 +130,37 @@ where
             }
         }
         if !carry.is_empty() {
-            on_chunk(&String::from_utf8_lossy(&carry));
+            on_chunk(&decode(&carry));
         }
     })
+}
+
+/// Native Windows tools such as taskkill write in the OEM code page (850 on a French system), not UTF-8. Bytes that are
+/// not UTF-8 are read in that code page there, so "réservés" does not arrive as "r\u{FFFD}serv\u{FFFD}s".
+fn decode(bytes: &[u8]) -> String {
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        return text.to_owned();
+    }
+    #[cfg(windows)]
+    if let Some(text) = oem_text(bytes) {
+        return text;
+    }
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
+#[cfg(windows)]
+fn oem_text(bytes: &[u8]) -> Option<String> {
+    use windows_sys::Win32::Globalization::{CP_OEMCP, MultiByteToWideChar};
+    let len = i32::try_from(bytes.len()).ok()?;
+    // SAFETY: the input pointer and length describe `bytes`; the first call writes nothing and returns the size needed.
+    let needed =
+        unsafe { MultiByteToWideChar(CP_OEMCP, 0, bytes.as_ptr(), len, std::ptr::null_mut(), 0) };
+    let mut wide = vec![0u16; usize::try_from(needed).ok().filter(|size| *size > 0)?];
+    // SAFETY: `wide` holds exactly `needed` units, the size the first call asked for.
+    let written =
+        unsafe { MultiByteToWideChar(CP_OEMCP, 0, bytes.as_ptr(), len, wide.as_mut_ptr(), needed) };
+    wide.truncate(usize::try_from(written).ok().filter(|size| *size > 0)?);
+    Some(String::from_utf16_lossy(&wide))
 }
 
 #[cfg(all(test, windows))]
@@ -148,6 +176,13 @@ mod tests {
             file.into(),
             vec!["/d".into(), "/s".into(), "/c".into(), format!("\"{line}\"")],
         )
+    }
+
+    #[test]
+    fn reads_oem_output_in_the_oem_code_page() {
+        // 0x82 is "é" in both code page 437 and 850.
+        assert_eq!(decode(b"r\x82serv\x82s"), "réservés");
+        assert_eq!(decode("déjà".as_bytes()), "déjà");
     }
 
     #[test]

@@ -79,7 +79,7 @@ box-shadow:
    - Keyboard hints: subtle `<kbd>` tags in search bars (`⌘K`), buttons and modals.
    - Cards with nested links use a card-spanning anchor or clear cursor boundaries, never nested conflicting `<button>` elements.
    - Transitions are targeted and quick: `transition-colors duration-150 ease-out` or `transition-transform duration-100 ease-out`, never `transition-all duration-500` on everyday controls.
-8. Assemble the code: modular and fully responsive, with semantic HTML5 elements (`<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<aside>`, `<footer>`), no duplicate Tailwind classes, and complete interactive states. In an existing project, apply changes with `edit_file` or `write_file`. For a new page, use `create_file`. Check the result in a browser with `browser_navigate` and `browser_screenshot` when a local page can be opened.
+8. Assemble the code: modular and fully responsive, with semantic HTML5 elements (`<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<aside>`, `<footer>`), no duplicate Tailwind classes, and complete interactive states. In an existing project, apply changes with `edit_file` or `write_file`. For a new page, use `create_file`. The browser tools refuse local and private addresses, so do not start a server to look at the page: read the file back, check every script with `node --check`, and open it with `browser_navigate` and `browser_screenshot` only when it is served from a public address.
 
 ## Gotchas
 

@@ -150,6 +150,24 @@ describe("running it", () => {
     await running;
   });
 
+  it("saves into the chat's own folder when the chat has one", async () => {
+    const sd = installSd();
+    const withFolder: ToolEnvironment = { ...CHAT, chatFolder: true };
+    const { context } = harness(undefined, withFolder);
+
+    const running = runTool("generate_image", { prompt: "a red fox", path: "site/images/fox.png" }, context, withFolder);
+    await tick();
+    expect(sd.requests[0].destination).toEqual({
+      kind: "project",
+      workspaceId: "chat:chat-1",
+      path: "site/images/fox.png",
+      chatId: "chat-1",
+      overwrite: false,
+    });
+    sd.finish({ success: true, path: "C:\\data\\chats\\chat-1\\site\\images\\fox.png", filename: "fox.png" });
+    await running;
+  });
+
   it("uses a picture in the project as the starting image, only in Code", async () => {
     const sd = installSd();
     const code = harness(undefined, CODE);

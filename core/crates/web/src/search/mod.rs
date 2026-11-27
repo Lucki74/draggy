@@ -25,6 +25,7 @@ pub const CACHE_LIMIT: usize = 80;
 /// How long a provider that served a block page is left alone, by how many blocks in a row.
 pub const COOLDOWNS_MS: [u64; 3] = [30_000, 120_000, 600_000];
 pub const DESKTOP_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+const QUOTE_MARKS: [char; 3] = ['"', '\u{201C}', '\u{201D}'];
 const API_TIMEOUT: Duration = Duration::from_secs(15);
 const PAGE_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -295,8 +296,26 @@ impl<H: HttpClient, C: Clock> Search<H, C> {
         self.cooldowns.clear();
     }
 
-    /// Runs the chain until something answers. An empty query calls no provider.
+    /// Runs the chain until something answers. An empty query calls no provider. A quoted phrase that matches nothing
+    /// is asked once more without its quotes, since an exact phrase misremembered by a word finds no page at all.
     pub async fn run(&mut self, query: &str, config: &SearchConfig) -> Outcome {
+        let outcome = self.run_term(query, config).await;
+        if outcome.status != Status::Empty || !query.contains(QUOTE_MARKS) {
+            return outcome;
+        }
+        let loose = query.replace(QUOTE_MARKS, " ");
+        let loose = loose.split_whitespace().collect::<Vec<_>>().join(" ");
+        if loose.is_empty() {
+            return outcome;
+        }
+        tracing::info!(target: "net.search", "search empty, asking again without quotes");
+        let mut retried = self.run_term(&loose, config).await;
+        let mut tried = outcome.tried;
+        tried.append(&mut retried.tried);
+        Outcome { tried, ..retried }
+    }
+
+    async fn run_term(&mut self, query: &str, config: &SearchConfig) -> Outcome {
         let term = js_trim(query);
         if term.is_empty() {
             return Outcome {
@@ -561,6 +580,40 @@ mod tests {
     }
 
     /// DuckDuckGo shows a captcha, every other provider answers an empty page.
+    /// Answers only queries without quote marks, as a search engine does when no page holds the exact phrase.
+    struct PhraseMisses;
+
+    impl HttpClient for PhraseMisses {
+        fn send(
+            &self,
+            request: HttpRequest,
+        ) -> impl Future<Output = Result<HttpResponse, HttpError>> + Send {
+            let body = if request.url.contains("%22") {
+                "<html><body></body></html>"
+            } else {
+                ONE_RESULT
+            };
+            ready(Ok(HttpResponse {
+                status: 200,
+                body: body.to_owned(),
+                final_url: request.url,
+            }))
+        }
+    }
+
+    #[test]
+    fn a_quoted_phrase_that_finds_nothing_is_asked_again_without_quotes() {
+        let mut search = Search::new(PhraseMisses, SystemClock);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap();
+        let outcome =
+            runtime.block_on(search.run("\"machine that thinks\" Simon", &SearchConfig::default()));
+        assert_eq!(outcome.status, Status::Ok);
+        assert!(!outcome.results.is_empty());
+    }
+
     struct OneBlocked;
 
     impl HttpClient for OneBlocked {
