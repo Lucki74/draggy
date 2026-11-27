@@ -19,7 +19,8 @@ export type ToolGroup =
   | "shell"
   | "image"
   | "video"
-  | "external";
+  | "external"
+  | "memory";
 
 export interface ToolParameter {
   type: "string" | "integer" | "number" | "boolean";
