@@ -121,6 +121,21 @@ import { describeEnded, inputFor, isHarmlessInput } from "../tools/tasks";
 import { activeRun, gatherNudge, settleRun } from "../research/session";
 import { followUpInstruction, holdsFinishedRun } from "../research/command";
 import { applyReceipts, dropStaleFooters, withoutFooter } from "../research/receipts";
+import {
+  DEFAULT_RETRY_CAP,
+  failureReport,
+  isRefusedResult,
+  isSuccessfulEdit,
+  backgroundTaskId,
+  CHECK_TIMEOUT_SECONDS,
+  nextStep,
+  outcomeOf,
+  parseExitCode,
+  runnableChecks,
+  type CheckCommand,
+  type CheckOutcome,
+  type ProjectLintConfig,
+} from "./lintLoop";
 import { ContextOverflowError, charsPerToken, fitWire, keepToolResults, readOverflow } from "./contextFit";
 import { loopLimitFor } from "../research/run";
 import { canContinueStop, type HookDecision } from "./hooks";
@@ -330,6 +345,8 @@ export interface AgentRequest {
   /** What the model counted for this very prompt, measured just before, and the wire it was for.
    * The context meter starts from it instead of an estimate. */
   contextBase?: { tokens: number; chars: number } | null;
+  /** Checks to run after edits. Left out or not confirmed, the loop does nothing. */
+  lint?: { config?: ProjectLintConfig; detected: CheckCommand[] } | null;
   signal: AbortSignal;
 }
 
@@ -1427,6 +1444,43 @@ async function runTurn(
   let stopContinues = 0;
   // Text-mode results come back as user turns, so the wire alone cannot say whether a tool ran.
   let toolsRan = false;
+  // Turn-wide: a pass or a later edit does not reset these, so the cap holds for the whole turn.
+  let lintFailures = 0;
+  let lintHalted = false;
+  let lintNoted = false;
+
+  /** Runs the confirmed checks through runGuardedTool, so permission and sandbox still apply. Failures go back to the model. */
+  async function runLintRound(): Promise<void> {
+    if (lintHalted) return;
+    const checks = runnableChecks(request.lint?.config, request.lint?.detected ?? []);
+    if (checks.length === 0) return;
+    const outcomes: CheckOutcome[] = [];
+    for (const check of checks) {
+      const result = await runGuardedTool("run_command", { command: check.command, timeout_seconds: CHECK_TIMEOUT_SECONDS });
+      if (signal.aborted) return;
+      if (isRefusedResult(result)) {
+        if (!lintNoted) {
+          lintNoted = true;
+          wire.push({ role: "user", content: "Checks were skipped: a command was refused or cancelled." });
+        }
+        return;
+      }
+      const taskId = parseExitCode(result) === null ? backgroundTaskId(result) : null;
+      if (taskId) await runGuardedTool("task_stop", { task_id: taskId });
+      outcomes.push(outcomeOf(check, result, withoutFooter(result)));
+    }
+    const report = failureReport(outcomes);
+    if (report === null) return;
+    lintFailures += 1;
+    const retry = nextStep(false, lintFailures, DEFAULT_RETRY_CAP) === "retry";
+    if (!retry) lintHalted = true;
+    const lead = retry
+      ? "Checks failed after your edits. Fix them."
+      : `Checks still failing after ${lintFailures} tries. Stop retrying and say what is left.`;
+    wire.push({ role: "user", content: `${lead}
+
+${report}` });
+  }
 
   // The first user message of a chat is the chat's first turn; SessionStart output joins its context.
   const firstTurn = !request.isContinuation && request.messages.filter((message) => message.role === "user").length <= 1;
@@ -2230,6 +2284,9 @@ async function runTurn(
           });
         }
         flushImages();
+        if (pendingCalls.some((call, index) => results[index] !== undefined && isSuccessfulEdit(call.function?.name || "", results[index]))) {
+          await runLintRound();
+        }
       } else {
         wire.push({ role: "assistant", content: rawChunk, ...kept });
         let { name, args } = parseToolCall(toolMatch as string);
@@ -2251,6 +2308,7 @@ async function runTurn(
           turnResults.push(withoutFooter(result));
           wire.push({ role: "user", content: result });
           flushImages();
+          if (isSuccessfulEdit(name || "", result)) await runLintRound();
         }
       }
 

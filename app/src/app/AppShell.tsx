@@ -51,6 +51,8 @@ import { rulesFor } from "../agent/permissionRules";
 import { useUpdateDialog } from "./useUpdateDialog";
 import { ACTIVE_WORKSPACE_KEY, useWorkspaces } from "./useWorkspaces";
 import { useRoleResolver } from "./modelRoles";
+import { useProjectChecks } from "./useProjectChecks";
+import { readLintConfig } from "../agent/lintLoop";
 import { useShellLayout } from "./useShellLayout";
 import { Sidebar } from "./Sidebar";
 import { TitleBar } from "./TitleBar";
@@ -390,9 +392,11 @@ export default function AppShell({
   const proceedChatRef = useRef<string | null>(null);
 
   const resolveRole = useRoleResolver(effectiveSettings, turnModel ?? "");
+  const lintChecks = useProjectChecks(active);
   const runs = useAgentRuns({
     model: turnModel,
     resolveRole,
+    lint: { config: readLintConfig(active.settings?.lintLoop), detected: lintChecks.checks },
     settings: effectiveSettings,
     environment,
     workspaceId: active.id,
@@ -1576,6 +1580,7 @@ export default function AppShell({
             activeProjectId={mode === "code" && !codeHome ? active.id : null}
             onAddProject={addProject}
             onRenameProject={(id, name) => void workspaces.rename(id, name)}
+            onSetLintLoop={workspaces.setLintLoop}
             onSetPermissionMode={workspaces.setPermissionMode}
             onRevokeGrant={workspaces.revokeGrant}
             onRemoveProject={(id) => void removeProject(id)}

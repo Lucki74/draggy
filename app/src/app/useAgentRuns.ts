@@ -4,6 +4,7 @@ import type { CompactOutcome, TaskHost, TaskManager } from "../agent/taskManager
 import type { AgentTurn } from "../chat/agentPolicy";
 import type { ToolEnvironment } from "../tools/registry";
 import type { ModelRole } from "./modelRoles";
+import type { CheckCommand, ProjectLintConfig } from "../agent/lintLoop";
 import type { Grant } from "../agent/permissions";
 import type {
   ApprovalAnswer,
@@ -23,6 +24,8 @@ interface AgentRunsInput {
   model: string | null;
   /** The model a background role (plan turn, summary) runs on. */
   resolveRole?: (role: ModelRole) => string;
+  /** Checks to run after edits, with the commands detected in the folder. */
+  lint?: { config?: ProjectLintConfig; detected: CheckCommand[] } | null;
   settings: AppSettings;
   environment: ToolEnvironment;
   workspaceId: string;
@@ -86,6 +89,7 @@ export interface AgentRuns {
 export function useAgentRuns(input: AgentRunsInput): AgentRuns {
   const host: TaskHost = {
     getModel: () => input.model,
+    getLint: () => input.lint ?? null,
     getRoleModel: (role) => input.resolveRole?.(role) || null,
     getSettings: () => input.settings,
     getEnvironment: () => input.environment,

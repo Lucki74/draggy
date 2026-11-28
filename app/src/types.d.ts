@@ -1,6 +1,7 @@
 import type { ProviderState } from "./ai/providers";
 import type { PriceTable } from "./stats/cost";
 import type { AgentTurn } from "./chat/agentPolicy";
+import type { ProjectLintConfig } from "./agent/lintLoop";
 
 /** Drops one listener from a main-process channel, leaving the others alone. */
 export type Unsubscribe = () => void;
@@ -1209,7 +1210,10 @@ export type WorkspaceOverrides = Partial<
     | "webMode"
     | "libraryEnabled"
   >
->;
+> & {
+  /** Checks run after edits. Off unless the user confirmed the exact commands. */
+  lintLoop?: ProjectLintConfig;
+};
 
 /** What a permission rule names: the start of a command, a file or folder, a tool by name, or a website. */
 export type PermissionRuleKind = "command" | "path" | "tool" | "site";

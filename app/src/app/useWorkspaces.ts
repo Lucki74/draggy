@@ -11,6 +11,7 @@ import {
 import type { Grant } from "../agent/permissions";
 import { writeLocalStorage } from "../utils";
 import type { PermissionMode, Workspace } from "../types";
+import type { ProjectLintConfig } from "../agent/lintLoop";
 import { swallowed } from "../logger";
 
 export const ACTIVE_WORKSPACE_KEY = "draggy_workspace";
@@ -24,6 +25,7 @@ export interface WorkspaceStore {
   /** Removes a project and the sessions in it. The folder is left alone. */
   remove: (id: string) => Promise<{ removed: boolean }>;
   rename: (id: string, name: string) => Promise<void>;
+  setLintLoop: (id: string, config: ProjectLintConfig) => void;
   /** Changes a workspace's permission mode, and saves it. */
   setPermissionMode: (id: string, mode: PermissionMode) => void;
   /** Takes back something the user had always allowed in a workspace. */
@@ -139,6 +141,15 @@ export function useWorkspaces(): WorkspaceStore {
     [change],
   );
 
+  const setLintLoop = useCallback(
+    (id: string, lintLoop: ProjectLintConfig) => {
+      const current = workspaces.find((one) => one.id === id);
+      if (!current) return;
+      void change(id, { settings: { ...current.settings, lintLoop } });
+    },
+    [workspaces, change],
+  );
+
   const setPermissionMode = useCallback(
     (id: string, mode: PermissionMode) =>
       void change(id, { permissionMode: mode }),
@@ -192,6 +203,7 @@ export function useWorkspaces(): WorkspaceStore {
     addProject,
     remove,
     rename,
+    setLintLoop,
     setPermissionMode,
     revokeGrant,
     addGrant,

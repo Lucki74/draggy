@@ -44,6 +44,7 @@ import type { GenerationMetrics } from "../llama";
 import { classifyTurnError, editAt, isTransient, modelHistory, promoteShown, retryAt, switchAt } from "./turnHistory";
 import { loadQueues, saveQueue } from "./turnQueue";
 import type { AgentTurn } from "../chat/agentPolicy";
+import type { CheckCommand, ProjectLintConfig } from "./lintLoop";
 
 /** Running turns, keyed by conversation, so a turn belongs to its chat rather than the screen: it
  * keeps going elsewhere, and several can run at once. */
@@ -58,6 +59,8 @@ export interface TaskHost {
   /** How much a turn may do here, and what the user has already allowed. */
   /** The resolved model for a background role, or null to use the active model. */
   getRoleModel?: (role: "plan" | "summary") => string | null;
+  /** Checks to run after edits, when the project turned them on. */
+  getLint?: () => { config?: ProjectLintConfig; detected: CheckCommand[] } | null;
   getPermission: () => { mode: PermissionMode; grants: Grant[]; rules?: import("../types").PermissionRule[] };
   /** A permission to keep for this workspace, beyond the task that asked. */
   onGrant: (grant: Grant) => void;
@@ -597,6 +600,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         compaction: host.getSession(chatId)?.compaction,
         permission: host.getPermission(),
         agent: options.agent ?? null,
+        lint: host.getLint?.() ?? null,
         workspaceId: host.getWorkspaceId(),
         chatId,
         contextBase:
