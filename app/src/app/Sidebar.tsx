@@ -7,7 +7,6 @@ import { Menu, type MenuEntry } from "../ui/Menu";
 import { Dialog } from "../ui/Dialog";
 import { Button } from "../ui/Button";
 import { SessionViewMenu } from "./SessionViewMenu";
-import { recallResults, useChatRecall } from "./useChatRecall";
 import { arrangeSessions, sortSessions, useSessionView } from "./sessionView";
 import { isDefault, workspaceLabel } from "../workspaces";
 import type { AppMode } from "./modes";
@@ -148,13 +147,6 @@ export function Sidebar({
       [projectId]: !prev[projectId],
     }));
   };
-
-  const [recallQuery, setRecallQuery] = useState("");
-  const recallHits = useChatRecall(recallQuery);
-  const recall = useMemo(
-    () => (recallHits ? recallResults(recallHits, new Set(sessions.map((entry) => entry.id))) : null),
-    [recallHits, sessions],
-  );
 
   const filteredSessions = sessions;
 
@@ -473,48 +465,11 @@ export function Sidebar({
               {onOpenPalette && <NavRow icon="magnifying-glass" label={t("search")} shortcut="Ctrl+K" onClick={onOpenPalette} />}
               {mode === "chat" && onViewTalk && <NavRow icon="waveform" label={t("talk")} onClick={onViewTalk} />}
             </div>
-
-            <div className="relative">
-              <Icon name="magnifying-glass" size={14} className="absolute start-2.5 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
-              <input
-                type="search"
-                value={recallQuery}
-                onChange={(e) => setRecallQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape" && recallQuery) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setRecallQuery("");
-                  }
-                }}
-                placeholder={t("recallPlaceholder")}
-                aria-label={t("recallPlaceholder")}
-                className="w-full h-8 ps-8 pe-2 rounded-sm bg-surface-base border border-rule-control text-[13px] text-text-primary placeholder:text-text-tertiary outline-none focus-visible:ring-1 focus-visible:ring-focus"
-              />
-            </div>
           </div>
 
           {/* Sessions list area */}
           <div ref={listRef} className="flex-1 overflow-y-auto px-2 py-2 space-y-3 min-h-0">
-            {recall ? (
-              <div className="space-y-0.5" role="list">
-                {recall.length === 0 && <div className="px-2 py-1 text-xs text-text-tertiary">{t("recallNoResults")}</div>}
-                {recall.map((hit) => (
-                  <button
-                    key={hit.chatId}
-                    type="button"
-                    role="listitem"
-                    onClick={() => onSelectChat(hit.chatId)}
-                    className={`w-full text-start rounded-sm px-2.5 py-1.5 cursor-pointer outline-none hover:bg-surface-raised/60 focus-visible:ring-1 focus-visible:ring-focus ${
-                      hit.chatId === currentChatId ? "bg-surface-raised" : ""
-                    }`}
-                  >
-                    <div className="truncate text-[13px] text-text-primary">{hit.title || t("newDiscussion")}</div>
-                    <div className="truncate text-xs text-text-tertiary">{hit.excerpt.replace(/\s+/g, " ")}</div>
-                  </button>
-                ))}
-              </div>
-            ) : sections ? (
+            {sections ? (
               <>
                 {sections.length === 0 && <div className="flex justify-end">{viewMenu}</div>}
                 {sections.map((section, index) => (

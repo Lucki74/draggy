@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Block, Button, Group, Row, Segmented, Select, Toggle } from "../settings/Controls";
+import { Block, Button, FIELD, Group, Row, Segmented, Select, Toggle } from "../settings/Controls";
 import { workspaceLabel } from "../workspaces";
 import { swallowed } from "../logger";
 import type { AppSettings, TelegramStatus, Workspace } from "../types";
@@ -68,7 +68,7 @@ export default function TelegramPanel({ settings, onUpdate, workspaces, t }: Tel
     <div className="space-y-6">
       <p className="text-[13px] leading-5 text-text-secondary">{t("telegramDescription")}</p>
       <Group title={t("telegramBot")}>
-        <Row label={t("telegramToken")} description={status?.hasToken ? t("telegramTokenSaved") : t("telegramTokenHelp")}>
+        <Row label={t("telegramToken")} description={status?.hasToken ? t("telegramTokenSaved") : undefined}>
           <div className="flex items-center gap-2">
             <input
               aria-label={t("telegramToken")}
@@ -78,7 +78,7 @@ export default function TelegramPanel({ settings, onUpdate, workspaces, t }: Tel
               value={token}
               placeholder={status?.hasToken ? "••••••••" : "123456:ABC…"}
               onChange={(e) => setToken(e.target.value)}
-              className="h-8 w-48 rounded-lg border border-rule-control bg-surface-canvas px-2.5 font-mono text-[12px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className={`${FIELD} font-mono text-[12px]`}
             />
             <Button onClick={saveToken} disabled={!token.trim()}>
               {t("telegramSaveToken")}

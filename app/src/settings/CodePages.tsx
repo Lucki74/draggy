@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon, type IconName } from "../ui/icons/Icon";
-import { Block, Button, ConfirmDialog, Group, Page, Row, Segmented, Select, Toggle } from "./Controls";
+import { Block, Button, ConfirmDialog, FIELD, Group, Page, Row, Segmented, Select, Toggle } from "./Controls";
 import { subagentLimit, subagentTurnCap } from "../tools/subagent";
 import InstructionsEditor from "./InstructionsEditor";
 import PermissionChoice from "./PermissionChoice";
@@ -69,14 +69,14 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
       </Group>
 
       <Group title={t("subagentsTitle")}>
-        <Row label={t("subagentsToggle")} description={t("subagentsToggleHint")}>
+        <Row label={t("subagentsToggle")}>
           <Toggle
             checked={settings.subagents !== false}
             onChange={(subagents) => onUpdate({ subagents })}
             label={t("subagentsToggle")}
           />
         </Row>
-        <Row label={t("subagentConcurrency")} description={t("subagentConcurrencyHint")}>
+        <Row label={t("subagentConcurrency")}>
           <Select
             label={t("subagentConcurrency")}
             value={String(subagentLimit(settings.subagentConcurrency))}
@@ -303,7 +303,7 @@ function NameField({
         if (event.key === "Enter") event.currentTarget.blur();
       }}
       aria-label={label}
-      className="h-8 w-full sm:w-64 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+      className={FIELD}
       spellCheck={false}
     />
   );
@@ -491,7 +491,7 @@ export function PermissionsPage({
   const denied = list("deny");
 
   return (
-    <Page title={t("permissions")} description={t("permissionsPageHint")}>
+    <Page title={t("permissions")}>
       <Group title={t("alwaysAllow")}>
         <AddRule effect="allow" projects={projects} onAdd={addRule} t={t} />
         {allowed.length > 0 ? allowed : <EmptyRow text={t("nothingAllowedYet")} />}

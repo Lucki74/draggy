@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { uiLocale } from "../i18n";
-import { Badge, Block, Button, Group, Page, Row, Segmented, Toggle } from "./Controls";
+import { Badge, Block, Button, FIELD, Group, Page, Row, Segmented, Toggle } from "./Controls";
 import { Icon } from "../ui/icons/Icon";
 import { logSwallow, swallowed } from "../logger";
 import type { LogLevelState } from "../types";
@@ -70,7 +70,7 @@ function LoggingGroup({ t }: { t: Translate }) {
           aria-label={t("diagScopes")}
           placeholder="engine, mcp"
           disabled={verbose}
-          className={`${fieldClass} w-48 disabled:opacity-40`}
+          className={`${FIELD} disabled:opacity-40`}
         />
       </Row>
       <Row label={t("diagKeep")}>

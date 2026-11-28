@@ -5,6 +5,7 @@ import type { IconName } from "../ui/icons/Icon";
 
 export type SettingsTab =
   | "general"
+  | "updates"
   | "models"
   | "providers"
   | "web"
@@ -42,7 +43,8 @@ export const SETTINGS_GROUPS: SettingsGroupEntry[] = [
     id: "app",
     label: "settingsApp",
     pages: [
-      { id: "general", label: "settingsGeneral", icon: "palette", keywords: ["appearance", "theme", "language", "textSize", "showMetrics", "currentVersion", "onbRunAgain"] },
+      { id: "general", label: "settingsGeneral", icon: "palette", keywords: ["appearance", "theme", "language", "textSize", "showMetrics", "onbRunAgain"] },
+      { id: "updates", label: "settingsUpdates", icon: "arrow-clockwise", keywords: ["currentVersion", "checkUpdates"] },
       { id: "models", label: "models", icon: "cpu", keywords: ["installed", "downloadModel", "embeddingModel", "contextGroup", "fixedContextSize", "library"] },
       { id: "providers", label: "providers", icon: "cloud", keywords: ["onThisComputer", "apiKeysGroup", "accountsGroup"] },
       { id: "web", label: "webSearchPage", icon: "globe-simple", keywords: ["searchProvider", "searxngUrl", "braveApiKey", "openAlexKey", "githubToken", "researchModelStart", "researchMaxDepth", "researchKeep"] },

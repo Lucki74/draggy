@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Block, Button, Group, Page, Row, Select, Toggle } from "./Controls";
+import { Block, Button, FIELD, Group, NUMBER_FIELD, Page, Row, Select, Toggle } from "./Controls";
 import { loadProjectHooks, type ProjectHooks } from "../agent/projectHooks";
 import { HOOK_EVENTS, type HookEntry, type HookEvent } from "../agent/hooks";
 import { workspaceLabel } from "../workspaces";
@@ -98,7 +98,7 @@ function AddHook({ onAdd, t }: { onAdd: (entry: HookEntry) => void; t: Translate
             value={matcher}
             placeholder={t("hooksMatcherHint")}
             onChange={(e) => setMatcher(e.target.value)}
-            className="h-8 w-56 rounded-lg border border-rule-control bg-surface-canvas px-2.5 font-mono text-[12px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            className={`${FIELD} font-mono text-[12px]`}
           />
         </Row>
       )}
@@ -108,7 +108,7 @@ function AddHook({ onAdd, t }: { onAdd: (entry: HookEntry) => void; t: Translate
           value={command}
           placeholder="node check.js"
           onChange={(e) => setCommand(e.target.value)}
-          className="h-8 w-72 rounded-lg border border-rule-control bg-surface-canvas px-2.5 font-mono text-[12px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className={`${FIELD} font-mono text-[12px]`}
         />
       </Row>
       <Row label={t("hooksTimeout")}>
@@ -119,7 +119,7 @@ function AddHook({ onAdd, t }: { onAdd: (entry: HookEntry) => void; t: Translate
           max={600}
           value={timeout}
           onChange={(e) => setTimeoutSeconds(e.target.value)}
-          className="h-8 w-24 rounded-lg border border-rule-control bg-surface-canvas px-2.5 text-[13px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className={NUMBER_FIELD}
         />
       </Row>
       <Block>
