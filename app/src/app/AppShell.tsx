@@ -48,6 +48,7 @@ import { useAgentRuns } from "./useAgentRuns";
 import { rulesFor } from "../agent/permissionRules";
 import { useUpdateDialog } from "./useUpdateDialog";
 import { ACTIVE_WORKSPACE_KEY, useWorkspaces } from "./useWorkspaces";
+import { useRoleResolver } from "./modelRoles";
 import { useShellLayout } from "./useShellLayout";
 import { Sidebar } from "./Sidebar";
 import { TitleBar } from "./TitleBar";
@@ -386,8 +387,10 @@ export default function AppShell({
   // carries out the plan is not refused by the plan-mode permission it was approved from.
   const proceedChatRef = useRef<string | null>(null);
 
+  const resolveRole = useRoleResolver(effectiveSettings, turnModel ?? "");
   const runs = useAgentRuns({
     model: turnModel,
+    resolveRole,
     settings: effectiveSettings,
     environment,
     workspaceId: active.id,

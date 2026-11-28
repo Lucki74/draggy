@@ -1493,6 +1493,10 @@ export interface AppSettings {
   researchKeep: "forever" | "90" | "30";
   /** The model Code runs. Empty uses the chat model. */
   codeModel: string;
+  /** Model that runs plan-mode turns. Blank means the active model. */
+  planModel: string;
+  /** Cloud model that folds a long conversation. Blank means the active model. */
+  summaryModel: string;
   /** Instructions for every project, kept apart from the chat ones. */
   codeInstructions: string[];
   codeEffort: EffortLevel;

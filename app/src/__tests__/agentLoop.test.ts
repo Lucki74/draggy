@@ -73,6 +73,8 @@ const SETTINGS = {
   searchProvider: "auto",
   searxngUrl: "",
   codeModel: "",
+  planModel: "",
+  summaryModel: "",
   codeInstructions: [],
   codeEffort: "medium",
   codeWebMode: "on",
