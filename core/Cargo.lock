@@ -557,6 +557,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "draggy-cli"
+version = "0.1.0"
+dependencies = [
+ "draggy-providers",
+ "reqwest",
+ "serde_json",
+]
+
+[[package]]
 name = "draggy-diagnostics"
 version = "0.1.0"
 dependencies = [
@@ -873,6 +882,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1f9e3d69d39e4862ffed03ed071a76f9a13ba1d9109d355b0f0aa6b15e393c4"
 dependencies = [
  "futures-core",
+ "futures-sink",
 ]
 
 [[package]]
@@ -1900,6 +1910,7 @@ dependencies = [
  "bytes",
  "cookie",
  "cookie_store",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "http",
