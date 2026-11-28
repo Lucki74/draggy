@@ -2,12 +2,13 @@ import { diffLines } from "./diff";
 import { hostnameOf } from "../utils";
 import type { SearchStep } from "../types";
 
-type Kind = "read" | "site" | "created" | "edited" | "moved" | "deleted" | "ran" | "searched" | "browsed" | "image" | "other";
+type Kind = "read" | "site" | "created" | "edited" | "memory" | "moved" | "deleted" | "ran" | "searched" | "browsed" | "image" | "other";
 
 const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   reading: "read",
   library: "read",
   edit_file: "edited",
+  memory: "memory",
   run_code: "ran",
   command: "ran",
   searching: "searched",
@@ -22,7 +23,7 @@ const KIND_OF: Partial<Record<SearchStep["type"], Kind>> = {
   image: "image",
 };
 
-const ORDER: Kind[] = ["read", "site", "created", "edited", "moved", "deleted", "ran", "searched", "browsed", "image", "other"];
+const ORDER: Kind[] = ["read", "site", "created", "edited", "memory", "moved", "deleted", "ran", "searched", "browsed", "image", "other"];
 
 /** Translation keys are work<Name>_one and work<Name>_other. */
 const KEY: Record<Kind, string> = {
@@ -30,6 +31,7 @@ const KEY: Record<Kind, string> = {
   site: "ReadPages",
   created: "Created",
   edited: "Edited",
+  memory: "Memory",
   moved: "Moved",
   deleted: "Deleted",
   ran: "Ran",

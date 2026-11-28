@@ -483,6 +483,8 @@ export interface SearchStep {
     | "create_file"
     /** A change to a file of the user's, which can be undone. */
     | "edit_file"
+    /** A note saved to the user's or the project's memory. */
+    | "memory"
     | "library"
     | "run_code"
     /** A tool call waiting on the user, with the buttons to answer it. */

@@ -99,7 +99,7 @@ ${renderNotes(notes)}`
 
     ctx.pushStep({
       id: ctx.newId(),
-      type: "edit_file",
+      type: "memory",
       content: `${ctx.t("savingMemory")} **${scope}**: ${change.action === "remove" ? change.id : String(args.text ?? "")}`,
       isComplete: true,
     });
