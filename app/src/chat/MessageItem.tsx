@@ -5,6 +5,7 @@ import { shownSlot } from "../agent/turnHistory";
 import UserTurn from "./UserTurn";
 import AssistantTurn from "./AssistantTurn";
 import TaskNotice from "./TaskNotice";
+import SkillDraftCard from "./SkillDraftCard";
 import type {
   ApprovalAnswer,
   AppSettings,
@@ -81,6 +82,8 @@ const MessageItem = memo(
             <p data-testid="hook-notice" role="status" className="w-full text-[13px] leading-5 text-warning">
               {msg.content}
             </p>
+          ) : msg.notice === "skill_draft" ? (
+            <SkillDraftCard msg={msg} t={t} />
           ) : msg.notice ? (
             <TaskNotice msg={msg} t={t} />
           ) : msg.role === "user" ? (

@@ -672,4 +672,24 @@ mod tests {
         let keys: Vec<&str> = map.keys().map(String::as_str).collect();
         assert_eq!(keys, ["role", "content", "id"]);
     }
+
+    #[test]
+    fn a_saved_chat_is_found_by_search_and_gone_after_delete() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = Storage::open(dir.path()).unwrap();
+        let chat: Chat = serde_json::from_value(json!({
+            "id": "chat-1",
+            "title": "Kubernetes notes",
+            "messages": [{"role": "user", "id": "m1", "content": "how do I tune the ingress controller"}],
+        }))
+        .unwrap();
+        storage.save_chat(&chat).unwrap();
+        let hits = storage.search_chats("ingress");
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].chat_id, "chat-1");
+        assert!(hits[0].excerpt.contains("[ingress]"));
+        assert!(storage.search_chats("unrelated").is_empty());
+        storage.delete_chat("chat-1").unwrap();
+        assert!(storage.search_chats("ingress").is_empty());
+    }
 }

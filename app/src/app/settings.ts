@@ -49,6 +49,7 @@ export const defaultSettings: AppSettings = {
   researchMaxDepth: "deep",
   researchKeep: "forever",
   subagents: true,
+  skillSuggestions: true,
   subagentConcurrency: 2,
   subagentMaxPerTurn: 8,
   codeModel: "",

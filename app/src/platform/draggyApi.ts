@@ -230,6 +230,7 @@ export function createDraggyApi(ipc: IpcLike): NonNullable<Window["draggy"]> {
       list: (workspaceId) => ipc.invoke("skills:list", workspaceId),
       read: (workspaceId, id, options) => ipc.invoke("skills:read", workspaceId, id, options),
       setEnabled: (id, enabled) => ipc.invoke("skills:set-enabled", id, enabled),
+      save: (skill) => ipc.invoke("skills:save", skill),
       openFolder: () => ipc.invoke("skills:open"),
     },
 

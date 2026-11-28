@@ -120,7 +120,60 @@ ${renderNotes(notes)}`
   },
 };
 
-export const MEMORY_TOOLS: ToolSpec[] = [saveMemory];
+const SEARCH_CHATS_DEFAULT = 5;
+const SEARCH_CHATS_MAX = 20;
+const SEARCH_CHATS_CHARS = 6000;
+const SNIPPET_CHARS = 240;
+
+/** The search_chats tool: full-text recall over the user's earlier conversations. */
+export const searchChats: ToolSpec = {
+  name: "search_chats",
+  group: "memory",
+  description:
+    "Search the user's earlier chats by words. Use it when they refer to something discussed before. Returns chat title, id and a short snippet for each match.",
+  parameters: {
+    query: { type: "string", description: "Words to look for in past messages." },
+    limit: { type: "integer", description: `How many chats to return, ${SEARCH_CHATS_DEFAULT} by default, at most ${SEARCH_CHATS_MAX}.` },
+  },
+  required: ["query"],
+  usage: '{"query": "ingress controller", "limit": 5}',
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
+  run: async (args, ctx) => {
+    const query = String(args.query ?? "").trim();
+    if (!query) return "TOOL RESULT (search_chats): Give some words to search for.";
+    const asked = Math.floor(Number(args.limit));
+    const limit = Number.isFinite(asked) && asked > 0 ? Math.min(asked, SEARCH_CHATS_MAX) : SEARCH_CHATS_DEFAULT;
+
+    const { storageBackend } = await import("../storage");
+    const hits = await storageBackend().searchSessions(query);
+    const seen = new Set<string>();
+    const lines: string[] = [];
+    let size = 0;
+    for (const hit of hits) {
+      if (hit.chatId === ctx.chatId || seen.has(hit.chatId)) continue;
+      seen.add(hit.chatId);
+      const snippet = hit.excerpt.replace(/\s+/g, " ").trim().slice(0, SNIPPET_CHARS);
+      const line = `- "${hit.title}" (chat ${hit.chatId}): ${snippet}`;
+      if (size + line.length > SEARCH_CHATS_CHARS) break;
+      size += line.length;
+      lines.push(line);
+      if (lines.length >= limit) break;
+    }
+    if (lines.length === 0) return `TOOL RESULT (search_chats): No other chat matches "${query}".`;
+    return `TOOL RESULT (search_chats): ${lines.length} chat(s) match "${query}":\n${lines.join("\n")}`;
+  },
+};
+
+export const MEMORY_TOOLS: ToolSpec[] = [saveMemory, searchChats];
 
 export function registerMemoryTools(): void {
   registerTools(MEMORY_TOOLS);

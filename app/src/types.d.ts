@@ -1076,9 +1076,20 @@ export interface Message {
   /** The app closed while this reply was being written. */
   interrupted?: boolean;
   /** A note the app sent for the user, such as background tasks ending: shown as a quiet line, not a bubble. */
-  notice?: "tasks_ended" | "hook_note";
+  notice?: "tasks_ended" | "hook_note" | "skill_draft";
+  /** On a "skill_draft" notice: what the offer is built from. */
+  skillDraft?: SkillDraftSource;
   /** The conversation after the newest version, kept while an older version is shown. */
   tail?: Message[];
+}
+
+/** What a skill draft is written from: the user's ask and the tools the turn used, in order. */
+export interface SkillDraftSource {
+  chatId: string;
+  /** The model that wrote the turn, which writes the draft. */
+  model: string;
+  ask: string;
+  tools: string[];
 }
 
 /** The older conversation, folded into notes. `throughIndex` is exclusive, and this describes what
@@ -1491,6 +1502,8 @@ export interface AppSettings {
   researchMaxDepth: "quick" | "standard" | "deep";
   /** Off stops the model from starting child runs. Unset means on. */
   subagents?: boolean;
+  /** Offer to write a skill after a long Code task. On unless false. */
+  skillSuggestions?: boolean;
   /** Most child runs at once, 1 to 4. Unset means 2. Children that may edit always run alone. */
   subagentConcurrency?: number;
   /** Most child runs one parent turn may start, 4 to 32. Unset means 8. */
@@ -1938,6 +1951,13 @@ declare global {
           error?: string;
         }>;
         setEnabled: (id: string, enabled: boolean) => Promise<{ success: boolean }>;
+        /** Writes a user skill. Refuses an existing one unless overwrite is set. */
+        save: (skill: {
+          name: string;
+          description: string;
+          body: string;
+          overwrite?: boolean;
+        }) => Promise<{ success: boolean; id?: string; error?: string }>;
         openFolder: () => Promise<string>;
       };
 

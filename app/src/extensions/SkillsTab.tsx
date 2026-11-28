@@ -9,6 +9,8 @@ import { localDescription } from "./descriptions";
 import { ExtensionList, ExtensionRow } from "./ExtensionRow";
 import type { InstalledSkill, LoadedSkill } from "../types";
 import { swallowed } from "../logger";
+import { SkillEditor } from "./SkillEditor";
+import type { SkillDraft } from "../agent/skillDraft";
 
 interface SkillsTabProps {
   /** A project whose own skills folder is listed too. Left out, the library and the user's show. */
@@ -73,6 +75,7 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loaded, setLoaded] = useState<LoadedSkill | null>(null);
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; draft: SkillDraft } | null>(null);
 
   const api = window.draggy?.skills;
 
@@ -115,6 +118,13 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
 
     const result = await api.read(workspaceId || "default", skill.id).catch(swallowed("extensions", "the main process already logged this call"));
     if (result?.success && result.skill) setLoaded(result.skill);
+  };
+
+  const edit = async (skill: InstalledSkill) => {
+    const result = await api.read(workspaceId || "default", skill.id).catch(swallowed("extensions", "the main process already logged this call"));
+    if (result?.success && result.skill) {
+      setEditing({ id: skill.id, draft: { name: skill.id, description: result.skill.description, body: result.skill.body } });
+    }
   };
 
   const wanted = filter.trim().toLowerCase();
@@ -213,6 +223,9 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
                           >
                             <Icon name="caret-right" size={14} className={`transition-transform ${open ? "rotate-90" : ""}`} />
                           </button>
+                          {skill.source === "user" && (
+                            <IconButton name="pencil-simple" label={`${t("skillEditAction")}: ${skill.name}`} size="dense" onClick={() => void edit(skill)} />
+                          )}
                           <Toggle checked={isOn(skill)} disabled={skill.locked} label={skill.name} onChange={(value) => void toggle(skill, value)} />
                         </>
                       }
@@ -251,6 +264,29 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
           ))}
         </>
       )}
+
+      <Dialog
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={t("skillEditTitle")}
+        width={560}
+        closeLabel={t("closeDialog")}
+      >
+        {editing && (
+          <SkillEditor
+            key={editing.id}
+            initial={editing.draft}
+            existing
+            t={t}
+            onCancel={() => setEditing(null)}
+            onSaved={() => {
+              setEditing(null);
+              setExpanded(null);
+              setRevision((count) => count + 1);
+            }}
+          />
+        )}
+      </Dialog>
 
       <Dialog
         open={adding}

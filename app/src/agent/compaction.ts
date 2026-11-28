@@ -157,6 +157,7 @@ export function planCompaction(
  * spreadsheet would consume the whole summary. */
 export function renderTranscript(messages: Message[]): string {
   return messages
+    .filter((message) => message.notice !== "skill_draft")
     .map((message) => {
       const who = message.role === "user" ? "User" : "Assistant";
       const body = (message.content || "").slice(0, TRANSCRIPT_MESSAGE_LIMIT).trim();
