@@ -130,7 +130,7 @@ export function MermaidBlock({ source }: { source: string }) {
           <img
             src={svgDataUrl(current.svg)}
             alt={`${t("mermaidDiagram")}: ${label}`}
-            className="max-w-full h-auto"
+            className="max-w-full max-h-[480px] w-auto h-auto"
           />
         </div>
       ) : null}
