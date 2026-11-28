@@ -12,7 +12,7 @@ export interface CustomCommand {
   source: CustomSource;
   description: string;
   body: string;
-  /** Read from agent frontmatter. Shown only; not enforced yet. */
+  /** Read from agent frontmatter. Enforced by agentPolicy. */
   model?: string;
   tools?: string[];
   permissions?: string;

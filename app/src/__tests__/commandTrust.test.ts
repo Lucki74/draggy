@@ -32,7 +32,16 @@ describe("project command trust", () => {
   it("loads nothing when the folder is not trusted", async () => {
     await loadCustomCommands("ws-1");
     expect(getCustomCommands().map((c) => [c.id, c.source])).toEqual([]);
-    expect(files.list).not.toHaveBeenCalled();
+    expect(files.read).not.toHaveBeenCalled();
+  });
+
+  it("never asks about a folder with no command files", async () => {
+    const ask = vi.fn(async () => true);
+    setCommandTrustPrompt(ask);
+    files.list.mockResolvedValueOnce({ success: true, entries: [] }).mockResolvedValueOnce({ success: false, entries: [] });
+    await loadCustomCommands("ws-empty");
+    expect(ask).not.toHaveBeenCalled();
+    expect(store.has("commandTrust:ws-empty")).toBe(false);
   });
 
   it("asks once and remembers a refusal for that folder", async () => {

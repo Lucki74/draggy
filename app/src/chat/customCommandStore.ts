@@ -33,7 +33,10 @@ export function useCustomCommands(): CustomCommand[] {
 }
 
 /** A missing folder is normal and reads as empty. A failed call or read is logged at WARN and that file is skipped. */
-async function readFolder(workspaceId: string, folder: string, kind: CustomKind): Promise<CustomCommand[]> {
+type Entry = { name: string; path: string; isDirectory?: boolean };
+
+/** The Markdown files of one folder. A missing or unreadable folder lists as empty. */
+async function listFolder(workspaceId: string, folder: string): Promise<Entry[]> {
   const api = window.draggy?.files;
   if (!api) return [];
 
@@ -47,7 +50,12 @@ async function readFolder(workspaceId: string, folder: string, kind: CustomKind)
     return [];
   }
 
-  const files = (listing.entries ?? []).filter((entry) => !entry.isDirectory && /\.md$/i.test(entry.name));
+  return (listing.entries ?? []).filter((entry) => !entry.isDirectory && /\.md$/i.test(entry.name));
+}
+
+async function readFolder(workspaceId: string, files: Entry[], kind: CustomKind): Promise<CustomCommand[]> {
+  const api = window.draggy?.files;
+  if (!api || files.length === 0) return [];
   const parsed = await Promise.all(
     files.map(async (entry) => {
       const read = await api.read(workspaceId, entry.path).catch((error: unknown) => {
@@ -120,13 +128,19 @@ async function trustedFolder(workspaceId: string): Promise<boolean> {
   return answer;
 }
 
-/** Reads the workspace's folders once the folder is trusted. A newer call wins over an older one still running. */
+/** Reads the workspace's folders once the folder is trusted. A folder with no command files is never asked about.
+ * A newer call wins over an older one still running. */
 export async function loadCustomCommands(workspaceId: string): Promise<void> {
   const token = ++loadToken;
-  const trusted = await trustedFolder(workspaceId);
+  const [commandFiles, agentFiles] = await Promise.all([
+    listFolder(workspaceId, COMMAND_FOLDER),
+    listFolder(workspaceId, AGENT_FOLDER),
+  ]);
+  if (token !== loadToken) return;
+  const trusted = commandFiles.length + agentFiles.length > 0 && (await trustedFolder(workspaceId));
   const [commands, agents] = await Promise.all([
-    trusted ? readFolder(workspaceId, COMMAND_FOLDER, "command") : Promise.resolve([]),
-    trusted ? readFolder(workspaceId, AGENT_FOLDER, "agent") : Promise.resolve([]),
+    trusted ? readFolder(workspaceId, commandFiles, "command") : Promise.resolve([]),
+    trusted ? readFolder(workspaceId, agentFiles, "agent") : Promise.resolve([]),
   ]);
   if (token !== loadToken) return;
   const merged = mergeCustomCommands([...commands, ...agents], []);
