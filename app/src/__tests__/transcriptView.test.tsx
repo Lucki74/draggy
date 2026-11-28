@@ -31,6 +31,14 @@ describe("nextView", () => {
   });
 });
 
+describe("reasoning excerpt", () => {
+  it("keeps the underscores inside tool names", () => {
+    const step = { ...thought, content: "I will call **run_subagent** and _then_ wait" };
+    inView("normal", <ThinkingRow step={step} live={false} isGenerating={false} inline t={t} />);
+    expect(screen.getByText("I will call run_subagent and then wait")).toBeTruthy();
+  });
+});
+
 describe("finished reasoning", () => {
   const row = <ThinkingRow step={thought} live={false} isGenerating={false} t={t} />;
 
