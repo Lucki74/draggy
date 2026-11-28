@@ -8,7 +8,7 @@ import { describeMemoryLoad, FIT_STATUS } from "../vram";
 import type { PullState } from "./useModelManager";
 import type { LibraryModel } from "../types";
 import { isRunnable } from "../modelKinds";
-import { swallowed } from "../logger";
+import { logSwallow, swallowed } from "../logger";
 
 /** Hugging Face search with each variant's size and fit, shared by the Models page and the
  * first-run setup so neither keeps its own copy. */
@@ -97,7 +97,8 @@ export default function ModelSearch({ vram, ram, unifiedMemory, phaseFor, onPick
         .then((result) => {
           if (!cancelled) setResults(result?.success ? result.models || [] : []);
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          logSwallow("settings", error, "model search failed: shows no results");
           if (!cancelled) setResults([]);
         })
         .finally(() => {

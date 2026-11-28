@@ -7,7 +7,7 @@ import type { FileKind } from "./fileList";
 import type { AppSettings, CreatedFile } from "./types";
 import { FilePreview } from "./chat/FilePreview";
 import { WordPreview } from "./chat/WordPreview";
-import { swallowed } from "./logger";
+import { logRendererError, swallowed } from "./logger";
 
 /** Everything the model wrote, read from the folder rather than a list in the app: a file deleted
  * from the desktop simply stops appearing here. */
@@ -60,6 +60,7 @@ export default function CreatedFiles({ settings }: CreatedFilesProps) {
       setFiles(outcome?.files ?? []);
       setError(outcome?.success === false ? (outcome.error ?? "") : "");
     } catch (failure) {
+      logRendererError("app", "listing created files failed", failure);
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
       // Captured once per listing rather than read during render, so the day

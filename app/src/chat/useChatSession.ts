@@ -54,7 +54,7 @@ import type {
     InstalledSkill,
     VideoRef,
 } from "../types";
-import { swallowed } from "../logger";
+import { logRendererError, logSwallow, swallowed } from "../logger";
 
 const MEASURE_DELAY_MS = 400;
 /** Pasted or dropped videos travel as bytes over IPC; above this the picker copies them by path. */
@@ -89,7 +89,8 @@ const canDecodeImage = async (file: File): Promise<boolean> => {
         const usable = bitmap.width > 0 && bitmap.height > 0;
         bitmap.close();
         return usable;
-    } catch {
+    } catch (error) {
+        logSwallow("chat", error, "image cannot be decoded, rejected");
         return false;
     }
 };
@@ -261,6 +262,7 @@ export function useChatSession({
                     setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
                 }
             } catch (err) {
+                logRendererError("chat", "voice transcription failed", err);
                 setFileErrors([err instanceof Error ? err.message : t("micUnavailable")]);
             } finally {
                 setMicState("idle");
@@ -273,7 +275,8 @@ export function useChatSession({
             recorderRef.current = await startRecording();
             setMicAnalyser(recorderRef.current.analyser);
             setMicState("recording");
-        } catch {
+        } catch (error) {
+            logRendererError("chat", "microphone start failed", error);
             setFileErrors([t("micUnavailable")]);
             setMicState("idle");
         }
@@ -486,7 +489,8 @@ export function useChatSession({
                     type: file.type || "text/plain",
                     content,
                 });
-            } catch {
+            } catch (error) {
+                logRendererError("chat", "attachment read failed", error, { size: file.size });
                 rejected.push(`${file.name} - ${t("unsupportedFile")}`);
             }
         }

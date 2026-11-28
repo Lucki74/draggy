@@ -2,7 +2,7 @@
  * Gathering itself goes through search_web and read_url, which feed the run in ctx.memo. */
 import type { ToolSpec } from "./registry";
 import { registerTools } from "./registry";
-import { swallowed } from "../logger";
+import { logSwallow, swallowed } from "../logger";
 import { judgeCitation } from "../research/citations";
 import { activeRun, openRunBlock, pageTexts, priorRun, runFooter, setRun, settleRun, spendCall, syncRun } from "../research/session";
 import {
@@ -52,7 +52,8 @@ function planText(plan: ResearchPlan): string {
 function editedPlan(text: string, drafted: ResearchPlan): ResearchPlan {
   try {
     return readPlan({ ...JSON.parse(text), question: drafted.question }) ?? drafted;
-  } catch {
+  } catch (error) {
+    logSwallow("research", error, "drafted plan unreadable, the draft is used");
     return drafted;
   }
 }

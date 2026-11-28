@@ -5,7 +5,7 @@ import { failureOf, readFailure, sseToLlamaChunks } from "../ai/llamaStream";
 import { VOICE_SEARCH_MARKER } from "../prompts";
 import { VOICE_NUM_PREDICT, VOICE_TEMPERATURE } from "./constants";
 import { chatEndpoint, isRemote } from "../ai/providers";
-import { loggedFetch } from "../logger";
+import { loggedFetch, swallowed } from "../logger";
 
 /** Turns a question into words to say, handing text on the instant it can. Only the first seven
  * characters wait, in case they become a "SEARCH:" marker. */
@@ -140,7 +140,7 @@ async function streamVoice(options: StreamOptions): Promise<void> {
   });
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
+    const body = await response.text().catch(swallowed("renderer.voice", "error body unreadable", ""));
     throw new Error(engineFailure(readFailure(body, response.statusText || `HTTP ${response.status}`)));
   }
   const reader = response.body?.getReader();

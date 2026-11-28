@@ -1,5 +1,6 @@
 import type { ApprovalAnswer } from "../types";
 import type { ApprovalRequest } from "../agent/agentLoop";
+import { logSwallow } from "../logger";
 
 /** Telegram refuses a message over 4096 characters; replies are cut a little under that. */
 export const TELEGRAM_CHUNK = 4000;
@@ -40,7 +41,8 @@ export function readChatMap(raw: string | null): ChatMap {
     const out: ChatMap = {};
     for (const [key, id] of Object.entries(value)) if (typeof id === "string") out[key] = id;
     return out;
-  } catch {
+  } catch (error) {
+    logSwallow("telegram", error, "stored chat map is unreadable; starting empty");
     return {};
   }
 }

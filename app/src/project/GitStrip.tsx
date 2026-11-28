@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import UnifiedDiff from "../chat/UnifiedDiff";
+import { logRendererError } from "../logger";
 import { CHANGE_COLOR, CHANGE_LETTER, changePath } from "./gitView";
 import type { GitChange, GitStatus } from "../types";
 
@@ -43,6 +44,9 @@ export default function GitStrip({ status, workspaceId, root, t, onOpenFile }: G
         path: change.path,
         text: result?.success ? result.diff || "" : result?.error || "",
       });
+    } catch (error) {
+      logRendererError("project", "diff load failed", error);
+      throw error;
     } finally {
       setLoading(false);
     }

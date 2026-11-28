@@ -5,6 +5,7 @@ import { defaultProjectPath } from "../images/imageCommand";
 import { applyImageProgress, finishImageStep, runImageJob } from "../images/imageJob";
 import { imageFailure } from "../ai/engineErrors";
 import { generateId } from "../utils";
+import { logSwallow } from "../logger";
 import { referenceFor, referenceStrength } from "../images/imageTracker";
 import type { TrackedImage } from "../images/imageTracker";
 import type { ImageRequest, ImageStepInfo, SearchStep } from "../types";
@@ -173,7 +174,8 @@ async function pixelsOf(image: TrackedImage): Promise<string | null> {
     let binary = "";
     for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     return btoa(binary);
-  } catch {
+  } catch (error) {
+    logSwallow("tools", error, "image could not be read as base64");
     return null;
   }
 }

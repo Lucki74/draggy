@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "../ui/Button";
 import { Group, Row, Select, Toggle } from "./Controls";
 import { DISPLAY_CURRENCIES } from "../stats/displayMoney";
-import { swallowed } from "../logger";
+import { logRendererError, swallowed } from "../logger";
 import type { AppSettings, PricingStatus } from "../types";
 
 interface PricesGroupProps {
@@ -44,7 +44,8 @@ export default function PricesGroup({ settings, onUpdate, t }: PricesGroupProps)
       if (answer.status) setStatus(answer.status);
       const error = answer.prices?.error ?? answer.rates?.error;
       setFailed(answer.success && !error ? null : (error ?? t("priceUpdateFailed")));
-    } catch {
+    } catch (error) {
+      logRendererError("settings", "price refresh failed", error);
       setFailed(t("priceUpdateFailed"));
     } finally {
       setBusy(false);

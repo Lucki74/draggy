@@ -24,7 +24,7 @@ import LocalModel, { type ModelChoice } from "./steps/LocalModel";
 import Provider from "./steps/Provider";
 import Ready from "./steps/Ready";
 import Preferences, { type ExtraKind, type ExtraOffer } from "./steps/Preferences";
-import { swallowed } from "../logger";
+import { logSwallow, swallowed } from "../logger";
 
 export interface SetupOutcome {
   path: OnboardingPath;
@@ -83,7 +83,8 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   const [mode, setMode] = useState<AppMode>(() => {
     try {
       return localStorage.getItem(MODE_KEY) === "code" ? "code" : "chat";
-    } catch {
+    } catch (error) {
+      logSwallow("onboarding", error, "mode storage unreadable: starts in chat");
       return "chat";
     }
   });
@@ -92,7 +93,8 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
   const [firstVisit] = useState(() => {
     try {
       return localStorage.getItem(SETTINGS_KEY) === null;
-    } catch {
+    } catch (error) {
+      logSwallow("onboarding", error, "settings storage unreadable: treated as a return visit");
       return false;
     }
   });
@@ -113,7 +115,10 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
     api
       ?.checkInternet?.()
       .then((result) => setOnline(Boolean(result)))
-      .catch(() => setOnline(false));
+      .catch((error: unknown) => {
+        logSwallow("onboarding", error, "internet probe failed: shown offline");
+        setOnline(false);
+      });
   }, [api]);
 
   /** Hardware, free space and any model already on disk: all local, asked once. */
@@ -124,7 +129,7 @@ export default function Onboarding({ settings, onUpdateSettings, download, onFin
           planFirstDownload(api ?? {}),
           api ? adoptInstalled(api, settings.modelName) : Promise.resolve(null),
           api?.gguf?.status().catch(swallowed("onboarding", "the main process already logged this call", null)),
-          api?.gguf?.listModels().catch(() => []),
+          api?.gguf?.listModels().catch(swallowed("onboarding", "installed models unknown: treated as none", [])),
           api?.sd?.status().catch(swallowed("onboarding", "the main process already logged this call", null)),
         ]);
         const installedFiles = (listing ?? []).map((entry) => entry.filename);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ChatSearchHit } from "../storage";
+import { logSwallow } from "../logger";
 
 export const RECALL_DEBOUNCE_MS = 200;
 
@@ -29,7 +30,8 @@ export function useChatRecall(query: string): ChatSearchHit[] | null {
         .then((found) => {
           if (!stale) setHits(found);
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          logSwallow("app", error, "chat search failed: shows no hits");
           if (!stale) setHits([]);
         });
     }, RECALL_DEBOUNCE_MS);

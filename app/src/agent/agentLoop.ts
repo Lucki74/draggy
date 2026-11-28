@@ -116,7 +116,7 @@ import {
   logAgentStep,
   logToolCall,
   logRendererEvent,
-  logRendererOnce, newCorrelationId, swallowed } from "../logger";
+  logRendererOnce, logSwallow, newCorrelationId, swallowed } from "../logger";
 import { generateId, isBinary, safeJsonParse } from "../utils";
 import { raceAbort } from "./abortRace";
 import { describeEnded, inputFor, isHarmlessInput } from "../tools/tasks";
@@ -867,7 +867,8 @@ export async function measureTurn(
     const body = safeJsonParse<{ usage?: { prompt_tokens?: number } }>(await response.text());
     const tokens = Number(body?.usage?.prompt_tokens) || 0;
     return tokens > 0 ? { tokens, chars, window: numCtx, parts: turn.promptParts } : null;
-  } catch {
+  } catch (error) {
+    logSwallow("agent", error, "prompt token count unavailable");
     return null;
   } finally {
     stopWatching();
@@ -1318,9 +1319,10 @@ async function runTurn(
       );
 
       return readRepair(body?.choices?.[0]?.message?.content ?? "");
-    } catch {
+    } catch (error) {
       // A repair that fails leaves the turn exactly as it was: the reply is
       // shown as written, which is what happened before this existed.
+      logSwallow("agent", error, "repair pass failed, reply kept as written");
       return {};
     }
   }

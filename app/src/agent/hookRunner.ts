@@ -1,5 +1,6 @@
 /** Runs the configured hooks through `hooks:run` and turns each result into the loop's decision. */
 
+import { logRendererError } from "../logger";
 import { buildHookPayload, decideFromExit, hooksFor, type HookDecision, type HookEntry, type HookEvent } from "./hooks";
 
 /** Shown in the chat, so a skipped or failed hook is never silent. */
@@ -65,6 +66,7 @@ export function createHookRunner(context: HookRunContext): HookRunner {
       if (result.error) return { action: "error", message: result.error };
       return decideFromExit(event, result.exitCode ?? null, result.stdout ?? "", result.stderr ?? "", result.timedOut === true);
     } catch (error) {
+      logRendererError("agent", "hook run failed", error, { event, entryKind: entry.event });
       return { action: "error", message: error instanceof Error ? error.message : String(error) };
     } finally {
       context.signal?.removeEventListener("abort", cancel);

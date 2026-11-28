@@ -8,6 +8,7 @@ import {
 import { createPortal } from "react-dom";
 import { Icon } from "../ui";
 import { clampScale, wheelFactor } from "../ui/imageView";
+import { logSwallow } from "../logger";
 
 /** A picture at full screen. It grows out of the thumbnail that opened it and shrinks back into it.
  * The wheel zooms toward the cursor from 1% to 800% of the picture's own size, and a drag moves it. */
@@ -74,7 +75,8 @@ async function copyImage(src: string): Promise<boolean> {
     const png = blob.type === "image/png" ? blob : await toPng(blob);
     await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
     return true;
-  } catch {
+  } catch (error) {
+    logSwallow("chat", error, "clipboard may be blocked");
     return false;
   }
 }

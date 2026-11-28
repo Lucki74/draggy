@@ -21,7 +21,7 @@ import { setLiveTurn } from "./liveTurn";
 import { describeEnded } from "../tools/tasks";
 import { autoContinueWindow } from "./autoContinue";
 import { isSlowModel } from "../slowMode";
-import { logRendererError, logRendererEvent, newCorrelationId, swallowed } from "../logger";
+import { logRendererError, logRendererEvent, logSwallow, newCorrelationId, swallowed } from "../logger";
 import type { ToolEnvironment } from "../tools/registry";
 import type { Grant } from "./permissions";
 import type {
@@ -419,8 +419,9 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
         markFold(chatId, replyId, { status: "done", tokens, at: Date.now() });
         return "done";
-      } catch {
+      } catch (error) {
         // Nothing is lost by a fold that failed, and it will be tried again.
+        logSwallow("chat", error, "fold failed, retried on a later turn");
         if (marked) markFold(chatId, replyId, null);
         return "failed";
       } finally {
