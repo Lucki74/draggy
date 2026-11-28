@@ -16,7 +16,7 @@ import { measureTurn, runAgentTurn } from "./agentLoop";
 import { createHookRunner } from "./hookRunner";
 import { sanitizeHookEntries } from "./hooks";
 import { loadProjectHooks } from "./projectHooks";
-import type { AgentHost, ContextMeasurement, OutOfContextInfo } from "./agentLoop";
+import type { AgentHost, ApprovalRequest, ContextMeasurement, OutOfContextInfo } from "./agentLoop";
 import { setLiveTurn } from "./liveTurn";
 import { describeEnded } from "../tools/tasks";
 import { autoContinueWindow } from "./autoContinue";
@@ -92,6 +92,23 @@ export interface TaskHost {
   t: (key: string) => string;
 }
 
+/** Where one chat runs when that is not the workspace on screen: a routine's project, or the one a
+ * Telegram chat was bound to. The chat keeps this for as long as it is set. */
+export interface ChatContext {
+  workspaceId: string;
+  environment: ToolEnvironment;
+  /** How much a turn may do here. A chat with a context never reads the mode of the workspace on screen. */
+  permission: { mode: PermissionMode; grants: Grant[]; rules?: import("../types").PermissionRule[] };
+  /** The model for this chat, else the active one. */
+  model?: string | null;
+  /** Nobody is there to answer: a call that needs approval is refused and a question is dismissed. */
+  unattended?: boolean;
+  /** A call waits on an answer. The answer comes back through `answerApproval` like any other. */
+  onApproval?: (approval: ApprovalRequest, chatId: string) => void;
+  /** The turn is over, stopped or not. */
+  onEnded?: (chatId: string, outcome: { aborted: boolean; failed: boolean }) => void;
+}
+
 export interface RunOptions {
   /** Replace the last reply, keeping the old one as a version. */
   isRetry?: boolean;
@@ -129,6 +146,8 @@ export interface TaskManager {
   ) => void;
   continueGeneration: (chatId: string) => void;
   dismissOutOfContext: (chatId: string) => void;
+  /** Runs a chat in its own project and permission mode, or back on the screen's with null. */
+  setChatContext: (chatId: string, context: ChatContext | null) => void;
   /** The user's answer to a call that was waiting on them. */
   answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
   /** The user's reply to a question the model asked, or null to dismiss it. */
@@ -235,6 +254,12 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     string,
     { chatId: string; answer: (answer: ApprovalAnswer) => void }
   >();
+
+  const chatContexts = new Map<string, ChatContext>();
+  function setChatContext(chatId: string, context: ChatContext | null) {
+    if (context) chatContexts.set(chatId, context);
+    else chatContexts.delete(chatId);
+  }
 
   function answerApproval(approvalId: string, answer: ApprovalAnswer) {
     const pending = waiting.get(approvalId);
@@ -493,10 +518,12 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     contextMessages: Message[],
     options: RunOptions = {},
   ) {
-    const active = host.getModel();
+    const context = chatContexts.get(chatId);
+    const active = context?.model || host.getModel();
     if (!active) return;
+    const permission = context?.permission ?? host.getPermission();
     // A plan turn runs on the plan model the host resolved, else the active model.
-    const planned = host.getPermission().mode === "plan" ? host.getRoleModel?.("plan") || active : active;
+    const planned = permission.mode === "plan" ? host.getRoleModel?.("plan") || active : active;
     const model = options.agent?.model ?? planned;
 
     runs.get(chatId)?.abort();
@@ -594,15 +621,15 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         correlationId,
         model,
         settings: host.getSettings(),
-        environment: host.getEnvironment(),
+        environment: context?.environment ?? host.getEnvironment(),
         messages: history,
         isContinuation: Boolean(options.isContinuation),
         seed,
         compaction: host.getSession(chatId)?.compaction,
-        permission: host.getPermission(),
+        permission,
         agent: options.agent ?? null,
         lint: host.getLint?.() ?? null,
-        workspaceId: host.getWorkspaceId(),
+        workspaceId: context?.workspaceId ?? host.getWorkspaceId(),
         chatId,
         contextBase:
           !options.isContinuation &&
@@ -652,13 +679,25 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         },
         requestAnswer: (question) =>
           new Promise<UserReply | null>((resolve) => {
+            if (context?.unattended) {
+              resolve(null);
+              return;
+            }
             asking.set(question.id, { chatId, answer: resolve });
           }),
         requestApproval: (approval) =>
           new Promise<ApprovalAnswer>((resolve) => {
+            if (context?.unattended) {
+              resolve("no");
+              return;
+            }
             waiting.set(approval.id, { chatId, answer: resolve });
+            context?.onApproval?.(approval, chatId);
           }),
-        onGrant: (grant) => host.onGrant(grant),
+        // A chat with its own context never writes a grant into the workspace on screen.
+        onGrant: (grant) => {
+          if (!context) host.onGrant(grant);
+        },
         onSteps: (steps: SearchStep[]) => patch({ steps }),
         onPatch: (change) =>
           patch(
@@ -840,6 +879,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         host.updateSession(chatId, (s) =>
           s.isGenerating ? { ...s, isGenerating: false } : s,
         );
+        context?.onEnded?.(chatId, { aborted: controller.signal.aborted, failed });
 
         // Notes the turn ended before reading wait at the front of the queue.
         const unread = steers.get(chatId);
@@ -1025,7 +1065,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     } else {
       host.addSession({
         id: chatId,
-        workspaceId: host.getWorkspaceId(),
+        workspaceId: chatContexts.get(chatId)?.workspaceId ?? host.getWorkspaceId(),
         title: content.trim()
           ? titleFromContent(typedText ?? content, host.t("newDiscussion"))
           : attachments && attachments.length > 0
@@ -1063,7 +1103,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     if (!existing) {
       host.addSession({
         id: chatId,
-        workspaceId: host.getWorkspaceId(),
+        workspaceId: chatContexts.get(chatId)?.workspaceId ?? host.getWorkspaceId(),
         title: content.trim()
           ? titleFromContent(typedText ?? content, host.t("newDiscussion"))
           : attachments && attachments.length > 0
@@ -1359,6 +1399,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     switchVersion,
     continueGeneration,
     dismissOutOfContext,
+    setChatContext,
     answerApproval,
     answerQuestion,
     compact: (chatId: string) => compactChat(chatId, true),

@@ -5,7 +5,7 @@ import { versionLabel } from "../app/buildLabel";
 import ExtensionsPanel from "../extensions/ExtensionsPanel";
 import { languages } from "../translations";
 import { researchDepthOptions, researchKeepOptions, searchProviderOptions } from "./pages";
-import type { AppSettings, Language, SearchProvider, StorageStats, UpdaterState } from "../types";
+import type { AppSettings, Language, SearchProvider, StorageStats, UpdaterState, Workspace } from "../types";
 import { swallowed } from "../logger";
 
 type Translate = (key: string) => string;
@@ -254,10 +254,20 @@ export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
   );
 }
 
-export function ExtensionsPage({ t }: { t: Translate }) {
+export function ExtensionsPage({
+  t,
+  settings,
+  onUpdate,
+  workspaces,
+}: {
+  t: Translate;
+  settings: AppSettings;
+  onUpdate: (patch: Partial<AppSettings>) => void;
+  workspaces: Workspace[];
+}) {
   return (
     <Page title={t("extensions")}>
-      <ExtensionsPanel t={t} />
+      <ExtensionsPanel t={t} settings={settings} onUpdate={onUpdate} workspaces={workspaces} />
     </Page>
   );
 }

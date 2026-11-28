@@ -73,7 +73,7 @@ describe("the settings menu", () => {
     expect(groups.map((group) => group.title)).toEqual(["App", "Chat", "Code"]);
     expect(groups[0].pages).toContain("Extensions");
     expect(groups[1].pages).not.toContain("Extensions");
-    expect(groups[2].pages).toEqual(["Preferences", "Projects", "Hooks", "Permissions"]);
+    expect(groups[2].pages).toEqual(["Preferences", "Projects", "Hooks", "Routines", "Permissions"]);
   });
 
   it("moves to the page a later request names", async () => {
