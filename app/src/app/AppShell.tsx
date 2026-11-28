@@ -35,6 +35,8 @@ import { AnswerQuestionContext } from "../chat/questionContext";
 import type { ComposerQueue } from "../chat/Composer";
 import { logBreadcrumb, logSwallow, swallowed } from "../logger";
 import { chatToHtml, chatToMarkdown, transcriptFilename } from "../chat/transcriptExport";
+import { forkAt } from "../chat/fork";
+import { canSwitchVersions } from "../agent/turnHistory";
 import { generateId, titleFromContent } from "../utils";
 import type { Utterance } from "../voice/conversation";
 import { listInstalledModels } from "../llama";
@@ -734,9 +736,31 @@ export default function AppShell({
   );
   const onSwitchVersionChat = useCallback(
     (mIdx: number, vIdx: number) => {
-      if (chatId) switchVersion(chatId, mIdx, vIdx);
+      const session = chatId ? store.getSession(chatId) : undefined;
+      if (!session || !canSwitchVersions(session)) return;
+      switchVersion(chatId, mIdx, vIdx);
     },
-    [chatId, switchVersion],
+    [chatId, store, switchVersion],
+  );
+  const onForkChat = useCallback(
+    (index: number) => {
+      const session = chatId ? store.getSession(chatId) : undefined;
+      if (!session) return;
+      const newId = generateId();
+      const title = t("forkTitle").replace("{title}", session.title);
+      const fork = forkAt(session, index, newId, title, generateId);
+      if (!fork) return;
+      if (fork.draft !== undefined) {
+        try {
+          localStorage.setItem(`draft_${newId}`, fork.draft);
+        } catch (error) {
+          logSwallow("app", error, "the forked chat opens without the wording");
+        }
+      }
+      store.addSession({ ...fork.session, workspaceId: fork.session.workspaceId ?? active.id });
+      selectChat(newId);
+    },
+    [chatId, store, active.id, selectChat, t],
   );
   const onEditMessageChat = useCallback(
     (mIdx: number, content: string) => {
@@ -1470,6 +1494,7 @@ export default function AppShell({
           }}
           onRegenerateChat={onRegenerateChat}
           onSwitchVersionChat={onSwitchVersionChat}
+          onForkChat={onForkChat}
           onEditMessageChat={onEditMessageChat}
           onStopGeneration={() => runs.stop(currentChatId!)}
           onContinueGeneration={() => runs.continueGeneration(currentChatId!)}

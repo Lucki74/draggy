@@ -97,7 +97,8 @@ export interface AssistantTurnProps {
   chatId?: string;
   totalVersions: number;
   currentVersionIndex: number;
-  currentVersionNum: number;
+  onFork?: (index: number) => void;
+  forkDisabled?: boolean;
   t: (key: string) => string;
 }
 
@@ -122,7 +123,8 @@ export function AssistantTurn({
   chatId,
   totalVersions,
   currentVersionIndex,
-  currentVersionNum,
+  onFork,
+  forkDisabled,
   t,
 }: AssistantTurnProps) {
   const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
@@ -537,7 +539,8 @@ export function AssistantTurn({
           onSwitchVersion={onSwitchVersion}
           totalVersions={totalVersions}
           currentVersionIndex={currentVersionIndex}
-          currentVersionNum={currentVersionNum}
+          onFork={onFork}
+          forkDisabled={forkDisabled}
           metrics={displayMsg.metrics}
           showMetrics={settings.showMetrics}
           chatId={chatId}

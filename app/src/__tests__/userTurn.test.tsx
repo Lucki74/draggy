@@ -14,6 +14,9 @@ describe("UserTurn", () => {
         idx={0}
         text={content}
         onEditMessage={vi.fn()}
+        onSwitchVersion={vi.fn()}
+        totalVersions={1}
+        currentVersionIndex={0}
         t={(key) => key}
       />,
     );

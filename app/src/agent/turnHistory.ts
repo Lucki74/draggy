@@ -72,12 +72,21 @@ function stashTail(message: Message, tail: Message[]): Message {
   return { ...message, tail };
 }
 
+/** Versions kept per message. The oldest goes with its tail, so storage stays bounded. */
+export const MAX_VERSIONS = 10;
+
+/** A version switch moves the tail, which would take a streaming reply with it, so it waits for the turn to end. */
+export function canSwitchVersions(session: { isGenerating?: boolean }): boolean {
+  return !session.isGenerating;
+}
+
 /** Moves the newest version into `versions` and starts a blank one in its place. */
 function pushNewest(message: Message, tail: Message[]): Message {
   const stashed = stashTail(message, tail);
   const newest = { ...ownVersion(stashed), tail: stashed.tail ?? [] };
   const versions = [...(stashed.versions ?? [])];
   if (!isEmptyFailure(newest)) versions.push(newest);
+  while (versions.length > MAX_VERSIONS) versions.shift();
 
   const next: Message = { ...stashed, versions, currentVersionIndex: versions.length };
   delete next.tail;

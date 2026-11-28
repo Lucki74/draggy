@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { useLiveTurn } from "../agent/liveTurn";
 import { IconButton } from "../ui";
+import { VersionSwitch } from "./VersionSwitch";
 import { useDisplayMoney } from "../stats/displayMoney";
 import { turnCostLabel } from "../stats/turnCostLabel";
 import type { TurnMetrics } from "../types";
@@ -115,7 +116,8 @@ export interface TurnActionsProps {
   onSwitchVersion: (messageIndex: number, versionIndex: number) => void;
   totalVersions: number;
   currentVersionIndex: number;
-  currentVersionNum: number;
+  onFork?: (index: number) => void;
+  forkDisabled?: boolean;
   metrics?: TurnMetrics | null;
   showMetrics: boolean;
   chatId?: string;
@@ -136,7 +138,8 @@ export function TurnActions({
   onSwitchVersion,
   totalVersions,
   currentVersionIndex,
-  currentVersionNum,
+  onFork,
+  forkDisabled,
   metrics,
   showMetrics,
   chatId,
@@ -159,27 +162,7 @@ export function TurnActions({
           : "opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100"
       }`}
     >
-      {totalVersions > 1 && (
-        <div className="flex items-center text-[12px] text-text-secondary tabular-nums">
-          <IconButton
-            name="caret-left"
-            size="sm"
-            label={t("previousVersion")}
-            disabled={currentVersionIndex <= 0}
-            onClick={() => onSwitchVersion(idx, currentVersionIndex - 1)}
-          />
-          <span>
-            {currentVersionNum} / {totalVersions}
-          </span>
-          <IconButton
-            name="caret-right"
-            size="sm"
-            label={t("nextVersion")}
-            disabled={currentVersionNum >= totalVersions}
-            onClick={() => onSwitchVersion(idx, currentVersionIndex + 1)}
-          />
-        </div>
-      )}
+      <VersionSwitch idx={idx} slot={currentVersionIndex} total={totalVersions} onSwitchVersion={onSwitchVersion} t={t} />
       <IconButton
         name={copiedIndex === idx ? "check" : "copy"}
         size="sm"
@@ -188,6 +171,9 @@ export function TurnActions({
       />
       {isLast && !isFailed && (
         <IconButton name="arrow-clockwise" size="sm" label={t("regenerateFromScratch")} onClick={() => onRegenerate(idx)} />
+      )}
+      {onFork && (
+        <IconButton name="git-branch" size="sm" label={forkDisabled ? t("forkBusy") : t("forkChat")} disabled={forkDisabled} onClick={() => onFork(idx)} />
       )}
       {showMetrics && metrics && (
         <div className="ms-2">
