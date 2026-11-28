@@ -43,6 +43,7 @@ import type {
 import type { GenerationMetrics } from "../llama";
 import { classifyTurnError, editAt, isTransient, modelHistory, promoteShown, retryAt, switchAt } from "./turnHistory";
 import { loadQueues, saveQueue } from "./turnQueue";
+import { SKILL_DRAFT_DONE_EVENT, buildDraftSource, shouldOfferSkillDraft } from "./skillDraft";
 import type { AgentTurn } from "../chat/agentPolicy";
 import type { CheckCommand, ProjectLintConfig } from "./lintLoop";
 
@@ -784,6 +785,27 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           { updatedAt: Date.now(), isOutOfContext: result.outOfContext },
         );
       }
+
+      // A long task that worked may be worth keeping as a skill. The offer is a card; nothing is written until the user says so.
+      if (
+        live() &&
+        shouldOfferSkillDraft({
+          settings: request.settings,
+          codeMode: Boolean(request.environment.hasFolder),
+          aborted: Boolean(result.aborted),
+          failed: false,
+          toolCalls: result.toolCalls,
+        })
+      ) {
+        const skillDraft = buildDraftSource(chatId, model, history, result.steps);
+        host.updateSession(chatId, (s) => ({
+          ...s,
+          messages: [
+            ...s.messages.filter((message) => message.notice !== "skill_draft"),
+            { id: generateId(), role: "user", content: "", notice: "skill_draft", skillDraft },
+          ],
+        }));
+      }
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== "AbortError") {
         failed = true;
@@ -969,6 +991,14 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     }
     wakes.set(chatId, (wakes.get(chatId) ?? 0) + 1);
     deliver(chatId, note, undefined, "tasks_ended");
+  }
+
+  // The skill card reports that it is done (saved, discarded or dismissed), and the offer leaves the chat.
+  if (typeof window !== "undefined") {
+    window.addEventListener(SKILL_DRAFT_DONE_EVENT, (event) => {
+      const { chatId, messageId } = (event as CustomEvent<{ chatId: string; messageId: string }>).detail;
+      host.updateSession(chatId, (s) => ({ ...s, messages: s.messages.filter((message) => message.id !== messageId) }));
+    });
   }
 
   if (typeof window !== "undefined") {

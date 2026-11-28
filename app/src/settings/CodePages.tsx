@@ -94,6 +94,16 @@ export function CodePreferencesPage({ settings, onUpdate, manager, chatModel, t 
         </Row>
       </Group>
 
+      <Group title={t("skillSuggestionsTitle")}>
+        <Row label={t("skillSuggestionsToggle")} description={t("skillSuggestionsHint")}>
+          <Toggle
+            checked={settings.skillSuggestions !== false}
+            onChange={(skillSuggestions) => onUpdate({ skillSuggestions })}
+            label={t("skillSuggestionsToggle")}
+          />
+        </Row>
+      </Group>
+
       <Group title={t("defaultPermission")}>
         <Block>
           <PermissionChoice

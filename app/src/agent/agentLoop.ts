@@ -655,7 +655,8 @@ export async function prepareTurn(request: TurnInput): Promise<PreparedTurn> {
       ? request.compaction
       : null;
 
-  const carried = compaction ? history.slice(compaction.throughIndex) : history;
+  // A skill offer is for the user to read: it stays in the chat but is never sent.
+  const carried = (compaction ? history.slice(compaction.throughIndex) : history).filter((message) => message.notice !== "skill_draft");
   // Only a provider matches turns by these; hashing every attachment each turn would be wasted on the engine.
   const refs = isRemote(model) ? await Promise.all(carried.map(draggyRef)) : [];
   // Ids come from the whole chat so a video keeps its number after compaction drops its first turn.
