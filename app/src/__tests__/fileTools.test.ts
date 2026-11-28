@@ -104,6 +104,7 @@ describe("when a conversation has no folder", () => {
     expect(names).toEqual([
       "edit_file",
       "read_file",
+      "repo_map",
       "write_file",
     ]);
   });
@@ -166,7 +167,7 @@ describe("reading", () => {
 
 describe("a chat folder", () => {
   it("offers the file tools but not the git tools", () => {
-    expect(availableTools(IN_CHAT_FOLDER).map((tool) => tool.name).sort()).toEqual(["edit_file", "read_file", "write_file"]);
+    expect(availableTools(IN_CHAT_FOLDER).map((tool) => tool.name).sort()).toEqual(["edit_file", "read_file", "repo_map", "write_file"]);
   });
 
   it("names the folder after the chat, not the workspace", async () => {

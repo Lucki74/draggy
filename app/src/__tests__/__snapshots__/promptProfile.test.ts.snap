@@ -410,8 +410,9 @@ AVAILABLE TOOLS
 15. read_file: {"path": "src/App.tsx"} → the text of the file
 16. edit_file: {"path": "src/App.tsx", "find": "const x = 1;", "replace": "const x = 2;"} → edits the file in place
 17. write_file: {"path": "src/new.ts", "content": "export const x = 1;\\n"} → writes the file
-18. update_plan: {"steps": "[x] Read the config\\n[>] Change the port\\n[ ] Run the tests"} → shows the user where you are
-19. ask_user: {"question": "Which database should I use?", "options": "SQLite\\nPostgres"} → the option the user picked
+18. repo_map: {"query": "useSession"} → src/app/useSession.ts:12 function useSession
+19. update_plan: {"steps": "[x] Read the config\\n[>] Change the port\\n[ ] Run the tests"} → shows the user where you are
+20. ask_user: {"question": "Which database should I use?", "options": "SQLite\\nPostgres"} → the option the user picked
 
 To use a tool, output EXACTLY this JSON format inside <tool> tags and nothing else:
 <tool>
