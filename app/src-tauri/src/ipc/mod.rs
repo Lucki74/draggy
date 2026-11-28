@@ -51,6 +51,7 @@ mod skills;
 mod splash;
 mod staging;
 mod storage;
+pub(crate) mod telegram;
 mod terminals;
 mod tier;
 mod tts;
@@ -126,6 +127,7 @@ impl Registry {
         video::register_all(&mut registry);
         commands::register_all(&mut registry);
         hooks::register_all(&mut registry);
+        telegram::register_all(&mut registry);
         registry
     }
 

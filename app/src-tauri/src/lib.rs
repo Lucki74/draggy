@@ -6,6 +6,7 @@ pub mod chat_gateway;
 pub mod child_job;
 pub mod draggy_scheme;
 pub mod engines;
+pub mod gateway;
 pub mod images;
 pub mod ipc;
 pub mod key_file;
@@ -21,6 +22,7 @@ pub mod splash;
 pub mod storage;
 pub mod terminals;
 pub mod theme;
+pub mod tray;
 pub mod tts;
 
 use std::collections::hash_map::RandomState;
@@ -372,6 +374,8 @@ pub fn run() {
             ipc::research::prune_at_start(app.handle());
             ipc::mcp::adopt_stored_credentials(app.handle());
             ipc::providers::start_auto_refresh(app.handle());
+            ipc::telegram::start_saved(app.handle());
+            tray::install(app.handle());
             // The update checks and the filter lists wait for a finished setup; onboarding:complete starts them.
             let show_setup = app.state::<AppState>().storage.show_setup();
             if !show_setup {
@@ -430,7 +434,7 @@ pub fn run() {
 }
 
 /// Holds the quit until the window has saved, or the timeout passes, then exits.
-fn begin_quit(app: &tauri::AppHandle) {
+pub(crate) fn begin_quit(app: &tauri::AppHandle) {
     let Some(state) = app.try_state::<AppState>() else {
         return;
     };
@@ -457,6 +461,7 @@ pub(crate) fn shutdown(app: &tauri::AppHandle) {
     if let Some(gateway) = app.try_state::<chat_gateway::ChatGateway>() {
         gateway.stop();
     }
+    ipc::telegram::stop();
     ipc::api_server::stop_all();
     tauri::async_runtime::block_on(state.engines.shutdown());
     terminals::stop_all();

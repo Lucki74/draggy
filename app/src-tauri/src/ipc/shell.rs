@@ -32,6 +32,7 @@ pub fn register_all(registry: &mut Registry) {
     register!(registry, "quit-app" => quit_app);
     register!(registry, "boot-finished" => boot_finished);
     register!(registry, "notify:done" => notify_done);
+    register!(registry, "notify:show" => notify_show);
     register!(registry, "check-disk-space" => check_disk_space);
     register!(registry, "check-internet" => check_internet);
     register!(registry, "open-file" => open_file);
@@ -80,6 +81,19 @@ async fn notify_done(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
     if focused {
         return Ok(json!({ "shown": false }));
     }
+    let title = truncate(&text_arg(args.first()), TITLE_LIMIT);
+    let body = truncate(&text_arg(args.get(1)), BODY_LIMIT);
+    app.notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .show()
+        .map_err(|error| IpcError::Failed(error.to_string()))?;
+    Ok(json!({ "shown": true }))
+}
+
+/// A toast that shows even while the window has focus, for work that ran on its own.
+async fn notify_show(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let title = truncate(&text_arg(args.first()), TITLE_LIMIT);
     let body = truncate(&text_arg(args.get(1)), BODY_LIMIT);
     app.notification()

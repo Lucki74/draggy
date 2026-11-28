@@ -20,6 +20,7 @@ pub struct Slot {
 }
 
 pub static BRAVE: Slot = Slot::new("search:brave");
+pub static TELEGRAM: Slot = Slot::new("telegram:bot");
 pub static OPENALEX: Slot = Slot::new("search:openalex");
 pub static GITHUB: Slot = Slot::new("search:github");
 
