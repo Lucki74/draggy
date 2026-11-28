@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import { StatusDot } from "../ui/StatusDot";
 import ApiLog from "./ApiLog";
-import { Block, Group, Row, Select, Toggle } from "./Controls";
+import { Block, Group, NUMBER_FIELD, Row, Select, Toggle } from "./Controls";
 import type { ApiSampling, ApiServerConfig, ApiServerStatus } from "../types";
 import { copyText } from "../utils";
 import { swallowed } from "../logger";
@@ -73,7 +73,7 @@ function NumberInput({
       onKeyDown={(event) => {
         if (event.key === "Enter") commit();
       }}
-      className={`${INPUT} w-32`}
+      className={NUMBER_FIELD}
     />
   );
 }

@@ -18,12 +18,15 @@ export interface CommandPaletteProps {
   onClose: () => void;
   items: PaletteItem[];
   initialQuery?: string;
+  /** Items found elsewhere for the current query, such as chats whose messages match. Shown last. */
+  extraItems?: PaletteItem[];
+  onQueryChange?: (query: string) => void;
   t: (key: string) => string;
 }
 
 /** Floating command palette with fuzzy search across sessions, panes, and actions.
  * Traps navigation keys, uses level 1 elevation, and registers window overlay. */
-export function CommandPalette({ open, onClose, items, initialQuery = "", t }: CommandPaletteProps) {
+export function CommandPalette({ open, onClose, items, initialQuery = "", extraItems, onQueryChange, t }: CommandPaletteProps) {
   const [query, setQuery] = useState(initialQuery);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [prevOpen, setPrevOpen] = useState(open);
@@ -48,6 +51,10 @@ export function CommandPalette({ open, onClose, items, initialQuery = "", t }: C
   }
 
   useEffect(() => {
+    onQueryChange?.(open ? query : "");
+  }, [open, query, onQueryChange]);
+
+  useEffect(() => {
     if (!open) return;
     const timer = setTimeout(() => inputRef.current?.focus(), 10);
     return () => clearTimeout(timer);
@@ -62,11 +69,13 @@ export function CommandPalette({ open, onClose, items, initialQuery = "", t }: C
     const q = query.trim().toLowerCase();
     if (!q) return items;
     const words = q.split(/\s+/);
-    return items.filter((item) => {
+    const matched = items.filter((item) => {
       const text = `${item.category} ${item.label} ${item.hint || ""}`.toLowerCase();
       return words.every((word) => text.includes(word));
     });
-  }, [items, query]);
+    const shown = new Set(matched.map((item) => item.id));
+    return [...matched, ...(extraItems ?? []).filter((item) => !shown.has(item.id))];
+  }, [items, extraItems, query]);
 
   useEffect(() => {
     if (!open) return;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, ConfirmDialog, Group, Page, Row, Segmented, Select, Stat, Toggle } from "./Controls";
+import { Button, ConfirmDialog, FIELD, Group, Page, Row, Segmented, Select, Stat, Toggle } from "./Controls";
 import { AccentPicker } from "./AccentPicker";
 import { versionLabel } from "../app/buildLabel";
 import ExtensionsPanel from "../extensions/ExtensionsPanel";
@@ -20,33 +20,14 @@ interface SettingsProps {
 
 export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
   const [confirmSetup, setConfirmSetup] = useState(false);
-  const [info, setInfo] = useState<{ version: string; packaged: boolean } | null>(null);
   const [shells, setShells] = useState<string[]>([]);
-  const [update, setUpdate] = useState<UpdaterState | null>(null);
-  const [asked, setAsked] = useState(false);
 
   useEffect(() => {
-    window.draggy
-      ?.appInfo()
-      .then((result) => setInfo({ version: result.version, packaged: result.packaged }))
-      .catch(swallowed("settings", "the main process already logged this call"));
     window.draggy?.shell
       ?.list()
       .then((result) => setShells(result?.shells ?? []))
       .catch(swallowed("settings", "the main process already logged this call"));
-    const updater = window.draggy?.updater;
-    if (!updater) return;
-    updater.state().then(setUpdate).catch(swallowed("settings", "the main process already logged this call"));
-    return updater.onState(setUpdate);
   }, []);
-
-  const checkUpdates = () => {
-    setAsked(true);
-    window.draggy?.updater
-      ?.check()
-      .then(setUpdate)
-      .catch(swallowed("settings", "the main process already logged this call"));
-  };
 
   return (
     <Page title={t("settingsGeneral")}>
@@ -96,23 +77,6 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
             onChange={(showMetrics) => onUpdate({ showMetrics, metricsChosen: true })}
           />
         </Row>
-        <Row label={t("currentVersion")}>
-          <p className="text-[13px] font-medium tabular-nums text-text-primary">
-            {info ? versionLabel(info.version, t) : "…"}
-            {info && !info.packaged && (
-              <span className="ms-2 rounded-pill bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-text-secondary">
-                {t("development")}
-              </span>
-            )}
-          </p>
-        </Row>
-        {update && (
-          <Row label={t("checkUpdates")} description={asked ? updateLine(update, t) : undefined}>
-            <Button onClick={checkUpdates} disabled={!updateCheckable(update)}>
-              {t("checkUpdatesButton")}
-            </Button>
-          </Row>
-        )}
       </Group>
 
       {shells.length > 0 && (
@@ -151,6 +115,56 @@ export function GeneralPage({ settings, onUpdate, t }: SettingsProps) {
           onCancel={() => setConfirmSetup(false)}
         />
       )}
+    </Page>
+  );
+}
+
+/** The running version and the update check. */
+export function UpdatesPage({ t }: { t: Translate }) {
+  const [info, setInfo] = useState<{ version: string; packaged: boolean } | null>(null);
+  const [update, setUpdate] = useState<UpdaterState | null>(null);
+  const [asked, setAsked] = useState(false);
+
+  useEffect(() => {
+    window.draggy
+      ?.appInfo()
+      .then((result) => setInfo({ version: result.version, packaged: result.packaged }))
+      .catch(swallowed("settings", "the main process already logged this call"));
+    const updater = window.draggy?.updater;
+    if (!updater) return;
+    updater.state().then(setUpdate).catch(swallowed("settings", "the main process already logged this call"));
+    return updater.onState(setUpdate);
+  }, []);
+
+  const checkUpdates = () => {
+    setAsked(true);
+    window.draggy?.updater
+      ?.check()
+      .then(setUpdate)
+      .catch(swallowed("settings", "the main process already logged this call"));
+  };
+
+  return (
+    <Page title={t("settingsUpdates")}>
+      <Group>
+        <Row label={t("currentVersion")}>
+          <p className="text-[13px] font-medium tabular-nums text-text-primary">
+            {info ? versionLabel(info.version, t) : "…"}
+            {info && !info.packaged && (
+              <span className="ms-2 rounded-pill bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-text-secondary">
+                {t("development")}
+              </span>
+            )}
+          </p>
+        </Row>
+        {update && (
+          <Row label={t("checkUpdates")} description={asked ? updateLine(update, t) : undefined}>
+            <Button onClick={checkUpdates} disabled={!updateCheckable(update)}>
+              {t("checkUpdatesButton")}
+            </Button>
+          </Row>
+        )}
+      </Group>
     </Page>
   );
 }
@@ -211,7 +225,7 @@ export function WebSearchPage({ settings, onUpdate, t }: SettingsProps) {
               onChange={(event) => onUpdate({ searxngUrl: event.target.value })}
               placeholder="http://localhost:8080"
               aria-label={t("searxngUrl")}
-              className="h-8 w-full sm:w-64 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className={FIELD}
               spellCheck={false}
             />
           </Row>
@@ -375,7 +389,7 @@ function BraveKeyRow({ t }: { t: Translate }) {
           onKeyDown={(event) => event.key === "Enter" && draft.trim() && void save(draft)}
           placeholder={status?.hasKey ? `•••• ${status.keyHint}` : "BSA..."}
           aria-label={t("braveApiKey")}
-          className="h-8 w-full sm:w-64 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className={FIELD}
           spellCheck={false}
           autoComplete="off"
         />
@@ -412,7 +426,7 @@ export function ServiceKeyRow({ id, label, t }: { id: "openalex" | "github"; lab
           onKeyDown={(event) => event.key === "Enter" && draft.trim() && void save(draft)}
           placeholder={status?.hasKey ? "••••••••" : ""}
           aria-label={label}
-          className="h-8 w-full sm:w-64 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className={FIELD}
           spellCheck={false}
           autoComplete="off"
         />

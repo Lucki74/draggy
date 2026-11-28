@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
-import { Badge, Button, ConfirmDialog, Segmented, Toggle } from "../settings/Controls";
+import { Badge, Button, ConfirmDialog, FIELD, Segmented, Toggle } from "../settings/Controls";
 import { engineFailure } from "../ai/engineErrors";
 import { failureOf } from "../ai/llamaStream";
 import { fill } from "../onboarding/text";
@@ -254,7 +254,7 @@ function CodeEntry({ id, t }: { id: string; t: Translate }) {
         onKeyDown={(event) => event.key === "Enter" && void send()}
         placeholder={t("signInCodePrompt")}
         aria-label={t("signInCodePrompt")}
-        className="h-8 w-full sm:w-64 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        className={FIELD}
         spellCheck={false}
         autoComplete="off"
       />
@@ -480,7 +480,7 @@ function KeyField({
         placeholder={instance.hasKey ? `•••• ${instance.keyHint}` : ""}
         aria-label={`${t("apiKeyLabel")} ${instance.label}`}
         disabled={entry?.available === false}
-        className="h-8 w-full sm:w-64 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        className={FIELD}
         spellCheck={false}
         autoComplete="off"
       />

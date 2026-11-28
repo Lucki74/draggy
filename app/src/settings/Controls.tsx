@@ -63,6 +63,13 @@ export function Group({
   );
 }
 
+/** The one look for a text field in a row, so every box is the same size. */
+export const FIELD =
+  "h-8 w-full sm:w-52 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus";
+/** Same, sized for a short number. */
+export const NUMBER_FIELD =
+  "h-8 w-20 rounded-sm bg-surface-base px-3 text-[13px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-focus tabular-nums";
+
 /** Gives the control in a row the id its label points at, so clicking the label toggles it. */
 const RowLabelId = createContext<string | undefined>(undefined);
 
@@ -171,7 +178,7 @@ export function Select({
   onChange,
   label,
   placeholder = "–",
-  className = "w-full sm:w-64",
+  className = "w-full sm:w-52",
 }: {
   value: string;
   options: SelectOption[];

@@ -6,6 +6,7 @@ import { ReleaseNotes } from "../updates/ReleaseNotes";
 import { Icon } from "../ui/icons/Icon";
 import { Toast } from "../ui/Toast";
 import { CommandPalette, type PaletteItem } from "../ui/CommandPalette";
+import { recallResults, useChatRecall } from "./useChatRecall";
 import { ShortcutsSheet } from "../ui/ShortcutsSheet";
 import { useApiBridge } from "../api/useApiBridge";
 import { useGitStatus } from "../project/useGitStatus";
@@ -1081,6 +1082,26 @@ export default function AppShell({
     return () => window.removeEventListener("keydown", handleClosePane);
   }, [currentDockLayout, updateDockLayout]);
 
+  const [paletteQuery, setPaletteQuery] = useState("");
+  const paletteHits = useChatRecall(paletteQuery);
+  const paletteRecall = useMemo<PaletteItem[]>(
+    () =>
+      paletteHits
+        ? recallResults(paletteHits, new Set(store.sessions.map((s) => s.id))).map((hit) => ({
+            id: `session-${hit.chatId}`,
+            label: hit.title || t("newDiscussion"),
+            hint: hit.excerpt.replace(/\s+/g, " "),
+            category: t("paletteSectionSessions"),
+            icon: "chat-circle" as const,
+            onSelect: () => {
+              setPaletteOpen(false);
+              openChat(hit.chatId);
+            },
+          }))
+        : [],
+    [paletteHits, store.sessions, t, openChat],
+  );
+
   const paletteItems = useMemo<PaletteItem[]>(() => {
     const items: PaletteItem[] = [
       {
@@ -1623,6 +1644,8 @@ export default function AppShell({
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         items={paletteItems}
+        extraItems={paletteRecall}
+        onQueryChange={setPaletteQuery}
         t={t}
       />
 

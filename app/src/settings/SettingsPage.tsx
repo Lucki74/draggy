@@ -6,7 +6,7 @@ import { useModelManager } from "./useModelManager";
 import ModelsPage from "./ModelsPage";
 import ProvidersPage from "./ProvidersPage";
 import { DiagnosticsPage } from "./DiagnosticsPage";
-import { DataPage, ExtensionsPage, GeneralPage, WebSearchPage } from "./GeneralPages";
+import { DataPage, ExtensionsPage, GeneralPage, UpdatesPage, WebSearchPage } from "./GeneralPages";
 import { ChatPreferencesPage, LibraryPage, TalkPage } from "./ChatPages";
 import { CodePreferencesPage, PermissionsPage, ProjectsPage } from "./CodePages";
 import HooksPage from "./HooksPage";
@@ -190,6 +190,7 @@ export default function SettingsPage(props: SettingsPageProps) {
 
         <main key={tab} className="flex-1 min-w-0 overflow-y-auto">
           <div className="mx-auto max-w-[720px] px-8 py-8">
+            {tab === "updates" && <UpdatesPage t={t} />}
             {tab === "general" && <GeneralPage settings={settings} onUpdate={onUpdate} t={t} />}
 
             {tab === "models" && (
