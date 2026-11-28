@@ -19,6 +19,7 @@ export type SettingsTab =
   | "extensions"
   | "code"
   | "projects"
+  | "hooks"
   | "permissions";
 
 export interface SettingsPageEntry {
@@ -67,6 +68,7 @@ export const SETTINGS_GROUPS: SettingsGroupEntry[] = [
     pages: [
       { id: "code", label: "preferences", icon: "code", keywords: ["model", "thinking", "webAccess", "defaultPermission", "customInstructions"] },
       { id: "projects", label: "projects", icon: "folder-simple", keywords: ["projectName", "projectFolder", "permissionMode", "alwaysAllowed", "projectMemory"] },
+      { id: "hooks", label: "hooksPage", icon: "plug", keywords: ["hooksUserGroup", "hooksCommand", "hooksMatcher", "hooksProject"] },
       { id: "permissions", label: "permissions", icon: "shield-check", keywords: ["alwaysAllowed"] },
     ],
   },

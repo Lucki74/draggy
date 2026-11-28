@@ -34,6 +34,7 @@ pub(crate) mod files;
 mod gguf;
 mod git;
 mod hardware;
+mod hooks;
 mod images;
 mod library;
 mod logs;
@@ -124,6 +125,7 @@ impl Registry {
         documents::register_all(&mut registry);
         video::register_all(&mut registry);
         commands::register_all(&mut registry);
+        hooks::register_all(&mut registry);
         registry
     }
 

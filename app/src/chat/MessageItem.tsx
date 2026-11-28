@@ -74,7 +74,11 @@ const MessageItem = memo(
         }`}
       >
         <div className={`flex flex-col min-w-0 ${msg.role === "user" && !msg.notice ? "items-end max-w-[85%]" : "items-stretch w-full"}`}>
-          {msg.notice ? (
+          {msg.notice === "hook_note" ? (
+            <p data-testid="hook-notice" role="status" className="w-full text-[13px] leading-5 text-warning">
+              {msg.content}
+            </p>
+          ) : msg.notice ? (
             <TaskNotice msg={msg} t={t} />
           ) : msg.role === "user" ? (
             <UserTurn

@@ -9,6 +9,7 @@ import { DiagnosticsPage } from "./DiagnosticsPage";
 import { DataPage, ExtensionsPage, GeneralPage, WebSearchPage } from "./GeneralPages";
 import { ChatPreferencesPage, LibraryPage, TalkPage } from "./ChatPages";
 import { CodePreferencesPage, PermissionsPage, ProjectsPage } from "./CodePages";
+import HooksPage from "./HooksPage";
 import { ResearchPage } from "./ResearchPage";
 import ApiServerField from "./ApiServerField";
 import StatsPanel from "../stats/StatsPanel";
@@ -258,6 +259,16 @@ export default function SettingsPage(props: SettingsPageProps) {
                 onUpdate={onUpdate}
                 manager={manager}
                 chatModel={props.chatModel}
+                t={t}
+              />
+            )}
+
+            {tab === "hooks" && (
+              <HooksPage
+                settings={settings}
+                onUpdate={onUpdate}
+                projects={props.projects}
+                activeProjectId={props.activeProjectId}
                 t={t}
               />
             )}

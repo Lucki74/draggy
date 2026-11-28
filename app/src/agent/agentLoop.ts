@@ -123,6 +123,7 @@ import { followUpInstruction, holdsFinishedRun } from "../research/command";
 import { applyReceipts, dropStaleFooters, withoutFooter } from "../research/receipts";
 import { ContextOverflowError, charsPerToken, fitWire, keepToolResults, readOverflow } from "./contextFit";
 import { loopLimitFor } from "../research/run";
+import { canContinueStop, type HookDecision } from "./hooks";
 import type {
   AppSettings,
   ApprovalAnswer,
@@ -376,6 +377,10 @@ export interface AgentHost {
   onLive?: (live: LiveTurn) => void;
   /** Notes the user typed while the turn ran, handed over once each before every model request. */
   takeSteering?: () => string[];
+  /** Runs the hooks for an event; only a deny result changes the turn. Absent means no hooks. */
+  runHooks?: (event: "PreToolUse" | "PostToolUse", toolName: string, toolInput: unknown, toolResponse?: string) => Promise<HookDecision>;
+  /** SessionStart runs before a chat's first model call; Stop runs at the final answer and may send the model back. */
+  runLifecycleHook?: (event: "SessionStart" | "Stop", stopHookActive: boolean) => Promise<HookDecision>;
 }
 
 export interface AgentResult {
@@ -1140,6 +1145,8 @@ async function runTurn(
     if (agentTools && !agentTools.includes(name)) {
       return `TOOL ERROR (${name}): the agent "${request.agent?.id}" does not allow this tool.`;
     }
+    const pre = await host.runHooks?.("PreToolUse", name, args);
+    if (pre?.action === "deny") return pre.message;
     // Node runners hang in the sandbox, so they go straight to the outside request and its approval.
     if (name === "run_command" && mode !== "auto" && needsHost(String(args.command ?? ""), dialectFor(typeof args.shell === "string" ? args.shell : null))) {
       name = "request_outside_sandbox";
@@ -1172,7 +1179,8 @@ async function runTurn(
           CANCELLED_RESULT,
         );
         logToolCall(name, "complete", { durationMs: performance.now() - toolStart }, correlationId);
-        return toolOutput;
+        const post = await host.runHooks?.("PostToolUse", name, args, String(toolOutput));
+        return post?.action === "deny" ? `${toolOutput}\n\n${post.message}` : toolOutput;
       } catch (err) {
         logToolCall(
           name,
@@ -1415,8 +1423,17 @@ async function runTurn(
   let lastToolResult = "";
   let answerAsked = false;
   let actionAsked = false;
+  // Stop hooks that sent the model back this turn, capped by canContinueStop.
+  let stopContinues = 0;
   // Text-mode results come back as user turns, so the wire alone cannot say whether a tool ran.
   let toolsRan = false;
+
+  // The first user message of a chat is the chat's first turn; SessionStart output joins its context.
+  const firstTurn = !request.isContinuation && request.messages.filter((message) => message.role === "user").length <= 1;
+  if (firstTurn && host.runLifecycleHook) {
+    const start = await host.runLifecycleHook("SessionStart", false);
+    if (start.action === "continue" && start.context) wire.push({ role: "user", content: start.context });
+  }
 
   while (!isFinished && loopCount < currentLimit()) {
     if (signal.aborted) {
@@ -2152,6 +2169,16 @@ async function runTurn(
 
         // Nothing follows this, so it is the reply. It moves out of the
         // timeline and into the message body.
+        // The Stop hook runs first, so a blocked reply keeps its streamed draft on screen.
+        const stop = host.runLifecycleHook ? await host.runLifecycleHook("Stop", stopContinues > 0) : null;
+        if (stop?.action === "deny" && canContinueStop(stopContinues)) {
+          stopContinues += 1;
+          const kept = { ...(nativeThinking && thinkingText.trim() ? { thinking: thinkingText } : {}), ...carried };
+          wire.push({ role: "assistant", content: rawChunk || " ", ...kept });
+          wire.push({ role: "user", content: stop.message });
+          continue;
+        }
+
         if (textStepId !== null) dropStep(textStepId);
 
         isFinished = true;
