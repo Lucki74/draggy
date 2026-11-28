@@ -206,7 +206,7 @@
             "percent": 95
           }
         ],
-        "compactAtTokens": 60000,
+        "compactAtTokens": 75000,
         "compactSource": "auto",
         "details": {
           "toolCount": null,
@@ -253,7 +253,7 @@
             "percent": 0
           }
         ],
-        "compactAtTokens": 60000,
+        "compactAtTokens": 75000,
         "compactSource": "auto",
         "details": {
           "toolCount": null,
@@ -287,8 +287,8 @@
             "percent": 100
           }
         ],
-        "compactAtTokens": 4915,
-        "compactSource": "auto",
+        "compactAtTokens": 8192,
+        "compactSource": "none",
         "details": {
           "toolCount": null,
           "skillCount": null,
@@ -334,8 +334,8 @@
             "percent": 95
           }
         ],
-        "compactAtTokens": 600,
-        "compactSource": "auto",
+        "compactAtTokens": 1000,
+        "compactSource": "none",
         "details": {
           "toolCount": null,
           "skillCount": null,
@@ -425,7 +425,7 @@
             "percent": 98.85369458128079
           }
         ],
-        "compactAtTokens": 121800,
+        "compactAtTokens": 153000,
         "compactSource": "auto",
         "details": {
           "toolCount": null,
@@ -470,8 +470,8 @@
             "percent": 100
           }
         ],
-        "compactAtTokens": 4915,
-        "compactSource": "auto",
+        "compactAtTokens": 8192,
+        "compactSource": "none",
         "details": {
           "toolCount": 4,
           "skillCount": 2,
@@ -528,7 +528,7 @@
         "limit": null
       },
       "expected": {
-        "tokens": 76800,
+        "tokens": 96000,
         "source": "auto"
       }
     },
@@ -566,7 +566,7 @@
         "paid": true
       },
       "expected": {
-        "tokens": 19200,
+        "tokens": 24000,
         "source": "auto"
       }
     },
@@ -591,7 +591,7 @@
         "limit": null
       },
       "expected": {
-        "tokens": 240000,
+        "tokens": 350000,
         "source": "auto"
       }
     },
@@ -615,7 +615,91 @@
         "limit": 0
       },
       "expected": {
-        "tokens": 76800,
+        "tokens": 96000,
+        "source": "auto"
+      }
+    },
+    {
+      "name": "a 8k window never folds automatically",
+      "input": {
+        "op": "compactThreshold",
+        "window": 8192,
+        "limit": null
+      },
+      "expected": {
+        "tokens": 8192,
+        "source": "none"
+      }
+    },
+    {
+      "name": "a 16k window keeps a quarter free, at most 50k",
+      "input": {
+        "op": "compactThreshold",
+        "window": 16384,
+        "limit": null
+      },
+      "expected": {
+        "tokens": 12288,
+        "source": "auto"
+      }
+    },
+    {
+      "name": "a 32k window keeps a quarter free, at most 50k",
+      "input": {
+        "op": "compactThreshold",
+        "window": 32768,
+        "limit": null
+      },
+      "expected": {
+        "tokens": 24576,
+        "source": "auto"
+      }
+    },
+    {
+      "name": "a 64k window keeps a quarter free, at most 50k",
+      "input": {
+        "op": "compactThreshold",
+        "window": 65536,
+        "limit": null
+      },
+      "expected": {
+        "tokens": 49152,
+        "source": "auto"
+      }
+    },
+    {
+      "name": "a 128k window keeps a quarter free, at most 50k",
+      "input": {
+        "op": "compactThreshold",
+        "window": 131072,
+        "limit": null
+      },
+      "expected": {
+        "tokens": 98304,
+        "source": "auto"
+      }
+    },
+    {
+      "name": "a 256k window keeps a quarter free, at most 50k",
+      "input": {
+        "op": "compactThreshold",
+        "window": 262144,
+        "limit": null
+      },
+      "expected": {
+        "tokens": 212144,
+        "source": "auto"
+      }
+    },
+    {
+      "name": "a 1M window keeps a quarter free, at most 50k",
+      "input": {
+        "op": "compactThreshold",
+        "window": 1000000,
+        "limit": null
+      },
+      "expected": {
+        "tokens": 950000,
         "source": "auto"
       }
     },

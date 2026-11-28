@@ -5,11 +5,11 @@
 use std::collections::BTreeMap;
 
 use draggy_agent::compaction::{
-    CHARS_PER_TOKEN, COMPACT_AT, CompactionPlan, CompactionState, KEEP_RECENT_MESSAGES,
-    MIN_FOLD_MESSAGES, PlanOptions, SUMMARY_CHAR_BUDGET, append_summary, build_summary_messages,
-    compaction_survives, conversation_chars, folded_tokens, message_chars, plan_compaction,
-    plan_manual_compaction, render_compaction_block, render_transcript, summary_from_response,
-    summary_request_body, trim_summary,
+    CHARS_PER_TOKEN, COMPACT_RESERVE_MAX, COMPACT_RESERVE_SHARE, CompactionPlan, CompactionState,
+    KEEP_RECENT_MESSAGES, MIN_FOLD_MESSAGES, NO_COMPACT_WINDOW, PlanOptions, SUMMARY_CHAR_BUDGET,
+    append_summary, build_summary_messages, compaction_survives, conversation_chars, folded_tokens,
+    message_chars, plan_compaction, plan_manual_compaction, render_compaction_block,
+    render_transcript, summary_from_response, summary_request_body, trim_summary,
 };
 use draggy_agent::context_breakdown::{
     ContextBreakdown, ContextDetails, ContextWindowInput, LoadedSkillName, MIN_COMPACT_LIMIT,
@@ -116,7 +116,9 @@ fn compaction(input: &Value) -> Value {
     match input["op"].as_str().unwrap_or_default() {
         "constants" => json!({
             "CHARS_PER_TOKEN": CHARS_PER_TOKEN,
-            "COMPACT_AT": COMPACT_AT,
+            "COMPACT_RESERVE_SHARE": COMPACT_RESERVE_SHARE,
+            "COMPACT_RESERVE_MAX": COMPACT_RESERVE_MAX,
+            "NO_COMPACT_WINDOW": NO_COMPACT_WINDOW,
             "KEEP_RECENT_MESSAGES": KEEP_RECENT_MESSAGES,
             "MIN_FOLD_MESSAGES": MIN_FOLD_MESSAGES,
             "SUMMARY_CHAR_BUDGET": SUMMARY_CHAR_BUDGET,

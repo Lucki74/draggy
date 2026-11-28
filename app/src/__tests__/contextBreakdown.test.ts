@@ -147,7 +147,21 @@ describe("the window as the user sees it", () => {
 
 describe("where the conversation gets folded", () => {
   it("is a share of how far the window can grow when left to Draggy", () => {
-    expect(compactThreshold(128_000, null)).toEqual({ tokens: 76_800, source: "auto" });
+    expect(compactThreshold(128_000, null)).toEqual({ tokens: 96_000, source: "auto" });
+  });
+
+  it("leaves a quarter of the window free, never more than 50k, and never folds 8k or less", () => {
+    const freeAtFold = (window: number) => {
+      const { tokens, source } = compactThreshold(window, null);
+      return source === "none" ? null : window - tokens;
+    };
+    expect(freeAtFold(8_192)).toBeNull();
+    expect(freeAtFold(16_384)).toBe(4_096);
+    expect(freeAtFold(32_768)).toBe(8_192);
+    expect(freeAtFold(65_536)).toBe(16_384);
+    expect(freeAtFold(131_072)).toBe(32_768);
+    expect(freeAtFold(262_144)).toBe(50_000);
+    expect(freeAtFold(1_000_000)).toBe(50_000);
   });
 
   it("is the user's limit when they set one", () => {
@@ -156,9 +170,9 @@ describe("where the conversation gets folded", () => {
 
   it("is capped for a paid provider, whose every token sent is billed, unless the user set a limit", () => {
     expect(compactThreshold(400_000, null, true)).toEqual({ tokens: PAID_COMPACT_CAP, source: "paid" });
-    expect(compactThreshold(32_000, null, true)).toEqual({ tokens: 19_200, source: "auto" });
+    expect(compactThreshold(32_000, null, true)).toEqual({ tokens: 24_000, source: "auto" });
     expect(compactThreshold(400_000, 200_000, true)).toEqual({ tokens: 200_000, source: "limit" });
-    expect(compactThreshold(400_000, null)).toEqual({ tokens: 240_000, source: "auto" });
+    expect(compactThreshold(400_000, null)).toEqual({ tokens: 350_000, source: "auto" });
   });
 
   it("caps a limit that would leave no room for the reply", () => {
@@ -187,7 +201,7 @@ describe("where the conversation gets folded", () => {
       limitTokens: null,
     });
 
-    expect(view.compactAtTokens).toBe(121_800);
+    expect(view.compactAtTokens).toBe(153_000);
   });
 });
 

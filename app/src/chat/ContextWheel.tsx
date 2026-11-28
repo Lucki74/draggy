@@ -247,12 +247,13 @@ export default function ContextWheel({ view, t, onCompact, compacting, onOpenUsa
 
             <div className="flex items-center gap-2">
               <p className="flex-1 text-[12px] leading-snug text-text-secondary">
-                {(view.compactSource === "limit"
-                  ? t("compactsAtLimit")
-                  : view.compactSource === "paid"
-                  ? t("compactsAtPaidCap")
-                  : t("compactsAutomatically")
-                ).replace("{count}", formatTokenCount(view.compactAtTokens))}
+                {view.compactSource !== "none" &&
+                  (view.compactSource === "limit"
+                    ? t("compactsAtLimit")
+                    : view.compactSource === "paid"
+                    ? t("compactsAtPaidCap")
+                    : t("compactsAutomatically")
+                  ).replace("{count}", formatTokenCount(view.compactAtTokens))}
               </p>
 
               {onCompact && (

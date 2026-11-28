@@ -66,7 +66,8 @@ vi.mock("../llama", async (importOriginal) => {
 });
 
 const { createTaskManager } = await import("../agent/taskManager");
-const { CHARS_PER_TOKEN, COMPACT_AT, conversationChars } = await import("../agent/compaction");
+const { CHARS_PER_TOKEN, conversationChars } = await import("../agent/compaction");
+const { compactThreshold } = await import("../agent/contextBreakdown");
 const { contextSizeFor, forgetContextSize } = await import("../llama");
 import type { TaskHost } from "../agent/taskManager";
 
@@ -88,7 +89,7 @@ const say = (role: Message["role"], chars: number, index: number): Message => ({
 });
 
 /** A long conversation: well past any automatic limit on a small window. */
-const longChat = (pairs = 6, chars = 30_000): Message[] =>
+const longChat = (pairs = 7, chars = 30_000): Message[] =>
   Array.from({ length: pairs * 2 }, (_, index) =>
     say(index % 2 === 0 ? "user" : "assistant", chars, index),
   );
@@ -318,7 +319,7 @@ describe("a conversation that keeps growing", () => {
 
     expect(foldedAtTokens).not.toBeNull();
     expect(loaded).toBeGreaterThan(16_384);
-    expect(foldedAtTokens!).toBeGreaterThan(MAX_CONTEXT * COMPACT_AT * 0.95);
+    expect(foldedAtTokens!).toBeGreaterThan(compactThreshold(MAX_CONTEXT, null).tokens * 0.95);
     expect(foldedAtTokens!).toBeLessThan(MAX_CONTEXT);
   }, 30_000);
 });

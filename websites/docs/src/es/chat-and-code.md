@@ -49,6 +49,6 @@ El menú de sesión en la barra lateral te permite exportar una conversación a 
 
 ## Cuando una conversación se alarga {#long-conversations}
 
-Cuando una respuesta alcanza el límite de contexto y el modelo tiene espacio, Draggy amplía automáticamente la ventana al siguiente tramo y sigue generando. Al 60 % de lo que el modelo puede retener, Draggy resume la parte antigua de la conversación, y la conversación sigue. En los modelos de pago en la nube, ese punto se limita a 64 000 tokens, salvo que pongas un límite.
+Cuando una respuesta alcanza el límite de contexto y el modelo tiene espacio, Draggy amplía automáticamente la ventana al siguiente tramo y sigue generando. Cuando solo queda libre una cuarta parte de lo que el modelo puede retener, o 50 000 tokens en una ventana grande, Draggy resume la parte antigua de la conversación, y la conversación sigue. Una ventana de 8k o menos nunca se resume sola. En los modelos de pago en la nube, ese punto se limita a 64 000 tokens, salvo que pongas un límite.
 
 `/compact` lo hace ahora. `/compact-limit 20k` mueve el punto, y `auto` lo devuelve a su sitio.

@@ -3,7 +3,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::compaction::{CHARS_PER_TOKEN, COMPACT_AT};
+use crate::compaction::{
+    CHARS_PER_TOKEN, COMPACT_RESERVE_MAX, COMPACT_RESERVE_SHARE, NO_COMPACT_WINDOW,
+};
 use crate::js::{CaseFold, Flags, JsRegex, cached, is_js_space};
 
 /// Every token sent is billed on every turn, so a paid provider's huge window is folded long before it fills.
@@ -116,13 +118,14 @@ pub struct ContextRow {
     pub percent: f64,
 }
 
-/// Where automatic folding happens and whether the user or Draggy chose it.
+/// Who chose the fold point: the user, Draggy, a paid provider's cap, or nobody because the window is too small.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CompactSource {
     Auto,
     Limit,
     Paid,
+    None,
 }
 
 /// The window as the popover shows it.
@@ -260,7 +263,16 @@ pub fn compact_threshold(
         };
     }
 
-    let auto = (window_tokens as f64 * COMPACT_AT).floor() as i64;
+    if window_tokens <= NO_COMPACT_WINDOW {
+        return CompactThreshold {
+            tokens: window_tokens,
+            source: CompactSource::None,
+        };
+    }
+
+    let reserve =
+        COMPACT_RESERVE_MAX.min((window_tokens as f64 * COMPACT_RESERVE_SHARE).floor() as i64);
+    let auto = window_tokens - reserve;
     if paid && auto > PAID_COMPACT_CAP {
         CompactThreshold {
             tokens: PAID_COMPACT_CAP,

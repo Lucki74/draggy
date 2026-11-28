@@ -1,4 +1,4 @@
-import { CHARS_PER_TOKEN, COMPACT_AT } from "./compaction";
+import { CHARS_PER_TOKEN, COMPACT_RESERVE_MAX, COMPACT_RESERVE_SHARE, NO_COMPACT_WINDOW } from "./compaction";
 
 /** What the context window is spent on. The model reports one number; the parts are measured from
  * what Draggy sent and scaled to add up to it. */
@@ -121,8 +121,7 @@ export interface ContextWindowView {
   rows: ContextRow[];
   /** Where the conversation gets folded into notes, in tokens. */
   compactAtTokens: number;
-  /** Whether that point was chosen by the user, worked out by Draggy, or a paid provider's default cap. */
-  compactSource: "auto" | "limit" | "paid";
+  compactSource: CompactSource;
   details: ContextDetails;
 }
 
@@ -143,18 +142,23 @@ export interface ContextWindowInput {
   paid?: boolean;
 }
 
+/** Who chose the fold point: the user, Draggy, a paid provider's cap, or nobody because the window is too small. */
+export type CompactSource = "auto" | "limit" | "paid" | "none";
+
 /** Where automatic folding happens, in tokens. Measured against how far the window can grow, not the
  * smaller window loaded now: that one only grows past a size the fold would already have cut back. */
 export function compactThreshold(
   windowTokens: number,
   limitTokens: number | null,
   paid = false,
-): { tokens: number; source: "auto" | "limit" | "paid" } {
+): { tokens: number; source: CompactSource } {
   if (limitTokens !== null && limitTokens > 0) {
     return { tokens: Math.min(limitTokens, maxLimitFor(windowTokens)), source: "limit" };
   }
 
-  const auto = Math.floor(windowTokens * COMPACT_AT);
+  if (windowTokens <= NO_COMPACT_WINDOW) return { tokens: windowTokens, source: "none" };
+
+  const auto = windowTokens - Math.min(COMPACT_RESERVE_MAX, Math.floor(windowTokens * COMPACT_RESERVE_SHARE));
   return paid && auto > PAID_COMPACT_CAP ? { tokens: PAID_COMPACT_CAP, source: "paid" } : { tokens: auto, source: "auto" };
 }
 
