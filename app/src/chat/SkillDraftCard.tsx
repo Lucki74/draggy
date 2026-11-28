@@ -4,6 +4,7 @@ import { Button } from "../ui/Button";
 import { SkillEditor } from "../extensions/SkillEditor";
 import { SKILL_DRAFT_DONE_EVENT, requestSkillDraft, type SkillDraft } from "../agent/skillDraft";
 import type { Message } from "../types";
+import { logRendererError, logRendererEvent } from "../logger";
 
 type Phase = "offer" | "drafting" | "failed" | "editing" | "saved";
 
@@ -35,10 +36,14 @@ export function SkillDraftCard({ msg, t }: { msg: Message; t: (key: string) => s
         setDraft(result);
         setPhase("editing");
       } else {
+        logRendererEvent("chat", "WARN", "skill draft came back empty");
         setPhase("failed");
       }
-    } catch {
-      if (!controller.signal.aborted) setPhase("failed");
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        logRendererError("chat", "skill draft failed", error);
+        setPhase("failed");
+      }
     }
   };
 

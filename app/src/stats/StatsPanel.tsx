@@ -8,7 +8,7 @@ import { formatTokenCount } from "../agent/contextBreakdown";
 import { formatDuration, sinceFor, summarize } from "./summary";
 import type { StatsRange } from "./summary";
 import CostSection from "./CostSection";
-import { swallowed } from "../logger";
+import { logSwallow, swallowed } from "../logger";
 import { summarizeCost } from "./costSummary";
 import { legacyPricer, localPricer } from "./pricing";
 import { installedBaseModels } from "./baseModelIndex";
@@ -69,7 +69,8 @@ export default function StatsPanel({ t, chatId }: StatsPanelProps) {
       .then((result) => {
         if (current) setLoaded({ key, rows: result?.rows ?? [], since, at });
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        logSwallow("stats", error, "usage rows failed to load: shows empty");
         if (current) setLoaded({ key, rows: [], since, at });
       });
 
@@ -91,7 +92,7 @@ export default function StatsPanel({ t, chatId }: StatsPanelProps) {
     const load = () =>
       Promise.all([
         window.draggy?.pricing?.table().catch(swallowed("stats", "old rows show without an estimate", null)),
-        window.draggy?.providers?.list?.().catch(() => []),
+        window.draggy?.providers?.list?.().catch(swallowed("stats", "provider names show without pricing", [])),
         installedBaseModels.refresh(),
       ]).then(([answer, instances]) => {
         if (current) setPrices({ table: answer?.success ? (answer.table ?? null) : null, instances: instances ?? [] });

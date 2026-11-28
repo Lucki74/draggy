@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BootError, downloadModel, type BootBridge } from "../boot/bootSequence";
 import { createSpeedMeter } from "../downloadSpeed";
 import { pullImageModel } from "../images/pullImageModel";
+import { logRendererError } from "../logger";
 
 /** The engine and the first model, downloading while the user carries on through the setup. Held
  * at the setup's root so a step change never interrupts it, and it never starts on its own. */
@@ -145,6 +146,7 @@ export function useFirstDownload(api: BootBridge | undefined = window.draggy): F
             : { phase: "error", percent: 0, error: "missingGgufEngine" },
         );
       } catch (error) {
+        logRendererError("onboarding", "first download failed", error);
         setEngine({ phase: "error", percent: 0, error: error instanceof Error ? error.message : "missingGgufEngine" });
       } finally {
         stopWatching?.();

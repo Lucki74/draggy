@@ -3,7 +3,7 @@ import { listInstalledModels, warmModel } from "../llama";
 import { answerApiRequest, pickModel } from "./answer";
 import { budgetStop } from "../stats/budgetGuard";
 import type { AppSettings } from "../types";
-import { swallowed } from "../logger";
+import { logRendererError, swallowed } from "../logger";
 
 interface BridgeInput {
   model: string | null;
@@ -52,6 +52,7 @@ export function useApiBridge(input: BridgeInput): void {
 
           bridge.done(id, result);
         } catch (error) {
+          logRendererError("api", "request failed", error, { requestId: id });
           bridge.failed(id, error instanceof Error ? error.message : String(error));
         } finally {
           running.delete(id);
@@ -74,6 +75,7 @@ export function useApiBridge(input: BridgeInput): void {
           await warmModel(chosen, "", 0, settings.fixedContextSize ?? null);
           bridge.prepared(id, chosen);
         } catch (error) {
+          logRendererError("api", "request preparation failed", error, { requestId: id });
           bridge.prepared(id, "", error instanceof Error ? error.message : String(error));
         }
       })();

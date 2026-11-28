@@ -4,6 +4,7 @@ import { selectableModels } from "../modelKinds";
 import { describeInstalled, pullModel } from "../llama";
 import { isRemote } from "../ai/providers";
 import { describeFit, describeMemoryLoad, type ModelFit } from "../vram";
+import { logSwallow } from "../logger";
 
 /** The start of a new install, shared by the splash, the setup's Skip and its Ready screen. Each
  * step takes the bridge, so it runs the same wherever it is called from. */
@@ -78,7 +79,10 @@ export async function ensureEngine(
 export async function adoptInstalled(api: BootBridge, preferred: string): Promise<string | null> {
   const listing = await Promise.resolve()
     .then(() => api.gguf?.listModels())
-    .catch(() => []);
+    .catch((error: unknown) => {
+      logSwallow("boot", error, "model list unreadable: no model adopted");
+      return [];
+    });
   const installed = describeInstalled(listing);
   const chat = selectableModels(installed);
   if (preferred && chat.some((entry) => entry.name === preferred)) return preferred;

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "../ui/Button";
 import { slugify, SKILL_NAME_MAX, type SkillDraft } from "../agent/skillDraft";
+import { logRendererError } from "../logger";
 
 interface SkillEditorProps {
   initial: SkillDraft;
@@ -35,7 +36,8 @@ export function SkillEditor({ initial, existing = false, t, onSaved, onCancel, c
       const result = await api.save({ name: slug, description, body, overwrite: existing });
       if (result?.success) onSaved(result.id ?? slug);
       else setError(result?.error || t("skillSaveFailed"));
-    } catch {
+    } catch (failure) {
+      logRendererError("extensions", "skill save failed", failure, { overwrite: existing });
       setError(t("skillSaveFailed"));
     } finally {
       setBusy(false);

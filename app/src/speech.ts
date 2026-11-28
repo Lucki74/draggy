@@ -1,4 +1,5 @@
 import { draggyUrl } from "./appUrl";
+import { logSwallow } from "./logger";
 export const SPEECH_MODEL = "onnx-community/whisper-base";
 
 /** Moonshine was trained for live speech rather than 30-second broadcast clips: it encodes only the
@@ -190,7 +191,8 @@ export async function startRecording(): Promise<Recorder> {
     analyser = context.createAnalyser();
     analyser.fftSize = 256;
     context.createMediaStreamSource(stream).connect(analyser);
-  } catch {
+  } catch (error) {
+    logSwallow("speech", error, "level meter unavailable, recording continues");
     analyser = null;
   }
 

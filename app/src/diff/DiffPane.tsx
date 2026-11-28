@@ -7,7 +7,7 @@ import { UnifiedDiffView } from "./UnifiedDiffView";
 import { SplitDiffView } from "./SplitDiffView";
 import { GitGraph } from "./GitGraph";
 import type { GitBranch, GitCommit, GitDiff, GitStatus } from "../types";
-import { logSwallow } from "../logger";
+import { logRendererError, logRendererEvent, logSwallow } from "../logger";
 
 export interface DiffPaneProps {
   workspaceId: string;
@@ -211,12 +211,14 @@ export function DiffPane({ workspaceId, rootPath, initialFile, gitStatus: initia
     try {
       const res = await window.draggy?.git.checkout(workspaceId, name);
       if (!res?.success) {
+        logRendererEvent("diff", "WARN", "branch switch refused");
         setError(res?.error || t("gitSwitchFailed"));
         return;
       }
       showCommit(null);
       refresh();
     } catch (err) {
+      logRendererError("diff", "branch switch failed", err);
       setError(err instanceof Error ? err.message : String(err));
     }
   };

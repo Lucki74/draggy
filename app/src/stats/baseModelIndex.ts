@@ -3,6 +3,7 @@
 
 import type { BaseModelSources } from "./baseModel";
 import { forgetPriced } from "./baseModel";
+import { logSwallow } from "../logger";
 
 /** File name (as the models list gives it) to the first base model repo id the header names. */
 let baseByFile = new Map<string, string>();
@@ -17,7 +18,8 @@ async function refresh(): Promise<void> {
   let models;
   try {
     models = await window.draggy?.gguf?.listModels();
-  } catch {
+  } catch (error) {
+    logSwallow("stats", error, "model list read failed: keeps the last answer");
     return;
   }
   if (!Array.isArray(models)) return;

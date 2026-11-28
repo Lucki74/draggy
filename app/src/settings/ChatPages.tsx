@@ -15,7 +15,7 @@ import { DEFAULT_WORKSPACE_ID } from "../workspaces";
 import { modelKey, modelOptions, resolveChoice, splitModelKey, voiceOptions, type CloudProvider } from "./cloudChoice";
 import type { ModelManager } from "./useModelManager";
 import type { AppSettings } from "../types";
-import { swallowed } from "../logger";
+import { logSwallow, swallowed } from "../logger";
 
 type Translate = (key: string) => string;
 
@@ -154,7 +154,10 @@ function useCloudProviders(active: boolean): CloudState {
     window.draggy?.tts
       ?.providers()
       .then((answer) => live && setState(answer))
-      .catch(() => live && setState({ providers: [], consent: {} }));
+      .catch((error: unknown) => {
+        logSwallow("settings", error, "voice providers failed to load: shows none");
+        return live && setState({ providers: [], consent: {} });
+      });
     return () => {
       live = false;
     };

@@ -3,6 +3,7 @@ import BrowserBar from "../BrowserBar";
 import { EMPTY_BROWSER_STATE, type BrowserState } from "./browserState";
 import { Icon } from "../ui/icons/Icon";
 import { overlapsOverlay, subscribeOverlays } from "../ui/overlays";
+import { logRendererEvent } from "../logger";
 
 /** The Browser pane. The page is a native view main lays over the body of this pane; this component
  * only reports where the body is and whether the page should show. A native view draws above all
@@ -13,6 +14,10 @@ export default function BrowserPane({ t }: { t: (key: string) => string }) {
   const hasPage = page.loading || (Boolean(page.url) && page.url !== "about:blank");
   // A failed load has no page to show, so the native view steps aside for the error panel.
   const showPage = hasPage && !page.error;
+
+  useEffect(() => {
+    if (page.error) logRendererEvent("browser", "WARN", "page load failed", { error: page.error, offline: navigator.onLine === false });
+  }, [page.error]);
 
   useEffect(() => {
     const api = window.draggy?.browserPane;

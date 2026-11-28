@@ -123,7 +123,10 @@ export function setCommandTrustPrompt(prompt: (workspaceId: string) => Promise<b
 async function trustedFolder(workspaceId: string, label: string): Promise<boolean> {
   const remembered = rememberedTrust(workspaceId);
   if (remembered !== null) return remembered;
-  const answer = await askTrust(label).catch(() => false);
+  const answer = await askTrust(label).catch((error) => {
+    logSwallow("commands", error, "trust prompt failed, folder not trusted");
+    return false;
+  });
   rememberTrust(workspaceId, answer);
   return answer;
 }

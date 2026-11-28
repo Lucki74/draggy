@@ -1,3 +1,5 @@
+import { logSwallow } from "./logger";
+
 const SAMPLE_RATE = 16000;
 
 /** The slice of transformers.js this file uses, so a test can stand in for the library. */
@@ -51,7 +53,8 @@ async function loadTokenizer(model: string, lib: SpeechLibrary): Promise<unknown
 async function loadProcessor(model: string, lib: SpeechLibrary): Promise<unknown> {
   try {
     return await lib.AutoProcessor.from_pretrained(model);
-  } catch {
+  } catch (error) {
+    logSwallow("speech", error, "processor config missing, the feature extractor is built by hand");
     if (model.includes("whisper")) {
       const extractor = new lib.WhisperFeatureExtractor({
         feature_size: 80,

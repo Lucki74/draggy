@@ -1,3 +1,4 @@
+import { logSwallow } from "../logger";
 import { registerTools } from "./registry";
 import type { ToolContext, ToolSpec } from "./registry";
 import { startVideoIndex, waitForVideoIndex } from "../chat/videoStatus";
@@ -68,8 +69,9 @@ export async function loadSegmentCounts(videos: TrackedVideo[]): Promise<void> {
           if (!status.success || status.state.status !== "ready") return;
           const stored = await api.getIndex(video.hash);
           if (stored.success && stored.index) segmentCounts.set(video.hash, stored.index.segments.length);
-        } catch {
+        } catch (error) {
           // Without a count the line says the index is still building, which stays true enough.
+          logSwallow("tools", error, "video index unreadable, count omitted");
           return;
         }
         video.segments = segmentCounts.get(video.hash) ?? null;

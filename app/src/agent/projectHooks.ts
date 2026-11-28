@@ -1,5 +1,6 @@
 /** Project hooks from `.draggy/hooks.json`. They run only when the user trusted that file's exact text. */
 
+import { logSwallow } from "../logger";
 import { hookFileDigest, isProjectHooksTrusted, parseHooksConfig, type HookEntry } from "./hooks";
 
 export const PROJECT_HOOKS_PATH = ".draggy/hooks.json";
@@ -24,7 +25,8 @@ export async function loadProjectHooks(workspaceId: string, trustedDigest: strin
     const result = await api.read(workspaceId, PROJECT_HOOKS_PATH);
     if (!result.success || typeof result.text !== "string") return NONE;
     text = result.text;
-  } catch {
+  } catch (error) {
+    logSwallow("agent", error, "project hooks file unreadable");
     return NONE;
   }
   const digest = await hookFileDigest(text);

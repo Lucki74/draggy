@@ -3,7 +3,7 @@ import { deleteModel, describeLoadedModels, listInstalledModels, pullModel, unlo
 import type { InstalledModel, PullPhase } from "../llama";
 import { pullImageModel } from "../images/pullImageModel";
 import { createSpeedMeter } from "../downloadSpeed";
-import { swallowed } from "../logger";
+import { logSwallow, swallowed } from "../logger";
 
 /** Downloads that run at once. More than this wait their turn: several multi-gigabyte files sharing
  * one connection each crawl, and none of them is usable until it is whole. */
@@ -86,7 +86,8 @@ export function useModelManager(page?: string): ModelManager {
       .then((models) => {
         if (!cancelled) setInstalled(models);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        logSwallow("settings", error, "installed models list failed: shows empty");
         if (!cancelled) setInstalled([]);
       });
     return () => {
@@ -100,7 +101,8 @@ export function useModelManager(page?: string): ModelManager {
       .then((models) => {
         if (!cancelled) setLoaded(models.map((m) => m.name));
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        logSwallow("settings", error, "loaded models read failed: shows none");
         if (!cancelled) setLoaded([]);
       });
     return () => {

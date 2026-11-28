@@ -1,4 +1,5 @@
 import { providerOf } from "./ai/providers";
+import { logSwallow } from "./logger";
 import type { AppSettings } from "./types";
 
 /** Tool rounds one turn may take on a slow model; each round is a full pass at under 3 tokens per second. */
@@ -19,7 +20,8 @@ export async function colibriEngine(model: string): Promise<{ colibri: boolean; 
     const [instances, status] = await Promise.all([api.providers.list(), api.colibri.status()]);
     if (!instances.some((instance) => instance.id === instanceId && instance.type === "colibri")) return none;
     return { colibri: true, slow: Boolean(status.engine.slow) };
-  } catch {
+  } catch (error) {
+    logSwallow("ai", error, "colibri status unreadable, not treated as slow");
     return none;
   }
 }

@@ -1,6 +1,7 @@
 import { registerTools } from "./registry";
 import type { ToolSpec } from "./registry";
 import { parsePlan, planSummary, renderPlan } from "../plan/plan";
+import { logSwallow } from "../logger";
 import type { QuestionAnswer, QuestionItem, UserQuestion } from "../types";
 
 /** The plan tool: the whole checklist in one string every call, the only shape small local models
@@ -92,7 +93,8 @@ function readMore(raw: unknown): QuestionItem[] {
         return text ? [readItem(text, item.options, item.multiple === true)] : [];
       })
       .slice(0, MAX_FOLLOW_UPS);
-  } catch {
+  } catch (error) {
+    logSwallow("tools", error, "follow-up questions unreadable, none offered");
     return [];
   }
 }

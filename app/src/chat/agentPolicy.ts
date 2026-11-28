@@ -1,6 +1,7 @@
 import type { PermissionMode } from "../types";
 import type { CustomCommand } from "./customCommands";
 import { usableCommands } from "./slashCommands";
+import { swallowed } from "../logger";
 
 /** Least to most permissive. An agent may only pick a mode at or below the chat's own. */
 const MODE_RANK: Record<PermissionMode, number> = { plan: 0, ask: 1, acceptEdits: 2, auto: 3, turbo: 4 };
@@ -106,7 +107,7 @@ export async function agentTurnFor(
     : undefined;
   if (!agent) return null;
 
-  const usable = agent.model ? await canUseModel(agent.model).catch(() => false) : false;
+  const usable = agent.model ? await canUseModel(agent.model).catch(swallowed("chat", "model check failed, agent treated as unusable", false)) : false;
   const policy = resolveAgentPolicy(agent, {
     mode,
     tools: enabledTools,

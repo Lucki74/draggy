@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { detectChecks, type CheckCommand, type ManifestFiles } from "../agent/lintLoop";
 import type { Workspace } from "../types";
+import { logRendererError, logSwallow } from "../logger";
 
 const MANIFESTS = ["package.json", "Cargo.toml", "pyproject.toml"];
 
@@ -14,7 +15,8 @@ export async function detectProjectChecks(workspaceId: string): Promise<CheckCom
     try {
       const result = await window.draggy?.files?.read(workspaceId, name);
       if (result?.success && typeof result.text === "string") files[name] = result.text;
-    } catch {
+    } catch (error) {
+      logSwallow("app", error, "manifest read failed: counted toward the all-failed check");
       failed += 1;
     }
   }
@@ -42,7 +44,8 @@ export function useProjectChecks(project: Workspace | null | undefined) {
       .then((found) => {
         if (live) setSettled({ key, status: "ready", checks: found });
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        logRendererError("app", "project checks failed to load", error, { workspace: id });
         if (live) setSettled({ key, status: "error", checks: [] });
       });
     return () => {

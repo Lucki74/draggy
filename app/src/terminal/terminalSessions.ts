@@ -1,4 +1,4 @@
-import { logSwallow } from "../logger";
+import { logBreadcrumb, logRendererEvent, logSwallow } from "../logger";
 import { createTerminalView, type TerminalView } from "./xtermView";
 import { promptText } from "./terminalBus";
 import type { ShellId } from "./shells";
@@ -95,6 +95,7 @@ function listen(): void {
       if (!session) return;
       session.exited = true;
       session.exitCode = exitCode;
+      logRendererEvent("terminal", "INFO", "session exited", { id, exitCode });
       session.view?.write(`\r\n[exit ${exitCode}]\r\n`);
       notify();
     }),
@@ -111,12 +112,15 @@ export async function openSession(workspaceId: string, shell: ShellId | undefine
   const bridge = api();
   if (!bridge) return { success: false, unavailable: true };
 
+  logBreadcrumb("terminal:open", { shell: shell ?? defaultShell ?? "default" });
   const result = await bridge.open(workspaceId, { shell, defaultShell });
   if (!result.success || !result.id) {
+    logRendererEvent("terminal", "WARN", "spawn failed", { unavailable: result.unavailable, error: result.error });
     return { success: false, unavailable: result.unavailable, error: result.error };
   }
 
   const id = result.id;
+  logRendererEvent("terminal", "INFO", "session spawned", { id, shell: result.shell ?? shell ?? "shell" });
   const host = document.createElement("div");
   host.className = "h-full w-full";
   const session: TerminalSession = { id, workspaceId, shell: result.shell ?? shell ?? "shell", exited: false, host, view: null, queue: [] };

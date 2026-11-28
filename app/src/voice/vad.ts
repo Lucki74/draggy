@@ -1,5 +1,6 @@
 import { draggyUrl } from "../appUrl";
 import { VAD_FRAME } from "./constants";
+import { logRendererEvent } from "../logger";
 
 /** Speech detection, neural where possible and energy-based otherwise: a conversation that will not
  * start is worse than one that mishears a fan. */
@@ -130,8 +131,9 @@ export async function createDetector(onScore: ScoreHandler): Promise<Detector> {
     });
 
     return createNeuralDetector(worker, onScore);
-  } catch {
+  } catch (error) {
     worker?.terminate();
+    logRendererEvent("renderer.voice", "WARN", "neural speech detector unavailable, using energy detector", { error });
     return createEnergyDetector(onScore);
   }
 }

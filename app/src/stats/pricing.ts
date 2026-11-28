@@ -115,7 +115,7 @@ export function createTurnPricer(sources: PricerSources) {
     async price(model: string, metrics: Parameters<typeof costFields>[1]): Promise<CostFields> {
       const ref = parseRef(model);
       table ??= sources.table().catch(swallowed("chat", "the turn is kept without a price", null));
-      instances ??= sources.instances().catch(() => []);
+      instances ??= sources.instances().catch(swallowed("stats", "the turn is priced without provider instances", []));
       const [loadedTable, list] = await Promise.all([table, instances]);
       const instance = ref.kind === "remote" ? list.find((item) => item.id === ref.instanceId) : undefined;
       return costFields(model, metrics, instance, loadedTable);

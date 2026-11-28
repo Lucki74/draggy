@@ -35,6 +35,8 @@ function createTauriIpc(): IpcLike {
         ? invokeStaged(channel, chunks)
         : invoke("ipc_invoke", { channel, args });
       return call.catch((reason) => {
+        // The log's own channels failing must not log through themselves.
+        if (!channel.startsWith("logs:")) logRendererEvent("ipc", "WARN", "invoke failed", { channel, error: asError(reason).message });
         throw asError(reason);
       });
     },

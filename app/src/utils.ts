@@ -1,4 +1,4 @@
-import { logRendererEvent } from "./logger";
+import { logRendererEvent, logSwallow } from "./logger";
 
 /** Puts text on the clipboard and says whether it got there, so a copy button only claims what
  * actually happened. */
@@ -101,7 +101,8 @@ export function writeLocalStorage(key: string, value: string): boolean {
   try {
     localStorage.setItem(key, value);
     return true;
-  } catch {
+  } catch (error) {
+    logSwallow("app", error, "localStorage write refused");
     return false;
   }
 }

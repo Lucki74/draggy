@@ -1,5 +1,6 @@
 import { workerThreads } from "./voice/threads";
 import { createFileProgressTracker } from "./utils";
+import { logSwallow } from "./logger";
 import { atStage, completePipeline, type SpeechLibrary } from "./speechPipeline";
 
 const SAMPLE_RATE = 16000;
@@ -38,7 +39,8 @@ async function detectDevice(): Promise<"webgpu" | "wasm"> {
     if (!navigator.gpu) return "wasm";
     const adapter = await navigator.gpu.requestAdapter();
     return adapter ? "webgpu" : "wasm";
-  } catch {
+  } catch (error) {
+    logSwallow("speech", error, "webgpu probe failed, using wasm");
     return "wasm";
   }
 }

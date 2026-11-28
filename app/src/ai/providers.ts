@@ -7,7 +7,7 @@ export type ModelRef =
 
 import type { Message, ProviderInstance, ProviderModel } from "../types";
 import type { PromptProfile } from "../prompts";
-import { swallowed } from "../logger";
+import { logSwallow, swallowed } from "../logger";
 import { invoke } from "@tauri-apps/api/core";
 
 /** What a provider hands back to be sent again later, tagged with the instance it belongs to. */
@@ -51,11 +51,12 @@ export async function remoteModelInfo(model: string): Promise<(ProviderModel & {
   try {
     const api = window.draggy?.providers;
     // The instance only picks the prompt; a failed lookup costs the full prompt, never the model's info.
-    const [answer, instances] = await Promise.all([api?.models(ref.instanceId), api?.list?.().catch(() => [])]);
+    const [answer, instances] = await Promise.all([api?.models(ref.instanceId), api?.list?.().catch(swallowed("ai", "the prompt is built without instance info", []))]);
     const found = answer?.success ? answer.models.find((m) => m.id === ref.modelId) : undefined;
     const instance = instances?.find((item) => item.id === ref.instanceId);
     return found ? { ...found, promptProfile: promptProfileFor(model, instance, found) } : null;
-  } catch {
+  } catch (error) {
+    logSwallow("ai", error, "prompt profile lookup failed, default profile used");
     return null;
   }
 }
@@ -91,7 +92,7 @@ export interface ModelGroup {
 export async function listAllModels(): Promise<ModelGroup[]> {
   const api = typeof window === "undefined" ? undefined : window.draggy?.providers;
   if (!api) return [];
-  const instances = (await api.list().catch(() => [])).filter((instance) => instance.enabled);
+  const instances = (await api.list().catch(swallowed("ai", "no provider instances listed", []))).filter((instance) => instance.enabled);
   return Promise.all(
     instances.map(async (instance) => {
       const answer = await api.models(instance.id).catch(swallowed("ai", "the main process already logged this call", null));

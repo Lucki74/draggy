@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { translations } from "./translations";
+import { logSwallow } from "./logger";
 import { listInstalledModels } from "./llama";
 import { selectableModels } from "./modelKinds";
 import Logo from "./Logo";
@@ -71,11 +72,17 @@ export default function TalkScreen({ settings, seed, onTurn, onLeave }: TalkScre
   useEffect(() => {
     listInstalledModels()
       .then((models) => setInstalled(selectableModels(models)))
-      .catch(() => setInstalled([]));
+      .catch((error: unknown) => {
+        logSwallow("talk", error, "installed models unreadable: none shown");
+        setInstalled([]);
+      });
     window.draggy
       ?.getSystemSpecs()
       .then((specs) => setVram(specs?.vram ?? 0))
-      .catch(() => setVram(0));
+      .catch((error: unknown) => {
+        logSwallow("talk", error, "system specs unreadable: memory treated as unknown");
+        setVram(0);
+      });
   }, []);
 
   useEffect(
