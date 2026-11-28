@@ -247,6 +247,10 @@ export function createDraggyApi(ipc: IpcLike): NonNullable<Window["draggy"]> {
       save: (skill) => ipc.invoke("skills:save", skill),
       openFolder: () => ipc.invoke("skills:open"),
     },
+    import: {
+      scan: () => ipc.invoke("import:scan"),
+      apply: (request) => ipc.invoke("import:apply", request),
+    },
 
     workspaces: {
       list: () => ipc.invoke("workspace:list"),
