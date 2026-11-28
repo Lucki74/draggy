@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MermaidBlock } from "./MermaidBlock";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-async";
 import { SYNTAX_THEME } from "./syntaxTheme";
 import { Icon } from "../ui";
@@ -101,6 +102,7 @@ function normalizePrismLanguage(raw: string): string {
 
 export function MarkdownCode({ className, children }: CodeProps) {
   const match = /language-([A-Za-z0-9_#-]+)/.exec(className || "");
+  if (match?.[1] === "mermaid") return <MermaidBlock source={String(children).replace(/\n$/, "")} />;
 
   return match ? (
     <CodeBlock

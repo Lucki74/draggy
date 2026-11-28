@@ -79,6 +79,7 @@
     "jsdom": "^31.0.1",
     "katex": "^0.19.1",
     "license-checker-rseidelsohn": "^5.0.1",
+    "mermaid": "^11.17.2",
     "onnxruntime-web": "1.31.1",
     "playwright": "^1.65.1",
     "postcss": "^8.5.33",

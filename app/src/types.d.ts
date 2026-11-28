@@ -2290,7 +2290,7 @@ declare global {
       exportChat: (request: {
         defaultName: string;
         content: string;
-        ext: "md" | "html" | "pdf";
+        ext: "md" | "html" | "pdf" | "svg" | "png";
       }) => Promise<{ saved: boolean; file?: string; bytes?: number }>;
       logEntry: (entry: LogEntry) => void;
       logBatch: (entries: LogEntry[]) => void;

@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { MermaidStreamingContext } from "./mermaidStreaming";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import { REHYPE_PLUGINS, REMARK_PLUGINS } from "./markdown";
@@ -159,13 +160,14 @@ export default function StreamingMarkdown({
   return (
     <>
       {parts.map((part, index) => (
-        <MarkdownBlock
-          key={part.start}
-          source={source.slice(part.start, part.end)}
-          caret={streaming && index === parts.length - 1}
-          fade={animate && index >= parts.length - 2}
-          components={components}
-        />
+        <MermaidStreamingContext.Provider key={part.start} value={streaming && index === parts.length - 1}>
+          <MarkdownBlock
+            source={source.slice(part.start, part.end)}
+            caret={streaming && index === parts.length - 1}
+            fade={animate && index >= parts.length - 2}
+            components={components}
+          />
+        </MermaidStreamingContext.Provider>
       ))}
     </>
   );
