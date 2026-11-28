@@ -5,12 +5,13 @@ import { CapabilityIcons } from "../providers/CapabilityIcons";
 import { formatBytes } from "../formatBytes";
 import { Icon } from "../ui/icons/Icon";
 import { fill } from "../onboarding/text";
-import { Badge, Block, ConfirmDialog, Group, Page, Row, Select } from "./Controls";
+import { Badge, Block, ConfirmDialog, Group, Page, Row, Select, Toggle } from "./Controls";
 import ModelSearch from "./ModelSearch";
 import CompactLimitField from "./CompactLimitField";
 import DownloadsMenu from "./DownloadsMenu";
 import { ImageModelRow } from "./ImageModelsSection";
 import { useImageEngine } from "../images/useImageEngine";
+import { useProviderGroups, withProviderModels } from "../providers/modelOptions";
 import { isEmbeddingModel, isImageModel, selectableModels } from "../modelKinds";
 import { CONTEXT_BUCKETS, displayModelName, formatContextCeiling, installedModelDisplayNames, quantizationOf, type InstalledModel } from "../llama";
 import { isActivePull, type ModelManager } from "./useModelManager";
@@ -59,6 +60,20 @@ const ABILITY_LABELS: Record<string, string> = {
 export default function ModelsPage({ manager, settings, chatModel, onUpdate, onSelectChatModel, t }: ModelsPageProps) {
   const codeModel = settings.codeModel || chatModel;
   const displayNames = installedModelDisplayNames(manager.installed);
+  const providerGroups = useProviderGroups();
+  const roleOptions = (saved: string) => {
+    const options = [
+      { id: "", label: t("sameAsActiveModel") },
+      ...withProviderModels(
+        selectableModels(manager.installed).map((entry) => ({ id: entry.name, label: entry.name, hint: entry.parameterSize })),
+        providerGroups,
+        t("draggyEngine"),
+      ),
+    ];
+    // A saved model that is gone or signed out stays visible, so the user can see and replace it.
+    if (!saved || options.some((option) => option.id === saved)) return options;
+    return [...options, { id: saved, label: fill(t("modelUnavailable"), { model: saved }) }];
+  };
   const imageEngine = useImageEngine();
   const imageModels = imageEngine.models.filter((entry) => entry.installed);
   const [cloudImage, setCloudImage] = useState<CloudImageProvider[]>([]);
@@ -169,6 +184,15 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onS
         </Block>
       </Group>
 
+      <Group title={t("modelRoles")}>
+        <Row label={t("planModel")} description={t("planModelHint")}>
+          <Select label={t("planModel")} value={settings.planModel} options={roleOptions(settings.planModel)} onChange={(planModel) => onUpdate({ planModel })} />
+        </Row>
+        <Row label={t("summaryModel")} description={t("summaryModelHint")}>
+          <Select label={t("summaryModel")} value={settings.summaryModel} options={roleOptions(settings.summaryModel)} onChange={(summaryModel) => onUpdate({ summaryModel })} />
+        </Row>
+      </Group>
+
       <Group title={t("library")}>
         <Row label={t("embeddingModel")} description={t("embeddingModelHint")}>
           <Select
@@ -235,6 +259,16 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onS
             t={t}
           />
         </Block>
+      </Group>
+
+      <Group title={t("constrainedToolCalls")}>
+        <Row label={t("constrainedToolCalls")} description={t("constrainedToolCallsHint")}>
+          <Toggle
+            checked={settings.constrainedToolCalls}
+            onChange={(constrainedToolCalls) => onUpdate({ constrainedToolCalls })}
+            label={t("constrainedToolCalls")}
+          />
+        </Row>
       </Group>
     </Page>
   );

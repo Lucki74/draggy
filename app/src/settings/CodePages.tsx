@@ -10,6 +10,8 @@ import { effortOptions, webOptions } from "./pages";
 import { workspaceLabel } from "../workspaces";
 import type { ModelManager } from "./useModelManager";
 import type { AppSettings, PermissionMode, PermissionRule, PermissionRuleKind, Workspace, WorkspaceGrant } from "../types";
+import LintChecksSection from "./LintChecksSection";
+import type { ProjectLintConfig } from "../agent/lintLoop";
 import { RULE_KINDS, sameRule } from "../agent/permissionRules";
 
 type Translate = (key: string) => string;
@@ -122,6 +124,7 @@ interface ProjectsPageProps {
   initialProjectId: string | null;
   onAddProject: () => Promise<Workspace | null>;
   onRename: (id: string, name: string) => void;
+  onSetLint?: (id: string, config: ProjectLintConfig) => void;
   onSetPermissionMode: (id: string, mode: PermissionMode) => void;
   onRevokeGrant: (id: string, grant: WorkspaceGrant) => void;
   onRemove: (id: string) => void;
@@ -134,6 +137,7 @@ export function ProjectsPage({
   initialProjectId,
   onAddProject,
   onRename,
+  onSetLint,
   onSetPermissionMode,
   onRevokeGrant,
   onRemove,
@@ -204,6 +208,8 @@ export function ProjectsPage({
           </Button>
         </Row>
       </Group>
+
+      {onSetLint && <LintChecksSection project={project} onSave={(config) => onSetLint(project.id, config)} t={t} />}
 
       <Group title={t("permissionMode")}>
         <Block>

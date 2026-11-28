@@ -252,12 +252,25 @@ export function forgetRemoteModelInfo() {
   for (const listener of modelInfoListeners) listener();
 }
 
+/** Models whose engine refused a tool grammar since it last started. */
+const grammarRefusals = new Set<string>();
+
+export function noteGrammarRefused(model: string) {
+  grammarRefusals.add(model);
+}
+
+export function grammarRefused(model: string): boolean {
+  return grammarRefusals.has(model);
+}
+
 /** Whether an image projector's refusal at start-up should take vision off this model. The listing
  * cannot know: only the engine can say whether it reads the projector beside a model. */
 export function noteEngineStart(
   model: string,
-  started?: { projectorRefused?: boolean; contextSize?: number } | null,
+  started?: { success?: boolean; alreadyRunning?: boolean; projectorRefused?: boolean; contextSize?: number } | null,
 ) {
+  // A fresh start or reload may run another engine build, so the grammar is asked about again.
+  if (started?.success && !started.alreadyRunning) grammarRefusals.delete(model);
   // The engine may load a bigger window than asked when the card has room. Asking for that one from
   // now on keeps every later start a reuse, and the meter honest.
   if (started?.contextSize && started.contextSize > (loadedContextSizes.get(model) ?? 0)) {

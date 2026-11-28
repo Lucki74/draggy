@@ -85,4 +85,10 @@ describe("SubagentCard states", () => {
     expect(paragraph.className).toContain("break-words");
     expect(paragraph.className).toContain("whitespace-pre-wrap");
   });
+
+  it("draws no plain row for a subagent call still being written", () => {
+    const call = { id: "tc", type: "tool_call", content: "", isComplete: false, tool: "run_subagent" } as SearchStep;
+    const { container } = render(<WorkBlock step={call} t={t} />);
+    expect(container.firstChild).toBeNull();
+  });
 });

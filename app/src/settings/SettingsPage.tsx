@@ -18,6 +18,7 @@ import PricesGroup from "./PricesGroup";
 import { useTranslator } from "../i18n";
 import { Icon } from "../ui/icons/Icon";
 import { fill } from "../onboarding/text";
+import type { ProjectLintConfig } from "../agent/lintLoop";
 import type { FollowUp } from "../research/libraryView";
 import type { AppSettings, ChatSession, PermissionMode, Workspace, WorkspaceGrant } from "../types";
 
@@ -39,6 +40,7 @@ interface SettingsPageProps {
   activeProjectId: string | null;
   onAddProject: () => Promise<Workspace | null>;
   onRenameProject: (id: string, name: string) => void;
+  onSetLintLoop?: (id: string, config: ProjectLintConfig) => void;
   onSetPermissionMode: (id: string, mode: PermissionMode) => void;
   onRevokeGrant: (id: string, grant: WorkspaceGrant) => void;
   onRemoveProject: (id: string) => void;
@@ -279,6 +281,7 @@ export default function SettingsPage(props: SettingsPageProps) {
                 initialProjectId={props.activeProjectId}
                 onAddProject={props.onAddProject}
                 onRename={props.onRenameProject}
+                onSetLint={props.onSetLintLoop}
                 onSetPermissionMode={props.onSetPermissionMode}
                 onRevokeGrant={props.onRevokeGrant}
                 onRemove={props.onRemoveProject}

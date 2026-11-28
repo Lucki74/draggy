@@ -4,6 +4,7 @@ import { Button, Icon, IconButton, Lightbox } from "../ui";
 import { looksLikeImage } from "./attachments";
 import { VideoTurnCard } from "./VideoAttachment";
 import { videoRefOf } from "./videoRef";
+import { VersionSwitch } from "./VersionSwitch";
 import type { Attachment, Message } from "../types";
 
 export interface UserTurnProps {
@@ -11,11 +12,27 @@ export interface UserTurnProps {
   idx: number;
   text: string;
   onEditMessage: (messageIndex: number, newContent: string) => void;
+  onSwitchVersion: (messageIndex: number, versionIndex: number) => void;
+  onFork?: (index: number) => void;
+  forkDisabled?: boolean;
+  totalVersions: number;
+  currentVersionIndex: number;
   t: (key: string) => string;
 }
 
 // The user's own turn: a raised block on the end side, attachments above it, editable in place.
-export function UserTurn({ msg, idx, text, onEditMessage, t }: UserTurnProps) {
+export function UserTurn({
+  msg,
+  idx,
+  text,
+  onEditMessage,
+  onSwitchVersion,
+  onFork,
+  forkDisabled,
+  totalVersions,
+  currentVersionIndex,
+  t,
+}: UserTurnProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
   const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
@@ -114,7 +131,8 @@ export function UserTurn({ msg, idx, text, onEditMessage, t }: UserTurnProps) {
       )}
 
       {!isEditing && (
-        <div className="flex opacity-0 group-hover/turn:opacity-100 group-focus-within/turn:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 opacity-0 group-hover/turn:opacity-100 group-focus-within/turn:opacity-100 transition-opacity">
+          <VersionSwitch idx={idx} slot={currentVersionIndex} total={totalVersions} onSwitchVersion={onSwitchVersion} t={t} />
           <IconButton
             name="pencil-simple"
             label={t("edit")}
@@ -125,6 +143,15 @@ export function UserTurn({ msg, idx, text, onEditMessage, t }: UserTurnProps) {
               setEditContent(text);
             }}
           />
+          {onFork && idx > 0 && (
+            <IconButton
+              name="git-branch"
+              label={forkDisabled ? t("forkBusy") : t("forkChat")}
+              size="sm"
+              disabled={forkDisabled}
+              onClick={() => onFork(idx)}
+            />
+          )}
         </div>
       )}
 

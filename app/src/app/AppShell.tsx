@@ -35,6 +35,8 @@ import { AnswerQuestionContext } from "../chat/questionContext";
 import type { ComposerQueue } from "../chat/Composer";
 import { logBreadcrumb, logSwallow, swallowed } from "../logger";
 import { chatToHtml, chatToMarkdown, transcriptFilename } from "../chat/transcriptExport";
+import { forkAt } from "../chat/fork";
+import { canSwitchVersions } from "../agent/turnHistory";
 import { generateId, titleFromContent } from "../utils";
 import type { Utterance } from "../voice/conversation";
 import { listInstalledModels } from "../llama";
@@ -48,6 +50,9 @@ import { useAgentRuns } from "./useAgentRuns";
 import { rulesFor } from "../agent/permissionRules";
 import { useUpdateDialog } from "./useUpdateDialog";
 import { ACTIVE_WORKSPACE_KEY, useWorkspaces } from "./useWorkspaces";
+import { useRoleResolver } from "./modelRoles";
+import { useProjectChecks } from "./useProjectChecks";
+import { readLintConfig } from "../agent/lintLoop";
 import { useShellLayout } from "./useShellLayout";
 import { Sidebar } from "./Sidebar";
 import { TitleBar } from "./TitleBar";
@@ -386,8 +391,12 @@ export default function AppShell({
   // carries out the plan is not refused by the plan-mode permission it was approved from.
   const proceedChatRef = useRef<string | null>(null);
 
+  const resolveRole = useRoleResolver(effectiveSettings, turnModel ?? "");
+  const lintChecks = useProjectChecks(active);
   const runs = useAgentRuns({
     model: turnModel,
+    resolveRole,
+    lint: { config: readLintConfig(active.settings?.lintLoop), detected: lintChecks.checks },
     settings: effectiveSettings,
     environment,
     workspaceId: active.id,
@@ -731,9 +740,31 @@ export default function AppShell({
   );
   const onSwitchVersionChat = useCallback(
     (mIdx: number, vIdx: number) => {
-      if (chatId) switchVersion(chatId, mIdx, vIdx);
+      const session = chatId ? store.getSession(chatId) : undefined;
+      if (!session || !canSwitchVersions(session)) return;
+      switchVersion(chatId, mIdx, vIdx);
     },
-    [chatId, switchVersion],
+    [chatId, store, switchVersion],
+  );
+  const onForkChat = useCallback(
+    (index: number) => {
+      const session = chatId ? store.getSession(chatId) : undefined;
+      if (!session) return;
+      const newId = generateId();
+      const title = t("forkTitle").replace("{title}", session.title);
+      const fork = forkAt(session, index, newId, title, generateId);
+      if (!fork) return;
+      if (fork.draft !== undefined) {
+        try {
+          localStorage.setItem(`draft_${newId}`, fork.draft);
+        } catch (error) {
+          logSwallow("app", error, "the forked chat opens without the wording");
+        }
+      }
+      store.addSession({ ...fork.session, workspaceId: fork.session.workspaceId ?? active.id });
+      selectChat(newId);
+    },
+    [chatId, store, active.id, selectChat, t],
   );
   const onEditMessageChat = useCallback(
     (mIdx: number, content: string) => {
@@ -1467,6 +1498,7 @@ export default function AppShell({
           }}
           onRegenerateChat={onRegenerateChat}
           onSwitchVersionChat={onSwitchVersionChat}
+          onForkChat={onForkChat}
           onEditMessageChat={onEditMessageChat}
           onStopGeneration={() => runs.stop(currentChatId!)}
           onContinueGeneration={() => runs.continueGeneration(currentChatId!)}
@@ -1548,6 +1580,7 @@ export default function AppShell({
             activeProjectId={mode === "code" && !codeHome ? active.id : null}
             onAddProject={addProject}
             onRenameProject={(id, name) => void workspaces.rename(id, name)}
+            onSetLintLoop={workspaces.setLintLoop}
             onSetPermissionMode={workspaces.setPermissionMode}
             onRevokeGrant={workspaces.revokeGrant}
             onRemoveProject={(id) => void removeProject(id)}

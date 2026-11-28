@@ -1,6 +1,7 @@
 import type { ProviderState } from "./ai/providers";
 import type { PriceTable } from "./stats/cost";
 import type { AgentTurn } from "./chat/agentPolicy";
+import type { ProjectLintConfig } from "./agent/lintLoop";
 
 /** Drops one listener from a main-process channel, leaving the others alone. */
 export type Unsubscribe = () => void;
@@ -482,6 +483,8 @@ export interface SearchStep {
     | "create_file"
     /** A change to a file of the user's, which can be undone. */
     | "edit_file"
+    /** A note saved to the user's or the project's memory. */
+    | "memory"
     | "library"
     | "run_code"
     /** A tool call waiting on the user, with the buttons to answer it. */
@@ -1209,7 +1212,10 @@ export type WorkspaceOverrides = Partial<
     | "webMode"
     | "libraryEnabled"
   >
->;
+> & {
+  /** Checks run after edits. Off unless the user confirmed the exact commands. */
+  lintLoop?: ProjectLintConfig;
+};
 
 /** What a permission rule names: the start of a command, a file or folder, a tool by name, or a website. */
 export type PermissionRuleKind = "command" | "path" | "tool" | "site";
@@ -1493,6 +1499,12 @@ export interface AppSettings {
   researchKeep: "forever" | "90" | "30";
   /** The model Code runs. Empty uses the chat model. */
   codeModel: string;
+  /** Model that runs plan-mode turns. Blank means the active model. */
+  planModel: string;
+  /** Whether a local model's text tool calls are decoded against a grammar of the tools. Off reads them loosely. */
+  constrainedToolCalls: boolean;
+  /** Cloud model that folds a long conversation. Blank means the active model. */
+  summaryModel: string;
   /** Instructions for every project, kept apart from the chat ones. */
   codeInstructions: string[];
   codeEffort: EffortLevel;
@@ -2286,7 +2298,7 @@ declare global {
       exportChat: (request: {
         defaultName: string;
         content: string;
-        ext: "md" | "html" | "pdf";
+        ext: "md" | "html" | "pdf" | "svg" | "png";
       }) => Promise<{ saved: boolean; file?: string; bytes?: number }>;
       logEntry: (entry: LogEntry) => void;
       logBatch: (entries: LogEntry[]) => void;

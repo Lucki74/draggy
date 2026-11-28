@@ -20,6 +20,7 @@ export interface TranscriptProps {
   onResume?: () => void;
   onSwitchVersion: (messageIndex: number, versionIndex: number) => void;
   onEditMessage: (messageIndex: number, newContent: string) => void;
+  onFork?: (index: number) => void;
   onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
   onRevert?: (checkpointId: number) => Promise<boolean>;
   copyToClipboard: (text: string, idx: number) => Promise<void>;
@@ -35,6 +36,7 @@ export function Transcript({
   onResume,
   onSwitchVersion,
   onEditMessage,
+  onFork,
   onApproval,
   onRevert,
   copyToClipboard,
@@ -242,6 +244,7 @@ export function Transcript({
                 copyToClipboard={copyToClipboard}
                 settings={settings}
                 onEditMessage={onEditMessage}
+                onFork={onFork}
                 onApproval={onApproval}
                 onRevert={onRevert}
               />

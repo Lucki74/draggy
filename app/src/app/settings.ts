@@ -52,6 +52,9 @@ export const defaultSettings: AppSettings = {
   subagentConcurrency: 2,
   subagentMaxPerTurn: 8,
   codeModel: "",
+  planModel: "",
+  constrainedToolCalls: true,
+  summaryModel: "",
   codeInstructions: [],
   codeEffort: EFFORT_DEFAULT,
   codeDefaultEffort: EFFORT_DEFAULT,
@@ -162,7 +165,12 @@ export function loadSettings(): AppSettings {
   }
 
   // Claude's listing no longer offers `default`; `opus` is the model it named.
-  for (const key of ["modelName", "codeModel"] as const) {
+  for (const key of ["modelName", "codeModel", "planModel", "summaryModel"] as const) {
+    // A model key that is not text cannot name a model, so it resets to blank.
+    if (key in parsed && typeof parsed[key] !== "string") {
+      parsed[key] = "";
+      migrated = true;
+    }
     if (typeof parsed[key] === "string") parsed[key] = parsed[key].replace(/^(@claude(?:-\d+)?\/)default$/, "$1opus");
     // The ChatGPT backend refuses gpt-5.5 to plan accounts; Codex ranks gpt-6-astra first.
     if (typeof parsed[key] === "string") parsed[key] = parsed[key].replace(/^(@chatgpt(?:-\d+)?\/)gpt-5\.5$/, "$1gpt-6-astra");

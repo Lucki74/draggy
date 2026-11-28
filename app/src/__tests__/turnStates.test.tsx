@@ -39,7 +39,6 @@ function renderTurn(
     settings: defaultSettings,
     totalVersions: 1,
     currentVersionIndex: 0,
-    currentVersionNum: 1,
     t,
     ...overrides,
   };
@@ -118,7 +117,7 @@ describe("versions", () => {
         { content: "Two", tail: [] },
       ],
     });
-    renderTurn(message, { totalVersions: 2, currentVersionIndex: 1, currentVersionNum: 2 });
+    renderTurn(message, { totalVersions: 2, currentVersionIndex: 1 });
 
     expect(screen.getByText("2 / 2")).toBeTruthy();
   });

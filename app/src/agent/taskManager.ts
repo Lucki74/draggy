@@ -44,6 +44,7 @@ import type { GenerationMetrics } from "../llama";
 import { classifyTurnError, editAt, isTransient, modelHistory, promoteShown, retryAt, switchAt } from "./turnHistory";
 import { loadQueues, saveQueue } from "./turnQueue";
 import type { AgentTurn } from "../chat/agentPolicy";
+import type { CheckCommand, ProjectLintConfig } from "./lintLoop";
 
 /** Running turns, keyed by conversation, so a turn belongs to its chat rather than the screen: it
  * keeps going elsewhere, and several can run at once. */
@@ -56,6 +57,10 @@ export interface TaskHost {
   /** The workspace a conversation started now belongs to. */
   getWorkspaceId: () => string;
   /** How much a turn may do here, and what the user has already allowed. */
+  /** The resolved model for a background role, or null to use the active model. */
+  getRoleModel?: (role: "plan" | "summary") => string | null;
+  /** Checks to run after edits, when the project turned them on. */
+  getLint?: () => { config?: ProjectLintConfig; detected: CheckCommand[] } | null;
   getPermission: () => { mode: PermissionMode; grants: Grant[]; rules?: import("../types").PermissionRule[] };
   /** A permission to keep for this workspace, beyond the task that asked. */
   onGrant: (grant: Grant) => void;
@@ -321,8 +326,10 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     const inFlight = folds.get(chatId);
     if (inFlight) return inFlight.done;
 
-    const model = host.getModel();
-    if (!model) return Promise.resolve("nothing");
+    const active = host.getModel();
+    if (!active) return Promise.resolve("nothing");
+    // The summary model the host resolved folds the conversation, else the active model.
+    const model = host.getRoleModel?.("summary") || active;
 
     const session = host.getSession(chatId);
     if (!session) return Promise.resolve("nothing");
@@ -485,8 +492,11 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     contextMessages: Message[],
     options: RunOptions = {},
   ) {
-    const model = options.agent?.model ?? host.getModel();
-    if (!model) return;
+    const active = host.getModel();
+    if (!active) return;
+    // A plan turn runs on the plan model the host resolved, else the active model.
+    const planned = host.getPermission().mode === "plan" ? host.getRoleModel?.("plan") || active : active;
+    const model = options.agent?.model ?? planned;
 
     runs.get(chatId)?.abort();
     const unwinding = settling.get(chatId);
@@ -590,6 +600,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         compaction: host.getSession(chatId)?.compaction,
         permission: host.getPermission(),
         agent: options.agent ?? null,
+        lint: host.getLint?.() ?? null,
         workspaceId: host.getWorkspaceId(),
         chatId,
         contextBase:

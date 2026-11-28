@@ -44,7 +44,8 @@ function ThoughtTail({ children }: { children: React.ReactNode }) {
 
 /** A finished thought as one plain line: markdown marks dropped, whitespace folded. */
 function excerpt(text: string) {
-  return text.replace(/[`*_#>~[\]]/g, "").replace(/\s+/g, " ").trim();
+  // An underscore inside a word is part of a name such as run_subagent, not an emphasis mark.
+  return text.replace(/[`*#>~[\]]/g, "").replace(/(?<![A-Za-z0-9])_+|_+(?![A-Za-z0-9])/g, "").replace(/\s+/g, " ").trim();
 }
 
 // Reasoning as a disclosure row: the spark and a running count while it thinks, "Thought for 4s" after.

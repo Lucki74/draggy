@@ -50,6 +50,12 @@ afterEach(() => {
 });
 
 describe("save_memory run", () => {
+  it("shows a saved note as a memory step, not a file edit", async () => {
+    const steps: { type: string }[] = [];
+    await tool.run({ scope: "user", action: "add", text: "Likes tabs" }, ctx({ pushStep: (step: { type: string }) => steps.push(step) }));
+    expect(steps.map((step) => step.type)).toEqual(["memory"]);
+  });
+
   it("saves a note with no switch to turn auto memory off", async () => {
     const result = await tool.run({ scope: "user", action: "add", text: "Likes tabs" }, ctx());
     expect(String(result)).not.toMatch(/off/);

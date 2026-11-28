@@ -3,6 +3,7 @@ import type { ToolContext, ToolSpec } from "./registry";
 import { loadProjectMemory } from "../project/load";
 import { renderFolderRules } from "../project/memory";
 import { logRendererEvent } from "../logger";
+import { getRepoMap, queryRepoMap } from "../project/repoMap";
 
 /** The file tools. Each hands a path to the main process, the only side that knows which folders
  * this conversation was given. */
@@ -274,10 +275,44 @@ const writeFile: ToolSpec = {
   },
 };
 
+const repoMap: ToolSpec = {
+  name: "repo_map",
+  group: "files",
+  description:
+    "Find where a function, class, type or file lives in the project folder. Returns path, line and kind for each match. Use it before read_file when you do not know the file.",
+  parameters: {
+    query: {
+      type: "string",
+      description: "Part of a symbol or file name to match, for example useSession. Leave empty for the top of the map.",
+    },
+  },
+  required: [],
+  usage: '{"query": "useSession"} → src/app/useSession.ts:12 function useSession',
+  annotations: {
+    readOnly: true,
+    readOnlyHint: true,
+    destructive: false,
+    destructiveHint: false,
+    idempotent: true,
+    idempotentHint: true,
+    openWorld: false,
+    openWorldHint: false,
+  },
+  available: (environment) => Boolean(environment.hasFolder || environment.chatFolder),
+  run: async (args, ctx) => {
+    const query = typeof args.query === "string" ? args.query : "";
+    const map = await getRepoMap(workspaceOf(ctx));
+    logRendererEvent("tools.files", "DEBUG", "file tool ok", { tool: "repo_map", symbols: map.symbols.length });
+    return `TOOL RESULT (repo_map):
+${queryRepoMap(map, query)}`;
+  },
+};
+
 export const FILE_TOOLS: ToolSpec[] = [
   readFile,
   editFile,
   writeFile,
+  repoMap,
 ];
 
 export function registerFileTools(): void {

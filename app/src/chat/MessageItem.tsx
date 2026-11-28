@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { motion } from "framer-motion";
 import { translations } from "./../translations";
+import { shownSlot } from "../agent/turnHistory";
 import UserTurn from "./UserTurn";
 import AssistantTurn from "./AssistantTurn";
 import TaskNotice from "./TaskNotice";
@@ -22,6 +23,7 @@ export interface MessageItemProps {
   copyToClipboard: (text: string, idx: number) => void;
   settings: AppSettings;
   onEditMessage: (messageIndex: number, newContent: string) => void;
+  onFork?: (index: number) => void;
   onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
   onRevert?: (checkpointId: number) => Promise<boolean>;
   chatId?: string;
@@ -41,6 +43,7 @@ const MessageItem = memo(
     copyToClipboard,
     settings,
     onEditMessage,
+    onFork,
     onApproval,
     onRevert,
     chatId,
@@ -52,8 +55,8 @@ const MessageItem = memo(
     };
 
     const totalVersions = (msg.versions?.length || 0) + 1;
-    const currentVersionIndex = msg.currentVersionIndex ?? totalVersions - 1;
-    const currentVersionNum = currentVersionIndex + 1;
+    const currentVersionIndex = shownSlot(msg);
+    const forkDisabled = isGenerating;
 
     const displayMsg =
       msg.versions && currentVersionIndex < msg.versions.length
@@ -86,6 +89,11 @@ const MessageItem = memo(
               idx={idx}
               text={text}
               onEditMessage={onEditMessage}
+              onSwitchVersion={onSwitchVersion}
+              onFork={onFork}
+              forkDisabled={forkDisabled}
+              totalVersions={totalVersions}
+              currentVersionIndex={currentVersionIndex}
               t={t}
             />
           ) : (
@@ -109,7 +117,8 @@ const MessageItem = memo(
               chatId={chatId}
               totalVersions={totalVersions}
               currentVersionIndex={currentVersionIndex}
-              currentVersionNum={currentVersionNum}
+              onFork={onFork}
+              forkDisabled={forkDisabled}
               t={t}
             />
           )}
@@ -125,6 +134,7 @@ const MessageItem = memo(
       prev.isLast === next.isLast &&
       prev.copiedIndex === next.copiedIndex &&
       prev.chatId === next.chatId &&
+      prev.onFork === next.onFork &&
       // Only what a message reads, avoiding re-renders when unrelated settings change.
       prev.settings.language === next.settings.language &&
       prev.settings.showMetrics === next.settings.showMetrics

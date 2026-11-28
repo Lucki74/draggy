@@ -66,16 +66,23 @@ async fn read_document(_app: AppHandle, args: Vec<Value>) -> Result<Value, IpcEr
 
 async fn export_chat(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
     let request = args.into_iter().next().unwrap_or(Value::Null);
-    let ext = match request.get("ext").and_then(Value::as_str) {
-        Some("html") => "html",
-        Some("pdf") => "pdf",
-        _ => "md",
-    };
+    let ext = export_format(request.get("ext").and_then(Value::as_str));
     let content = request
         .get("content")
         .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_owned();
+        .unwrap_or_default();
+    let limit = if matches!(ext, "svg" | "png") {
+        MAX_IMAGE_EXPORT_BYTES
+    } else {
+        MAX_EXPORT_BYTES
+    };
+    if content.len() > limit {
+        return Err(IpcError::Failed("export is too large".into()));
+    }
+    if ext == "svg" {
+        check_svg(content).map_err(IpcError::Failed)?;
+    }
+    let content = content.to_owned();
     let raw_name = request
         .get("defaultName")
         .and_then(Value::as_str)
@@ -99,14 +106,11 @@ async fn export_chat(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
 
     let suggested = default_file.clone();
     let (tx, rx) = tokio::sync::oneshot::channel();
-    let mut dialog = app.dialog().file().set_file_name(&suggested).add_filter(
-        match ext {
-            "html" => "HTML",
-            "pdf" => "PDF",
-            _ => "Markdown",
-        },
-        &[ext],
-    );
+    let mut dialog = app
+        .dialog()
+        .file()
+        .set_file_name(&suggested)
+        .add_filter(filter_label(ext), &[ext]);
     if let Ok(documents) = app.path().document_dir() {
         dialog = dialog.set_directory(documents);
     }
@@ -122,10 +126,16 @@ async fn export_chat(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
     };
 
     let target = with_extension(picked, ext);
+    // PNG arrives as base64 so the bytes survive the JSON bridge.
+    let content = if ext == "png" {
+        decode_png(&content).map_err(IpcError::Failed)?
+    } else {
+        content.into_bytes()
+    };
     let bytes = content.len();
     if ext == "pdf" {
         // The PDF is laid out from the HTML transcript.
-        pdf_writer::write_pdf(&app, &target, &content)
+        pdf_writer::write_pdf(&app, &target, &String::from_utf8_lossy(&content))
             .await
             .map_err(IpcError::Failed)?;
     } else {
@@ -144,6 +154,58 @@ async fn export_chat(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
     }
     let _ = app.opener().reveal_item_in_dir(&target);
     Ok(json!({ "saved": true, "file": file, "bytes": bytes }))
+}
+
+/// Largest export accepted over IPC (64 MiB of text or base64).
+const MAX_EXPORT_BYTES: usize = 64 * 1024 * 1024;
+/// Largest SVG or PNG export (8 MiB of markup or base64).
+const MAX_IMAGE_EXPORT_BYTES: usize = 8 * 1024 * 1024;
+const PNG_MAGIC: &[u8] = &[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+/// Maps the requested extension to a known export format, defaulting to markdown.
+fn export_format(ext: Option<&str>) -> &'static str {
+    match ext {
+        Some("html") => "html",
+        Some("pdf") => "pdf",
+        Some("svg") => "svg",
+        Some("png") => "png",
+        _ => "md",
+    }
+}
+
+fn filter_label(ext: &str) -> &'static str {
+    match ext {
+        "html" => "HTML",
+        "pdf" => "PDF",
+        "svg" => "SVG",
+        "png" => "PNG",
+        _ => "Markdown",
+    }
+}
+
+/// Accepts only an SVG document root with no script or foreignObject markup.
+fn check_svg(content: &str) -> Result<(), String> {
+    let text = content.trim_start();
+    let lower = text.to_ascii_lowercase();
+    if !(lower.starts_with("<svg") || lower.starts_with("<?xml")) {
+        return Err("export is not an SVG document".into());
+    }
+    if lower.contains("<script") || lower.contains("<foreignobject") {
+        return Err("SVG export contains active markup".into());
+    }
+    Ok(())
+}
+
+/// Decodes a base64 PNG, with or without its data URL prefix, and checks the signature.
+fn decode_png(content: &str) -> Result<Vec<u8>, String> {
+    let encoded = content.trim_start_matches("data:image/png;base64,");
+    let bytes = STANDARD
+        .decode(encoded)
+        .map_err(|error| error.to_string())?;
+    if !bytes.starts_with(PNG_MAGIC) {
+        return Err("not a PNG".into());
+    }
+    Ok(bytes)
 }
 
 /// Replaces the characters a file name cannot hold with spaces.
@@ -185,6 +247,37 @@ mod tests {
         assert_eq!(bytes_arg(Some(&json!({"0": 104, "2": 105}))), None);
         assert_eq!(bytes_arg(Some(&json!([300]))), None);
         assert_eq!(bytes_arg(None), None);
+    }
+
+    #[test]
+    fn validates_svg_export_content() {
+        assert!(check_svg("  <svg viewBox=\"0 0 1 1\"></svg>").is_ok());
+        assert!(check_svg("<?xml version=\"1.0\"?><svg></svg>").is_ok());
+        assert!(check_svg("<html><body></body></html>").is_err());
+        assert!(check_svg("<svg><script>alert(1)</script></svg>").is_err());
+        assert!(check_svg("<svg><foreignObject><div/></foreignObject></svg>").is_err());
+    }
+
+    #[test]
+    fn picks_known_export_formats() {
+        assert_eq!(export_format(Some("svg")), "svg");
+        assert_eq!(export_format(Some("png")), "png");
+        assert_eq!(export_format(Some("pdf")), "pdf");
+        assert_eq!(export_format(Some("exe")), "md");
+        assert_eq!(export_format(None), "md");
+        assert_eq!(filter_label("png"), "PNG");
+    }
+
+    #[test]
+    fn decodes_only_real_png_data() {
+        let png = [PNG_MAGIC, b"rest".as_slice()].concat();
+        let encoded = STANDARD.encode(&png);
+        assert_eq!(
+            decode_png(&format!("data:image/png;base64,{encoded}")),
+            Ok(png)
+        );
+        assert!(decode_png(&STANDARD.encode(b"<svg></svg>")).is_err());
+        assert!(decode_png("%%%").is_err());
     }
 
     #[test]

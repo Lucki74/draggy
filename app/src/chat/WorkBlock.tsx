@@ -460,6 +460,8 @@ export function WorkBlock({
   }
 
   if (step.type === "tool_call") {
+    // A subagent has its own card; a plain row for the call would show first and then vanish.
+    if (step.tool === "run_subagent") return null;
     return <LiveArgs key={step.id} step={step} />;
   }
 

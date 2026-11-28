@@ -33,6 +33,7 @@ interface ChatScreenProps {
   onRegenerate: (index: number) => void;
   onSwitchVersion: (messageIndex: number, versionIndex: number) => void;
   onEditMessage: (messageIndex: number, newContent: string) => void;
+  onFork?: (index: number) => void;
   onStopGeneration: () => void;
   onContinueGeneration: () => void;
   onSelectModel: (name: string) => void;
@@ -70,6 +71,7 @@ export default function ChatScreen({
   onRegenerate,
   onSwitchVersion,
   onEditMessage,
+  onFork,
   onStopGeneration,
   onContinueGeneration,
   onSelectModel,
@@ -322,6 +324,7 @@ export default function ChatScreen({
               onResume={onContinueGeneration}
               onSwitchVersion={onSwitchVersion}
               onEditMessage={onEditMessage}
+              onFork={onFork}
               onApproval={onApproval}
               onRevert={onRevert}
               copyToClipboard={copyToClipboard}

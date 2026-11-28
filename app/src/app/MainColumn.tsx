@@ -57,6 +57,7 @@ export interface MainColumnProps {
     onRegenerateChat: (idx: number) => void;
     onSwitchVersionChat: (mIdx: number, vIdx: number) => void;
     onEditMessageChat: (mIdx: number, content: string) => void;
+    onForkChat?: (index: number) => void;
     onStopGeneration: () => void;
     onContinueGeneration: () => void;
     onApproval?: (approvalId: string, answer: ApprovalAnswer) => void;
@@ -113,6 +114,7 @@ export function MainColumn({
     onRegenerateChat,
     onSwitchVersionChat,
     onEditMessageChat,
+    onForkChat,
     onStopGeneration,
     onContinueGeneration,
     onApproval,
@@ -198,6 +200,7 @@ export function MainColumn({
                             onRegenerate={onRegenerateChat}
                             onSwitchVersion={onSwitchVersionChat}
                             onEditMessage={onEditMessageChat}
+                            onFork={onForkChat}
                             onStopGeneration={onStopGeneration}
                             onContinueGeneration={onContinueGeneration}
                             onApproval={onApproval}
