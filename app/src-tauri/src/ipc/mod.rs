@@ -36,6 +36,7 @@ mod git;
 mod hardware;
 mod hooks;
 mod images;
+mod import;
 mod library;
 mod logs;
 pub(crate) mod mcp;
@@ -121,6 +122,7 @@ impl Registry {
         providers::register_all(&mut registry);
         widgets::register_all(&mut registry);
         skills::register_all(&mut registry);
+        import::register_all(&mut registry);
         library::register_all(&mut registry);
         research::register_all(&mut registry);
         documents::register_all(&mut registry);

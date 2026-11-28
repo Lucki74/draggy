@@ -15,6 +15,8 @@ import type { SkillDraft } from "../agent/skillDraft";
 interface SkillsTabProps {
   /** A project whose own skills folder is listed too. Left out, the library and the user's show. */
   workspaceId?: string;
+  /** Opens the import screen. Left out, the link is not shown. */
+  onImport?: () => void;
   t: (key: string) => string;
 }
 
@@ -67,7 +69,7 @@ const GROUP_ORDER = ["project", "user", ...SKILL_CATEGORIES];
 
 /** Skills tell Draggy how the user wants a job done, as servers connect it to things. Both are
  * switched on here, for the whole app, hence one screen. */
-export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
+export default function SkillsTab({ workspaceId, onImport, t }: SkillsTabProps) {
   const [skills, setSkills] = useState<InstalledSkill[]>([]);
   const [revision, setRevision] = useState(0);
   const [filter, setFilter] = useState("");
@@ -263,6 +265,16 @@ export default function SkillsTab({ workspaceId, t }: SkillsTabProps) {
             </section>
           ))}
         </>
+      )}
+
+      {onImport && (
+        <button
+          type="button"
+          onClick={onImport}
+          className="px-1 text-[12px] text-text-secondary underline underline-offset-2 outline-none hover:text-text-primary focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          {t("importFromTools")}
+        </button>
       )}
 
       <Dialog

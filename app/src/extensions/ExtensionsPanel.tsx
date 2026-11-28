@@ -3,6 +3,7 @@ import { Tabs } from "../ui/Tabs";
 import McpPanel from "../settings/McpPanel";
 import RemoteServers from "./RemoteServers";
 import SkillsTab from "./SkillsTab";
+import ImportTab from "./ImportTab";
 import TelegramPanel from "./TelegramPanel";
 import type { AppSettings, McpServerConfig, Workspace } from "../types";
 import { swallowed } from "../logger";
@@ -15,7 +16,7 @@ interface ExtensionsPanelProps {
   workspaces?: Workspace[];
 }
 
-type Tab = "servers" | "remote" | "skills" | "telegram";
+type Tab = "servers" | "remote" | "skills" | "import" | "telegram";
 
 /** One screen for extending Draggy: catalogue servers, remote servers, and skills. They are global,
  * so Chat and every project get the same ones. */
@@ -52,6 +53,7 @@ export default function ExtensionsPanel({ t, settings, onUpdate, workspaces }: E
     { id: "servers", label: t("extensionServers") },
     { id: "remote", label: t("extensionRemote") },
     { id: "skills", label: t("extensionSkills") },
+    { id: "import", label: t("importTab") },
   ];
   const withTelegram = Boolean(settings && onUpdate && workspaces && window.draggy?.telegram);
   if (withTelegram) TABS.push({ id: "telegram", label: t("telegram") });
@@ -82,7 +84,9 @@ export default function ExtensionsPanel({ t, settings, onUpdate, workspaces }: E
           />
         )}
 
-        {tab === "skills" && <SkillsTab t={t} />}
+        {tab === "skills" && <SkillsTab t={t} onImport={() => setTab("import")} />}
+
+        {tab === "import" && <ImportTab t={t} settings={settings} onUpdate={onUpdate} />}
 
         {tab === "telegram" && settings && onUpdate && workspaces && (
           <TelegramPanel settings={settings} onUpdate={onUpdate} workspaces={workspaces} t={t} />

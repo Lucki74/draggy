@@ -1146,6 +1146,27 @@ export interface McpCatalogueEntry {
 }
 
 /** A skill on disk, as it appears in the prompt: no body, just the offer. */
+export interface ImportItem {
+  key: string;
+  source: "claude" | "codex";
+  kind: "skill" | "memory" | "mcp" | "command" | "agent";
+  id: string;
+  name: string;
+  description: string;
+  clash: boolean;
+  supported: boolean;
+  note: string | null;
+  needsKey: boolean;
+  suggested: string;
+}
+
+export interface ImportResult {
+  key: string;
+  status: "imported" | "skipped";
+  reason: string | null;
+  needsKey: boolean;
+}
+
 export interface InstalledSkill {
   id: string;
   name: string;
@@ -1995,6 +2016,18 @@ declare global {
           overwrite?: boolean;
         }) => Promise<{ success: boolean; id?: string; error?: string }>;
         openFolder: () => Promise<string>;
+      };
+
+      import: {
+        /** What Claude Code and Codex keep in the home folder. Never carries file contents or secrets. */
+        scan: () => Promise<{ success: boolean; items?: ImportItem[]; error?: string }>;
+        /** Copies the chosen items in. `memory` is the global instruction text for the caller to store. */
+        apply: (request: { items: { key: string; rename?: string }[] }) => Promise<{
+          success: boolean;
+          results?: ImportResult[];
+          memory?: string[];
+          error?: string;
+        }>;
       };
 
       workspaces: {

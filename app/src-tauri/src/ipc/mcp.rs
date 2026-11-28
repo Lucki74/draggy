@@ -72,6 +72,16 @@ async fn write_object(app: &AppHandle, key: &'static str, value: &Map<String, Va
     saved.get("success") == Some(&json!(true))
 }
 
+/// The stored server config, for the import to read and add to.
+pub(super) async fn read_mcp_config(app: &AppHandle) -> Map<String, Value> {
+    read_object(app, CONFIG_KEY).await
+}
+
+/// Writes the server config back. False when it could not be saved.
+pub(super) async fn write_mcp_config(app: &AppHandle, config: &Map<String, Value>) -> bool {
+    write_object(app, CONFIG_KEY, config).await
+}
+
 async fn enabled_ids(app: &AppHandle) -> Vec<String> {
     let record = Value::Object(read_object(app, ENABLED_KEY).await);
     let config = read_object(app, CONFIG_KEY).await;
