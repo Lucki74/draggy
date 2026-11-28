@@ -215,6 +215,7 @@ pub(crate) async fn run_hook_for(
 ) -> Value {
     let no_args: [&str; 0] = [];
     let spawned = spawn_hidden_with_input(&launch.file, &no_args, |command| {
+        #[cfg(windows)]
         if launch.verbatim {
             for arg in &launch.args {
                 command.raw_arg(arg);
@@ -222,6 +223,8 @@ pub(crate) async fn run_hook_for(
         } else {
             command.args(&launch.args);
         }
+        #[cfg(not(windows))]
+        command.args(&launch.args);
         command
             .current_dir(&launch.cwd)
             .env_clear()
