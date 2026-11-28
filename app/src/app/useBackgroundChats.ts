@@ -5,6 +5,7 @@ import type { ToolEnvironment } from "../tools/registry";
 import type { AgentRuns } from "./useAgentRuns";
 import type { SessionStore } from "./useSessions";
 import { isProject } from "./modes";
+import { rulesFor } from "../agent/permissionRules";
 import { generateId, titleFromContent, writeLocalStorage } from "../utils";
 import { dueRoutines, msToNextMinute, runTitle } from "../routines/scheduler";
 import type { Routine } from "../routines/store";
@@ -93,7 +94,7 @@ export function useBackgroundChats(input: Input) {
         environment: environmentFor(environment, workspace, isProject(workspace)),
         // The most the routine may do is the mode saved on it. Nobody answers a prompt, so a call that
         // needs approval is refused.
-        permission: { mode: routine.permissionMode, grants: [] },
+        permission: { mode: routine.permissionMode, grants: [], rules: rulesFor(settings.permissionRules, workspace) },
         unattended: true,
         onEnded: (endedChat, outcome) => {
           running.current.delete(id);
@@ -189,7 +190,7 @@ export function useBackgroundChats(input: Input) {
         workspaceId: workspace.id,
         environment: environmentFor(environment, workspace, code),
         // Calls ask on Telegram like anywhere else; nothing is remembered from a button.
-        permission: { mode: "ask", grants: [] },
+        permission: { mode: "ask", grants: [], rules: rulesFor(settings.permissionRules, workspace) },
         onApproval: (approval) => {
           const target = telegramChatOf(loadMap(), chatId);
           if (!target) {
