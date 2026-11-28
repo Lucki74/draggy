@@ -26,6 +26,7 @@ pub fn register_all(registry: &mut Registry) {
     register!(registry, "skills:read" => read);
     register!(registry, "skills:set-enabled" => set_enabled);
     register!(registry, "skills:open" => open);
+    register!(registry, "skills:save" => save);
 }
 
 /// The shipped skills: the resource folder in a packaged build, the source folder in a debug one.
@@ -148,6 +149,82 @@ async fn set_enabled(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError
     .await
 }
 
+/// The largest SKILL.md the renderer may write.
+const MAX_SKILL_BYTES: usize = 64 * 1024;
+
+/// A folder name a skill may take: lowercase letters, digits and hyphens, starting with a letter or digit.
+fn valid_slug(slug: &str) -> bool {
+    let bytes = slug.as_bytes();
+    (1..=64).contains(&bytes.len())
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes
+            .iter()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'-')
+}
+
+/// Writes `<root>/<slug>/SKILL.md`. The slug is the folder name and the skill's id, so nothing else can steer the path.
+/// Returns the error text the renderer shows, or the folder written.
+fn write_user_skill(
+    root: &Path,
+    slug: &str,
+    description: &str,
+    body: &str,
+    overwrite: bool,
+) -> Result<PathBuf, String> {
+    if !valid_slug(slug) {
+        return Err(
+            "The name must be lowercase letters, digits and hyphens, up to 64 characters."
+                .to_owned(),
+        );
+    }
+    let description = description.split_whitespace().collect::<Vec<_>>().join(" ");
+    if description.is_empty() {
+        return Err("The description is empty.".to_owned());
+    }
+    let text = format!(
+        "---\nname: {slug}\ndescription: {description}\n---\n\n{}\n",
+        body.trim()
+    );
+    if text.len() > MAX_SKILL_BYTES {
+        return Err("The skill is larger than 64 KB.".to_owned());
+    }
+    // The file must read back as the skill that was meant, or the description holds something the format cannot carry.
+    match draggy_tools::skills::parse_skill(&text) {
+        Some(read) if read.name == slug && !read.description.is_empty() => {}
+        _ => return Err("The description cannot be written in a skill file.".to_owned()),
+    }
+
+    let folder = root.join(slug);
+    let file = folder.join("SKILL.md");
+    if file.exists() && !overwrite {
+        return Err(format!("A skill called {slug} already exists."));
+    }
+    std::fs::create_dir_all(&folder).map_err(|error| error.to_string())?;
+    std::fs::write(&file, text).map_err(|error| error.to_string())?;
+    Ok(folder)
+}
+
+async fn save(app: AppHandle, args: Vec<Value>) -> Result<Value, IpcError> {
+    let request = args.first().cloned().unwrap_or(Value::Null);
+    let text = |key: &str| {
+        request
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned()
+    };
+    let (name, description, body) = (text("name"), text("description"), text("body"));
+    let overwrite = request.get("overwrite").is_some_and(truthy);
+    let root = app.state::<AppState>().storage.data_dir().join("skills");
+    blocking(
+        move || match write_user_skill(&root, &name, &description, &body, overwrite) {
+            Ok(_) => json!({ "success": true, "id": name }),
+            Err(error) => json!({ "success": false, "error": error }),
+        },
+    )
+    .await
+}
+
 /// Opens the user's skill folder. A folder that cannot be made is refused; otherwise the answer is the opener's
 /// message, empty on success, as shell.openPath gives.
 async fn open(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
@@ -170,6 +247,64 @@ async fn open(app: AppHandle, _args: Vec<Value>) -> Result<Value, IpcError> {
 mod tests {
     use super::*;
     use draggy_tools::skills::Source;
+
+    #[test]
+    fn a_saved_skill_reads_back_and_is_not_overwritten_without_the_flag() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path().join("skills");
+        let folder = write_user_skill(
+            &root,
+            "ship-it",
+            "Ship a\nrelease.",
+            "# Steps\n1. Tag.",
+            false,
+        )
+        .expect("saved");
+        let text = std::fs::read_to_string(folder.join("SKILL.md")).expect("file");
+        let read = draggy_tools::skills::parse_skill(&text).expect("parses");
+        assert_eq!(read.name, "ship-it");
+        assert_eq!(read.description, "Ship a release.");
+        assert!(read.body.starts_with("# Steps"));
+
+        let again = write_user_skill(&root, "ship-it", "New.", "Body", false);
+        assert!(again.is_err());
+        write_user_skill(&root, "ship-it", "New.", "Body", true).expect("overwritten");
+        let text = std::fs::read_to_string(folder.join("SKILL.md")).expect("file");
+        assert!(text.contains("description: New."));
+    }
+
+    #[test]
+    fn a_skill_name_cannot_leave_the_skills_root() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path().join("skills");
+        for bad in [
+            "",
+            "../evil",
+            "a/b",
+            "A",
+            "-x",
+            "x y",
+            "a\\b",
+            "..",
+            &"a".repeat(65),
+        ] {
+            assert!(
+                write_user_skill(&root, bad, "d", "b", true).is_err(),
+                "{bad}"
+            );
+        }
+        assert!(!dir.path().join("evil").exists());
+    }
+
+    #[test]
+    fn a_skill_over_the_size_cap_or_without_a_description_is_refused() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path().join("skills");
+        let big = "x".repeat(MAX_SKILL_BYTES);
+        assert!(write_user_skill(&root, "big", "d", &big, true).is_err());
+        assert!(write_user_skill(&root, "empty", "  ", "b", true).is_err());
+        assert!(!root.join("big").exists());
+    }
 
     #[test]
     fn a_missing_or_broken_store_gives_no_switches() {
