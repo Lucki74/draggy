@@ -339,12 +339,12 @@ export default function AppShell({
   useEffect(() => {
     clearCustomCommands();
     if (!window.draggy?.files) return;
-    const reload = () => void loadCustomCommands(active.id);
+    const reload = () => void loadCustomCommands(active.id, active.rootPath);
     reload();
     // Files edited outside the app are picked up when the window is focused again.
     window.addEventListener("focus", reload);
     return () => window.removeEventListener("focus", reload);
-  }, [active.id]);
+  }, [active.id, active.rootPath]);
 
   useEffect(() => {
     const api = window.draggy?.skills;

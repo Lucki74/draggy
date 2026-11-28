@@ -952,7 +952,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         id: chatId,
         workspaceId: host.getWorkspaceId(),
         title: content.trim()
-          ? titleFromContent(content, host.t("newDiscussion"))
+          ? titleFromContent(typedText ?? content, host.t("newDiscussion"))
           : attachments && attachments.length > 0
             ? host.t("attachedFiles")
             : host.t("newDiscussion"),
@@ -990,7 +990,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         id: chatId,
         workspaceId: host.getWorkspaceId(),
         title: content.trim()
-          ? titleFromContent(content, host.t("newDiscussion"))
+          ? titleFromContent(typedText ?? content, host.t("newDiscussion"))
           : attachments && attachments.length > 0
             ? host.t("attachedFiles")
             : host.t("newDiscussion"),

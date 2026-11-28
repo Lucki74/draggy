@@ -107,11 +107,11 @@ export function rememberTrust(workspaceId: string, trusted: boolean): void {
 }
 
 /** Asks the user whether a folder's own commands and agents may run. Shown as a plain prompt. */
-let askTrust: (workspaceId: string) => Promise<boolean> = async (workspaceId) =>
+let askTrust: (folder: string) => Promise<boolean> = async (folder) =>
   typeof window !== "undefined" && typeof window.confirm === "function"
     ? window.confirm(`Trust the commands and agents in this folder?
 
-${workspaceId}
+${folder}
 
 Only say yes to folders you trust. Their agents can set tools, models and permissions.`)
     : false;
@@ -120,24 +120,24 @@ export function setCommandTrustPrompt(prompt: (workspaceId: string) => Promise<b
   askTrust = prompt;
 }
 
-async function trustedFolder(workspaceId: string): Promise<boolean> {
+async function trustedFolder(workspaceId: string, label: string): Promise<boolean> {
   const remembered = rememberedTrust(workspaceId);
   if (remembered !== null) return remembered;
-  const answer = await askTrust(workspaceId).catch(() => false);
+  const answer = await askTrust(label).catch(() => false);
   rememberTrust(workspaceId, answer);
   return answer;
 }
 
 /** Reads the workspace's folders once the folder is trusted. A folder with no command files is never asked about.
  * A newer call wins over an older one still running. */
-export async function loadCustomCommands(workspaceId: string): Promise<void> {
+export async function loadCustomCommands(workspaceId: string, folderPath?: string | null): Promise<void> {
   const token = ++loadToken;
   const [commandFiles, agentFiles] = await Promise.all([
     listFolder(workspaceId, COMMAND_FOLDER),
     listFolder(workspaceId, AGENT_FOLDER),
   ]);
   if (token !== loadToken) return;
-  const trusted = commandFiles.length + agentFiles.length > 0 && (await trustedFolder(workspaceId));
+  const trusted = commandFiles.length + agentFiles.length > 0 && (await trustedFolder(workspaceId, folderPath || workspaceId));
   const [commands, agents] = await Promise.all([
     trusted ? readFolder(workspaceId, commandFiles, "command") : Promise.resolve([]),
     trusted ? readFolder(workspaceId, agentFiles, "agent") : Promise.resolve([]),
