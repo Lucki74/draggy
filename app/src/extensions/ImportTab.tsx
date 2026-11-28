@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "../ui/icons/Icon";
 import { Button } from "../ui/Button";
+import { Checkbox } from "../ui/Checkbox";
+import { ProviderIcon } from "../providers/ProviderIcon";
 import { IconButton } from "../ui/IconButton";
 import { ExtensionList } from "./ExtensionRow";
 import type { AppSettings, ImportItem, ImportResult } from "../types";
@@ -149,7 +151,8 @@ export default function ImportTab({ t, settings, onUpdate }: ImportTabProps) {
 
       {sections.map(({ source, kind, members }) => (
         <section key={`${source}-${kind}`} className="space-y-2 pt-2">
-          <h3 className="px-1 text-[12px] font-medium text-text-secondary">
+          <h3 className="flex items-center gap-1.5 px-1 text-[12px] font-medium text-text-secondary">
+            <ProviderIcon type={source === "claude" ? "anthropic" : "chatgpt"} name={t(SOURCE_LABEL[source])} size="w-3.5 h-3.5" />
             {t(SOURCE_LABEL[source])} · {t(KIND_LABEL[kind])}
           </h3>
           <ExtensionList>
@@ -157,13 +160,12 @@ export default function ImportTab({ t, settings, onUpdate }: ImportTabProps) {
               const note = noteFor(item);
               return (
                 <div key={item.key} className="flex items-start gap-3 px-3 py-2.5">
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-4 w-4 flex-shrink-0 accent-[var(--accent)]"
+                  <Checkbox
+                    className="mt-1"
                     checked={checked.has(item.key) && item.supported}
                     disabled={!item.supported}
-                    onChange={(event) => toggle(item.key, event.target.checked)}
-                    aria-label={item.name}
+                    onChange={(on) => toggle(item.key, on)}
+                    label={item.name}
                   />
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -192,7 +194,7 @@ export default function ImportTab({ t, settings, onUpdate }: ImportTabProps) {
                             setRenames((previous) => ({ ...previous, [item.key]: value }));
                             if (value.trim()) toggle(item.key, true);
                           }}
-                          className="h-7 w-48 rounded-sm bg-surface-base px-2 font-mono text-[12px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] outline-none focus:ring-2 focus:ring-focus"
+                          className="h-7 w-40 rounded-sm bg-surface-base px-2 font-mono text-[12px] text-text-primary shadow-[inset_0_0_0_1px_var(--rule-control)] outline-none focus:ring-2 focus:ring-focus"
                         />
                       </label>
                     )}

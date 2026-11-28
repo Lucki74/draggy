@@ -24,3 +24,4 @@ export * from "./EmptyState";
 export * from "./Lightbox";
 export * from "./ImagePreview";
 
+export * from "./Checkbox";

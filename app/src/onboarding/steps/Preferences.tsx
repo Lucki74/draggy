@@ -6,6 +6,7 @@ import { allowedEfforts } from "../../ai/effort";
 import type { AppMode } from "../../app/modes";
 import type { AppSettings, SearchProvider } from "../../types";
 import { Icon } from "../../ui/icons/Icon";
+import { Checkbox } from "../../ui/Checkbox";
 import { fill } from "../text";
 import { formatBytes } from "../../formatBytes";
 import StepHeader from "./StepHeader";
@@ -53,13 +54,11 @@ export default function Preferences({
         label={label}
         description={offer.installed ? t("onbExtraInstalled") : fill(t(hintKey), { model: offer.label, size: gb(offer.sizeBytes) })}
       >
-        <input
-          type="checkbox"
+        <Checkbox
           checked={offer.installed || chosen[kind]}
           disabled={offer.installed}
-          onChange={(event) => onExtra(kind, event.target.checked)}
-          aria-label={label}
-          className="h-4 w-4 accent-[var(--text-primary)] disabled:opacity-60"
+          onChange={(on) => onExtra(kind, on)}
+          label={label}
         />
       </Row>
     );

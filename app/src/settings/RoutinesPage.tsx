@@ -21,6 +21,7 @@ interface RoutinesPageProps {
 
 const INPUT =
   "h-8 w-full rounded-lg border border-rule-control bg-surface-canvas px-2.5 text-[13px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-72";
+const INPUT_SHORT = INPUT.replace("sm:w-72", "sm:w-52");
 
 /** The sentence a schedule reads as, from its translation key and values. */
 function meaningText(schedule: string, t: Translate): string | null {
@@ -186,16 +187,21 @@ export default function RoutinesPage({ settings, onUpdate, workspaces, onRunNow,
               aria-label={t("routineName")}
               value={draft.name}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-              className={INPUT}
+              className={INPUT_SHORT}
             />
           </Row>
           <Row label={t("routinePrompt")}>
             <textarea
               aria-label={t("routinePrompt")}
               value={draft.prompt}
-              rows={4}
+              rows={2}
+              ref={(el) => {
+                if (!el) return;
+                el.style.height = "auto";
+                el.style.height = `${Math.min(el.scrollHeight, 192)}px`;
+              }}
               onChange={(e) => setDraft({ ...draft, prompt: e.target.value })}
-              className="w-full rounded-lg border border-rule-control bg-surface-canvas px-2.5 py-2 text-[13px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-96"
+              className="max-h-48 w-full resize-none rounded-[14px] border border-rule-control bg-surface-canvas px-2.5 py-2 text-[13px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-72"
             />
           </Row>
           <Row

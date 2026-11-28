@@ -143,13 +143,16 @@ describe("the skills list", () => {
     });
   }
 
-  it("groups the project's, the user's and the library's under their own headings", async () => {
+  it("lists every skill in one A to Z list and tags the project's and the user's", async () => {
     stubSkills();
     await show();
 
-    const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
+    const names = screen.getAllByRole("switch").map((toggle) => toggle.getAttribute("aria-label"));
 
-    expect(headings).toEqual(["This project", "Your skills", "Writing and editing", "Software planning"]);
+    expect(names).toEqual([...names].sort((one, other) => one!.localeCompare(other!)));
+    expect(screen.queryAllByRole("heading")).toHaveLength(0);
+    expect(screen.getByText("This project")).toBeTruthy();
+    expect(screen.getByText("Your skills")).toBeTruthy();
     expect(screen.getByText("3 of 4 switched on")).toBeTruthy();
   });
 
