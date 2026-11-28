@@ -78,7 +78,7 @@ export default function TelegramPanel({ settings, onUpdate, workspaces, t }: Tel
               value={token}
               placeholder={status?.hasToken ? "••••••••" : "123456:ABC…"}
               onChange={(e) => setToken(e.target.value)}
-              className="h-8 w-56 rounded-lg border border-rule-control bg-surface-canvas px-2.5 font-mono text-[12px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="h-8 w-48 rounded-lg border border-rule-control bg-surface-canvas px-2.5 font-mono text-[12px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus"
             />
             <Button onClick={saveToken} disabled={!token.trim()}>
               {t("telegramSaveToken")}

@@ -1,3 +1,4 @@
+import { Checkbox } from "../ui/Checkbox";
 import { useState } from "react";
 
 export interface MemoryTab {
@@ -82,11 +83,9 @@ export default function MemoryEditor({ tabs, t, onClose }: MemoryEditorProps) {
         {tab.disabledReason && <p className="mt-1 text-xs text-[var(--text-muted)]">{tab.disabledReason}</p>}
         {tab.toggle && (
           <label className="mt-2 flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={checks[active]}
-              onChange={(event) => {
-                const next = event.target.checked;
+              onChange={(next) => {
                 if (tab.toggle?.onChange(next)) setChecks(checks.map((value, index) => (index === active ? next : value)));
                 else setError(t("memorySaveFailed"));
               }}
