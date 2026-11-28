@@ -69,7 +69,7 @@ export function useBackgroundChats(input: Input) {
 
   const startRoutine = useCallback(
     (id: string) => {
-      const { store, runs, workspaces, environment, t } = latest.current;
+      const { store, runs, workspaces, environment, settings, t } = latest.current;
       const routine = routinesRef.current.find((one) => one.id === id);
       if (!routine || running.current.has(id)) return;
       const workspace = workspaces.find((one) => one.id === routine.workspaceId);
