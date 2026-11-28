@@ -63,6 +63,7 @@ export interface AgentRuns {
   continueGeneration: (chatId: string) => void;
   dismissOutOfContext: (chatId: string) => void;
   answerApproval: (approvalId: string, answer: ApprovalAnswer) => void;
+  setChatContext: TaskManager["setChatContext"];
   answerQuestion: (questionId: string, reply: UserReply | null) => void;
   /** Folds the older conversation into notes now. */
   compact: (chatId: string) => Promise<CompactOutcome>;
@@ -133,6 +134,7 @@ export function useAgentRuns(input: AgentRunsInput): AgentRuns {
       continueGeneration: manager.continueGeneration,
       dismissOutOfContext: manager.dismissOutOfContext,
       answerApproval: manager.answerApproval,
+      setChatContext: manager.setChatContext,
       answerQuestion: manager.answerQuestion,
       compact: manager.compact,
       measure: manager.measure,

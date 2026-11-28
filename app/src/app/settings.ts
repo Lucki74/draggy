@@ -8,6 +8,7 @@ import { EFFORT_DEFAULT, effortFromLegacy, isEffortLevel } from "../ai/effort";
 import { DEFAULT_BUDGETS } from "../stats/budget";
 import { turnPricer } from "../stats/pricing";
 import { resolveDisplayMoney, setDisplayMoney } from "../stats/displayMoney";
+import { sanitizeRoutines } from "../routines/store";
 
 /** Thinking modes before the five effort levels, and the key each one became. */
 const LEGACY_EFFORT_KEYS = [
@@ -71,6 +72,9 @@ export const defaultSettings: AppSettings = {
   imageResolution: "1024x1024",
   budgets: DEFAULT_BUDGETS,
   hooks: [],
+  routines: [],
+  telegramWorkspaceId: "",
+  telegramMode: "chat",
   hookTrust: {},
   priceRefresh: true,
   displayCurrency: "USD",
@@ -118,6 +122,13 @@ export function loadSettings(): AppSettings {
   }
 
   let migrated = false;
+  if ("routines" in parsed) {
+    parsed.routines = sanitizeRoutines(parsed.routines);
+  }
+  if (parsed.telegramMode !== undefined && parsed.telegramMode !== "chat" && parsed.telegramMode !== "code") {
+    delete parsed.telegramMode;
+    migrated = true;
+  }
   // Updating is always on now, with no setting.
   if ("autoUpdate" in parsed) {
     delete (parsed as { autoUpdate?: unknown }).autoUpdate;

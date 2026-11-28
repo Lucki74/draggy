@@ -77,6 +77,20 @@ export function createDraggyApi(ipc: IpcLike): NonNullable<Window["draggy"]> {
       onProgress: (callback) => subscribe("largemodel-progress", callback),
     },
     notifyDone: (title, body) => ipc.invoke("notify:done", title, body),
+    notifyShow: (title, body) => ipc.invoke("notify:show", title, body),
+    telegram: {
+      status: () => ipc.invoke("telegram:status"),
+      // Write-only: the status says whether a token is saved, never what it is.
+      setToken: (token) => ipc.invoke("telegram:set-token", token),
+      setEnabled: (enabled) => ipc.invoke("telegram:set-enabled", enabled),
+      pairStart: () => ipc.invoke("telegram:pair-start"),
+      unpair: (chatId) => ipc.invoke("telegram:unpair", chatId),
+      send: (chatId, text) => ipc.invoke("telegram:send", { chatId, text }),
+      askApproval: (chatId, approvalId, text) => ipc.invoke("telegram:ask-approval", { chatId, approvalId, text }),
+      onMessage: (callback) => subscribe("telegram-message", callback),
+      onApproval: (callback) => subscribe("telegram-approval", callback),
+      onStatus: (callback) => subscribe("telegram-status", callback),
+    },
     tier: {
       catalog: (contextTokens) => ipc.invoke("tier:catalog", contextTokens),
       record: (sample) => ipc.invoke("tier:record", sample),

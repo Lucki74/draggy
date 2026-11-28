@@ -97,6 +97,8 @@ export function useSessions(): SessionStore {
   );
 
   const addSession = useCallback((session: ChatSession) => {
+    // Visible to getSession at once: a run started in the same tick must find the chat.
+    if (!sessionsRef.current.some((s) => s.id === session.id)) sessionsRef.current = [session, ...sessionsRef.current];
     setSessions((prev) =>
       prev.some((s) => s.id === session.id) ? prev : [session, ...prev],
     );

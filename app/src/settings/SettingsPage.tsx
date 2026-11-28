@@ -10,6 +10,7 @@ import { DataPage, ExtensionsPage, GeneralPage, WebSearchPage } from "./GeneralP
 import { ChatPreferencesPage, LibraryPage, TalkPage } from "./ChatPages";
 import { CodePreferencesPage, PermissionsPage, ProjectsPage } from "./CodePages";
 import HooksPage from "./HooksPage";
+import RoutinesPage from "./RoutinesPage";
 import { ResearchPage } from "./ResearchPage";
 import ApiServerField from "./ApiServerField";
 import StatsPanel from "../stats/StatsPanel";
@@ -45,6 +46,10 @@ interface SettingsPageProps {
   onRevokeGrant: (id: string, grant: WorkspaceGrant) => void;
   onRemoveProject: (id: string) => void;
   onEditProjectMemory: (id: string) => void;
+  /** Every workspace a routine or a Telegram chat can run in, the default one first. */
+  runWorkspaces?: Workspace[];
+  onRunRoutine?: (id: string) => void;
+  onOpenChat?: (chatId: string) => void;
   onClearChats: () => void;
   /** The chats on hand, for finding the report and the chat a research run came from. */
   sessions?: ChatSession[];
@@ -253,7 +258,20 @@ export default function SettingsPage(props: SettingsPageProps) {
               />
             )}
 
-            {tab === "extensions" && <ExtensionsPage t={t} />}
+            {tab === "extensions" && (
+              <ExtensionsPage t={t} settings={settings} onUpdate={onUpdate} workspaces={props.runWorkspaces ?? props.projects} />
+            )}
+
+            {tab === "routines" && (
+              <RoutinesPage
+                settings={settings}
+                onUpdate={onUpdate}
+                workspaces={props.runWorkspaces ?? props.projects}
+                onRunNow={props.onRunRoutine ?? (() => undefined)}
+                onOpenChat={props.onOpenChat ?? (() => undefined)}
+                t={t}
+              />
+            )}
 
             {tab === "code" && (
               <CodePreferencesPage
