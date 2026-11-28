@@ -6,7 +6,7 @@ import { IconButton } from "../ui/IconButton";
 import { SegmentedControl } from "../ui/SegmentedControl";
 import { Toggle } from "../settings/Controls";
 import { localDescription } from "./descriptions";
-import { ExtensionList, ExtensionRow } from "./ExtensionRow";
+import { ExtensionList } from "./ExtensionRow";
 import type { InstalledSkill, LoadedSkill } from "../types";
 import { swallowed } from "../logger";
 import { SkillEditor } from "./SkillEditor";
@@ -22,50 +22,11 @@ interface SkillsTabProps {
 
 type Shown = "all" | "on" | "off";
 
-/** The library's shelves, in the order they are shown, after the skills the user wrote. */
-const SKILL_CATEGORIES = [
-  "writing-editing",
-  "human-voice",
-  "email-comms",
-  "creative-writing",
-  "documents-files",
-  "spreadsheets",
-  "data-analysis",
-  "research",
-  "learning",
-  "languages",
-  "productivity-planning",
-  "business-strategy",
-  "marketing-seo",
-  "sales-crm",
-  "finance-business",
-  "personal-finance",
-  "career-hiring",
-  "life-admin-travel",
-  "design-visual",
-  "media-audio-video",
-  "software-planning",
-  "debugging-testing",
-  "code-review-quality",
-  "refactor-migration",
-  "frontend-ui",
-  "backend-apis-db",
-  "devops-cloud",
-  "security",
-  "git-workflow",
-  "browser-web-automation",
-  "meta-agent",
-  "ai-prompting",
-];
-
-/** Which heading a skill goes under: the project's and the user's own first, then the library's. */
-function groupOf(skill: InstalledSkill): string {
-  if (skill.source === "project") return "project";
-  if (skill.source === "user") return "user";
-  return skill.category && SKILL_CATEGORIES.includes(skill.category) ? skill.category : "meta-agent";
+/** The letter a skill sits under in the A to Z list; anything not a letter goes under #. */
+function letterOf(name: string): string {
+  const first = name.trim().charAt(0).toUpperCase();
+  return /\p{L}/u.test(first) ? first : "#";
 }
-
-const GROUP_ORDER = ["project", "user", ...SKILL_CATEGORIES];
 
 /** Skills tell Draggy how the user wants a job done, as servers connect it to things. Both are
  * switched on here, for the whole app, hence one screen. */
@@ -140,17 +101,18 @@ export default function SkillsTab({ workspaceId, onImport, t }: SkillsTabProps) 
     );
   });
 
-  const groups = GROUP_ORDER.map((group) => ({
-    group,
-    members: visible.filter((skill) => groupOf(skill) === group),
-  })).filter((entry) => entry.members.length > 0);
+  const sorted = [...visible].sort((one, other) =>
+    one.name.localeCompare(other.name, undefined, { sensitivity: "base", numeric: true }),
+  );
 
-  const headingFor = (group: string) =>
-    group === "project"
-      ? t("thisProject")
-      : group === "user"
-        ? t("skillsYours")
-        : t(`skillCategory_${group.replace(/-/g, "_")}`);
+  const tagFor = (skill: InstalledSkill) =>
+    skill.locked
+      ? t("skillLocked")
+      : skill.source === "project"
+        ? t("thisProject")
+        : skill.source === "user"
+          ? t("skillsYours")
+          : undefined;
 
   return (
     <div className="space-y-3">
@@ -196,74 +158,79 @@ export default function SkillsTab({ workspaceId, onImport, t }: SkillsTabProps) 
               .replace("{count}", String(skills.length))}
           </p>
 
-          {groups.length === 0 && <p className="px-1 text-[13px] text-text-secondary">{t("mcpNoMatches")}</p>}
+          {sorted.length === 0 ? (
+            <p className="px-1 text-[13px] text-text-secondary">{t("mcpNoMatches")}</p>
+          ) : (
+            <ExtensionList>
+              {sorted.map((skill, index) => {
+                const open = expanded === skill.id;
+                const tag = tagFor(skill);
+                const letter = letterOf(skill.name);
+                const description =
+                  skill.source === "library" ? localDescription(t, "skill", skill.id, skill.description) : skill.description;
 
-          {groups.map(({ group, members }) => (
-            <section key={group} className="space-y-2 pt-2">
-              <h3 className="px-1 text-[12px] font-medium text-text-secondary">{headingFor(group)}</h3>
-
-              <ExtensionList>
-                {members.map((skill) => {
-                  const open = expanded === skill.id;
-                  const tag = skill.locked ? t("skillLocked") : undefined;
-
-                  return (
-                    <ExtensionRow
-                      key={skill.id}
-                      leading={<Icon name="book-open" size={18} className="text-text-tertiary" />}
-                      name={skill.name}
-                      tag={tag}
-                      description={skill.source === "library" ? localDescription(t, "skill", skill.id, skill.description) : skill.description}
-                      control={
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => void expand(skill)}
-                            aria-label={`${t("skillInstructions")}: ${skill.name}`}
-                            aria-expanded={open}
-                            className="rounded-sm p-1.5 text-text-secondary outline-none transition-colors hover:bg-surface-raised hover:text-text-primary focus-visible:ring-2 focus-visible:ring-focus"
-                          >
-                            <Icon name="caret-right" size={14} className={`transition-transform ${open ? "rotate-90" : ""}`} />
-                          </button>
-                          {skill.source === "user" && (
-                            <IconButton name="pencil-simple" label={`${t("skillEditAction")}: ${skill.name}`} size="dense" onClick={() => void edit(skill)} />
-                          )}
-                          <Toggle checked={isOn(skill)} disabled={skill.locked} label={skill.name} onChange={(value) => void toggle(skill, value)} />
-                        </>
-                      }
-                      menuLabel={skill.name}
+                return (
+                  <div key={skill.id}>
+                    {letter !== (index > 0 ? letterOf(sorted[index - 1].name) : "") && (
+                      <p className="px-3 pb-1 pt-2.5 text-[11px] font-medium text-text-tertiary">{letter}</p>
+                    )}
+                    <div
+                      className={`flex h-9 items-center gap-2.5 px-3 transition-colors hover:bg-surface-raised/60 ${open ? "bg-surface-raised/60" : ""}`}
                     >
-                      {open && (
-                        <div className="space-y-2">
-                          {loaded?.id === skill.id ? (
-                            <>
-                              <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-md bg-surface-raised/60 px-3 py-2 font-mono text-[12px] leading-[18px] text-text-primary">
-                                {loaded.body}
-                              </pre>
-                              {loaded.files.length > 0 && (
-                                <div>
-                                  <p className="text-[12px] font-medium text-text-secondary">{t("skillFiles")}</p>
-                                  <ul className="mt-1 space-y-0.5">
-                                    {loaded.files.map((name) => (
-                                      <li key={name} className="font-mono text-[12px] text-text-secondary">
-                                        {name}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <p className="text-[12px] text-text-secondary">{t("loading")}</p>
-                          )}
-                        </div>
+                      <Icon name="book-open" size={15} className="flex-shrink-0 text-text-tertiary" />
+                      <button
+                        type="button"
+                        onClick={() => void expand(skill)}
+                        aria-label={`${t("skillInstructions")}: ${skill.name}`}
+                        aria-expanded={open}
+                        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xs text-start outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                      >
+                        <span className="flex-shrink-0 text-[13px] font-medium text-text-primary">{skill.name}</span>
+                        {tag && (
+                          <span className="flex-shrink-0 rounded-xs px-1.5 text-[11px] leading-4 text-text-secondary shadow-[inset_0_0_0_1px_var(--rule-control)]">
+                            {tag}
+                          </span>
+                        )}
+                        <span className="min-w-0 flex-1 truncate text-[12px] text-text-secondary">{description}</span>
+                        <Icon name="caret-right" size={12} className={`flex-shrink-0 text-text-tertiary transition-transform ${open ? "rotate-90" : ""}`} />
+                      </button>
+                      {skill.source === "user" && (
+                        <IconButton name="pencil-simple" label={`${t("skillEditAction")}: ${skill.name}`} size="dense" onClick={() => void edit(skill)} />
                       )}
-                    </ExtensionRow>
-                  );
-                })}
-              </ExtensionList>
-            </section>
-          ))}
+                      <Toggle checked={isOn(skill)} disabled={skill.locked} label={skill.name} onChange={(value) => void toggle(skill, value)} />
+                    </div>
+
+                    {open && (
+                      <div className="space-y-2 px-3 pb-3 ps-[37px]">
+                        <p className="text-[12px] leading-[18px] text-text-secondary">{description}</p>
+                        {loaded?.id === skill.id ? (
+                          <>
+                            <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-md bg-surface-raised/60 px-3 py-2 font-mono text-[12px] leading-[18px] text-text-primary">
+                              {loaded.body}
+                            </pre>
+                            {loaded.files.length > 0 && (
+                              <div>
+                                <p className="text-[12px] font-medium text-text-secondary">{t("skillFiles")}</p>
+                                <ul className="mt-1 space-y-0.5">
+                                  {loaded.files.map((name) => (
+                                    <li key={name} className="font-mono text-[12px] text-text-secondary">
+                                      {name}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-[12px] text-text-secondary">{t("loading")}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </ExtensionList>
+          )}
         </>
       )}
 
