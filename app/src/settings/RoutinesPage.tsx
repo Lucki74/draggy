@@ -201,7 +201,7 @@ export default function RoutinesPage({ settings, onUpdate, workspaces, onRunNow,
                 el.style.height = `${Math.min(el.scrollHeight, 192)}px`;
               }}
               onChange={(e) => setDraft({ ...draft, prompt: e.target.value })}
-              className="max-h-48 w-full resize-none rounded-lg border border-rule-control bg-surface-canvas px-2.5 py-2 text-[13px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-96"
+              className="max-h-48 w-full resize-none rounded-[14px] border border-rule-control bg-surface-canvas px-2.5 py-2 text-[13px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-72"
             />
           </Row>
           <Row
