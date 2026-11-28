@@ -1,5 +1,6 @@
 import type { QueuedMessage } from "../types";
 import { logSwallow } from "../logger";
+import type { AgentTurn } from "../chat/agentPolicy";
 
 /** Queued messages survive a restart the way drafts do, in this window's storage. Attachments are
  * left out: a picture or two would fill the space drafts also need. */
@@ -7,13 +8,20 @@ import { logSwallow } from "../logger";
 const PREFIX = "queue_";
 const keyFor = (chatId: string) => `${PREFIX}${chatId}`;
 
+function savedAgent(value: unknown): AgentTurn | undefined {
+  const agent = value as Partial<AgentTurn> | null;
+  return agent && typeof agent.id === "string" && typeof agent.permissions === "string" ? (agent as AgentTurn) : undefined;
+}
+
 function parse(raw: string | null): QueuedMessage[] {
   const saved = JSON.parse(raw || "[]") as unknown;
   if (!Array.isArray(saved)) return [];
-  return saved.filter(
-    (item): item is QueuedMessage =>
-      Boolean(item) && typeof item.id === "string" && typeof item.content === "string",
-  );
+  return saved
+    .filter(
+      (item): item is QueuedMessage =>
+        Boolean(item) && typeof item.id === "string" && typeof item.content === "string",
+    )
+    .map((item) => ({ ...item, agent: savedAgent(item.agent) }));
 }
 
 /** Every conversation's saved queue, read once when the app starts. */
@@ -42,7 +50,7 @@ export function saveQueue(chatId: string, queue: QueuedMessage[]): void {
       localStorage.removeItem(keyFor(chatId));
       return;
     }
-    const stored = queue.map(({ id, content }) => ({ id, content }));
+    const stored = queue.map(({ id, content, agent }) => (agent ? { id, content, agent } : { id, content }));
     localStorage.setItem(keyFor(chatId), JSON.stringify(stored));
   } catch (error) {
     logSwallow("chat", error, "the queue still works for this run");

@@ -26,6 +26,8 @@ const NO_SKILLS: InstalledSkill[] = [];
 
 interface ChatScreenProps {
   model: string;
+  /** Why the last typed agent command was not sent; shown with the composer's own errors. */
+  agentErrors?: string[];
   chat: ChatSession;
   onSendMessage: (content: string, attachments?: Attachment[]) => void;
   onRegenerate: (index: number) => void;
@@ -62,6 +64,7 @@ interface ChatScreenProps {
 /* Chat view coordinating the message transcript, bottom prompt composer and drag drops. */
 export default function ChatScreen({
   model,
+  agentErrors = [],
   chat,
   onSendMessage,
   onRegenerate,
@@ -234,12 +237,13 @@ export default function ChatScreen({
       input={session.input}
       setInput={session.setInput}
       attachedFiles={session.attachedFiles}
-      fileErrors={session.fileErrors}
+      fileErrors={[...session.fileErrors, ...agentErrors]}
       notice={session.notice}
       micState={session.micState}
       micAnalyser={session.micAnalyser}
       micDetail={session.micDetail}
       slashMatches={session.slashMatches}
+      expandCommands={session.expandCommands}
       activeSlashIndex={session.activeSlashIndex}
       modelInfo={session.modelInfo}
       modelProvider={session.modelProvider}

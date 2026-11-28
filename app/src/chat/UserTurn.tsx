@@ -104,8 +104,8 @@ export function UserTurn({ msg, idx, text, onEditMessage, t }: UserTurnProps) {
         >
           {/* Typed text is shown as written, so markdown characters and line breaks survive. */}
           <div className="whitespace-pre-wrap">
-            {msg.content.trim()
-              ? sanitizeContent(msg.content)
+            {(msg.typedText ?? msg.content).trim()
+              ? sanitizeContent(msg.typedText ?? msg.content)
               : attachments.length > 0
                 ? `[${t("attachedFiles")}]`
                 : ""}

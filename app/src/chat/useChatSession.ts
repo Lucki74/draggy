@@ -29,6 +29,8 @@ import {
 import type { ContextBreakdown } from "../agent/contextBreakdown";
 import { useLiveTurn } from "../agent/liveTurn";
 import { loadedSkillIds } from "../skills/skills";
+import { expandCustomCommand } from "./customCommands";
+import { useCustomCommands } from "./customCommandStore";
 import { useProviderOf } from "../providers/useProviders";
 import { isSpeechSupported, startRecording, transcribe } from "../speech";
 import type { Recorder } from "../speech";
@@ -41,6 +43,7 @@ import {
     commandRanges,
     replaceSlashToken,
     slashTokenAt,
+    usableCommands,
 } from "./slashCommands";
 import { isBinary, writeLocalStorage } from "../utils";
 import { appendMention, FILL_EVENT, MENTION_EVENT, RESTORE_EVENT } from "./mentions";
@@ -305,8 +308,11 @@ export function useChatSession({
         return true;
     };
 
+    // Filtered once: a custom file named like a built-in or a skill is neither listed nor expanded.
+    const customCommands = usableCommands(useCustomCommands(), skills);
+
     const runSlashCommand = (id: string): number | void => {
-        if (id === "compact-limit" || id === "image" || skills.some((skill) => skill.id === id)) {
+        if (id === "compact-limit" || id === "image" || skills.some((skill) => skill.id === id) || customCommands.some((command) => command.id === id)) {
             const token = slashTokenAt(input, Math.min(caret ?? input.length, input.length));
             if (!token) {
                 setInput(`/${id} `);
@@ -493,7 +499,7 @@ export function useChatSession({
 
     const chipRanges = useMemo(() => commandRanges(input, { surface, skills }), [input, surface, skills]);
     const slashQuery = slashTokenAt(input, Math.min(caret ?? input.length, input.length))?.query ?? null;
-    const slashMatches = matchSlashCommands(input, { surface, skills, caret: caret ?? undefined });
+    const slashMatches = matchSlashCommands(input, { surface, skills, custom: customCommands, caret: caret ?? undefined });
 
     if (lastSlashQuery !== slashQuery) {
         setLastSlashQuery(slashQuery);
@@ -641,6 +647,7 @@ export function useChatSession({
         micDetail,
         micAnalyser,
         slashMatches,
+        expandCommands: (text: string) => expandCustomCommand(text, customCommands),
         activeSlashIndex,
         setSlashIndex,
         setCaret,
