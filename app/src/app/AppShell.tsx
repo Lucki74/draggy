@@ -47,6 +47,7 @@ import { syncMcpTools } from "../tools/mcp";
 import type { McpServerState } from "../tools/mcp";
 import { useSessions } from "./useSessions";
 import { useAgentRuns } from "./useAgentRuns";
+import { useBackgroundChats } from "./useBackgroundChats";
 import { rulesFor } from "../agent/permissionRules";
 import { useUpdateDialog } from "./useUpdateDialog";
 import { ACTIVE_WORKSPACE_KEY, useWorkspaces } from "./useWorkspaces";
@@ -412,6 +413,21 @@ export default function AppShell({
     addSession: store.addSession,
     updateSession: store.updateSession,
     patchActiveMessage: store.patchActiveMessage,
+  });
+  const runWorkspaces = useMemo(
+    () => [defaultWorkspace, ...projects.filter((one) => one.id !== defaultWorkspace.id)],
+    [defaultWorkspace, projects],
+  );
+  const background = useBackgroundChats({
+    store,
+    runs,
+    workspaces: runWorkspaces,
+    defaultWorkspaceId: defaultWorkspace.id,
+    environment,
+    settings,
+    updateSettings,
+    ready: store.hydrated && workspaces.workspaces.length > 0,
+    t,
   });
   // Read again when a reply starts or ends, which is when a model gets loaded.
 
@@ -1584,6 +1600,9 @@ export default function AppShell({
             onSetPermissionMode={workspaces.setPermissionMode}
             onRevokeGrant={workspaces.revokeGrant}
             onRemoveProject={(id) => void removeProject(id)}
+            runWorkspaces={runWorkspaces}
+            onRunRoutine={background.startRoutine}
+            onOpenChat={openChat}
             onEditProjectMemory={(id) =>
               void openMemoryOf(
                 workspaces.workspaces.find((one) => one.id === id),

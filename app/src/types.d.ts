@@ -802,6 +802,23 @@ export type TurnCost = Pick<
   | "priceUpdatedAt"
 >;
 
+export interface TelegramStatus {
+  hasToken: boolean;
+  enabled: boolean;
+  running: boolean;
+  bot: string;
+  error: string;
+  paired: { chatId: string; name: string }[];
+  pairing: { code: string; expiresAt: number } | null;
+  lockedSecs: number;
+}
+
+export interface TelegramIncoming {
+  chatId: string;
+  text: string;
+  command: "new" | "stop" | null;
+}
+
 export interface ApiServerStatus {
   success: boolean;
   enabled: boolean;
@@ -1454,6 +1471,11 @@ export interface ExchangeRates {
 export interface AppSettings {
   /** User hooks run for every project, in list order. */
   hooks: import("./agent/hooks").HookEntry[];
+  /** Scheduled routines. */
+  routines: import("./routines/store").Routine[];
+  /** Project the Telegram chats open in, and whether they start in Chat or Code. */
+  telegramWorkspaceId: string;
+  telegramMode: "chat" | "code";
   /** Digest of each project hooks file the user trusted, keyed by project root. */
   hookTrust: Record<string, string>;
   /** "system" follows the operating system, and is what a new install starts on. */
@@ -1557,6 +1579,20 @@ declare global {
   interface Window {
     draggy?: {
       notifyDone: (title: string, body: string) => Promise<{ shown: boolean }>;
+      /** A toast that shows even while the window has focus. */
+      notifyShow: (title: string, body: string) => Promise<{ shown: boolean }>;
+      telegram: {
+        status: () => Promise<TelegramStatus>;
+        setToken: (token: string) => Promise<TelegramStatus>;
+        setEnabled: (enabled: boolean) => Promise<TelegramStatus>;
+        pairStart: () => Promise<TelegramStatus>;
+        unpair: (chatId: string) => Promise<TelegramStatus>;
+        send: (chatId: string, text: string) => Promise<{ success: boolean }>;
+        askApproval: (chatId: string, approvalId: string, text: string) => Promise<{ success: boolean }>;
+        onMessage: (callback: (message: TelegramIncoming) => void) => () => void;
+        onApproval: (callback: (answer: { approvalId: string; allow: boolean }) => void) => () => void;
+        onStatus: (callback: (status: TelegramStatus) => void) => () => void;
+      };
       tier: {
         catalog: (contextTokens?: number) => Promise<{ hardware: HardwareReport; models: CatalogModel[] }>;
         record: (sample: { tokPerSec: number; tokens: number }) => Promise<{ recorded: boolean }>;
