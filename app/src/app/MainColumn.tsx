@@ -52,7 +52,8 @@ export interface MainColumnProps {
     onNewProject: () => void;
     onOpenProjectMemory: () => void;
     onSelectFile: (path: string) => void;
-    onSendMessage: (content: string, attachments?: Attachment[]) => void;
+    onSendMessage: (content: string, attachments?: Attachment[], typedText?: string) => void;
+    agentErrors?: string[];
     onRegenerateChat: (idx: number) => void;
     onSwitchVersionChat: (mIdx: number, vIdx: number) => void;
     onEditMessageChat: (mIdx: number, content: string) => void;
@@ -108,6 +109,7 @@ export function MainColumn({
     onOpenProjectMemory,
     onSelectFile,
     onSendMessage,
+    agentErrors,
     onRegenerateChat,
     onSwitchVersionChat,
     onEditMessageChat,
@@ -192,6 +194,7 @@ export function MainColumn({
                                 }
                             }
                             onSendMessage={onSendMessage}
+                            agentErrors={agentErrors}
                             onRegenerate={onRegenerateChat}
                             onSwitchVersion={onSwitchVersionChat}
                             onEditMessage={onEditMessageChat}

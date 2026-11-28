@@ -1,5 +1,6 @@
 import { skillCommandMatches } from "../skills/skills";
 import type { InstalledSkill } from "../types";
+import { usableCustomCommands, type CustomCommand } from "./customCommands";
 
 /** The slash commands. `label` is a translation key, so the menu reads in the user's language while
  * "/new" stays "/new" whatever the interface is set to. */
@@ -13,6 +14,8 @@ export interface SlashCommand {
   takesArgument?: boolean;
   /** Set for a skill, whose description stands in for a translated label. */
   description?: string;
+  /** Short tag shown before a custom command's row, like "agent". */
+  badge?: string;
 }
 
 export const SLASH_COMMANDS: SlashCommand[] = [
@@ -30,6 +33,16 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { id: "memory", label: "projectMemory", only: "code" },
   { id: "init", label: "initProject", only: "code" },
 ];
+
+/** Names a custom command may not use: built-in commands and installed skills. */
+export function takenCommandIds(skills: InstalledSkill[] = []): Set<string> {
+  return new Set([...SLASH_COMMANDS.map((command) => command.id), ...skills.map((skill) => skill.id.toLowerCase())]);
+}
+
+/** The custom commands that can be typed: the menu and the send path both use this list. */
+export function usableCommands(custom: CustomCommand[], skills: InstalledSkill[] = []): CustomCommand[] {
+  return usableCustomCommands(custom, takenCommandIds(skills));
+}
 
 /** What the composer is asking for. A space closes the menu: "/dev/null is not a file" is a
  * sentence, and Enter must send it rather than run a command. */
@@ -119,7 +132,7 @@ export function skillCommands(skills: InstalledSkill[]): SlashCommand[] {
 
 export function matchSlashCommands(
   input: string,
-  options: { surface?: "chat" | "code"; skills?: InstalledSkill[]; caret?: number } = {},
+  options: { surface?: "chat" | "code"; skills?: InstalledSkill[]; custom?: CustomCommand[]; caret?: number } = {},
 ): SlashCommand[] {
   const token = slashTokenAt(input, options.caret ?? input.length);
   if (!token) return [];
@@ -136,7 +149,17 @@ export function matchSlashCommands(
     command.id.toLowerCase().startsWith(query),
   );
 
-  return [...builtIn, ...skills];
+  const custom = usableCommands(options.custom ?? [], options.skills ?? [])
+    .filter((command) => command.id.startsWith(query))
+    .map((command) => ({
+      id: command.id,
+      label: "",
+      description: command.description,
+      takesArgument: true,
+      ...(command.kind === "agent" ? { badge: "agent" } : {}),
+    }));
+
+  return [...builtIn, ...skills, ...custom];
 }
 
 /** A command typed with a value, like "/compact-limit 20k", read after the space closed the menu.

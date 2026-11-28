@@ -90,7 +90,9 @@ export interface ComposerProps {
     micState: "idle" | "recording" | "loading" | "transcribing";
     micAnalyser?: AnalyserNode | null;
     micDetail: string;
-    slashMatches: Array<{ id: string; label: string; description?: string }>;
+    slashMatches: Array<{ id: string; label: string; description?: string; badge?: string }>;
+    /** Turns a "/name args" line into the command's prompt. Identity when not given. */
+    expandCommands?: (text: string) => string;
     activeSlashIndex: number;
     modelInfo: ModelInfo | null;
     modelProvider?: ProviderInstance | null;
@@ -105,7 +107,8 @@ export interface ComposerProps {
     /** "home" sits centered on an empty session; "dock" is pinned under the transcript. */
     variant?: "home" | "dock";
     t: (key: string) => string;
-    onSendMessage: (content: string, attachments?: Attachment[]) => void;
+    /** `typedText` is the line as typed when a custom command expanded it. */
+    onSendMessage: (content: string, attachments?: Attachment[], typedText?: string) => void;
     onStopGeneration: () => void;
     onSelectModel: (name: string) => void;
     onOpenSettings: (tab: SettingsTab) => void;
@@ -180,6 +183,7 @@ export function Composer({
     micAnalyser,
     micDetail,
     slashMatches,
+    expandCommands,
     activeSlashIndex,
     modelProvider,
     thinkingUnavailable,
@@ -395,9 +399,17 @@ export function Composer({
         }
 
         // /image asks the chat model for a picture; the model writes the prompt and calls the image tool.
+        let typedText: string | undefined;
         if (command?.id === "image") sanitizedInput = `Generate an image: ${command.argument}`;
+        else if (expandCommands) {
+            const expanded = expandCommands(sanitizedInput);
+            if (expanded !== sanitizedInput) {
+                typedText = sanitizedInput;
+                sanitizedInput = expanded;
+            }
+        }
 
-        onSendMessage(sanitizedInput, attachedFiles);
+        onSendMessage(sanitizedInput, attachedFiles, typedText);
         setInput("");
         localStorage.removeItem(draftKeyFor(chat, surface));
         // Sent with this message; left in place they would ride along on the next one.
@@ -545,6 +557,9 @@ export function Composer({
                                 }`}
                             >
                                 <span className="font-mono text-[12px] text-text-primary flex-shrink-0">/{command.id}</span>
+                                {command.badge && (
+                                    <span className="flex-shrink-0 rounded px-1 text-[11px] text-text-tertiary border border-rule">{command.badge}</span>
+                                )}
                                 <span className="min-w-0 truncate">{command.description ?? t(command.label)}</span>
                             </button>
                         ))}

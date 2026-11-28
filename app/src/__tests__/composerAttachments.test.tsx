@@ -14,7 +14,7 @@ describe("attachments after a send", () => {
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "look at this" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(onSendMessage).toHaveBeenCalledWith("look at this", [{ name: "screenshot.png", type: "image/png" }]);
+    expect(onSendMessage).toHaveBeenCalledWith("look at this", [{ name: "screenshot.png", type: "image/png" }], undefined);
     expect(clearAttachments).toHaveBeenCalledTimes(1);
   });
 

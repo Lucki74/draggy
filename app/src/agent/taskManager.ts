@@ -43,6 +43,7 @@ import type {
 import type { GenerationMetrics } from "../llama";
 import { classifyTurnError, editAt, isTransient, modelHistory, promoteShown, retryAt, switchAt } from "./turnHistory";
 import { loadQueues, saveQueue } from "./turnQueue";
+import type { AgentTurn } from "../chat/agentPolicy";
 
 /** Running turns, keyed by conversation, so a turn belongs to its chat rather than the screen: it
  * keeps going elsewhere, and several can run at once. */
@@ -93,6 +94,8 @@ export interface RunOptions {
   /** Let a running fold finish first. Only for turns that add to the conversation; a turn that
    * rewrites history cancels it, or the notes would be wrong. */
   waitForFold?: boolean;
+  /** The file-defined agent this send runs as, if any. Its model and tools replace the chat's for this turn. */
+  agent?: AgentTurn;
 }
 
 /** How a fold the user asked for went. */
@@ -106,7 +109,7 @@ export interface TaskManager {
     contextMessages: Message[],
     options?: RunOptions,
   ) => Promise<void>;
-  send: (chatId: string, content: string, attachments?: Attachment[]) => void;
+  send: (chatId: string, content: string, attachments?: Attachment[], typedText?: string, agent?: AgentTurn) => void;
   regenerate: (chatId: string, index?: number) => void;
   editMessage: (
     chatId: string,
@@ -192,7 +195,9 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   let steerSnapshot: Record<string, string[]> = {};
   const steerListeners = new Set<() => void>();
   /** Chats whose message waits behind another chat's turn, with the reply that says so. */
-  const parked = new Map<string, { replyId: string; stepId: string }>();
+  const parked = new Map<string, { replyId: string; stepId: string; agent?: AgentTurn }>();
+  /** The agent policy of each chat's latest turn, reapplied to its continuations and retries. */
+  const chatAgent = new Map<string, AgentTurn | undefined>();
   const queueMap = new Map<string, QueuedMessage[]>(Object.entries(loadQueues()));
   let queueSnapshot: Record<string, QueuedMessage[]> = Object.fromEntries(queueMap);
   const queueListeners = new Set<() => void>();
@@ -480,7 +485,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     contextMessages: Message[],
     options: RunOptions = {},
   ) {
-    const model = host.getModel();
+    const model = options.agent?.model ?? host.getModel();
     if (!model) return;
 
     runs.get(chatId)?.abort();
@@ -584,6 +589,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         seed,
         compaction: host.getSession(chatId)?.compaction,
         permission: host.getPermission(),
+        agent: options.agent ?? null,
         workspaceId: host.getWorkspaceId(),
         chatId,
         contextBase:
@@ -820,7 +826,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
           if (cutSession && cut && model && autoContinueWindow(cut, nextContextSize(model, cut.modelMax, cut.loaded)) !== null) {
             growWindow(chatId, model, cut);
             dismissOutOfContext(chatId);
-            void run(chatId, cutSession.messages, { isContinuation: true });
+            void run(chatId, cutSession.messages, { isContinuation: true, agent: chatAgent.get(chatId) });
           } else if (othersWaiting) {
             // Another chat asked first, so this chat's own queue goes behind it.
             if (!failed && queueOf(chatId).length > 0) waitForTurn(chatId);
@@ -845,14 +851,14 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     const held = parked.get(chatId);
     if (held) {
       parked.delete(chatId);
-      releaseParked(chatId, held.replyId);
+      releaseParked(chatId, held.replyId, held.agent);
       labelParked();
       return true;
     }
     const [next, ...rest] = queueOf(chatId);
     if (!next) return false;
     setQueue(chatId, rest);
-    send(chatId, next.content, next.attachments);
+    send(chatId, next.content, next.attachments, next.typedText, next.agent);
     return true;
   }
 
@@ -898,7 +904,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   /** The chat's turn at last: the waiting reply goes and the stored message runs as a normal turn. */
-  function releaseParked(chatId: string, replyId: string) {
+  function releaseParked(chatId: string, replyId: string, agent?: AgentTurn) {
     const session = host.getSession(chatId);
     const messages = (session?.messages ?? []).filter((message) => message.id !== replyId);
     if (!host.getModel()) {
@@ -906,7 +912,8 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       return;
     }
     host.updateSession(chatId, (s) => ({ ...s, messages }));
-    void run(chatId, messages, { waitForFold: true });
+    chatAgent.set(chatId, agent);
+    void run(chatId, messages, { waitForFold: true, agent });
   }
 
   /** Hands the model to the chat that has waited longest and still has something queued. */
@@ -917,19 +924,19 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   /** A new message from the user. While another chat's turn runs it waits in this chat's queue. */
-  function send(chatId: string, content: string, attachments?: Attachment[]) {
+  function send(chatId: string, content: string, attachments?: Attachment[], typedText?: string, agent?: AgentTurn) {
     wakes.delete(chatId);
     stoppedByUser.delete(chatId);
     if (host.oneTurnAtATime && runs.size > 0 && !runs.has(chatId)) {
       if (parked.has(chatId) || queueOf(chatId).length > 0) {
-        setQueue(chatId, [...queueOf(chatId), { id: generateId(), content, attachments }]);
+        setQueue(chatId, [...queueOf(chatId), { id: generateId(), content, attachments, typedText, agent }]);
         waitForTurn(chatId);
       } else {
-        park(chatId, content, attachments);
+        park(chatId, content, attachments, typedText, agent);
       }
       return;
     }
-    deliver(chatId, content, attachments);
+    deliver(chatId, content, attachments, undefined, typedText, agent);
   }
 
   /** A background task ended while nobody was looking: tell the model, in a turn of its own. The
@@ -960,10 +967,10 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   /** Puts the message in its chat at once, with a reply saying it waits, so the chat exists meanwhile. */
-  function park(chatId: string, content: string, attachments?: Attachment[]) {
+  function park(chatId: string, content: string, attachments?: Attachment[], typedText?: string, agent?: AgentTurn) {
     const existing = host.getSession(chatId);
-    const userMessage: Message = { id: generateId(), role: "user", content, attachments };
-    const held = { replyId: generateId(), stepId: generateId() };
+    const userMessage: Message = { id: generateId(), role: "user", content, attachments, ...(typedText ? { typedText } : {}) };
+    const held = { replyId: generateId(), stepId: generateId(), agent };
     const reply: Message = { id: held.replyId, role: "assistant", content: "", steps: [] };
     parked.set(chatId, held);
 
@@ -979,7 +986,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         id: chatId,
         workspaceId: host.getWorkspaceId(),
         title: content.trim()
-          ? titleFromContent(content, host.t("newDiscussion"))
+          ? titleFromContent(typedText ?? content, host.t("newDiscussion"))
           : attachments && attachments.length > 0
             ? host.t("attachedFiles")
             : host.t("newDiscussion"),
@@ -992,7 +999,15 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
   }
 
   /** Starts the turn, and the conversation if this is its first message. */
-  function deliver(chatId: string, content: string, attachments?: Attachment[], notice?: Message["notice"]) {
+  function deliver(
+    chatId: string,
+    content: string,
+    attachments?: Attachment[],
+    notice?: Message["notice"],
+    typedText?: string,
+    agent?: AgentTurn,
+  ) {
+    chatAgent.set(chatId, agent);
     const existing = host.getSession(chatId);
 
     const userMessage: Message = {
@@ -1001,6 +1016,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       content,
       attachments,
       ...(notice ? { notice } : {}),
+      ...(typedText ? { typedText } : {}),
     };
 
     if (!existing) {
@@ -1008,7 +1024,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
         id: chatId,
         workspaceId: host.getWorkspaceId(),
         title: content.trim()
-          ? titleFromContent(content, host.t("newDiscussion"))
+          ? titleFromContent(typedText ?? content, host.t("newDiscussion"))
           : attachments && attachments.length > 0
             ? host.t("attachedFiles")
             : host.t("newDiscussion"),
@@ -1020,6 +1036,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
 
     void run(chatId, [...(existing?.messages || []), userMessage], {
       waitForFold: true,
+      agent,
     });
   }
 
@@ -1124,13 +1141,13 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       delete resumed.error;
       const messages = [...session.messages.slice(0, failedIdx), resumed];
       host.updateSession(chatId, (s) => ({ ...s, messages }));
-      void run(chatId, messages, { isContinuation: true });
+      void run(chatId, messages, { isContinuation: true, agent: chatAgent.get(chatId) });
       return;
     }
 
     // A question that never got its reply is simply asked again.
     if (at === session.messages.length - 1 && session.messages[at]?.role === "user") {
-      void run(chatId, session.messages, {});
+      void run(chatId, session.messages, { agent: chatAgent.get(chatId) });
       return;
     }
 
@@ -1151,7 +1168,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       host.updateSession(chatId, (s) => ({ ...s, compaction: survived }));
     }
 
-    void run(chatId, next, { isRetry: true });
+    void run(chatId, next, { isRetry: true, agent: chatAgent.get(chatId) });
   }
 
   function editMessage(chatId: string, messageIndex: number, content: string) {
@@ -1170,7 +1187,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
       compaction: compactionSurvives(s.compaction, msgs, messageIndex),
     }));
 
-    void run(chatId, msgs);
+    void run(chatId, msgs, { agent: chatAgent.get(chatId) });
   }
 
   function switchVersion(
@@ -1211,7 +1228,7 @@ export function createTaskManager(initialHost: TaskHost): TaskManager {
     const model = host.getModel();
     if (cut?.canGrow && model) growWindow(chatId, model, cut);
     dismissOutOfContext(chatId);
-    void run(chatId, session.messages, { isContinuation: true });
+    void run(chatId, session.messages, { isContinuation: true, agent: chatAgent.get(chatId) });
   }
 
   async function measure(

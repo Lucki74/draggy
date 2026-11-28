@@ -1,5 +1,6 @@
 import type { ProviderState } from "./ai/providers";
 import type { PriceTable } from "./stats/cost";
+import type { AgentTurn } from "./chat/agentPolicy";
 
 /** Drops one listener from a main-process channel, leaving the others alone. */
 export type Unsubscribe = () => void;
@@ -1039,12 +1040,18 @@ export interface QueuedMessage {
   id: string;
   content: string;
   attachments?: Attachment[];
+  /** The line as typed, when `content` is a command's expanded prompt. */
+  typedText?: string;
+  /** The agent policy resolved when the send was made, reapplied when it runs. */
+  agent?: AgentTurn;
 }
 
 export interface Message {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  /** The line as typed, shown in place of `content` when a command expanded it. */
+  typedText?: string;
   thinkingContent?: string | null;
   textContent?: string;
   attachments?: Attachment[];

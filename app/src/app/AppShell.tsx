@@ -39,7 +39,7 @@ import { generateId, titleFromContent } from "../utils";
 import type { Utterance } from "../voice/conversation";
 import { listInstalledModels } from "../llama";
 import { isRemote } from "../ai/providers";
-import { unregisterGroup } from "../tools/registry";
+import { allToolNames, unregisterGroup } from "../tools/registry";
 import type { ToolEnvironment } from "../tools/registry";
 import { syncMcpTools } from "../tools/mcp";
 import type { McpServerState } from "../tools/mcp";
@@ -90,6 +90,8 @@ import type { FollowUp } from "../research/libraryView";
 import type { AppSettings, Attachment, ChatSession, InstalledSkill, Message, Workspace } from "../types";
 import { nextView, type TranscriptView } from "../chat/transcriptView";
 import { skillsFor } from "../skills/skills";
+import { clearCustomCommands, getCustomCommands, loadCustomCommands } from "../chat/customCommandStore";
+import { startAgentSend } from "../chat/agentPolicy";
 import { sameGeneration, startingEffort, useChatGeneration, type Generation } from "./useChatGeneration";
 import { useImageEngine } from "../images/useImageEngine";
 import { fillComposer } from "../chat/mentions";
@@ -125,6 +127,8 @@ export default function AppShell({
   setUiLanguage(settings.language);
 
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  /** Why the last typed agent command was not sent. Cleared by the next send. */
+  const [agentErrors, setAgentErrors] = useState<string[]>([]);
   const [openedAt] = useState(() => Date.now());
   const [viewMode, setViewMode] = useState<ViewMode>("chat");
   useEffect(() => {
@@ -331,6 +335,16 @@ export default function AppShell({
   }, [defaultWorkspace.id]);
 
   useEffect(refreshLibraryReadiness, [refreshLibraryReadiness, viewMode]);
+
+  useEffect(() => {
+    clearCustomCommands();
+    if (!window.draggy?.files) return;
+    const reload = () => void loadCustomCommands(active.id, active.rootPath);
+    reload();
+    // Files edited outside the app are picked up when the window is focused again.
+    window.addEventListener("focus", reload);
+    return () => window.removeEventListener("focus", reload);
+  }, [active.id, active.rootPath]);
 
   useEffect(() => {
     const api = window.draggy?.skills;
@@ -1443,9 +1457,14 @@ export default function AppShell({
           onNewProject={handleNewProject}
           onOpenProjectMemory={() => void openProjectMemory()}
           onSelectFile={handleOpenFile}
-          onSendMessage={(content, attachments) =>
-            runs.send(currentChatId!, content, attachments)
-          }
+          agentErrors={agentErrors}
+          onSendMessage={(content, attachments, typedText) => {
+            const chatId = currentChatId!;
+            const canUse = async (name: string) => isRemote(name) || (await listInstalledModels()).some((entry) => entry.name === name);
+            void startAgentSend(typedText, getCustomCommands(), active.permissionMode, canUse, allToolNames(), (agent) =>
+              runs.send(chatId, content, attachments, typedText, agent),
+            ).then(setAgentErrors, (error: unknown) => setAgentErrors([String(error)]));
+          }}
           onRegenerateChat={onRegenerateChat}
           onSwitchVersionChat={onSwitchVersionChat}
           onEditMessageChat={onEditMessageChat}
