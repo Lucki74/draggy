@@ -5,7 +5,7 @@ import { CapabilityIcons } from "../providers/CapabilityIcons";
 import { formatBytes } from "../formatBytes";
 import { Icon } from "../ui/icons/Icon";
 import { fill } from "../onboarding/text";
-import { Badge, Block, ConfirmDialog, Group, Page, Row, Select } from "./Controls";
+import { Badge, Block, ConfirmDialog, Group, Page, Row, Select, Toggle } from "./Controls";
 import ModelSearch from "./ModelSearch";
 import CompactLimitField from "./CompactLimitField";
 import DownloadsMenu from "./DownloadsMenu";
@@ -259,6 +259,16 @@ export default function ModelsPage({ manager, settings, chatModel, onUpdate, onS
             t={t}
           />
         </Block>
+      </Group>
+
+      <Group title={t("constrainedToolCalls")}>
+        <Row label={t("constrainedToolCalls")} description={t("constrainedToolCallsHint")}>
+          <Toggle
+            checked={settings.constrainedToolCalls}
+            onChange={(constrainedToolCalls) => onUpdate({ constrainedToolCalls })}
+            label={t("constrainedToolCalls")}
+          />
+        </Row>
       </Group>
     </Page>
   );

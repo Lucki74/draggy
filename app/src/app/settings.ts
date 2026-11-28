@@ -53,6 +53,7 @@ export const defaultSettings: AppSettings = {
   subagentMaxPerTurn: 8,
   codeModel: "",
   planModel: "",
+  constrainedToolCalls: true,
   summaryModel: "",
   codeInstructions: [],
   codeEffort: EFFORT_DEFAULT,

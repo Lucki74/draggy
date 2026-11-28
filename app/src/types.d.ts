@@ -1499,6 +1499,8 @@ export interface AppSettings {
   codeModel: string;
   /** Model that runs plan-mode turns. Blank means the active model. */
   planModel: string;
+  /** Whether a local model's text tool calls are decoded against a grammar of the tools. Off reads them loosely. */
+  constrainedToolCalls: boolean;
   /** Cloud model that folds a long conversation. Blank means the active model. */
   summaryModel: string;
   /** Instructions for every project, kept apart from the chat ones. */

@@ -22,7 +22,9 @@ import {
   mergeMetrics,
   tokenRate,
   needsTextModeTools,
+  grammarRefused,
   noteEngineStart,
+  noteGrammarRefused,
   llamaIsBusy,
   onLlamaWork,
   peekContextSize,
@@ -136,6 +138,7 @@ import {
   type CheckOutcome,
   type ProjectLintConfig,
 } from "./lintLoop";
+import { toolGrammar } from "./toolGrammar";
 import { ContextOverflowError, charsPerToken, fitWire, keepToolResults, readOverflow } from "./contextFit";
 import { loopLimitFor } from "../research/run";
 import { canContinueStop, type HookDecision } from "./hooks";
@@ -1681,7 +1684,12 @@ ${report}` });
       ) {
         llamaMessages.push({ role: "assistant", content: "Answer:\n" });
       }
-      const requestBody = JSON.stringify({
+      // A text-channel reply is decoded against the tools' grammar; an engine that refuses it gets the old parsing.
+      const grammar =
+        !nativeTools && !isRemote(model) && !colibri && settings.constrainedToolCalls !== false && !grammarRefused(model)
+          ? toolGrammar(definitions)
+          : "";
+      const requestFields = {
         model: ggufModelName(model),
         stream: true,
         stream_options: { include_usage: true },
@@ -1700,23 +1708,34 @@ ${report}` });
         ...(nativeTools ? { tools: definitions } : {}),
         // llama-server answers with one call per reply unless told otherwise; a provider's models already do several.
         ...(nativeTools && !isRemote(model) ? { parallel_tool_calls: true } : {}),
-      });
+      };
+      const plainBody = JSON.stringify(requestFields);
+      const requestBody = grammar ? JSON.stringify({ ...requestFields, grammar }) : plainBody;
 
       // A dropped connection or an engine that is still starting is tried again before the turn fails.
       const stream = await withRetries(
         async () => {
           let attempt: Response;
           try {
-            attempt = await loggedFetch(
-              chatEndpoint(model),
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: requestBody,
-                signal: loopController.signal,
-              },
-              correlationId,
-            );
+            const post = (body: string) =>
+              loggedFetch(
+                chatEndpoint(model),
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body,
+                  signal: loopController.signal,
+                },
+                correlationId,
+              );
+            attempt = await post(requestBody);
+            // A 400 is retried once without the grammar. Only a retry that succeeds blames the grammar,
+            // and an overflow is not the grammar's doing, so it is not retried.
+            if (!attempt.ok && attempt.status === 400 && grammar && readOverflow(await attempt.clone().text()) === null) {
+              const plain = await post(plainBody);
+              if (plain.ok) noteGrammarRefused(model);
+              attempt = plain;
+            }
           } catch (error) {
             // A refused connection is a TypeError; an abort must keep its own name so stopping stays quiet.
             if (error instanceof TypeError) {

@@ -74,6 +74,7 @@ const SETTINGS = {
   searxngUrl: "",
   codeModel: "",
   planModel: "",
+  constrainedToolCalls: true,
   summaryModel: "",
   codeInstructions: [],
   codeEffort: "medium",
